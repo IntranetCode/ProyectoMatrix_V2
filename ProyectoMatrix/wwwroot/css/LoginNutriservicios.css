@@ -1,0 +1,113 @@
+﻿:root {
+    /*--color-primario: #ee7623; /* Color principal naranja basado en la imagen */
+    --color-primario: #102542; /* Color principal naranja basado en la imagen */
+    --color-secundario: #ff8a50; /* Naranja más claro */
+    --color-terciario: #d85a00; /* Naranja más oscuro */
+}
+
+body.login-body {
+    /* Gradiente tropical con tonos naranjas y cálidos */
+    background: #102542; /*linear-gradient(135deg, #ff6b35 0%, #f7931e 25%, #ee7623 50%, #ff8a50 75%, #ffb347 100%);*/
+    /* Alternativa más sutil con tonos coral */
+    /* background: linear-gradient(135deg, #ff7849 0%, #ee7623 50%, #ff6b35 100%); */
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+    min-height: 100vh;
+    font-family: 'Montserrat', Arial, sans-serif;
+}
+
+/* Animación sutil del gradiente */
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.login-card {
+    max-width: 400px;
+    width: 100%;
+    border: none;
+    border-radius: 1.5rem;
+    box-shadow: 0 8px 32px rgba(238, 118, 35, 0.15);
+    background: rgba(255, 255, 255, 0.95); /* Semi-transparente para que se vea el fondo */
+    backdrop-filter: blur(10px); /* Efecto de cristal esmerilado */
+    transition: box-shadow 0.3s, transform 0.3s;
+    border: 1px solid rgba(238, 118, 35, 0.1); /* Sutil borde naranja */
+}
+
+    .login-card:hover {
+        box-shadow: 0 12px 40px rgba(238, 118, 35, 0.25);
+        transform: translateY(-2px);
+    }
+
+.text-primary {
+    color: #ee7623 !important;
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, #ee7623, #ff8a50);
+    border-color: #ee7623;
+    transition: background 0.2s, border 0.2s, transform 0.2s;
+    font-weight: 600;
+}
+
+    .btn-primary:hover, .btn-primary:focus {
+        background: linear-gradient(45deg, #d85a00, #ee7623);
+        border-color: #d85a00;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(238, 118, 35, 0.3);
+    }
+
+.form-control:focus {
+    border-color: #ee7623;
+    box-shadow: 0 0 0 0.2rem rgba(238, 118, 35, 0.15);
+}
+
+.form-floating > label {
+    color: #ee7623;
+    font-weight: 600;
+}
+
+/* Actualizar color de alerta para mantener armonía */
+.alert-danger {
+    border-left: 5px solid #e53935;
+    background: linear-gradient(90deg, #ffebee, #fff5f5);
+    color: #b71c1c;
+}
+
+/* Agregar algunos toques tropicales adicionales */
+.login-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #ff6b35, #ee7623, #ff8a50);
+    border-radius: 1.5rem 1.5rem 0 0;
+}
+
+/* Efecto de brillo sutil en los inputs al focus */
+.form-control:focus {
+    border-color: #ee7623;
+    box-shadow: 0 0 0 0.2rem rgba(238, 118, 35, 0.15), 0 0 10px rgba(238, 118, 35, 0.1);
+}
+
+@media (max-width: 500px) {
+    .login-card {
+        padding: 2rem 1rem;
+        border-radius: 1rem;
+    }
+
+        .login-card::before {
+            border-radius: 1rem 1rem 0 0;
+        }
+}

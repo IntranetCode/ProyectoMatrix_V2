@@ -1,0 +1,134 @@
+﻿@*
+@model List<ProyectoMatrix.Models.MenuItemViewModel>
+@{
+    Layout = null;
+    ViewData["Title"] = "Bienvenido";
+    var random = new Random();
+    //var nombreUsuario = "Juan Pérez"; // Puedes reemplazar esto dinámicamente
+    var nombreUsuario = Context.Session.GetString("Username") ?? "Invitado";
+
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>@ViewData["Title"]</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .sidebar {
+            background-color: #f8f9fa;
+        }
+
+        .sidebar .accordion-button {
+            background-color: #f8f9fa;
+            font-weight: 500;
+        }
+
+        .sidebar .accordion-button:hover {
+            background-color: #e2e6ea;
+        }
+
+        .sidebar .accordion-body a:hover {
+            background-color: #e9ecef;
+            color: #0d6efd;
+        }
+
+        .main-content {
+            background-color: #ffffff;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+
+        .navbar-custom {
+            background-color: #0d6efd;
+        }
+
+        .navbar-custom .navbar-brand,
+        .navbar-custom .nav-link,
+        .navbar-custom .navbar-text {
+            color: #fff;
+        }
+
+        .navbar-custom .nav-link:hover {
+            color: #dbe9ff;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <!-- Navbar superior -->
+    <nav class="navbar navbar-expand-lg navbar-custom shadow-sm">
+        <div class="container-fluid">
+            <span class="navbar-brand"><i class="fas fa-home me-2"></i>Panel Principal</span>
+            <div class="d-flex ms-auto align-items-center">
+                <span class="navbar-text me-3">
+                    <i class="fas fa-user-circle me-1"></i> @nombreUsuario
+                </span>
+                <a href="/Menu/Logout" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-sign-out-alt me-1"></i> Cerrar sesión
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row min-vh-100">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar border-end shadow-sm p-0">
+                <div class="p-3 border-bottom bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-bars me-2"></i>Menú de Usuario</h5>
+                </div>
+                <div class="accordion accordion-flush" id="menuAccordion">
+                    @foreach (var item in Model)
+                    {
+                        var collapseId = "collapse" + random.Next(1000, 9999);
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading@collapseId">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId">
+                                    <i class="fas fa-folder me-2 text-secondary"></i>@item.NombrePermiso
+                                </button>
+                            </h2>
+                            <div id="@collapseId" class="accordion-collapse collapse" aria-labelledby="heading@collapseId" data-bs-parent="#menuAccordion">
+                                <div class="accordion-body py-1">
+                                    <ul class="list-unstyled ps-3 mb-0">
+                                        @foreach (var accion in item.Acciones)
+                                        {
+                                            <li class="mb-1">
+                                                <a href="#" class="text-decoration-none text-dark d-block py-1 px-2 rounded">
+                                                    <i class="fas fa-angle-right me-2 text-muted"></i>@accion
+                                                </a>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-5 py-4">
+                <div class="main-content p-4">
+                    <h1 class="display-6 text-primary">Bienvenido</h1>
+                    <p class="lead text-muted">Selecciona una opción del menú para continuar.</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+*@
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}

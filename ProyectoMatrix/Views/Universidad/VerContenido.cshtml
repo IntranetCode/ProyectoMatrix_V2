@@ -1,0 +1,244 @@
+﻿@using ProyectoMatrix.Models
+@model ContenidoEducativo
+
+@{
+    ViewData["Title"] = Model.Titulo;
+    Layout = "~/Views/Shared/_Colaborador.cshtml";
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@Model.Titulo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: #f9fafb;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .pdf-header {
+            background-color: #1e3a8a;
+            color: #fff;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            flex-wrap: wrap;
+        }
+
+        .pdf-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0;
+            flex: 1 1 auto;
+            min-width: 200px;
+        }
+
+        .pdf-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            background-color: #2563eb;
+            border: none;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background-color 0.3s ease;
+            text-decoration: none;
+            user-select: none;
+        }
+
+            .btn-action:hover,
+            .btn-action:focus {
+                background-color: #1d4ed8;
+                outline: none;
+            }
+
+            .btn-action i {
+                font-size: 1.1rem;
+            }
+
+        .pdf-info {
+            background-color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            color: #555;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+            .pdf-info div {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                min-width: 160px;
+            }
+
+            .pdf-info i {
+                color: #2563eb;
+                font-size: 1.2rem;
+            }
+
+        #contenido {
+            flex: 1 1 auto;
+            padding: 2rem;
+            background: white;
+            box-shadow: 0 0 12px rgba(0,0,0,0.05);
+            margin: 1rem 2rem 2rem 2rem;
+            border-radius: 8px;
+            min-height: 70vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .pdf-container {
+            width: 100%;
+            height: 80vh;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        iframe {
+            border-radius: 8px;
+        }
+
+        .error-message {
+            color: #b91c1c;
+            text-align: center;
+            max-width: 400px;
+        }
+
+            .error-message h3 {
+                margin-top: 0.5rem;
+                font-weight: 700;
+            }
+
+            .error-message p {
+                font-size: 1rem;
+                margin-top: 0;
+            }
+
+        @@media (max-width: 768px) {
+            .pdf-header
+
+        {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .pdf-actions {
+            justify-content: flex-start;
+            width: 100%;
+        }
+
+        .pdf-info {
+            justify-content: flex-start;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        #contenido {
+            margin: 1rem;
+            padding: 1rem;
+        }
+
+        }
+    </style>
+</head>
+<body>
+    <header class="pdf-header" role="banner">
+        <h1 class="pdf-title">@Model.Titulo</h1>
+
+        @if (Model.TipoContenido == "PDF" && !string.IsNullOrEmpty(Model.ArchivoRuta))
+        {
+            <nav class="pdf-actions" role="navigation" aria-label="Acciones del contenido">
+                <a href="@Url.Action("DescargarArchivo", new { id = Model.ContenidoID })" class="btn-action" target="_blank" rel="noopener">
+                    <i class="fas fa-download" aria-hidden="true"></i> Descargar
+                </a>
+                <button onclick="window.print()" class="btn-action" aria-label="Imprimir contenido">
+                    <i class="fas fa-print" aria-hidden="true"></i> Imprimir
+                </button>
+                <button onclick="window.close()" class="btn-action" aria-label="Cerrar ventana">
+                    <i class="fas fa-times" aria-hidden="true"></i> Cerrar
+                </button>
+            </nav>
+        }
+    </header>
+
+    <section class="pdf-info" aria-live="polite">
+        <!--        <div><i class="fas fa-user"></i> Creado por: <strong>@Model.CreadoPor</strong></div>-->
+        <div><i class="fas fa-calendar"></i> Fecha: <strong>@Model.FechaCreacion.ToString("dd/MM/yyyy")</strong></div>
+        <div><i class="fas fa-file"></i> Tamaño: <strong>@Model.TamanoArchivo.FormatearTamano()</strong></div>
+        
+    </section>
+
+    <main id="contenido" role="main">
+        @if (Model.TipoContenido == "PDF" && !string.IsNullOrEmpty(Model.ArchivoRuta))
+        {
+            <iframe src="@Url.Content("~/" + Model.ArchivoRuta)" class="pdf-container" title="Visualización del PDF"></iframe>
+
+        }
+        else if (Model.TipoContenido == "Video" && !string.IsNullOrEmpty(Model.UrlVideo))
+        {
+            <div style="width:100%; max-width:900px;">
+                <iframe width="100%" height="500"
+                        src="https://www.youtube.com/embed/@Model.UrlVideo"
+                        title="Video educativo"
+                        frameborder="0"
+                        allowfullscreen
+                        loading="lazy">
+                </iframe>
+            </div>
+        }
+        else if (Model.TipoContenido == "Presentacion" && !string.IsNullOrEmpty(Model.ArchivoRuta))
+        {
+            <iframe src="@Model.ArchivoRuta" class="pdf-container" title="Visualización de la presentación"></iframe>
+        }
+        else
+        {
+            <div class="error-message" role="alert">
+                <i class="fas fa-exclamation-triangle fa-3x" aria-hidden="true" style="color:#b91c1c;"></i>
+                <h3>Contenido no disponible</h3>
+                <p>No se pudo cargar el contenido. Verifica que esté correctamente configurado.</p>
+            </div>
+        }
+    </main>
+
+    <script>
+        fetch('/Universidad/RegistrarVisualizacion', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+            },
+            body: JSON.stringify({ id: @Model.ContenidoID })
+        }).catch(console.error);
+    </script>
+</body>
+</html>

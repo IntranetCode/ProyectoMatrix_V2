@@ -1,0 +1,150 @@
+﻿body {
+    font-family: 'Montserrat', sans-serif;
+    margin: 0;
+    padding: 0;
+    transition: background 0.5s ease, color 0.5s ease;
+}
+
+/* Loader */
+.loader-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loader {
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #004AAD;
+    border-radius: 50%;
+    width: 70px;
+    height: 70px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Animación de entrada */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade {
+    animation: fadeInUp 0.6s ease-in-out;
+}
+
+/* Encabezado */
+.header-bar {
+    background-color: #004AAD;
+    padding: 2rem 1rem;
+    color: white;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+/* Subtítulo */
+.subtitulo {
+    font-size: 1.2rem;
+    color: #333;
+    text-align: center;
+    margin-top: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Contenedor */
+.empresa-container {
+    padding: 0 2rem 3rem;
+}
+
+/* Tarjeta de empresa */
+.empresa-card {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    padding: 15px;
+    width: 100%;
+    max-width: 230px;
+}
+
+    .empresa-card:hover {
+        transform: scale(1.07);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .empresa-card:active {
+        transform: scale(0.98);
+    }
+
+/* Logo */
+.empresa-logo {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* Footer */
+.footer-bar {
+    background-color: #f1f1f1;
+    padding: 1rem;
+    position: relative;
+    bottom: 0;
+    width: 100%;
+}
+
+/* Modo oscuro */
+.dark-mode {
+    background: #121212;
+    color: #eeeeee;
+}
+
+    .dark-mode .header-bar {
+        background-color: #222;
+        color: #fff;
+    }
+
+    .dark-mode .subtitulo {
+        color: #ccc;
+    }
+
+    .dark-mode .empresa-card {
+        background-color: #1e1e1e;
+        border-color: #333;
+    }
+
+    .dark-mode .footer-bar {
+        background-color: #1a1a1a;
+        color: #999;
+    }
+
+/* Modo claro */
+.light-mode {
+    background: linear-gradient(to right, #f4f6f8, #e8ecf1);
+    color: #222;
+}

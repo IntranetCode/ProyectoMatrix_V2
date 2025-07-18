@@ -1,0 +1,1800 @@
+﻿@*
+@using ProyectoMatrix.Models
+@model UniversidadNivelViewModel
+@{
+    ViewBag.Title = "Portal Colaborador - Universidad";
+    Layout = "~/Views/Shared/_Colaborador.cshtml";
+
+}
+
+<style>
+    /* SOLO eliminar el espacio lateral - MANTENER EL TOPBAR */
+    .sidebar-left,
+    .main-sidebar,
+    .sidebar,
+    .left-side,
+    .sidebar-menu,
+    .control-sidebar,
+    aside {
+        display: none !important;
+        width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        visibility: hidden !important;
+    }
+
+    /* Ajustar el contenido principal para ocupar TODO el ancho */
+    .content-wrapper,
+    .main-content,
+    .content,
+    .wrapper {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Forzar que el body ocupe toda la pantalla horizontalmente */
+    body.layout-fixed .wrapper,
+    body.layout-navbar-fixed .wrapper,
+    .wrapper {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
+
+    /* Contenedor principal de la página */
+    .colaborador-container {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: calc(100vh - 60px); /* Ajustar para dejar espacio al topbar */
+    }
+
+    /* Resetear containers de Bootstrap */
+    .container-fluid {
+        padding-left: 15px !important;
+        padding-right: 15px !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+
+    .row {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    /* Header con gráfica de progreso */
+    .main-header {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(15px);
+        color: white;
+        padding: 30px 0;
+    }
+
+    .progress-dashboard {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Gráfica de dona */
+    .progress-chart-container {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        margin: 0 auto;
+    }
+
+    .progress-chart {
+        transform: rotate(-90deg);
+    }
+
+    .progress-circle-bg {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.2);
+        stroke-width: 12;
+    }
+
+    .progress-circle-fill {
+        fill: none;
+        stroke: #28a745;
+        stroke-width: 12;
+        stroke-linecap: round;
+        stroke-dasharray: 0 628;
+        transition: stroke-dasharray 2s ease-in-out;
+        animation: progressAnimation 2s ease-in-out;
+    }
+
+    .progress-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: white;
+    }
+
+    .progress-percentage {
+        font-size: 2.5rem;
+        font-weight: bold;
+        line-height: 1;
+        margin-bottom: 5px;
+    }
+
+    .progress-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    @@keyframes progressAnimation {
+        from
+
+    {
+        stroke-dasharray: 0 628;
+    }
+
+    }
+
+    /* Estadísticas */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-top: 30px;
+    }
+
+    .stat-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+        opacity: 0.8;
+    }
+
+    /* Barra de navegación flotante sticky */
+    .nivel-nav-sticky {
+        position: sticky;
+        top: 0;
+        z-index: 1030;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 15px 0;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    /* Botones de nivel flotantes en la barra sticky */
+    .nivel-btn {
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 2px solid transparent;
+        border-radius: 50px;
+        padding: 12px 30px;
+        margin: 0 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .nivel-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .nivel-btn:hover::before {
+            left: 100%;
+        }
+
+        .nivel-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .nivel-btn.active {
+            transform: scale(1.05);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+
+    .nivel-junior {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+    }
+
+    .nivel-senior {
+        background: linear-gradient(135deg, #ffc107, #fd7e14);
+        color: white;
+    }
+
+    .nivel-master {
+        background: linear-gradient(135deg, #dc3545, #e83e8c);
+        color: white;
+    }
+
+    /* Responsive para botones */
+    @@media (max-width: 768px) {
+        .nivel-btn
+
+    {
+        margin: 5px;
+        padding: 10px 20px;
+        font-size: 0.9rem;
+    }
+
+    .nivel-nav-sticky {
+        padding: 10px 0;
+    }
+
+    .progress-chart-container {
+        width: 150px;
+        height: 150px;
+    }
+
+    .progress-percentage {
+        font-size: 2rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .main-header {
+        padding: 20px 0;
+    }
+
+    .progress-dashboard {
+        padding: 20px;
+    }
+
+    }
+
+    @@media (max-width: 576px) {
+        .nivel-btn
+
+    {
+        display: block;
+        margin: 5px auto;
+        width: 80%;
+        text-align: center;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    }
+
+    /* Sección de contenido principal */
+    .content-section {
+        background: white;
+        min-height: calc(100vh - 400px);
+        padding: 40px 0;
+        margin-top: 0;
+    }
+
+    /* Estilos para las tarjetas de cursos */
+    .curso-card {
+        transition: all 0.3s ease;
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        background: white;
+    }
+
+        .curso-card:hover {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            transform: translateY(-5px);
+        }
+
+    .progress-custom {
+        height: 8px;
+        border-radius: 4px;
+        background: #f8f9fa;
+    }
+
+    .section-title {
+        color: #495057;
+        border-bottom: 3px solid #007bff;
+        padding-bottom: 15px;
+        margin-bottom: 40px;
+        font-weight: 600;
+    }
+
+    /* Animaciones de entrada */
+    .fade-in {
+        animation: fadeInUp 0.6s ease forwards;
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    @@keyframes fadeInUp {
+        to
+
+    {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+
+    /* Estilo para mensaje vacío */
+    .empty-state {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 20px;
+        padding: 60px 30px;
+        text-align: center;
+        border: 2px dashed #dee2e6;
+    }
+
+    /* Estilos adicionales para mejor compatibilidad */
+    .ripple {
+        position: absolute !important;
+        border-radius: 50% !important;
+        background: rgba(255,255,255,0.6) !important;
+        transform: scale(0) !important;
+        animation: ripple 0.6s linear !important;
+        pointer-events: none !important;
+    }
+
+    /* Mejoras responsive adicionales */
+    @@media (max-width: 480px) {
+        .main-header h2
+
+    {
+        font-size: 1.5rem !important;
+    }
+
+    .nivel-btn {
+        font-size: 0.8rem !important;
+        padding: 8px 16px !important;
+    }
+
+    .section-title {
+        font-size: 1.3rem !important;
+    }
+
+    .curso-card .card-title {
+        font-size: 1.1rem !important;
+    }
+
+    }
+</style>
+
+<div class="colaborador-container">
+    <!-- Header Principal con Dashboard de Progreso -->
+    <div class="main-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <h2 class="mb-4 text-center">🎓 Portal de Capacitación</h2>
+                </div>
+            </div>
+
+            <!-- Dashboard de Progreso -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="progress-dashboard">
+                        <div class="row align-items-center">
+                            <div class="col-lg-6 text-center">
+                                <div class="progress-chart-container">
+                                    <svg class="progress-chart" width="200" height="200" viewBox="0 0 200 200">
+                                        <circle cx="100" cy="100" r="90" class="progress-circle-bg"></circle>
+                                        <circle cx="100" cy="100" r="90" class="progress-circle-fill" id="progressCircle"></circle>
+                                    </svg>
+                                    <div class="progress-text">
+                                        <div class="progress-percentage" id="progressPercentage">0%</div>
+                                        <div class="progress-label">Completado</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="stats-grid">
+                                    <div class="stat-card">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-check-circle text-success"></i>
+                                        </div>
+                                        <div class="stat-number" id="cursosCompletados">0</div>
+                                        <div class="stat-label">Completados</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-clock text-warning"></i>
+                                        </div>
+                                        <div class="stat-number" id="cursosEnProgreso">0</div>
+                                        <div class="stat-label">En Progreso</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-play text-info"></i>
+                                        </div>
+                                        <div class="stat-number" id="cursosPendientes">0</div>
+                                        <div class="stat-label">Pendientes</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12 text-center">
+                                <p class="mb-0">Bienvenido, <strong>@User.Identity.Name</strong> - Selecciona tu nivel y accede a los cursos disponibles</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Navegación Flotante Sticky -->
+    <div class="nivel-nav-sticky">
+        <div class="container-fluid">
+            <div class="row justify-content-center">
+                <div class="col-12 text-center">
+                    @using (Html.BeginForm("IndexColaboradorPost", "Universidad", FormMethod.Post, new { @class = "d-inline" }))
+                    {
+                        <input type="hidden" name="nivel" value="JUNIOR" />
+                        <button type="submit" class="btn nivel-btn nivel-junior @(Model?.NivelSeleccionado == "JUNIOR" ? "active" : "")">
+                            <i class="fas fa-seedling mr-2"></i>Junior
+                        </button>
+                    }
+
+                    @using (Html.BeginForm("IndexColaboradorPost", "Universidad", FormMethod.Post, new { @class = "d-inline" }))
+                    {
+                        <input type="hidden" name="nivel" value="SENIOR" />
+                        <button type="submit" class="btn nivel-btn nivel-senior @(Model?.NivelSeleccionado == "SENIOR" ? "active" : "")">
+                            <i class="fas fa-user-tie mr-2"></i>Senior
+                        </button>
+                    }
+
+                    @using (Html.BeginForm("IndexColaboradorPost", "Universidad", FormMethod.Post, new { @class = "d-inline" }))
+                    {
+                        <input type="hidden" name="nivel" value="MASTER" />
+                        <button type="submit" class="btn nivel-btn nivel-master @(Model?.NivelSeleccionado == "MASTER" ? "active" : "")">
+                            <i class="fas fa-crown mr-2"></i>Master
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de Contenido Principal -->
+    <div class="content-section">
+        <div class="container-fluid">
+            <!-- Sección de Cursos por Nivel Seleccionado -->
+            @if (!string.IsNullOrEmpty(Model?.NivelSeleccionado))
+            {
+                <div class="row">
+                    <div class="col-12">
+                        <h3 class="section-title text-center">
+                            <i class="fas fa-graduation-cap mr-3"></i>
+                            Cursos disponibles para nivel @Model.NivelSeleccionado
+                        </h3>
+                    </div>
+                </div>
+
+                @if (Model.Cursos != null && Model.Cursos.Any())
+                {
+                    <div class="row">
+                        @{
+                            int index = 0;
+                        }
+                        @foreach (var curso in Model.Cursos)
+                        {
+                            <div class="col-lg-4 col-md-6 mb-4">
+                                <div class="card curso-card h-100 fade-in" style="animation-delay: @(index * 0.1)s;">
+                                    <div class="card-body d-flex flex-column">
+                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                            <h5 class="card-title mb-0 text-primary">@curso.NombreCurso</h5>
+                                            <span class="badge badge-pill @(Model.NivelSeleccionado == "JUNIOR" ? "badge-success" : Model.NivelSeleccionado == "SENIOR" ? "badge-warning" : "badge-danger")">
+                                                @Model.NivelSeleccionado
+                                            </span>
+                                        </div>
+
+                                        <p class="card-text text-muted flex-grow-1">
+                                            @curso.Descripcion
+                                        </p>
+
+                                        @if (curso.Progreso.HasValue)
+                                        {
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <small class="text-muted font-weight-bold">Progreso</small>
+                                                    <small class="text-muted">@curso.Progreso.Value%</small>
+                                                </div>
+                                                <div class="progress progress-custom">
+                                                    <div class="progress-bar @(curso.Progreso.Value >= 100 ? "bg-success" : curso.Progreso.Value >= 50 ? "bg-warning" : "bg-info")"
+                                                         role="progressbar"
+                                                         style="width: @curso.Progreso.Value%"
+                                                         aria-valuenow="@curso.Progreso.Value"
+                                                         aria-valuemin="0"
+                                                         aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+
+                                        <div class="mt-auto">
+                                            @if (curso.Progreso.HasValue && curso.Progreso.Value >= 100)
+                                            {
+                                                <a href="@Url.Action("VerContenido", "Universidad", new { id = curso.CursoID })"
+                                                   class="btn btn-success btn-block btn-lg">
+                                                    <i class="fas fa-check-circle mr-2"></i>
+                                                    Curso Completado
+                                                </a>
+                                            }
+                                            else if (curso.Progreso.HasValue && curso.Progreso.Value > 0)
+                                            {
+                                                <a href="@Url.Action("VerContenido", "Universidad", new { id = curso.CursoID })"
+                                                   class="btn btn-warning btn-block btn-lg">
+                                                    <i class="fas fa-play-circle mr-2"></i>
+                                                    Continuar Curso
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <a href="@Url.Action("ComenzarCurso", "Universidad", new { id = curso.CursoID })"
+                                                   class="btn btn-primary btn-block btn-lg">
+                                                    <i class="fas fa-play mr-2"></i>
+                                                    Comenzar Curso
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            index++;
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="empty-state fade-in">
+                                <i class="fas fa-book-open fa-4x text-muted mb-4"></i>
+                                <h4 class="text-muted">No hay cursos disponibles</h4>
+                                <p class="text-muted mb-0">
+                                    Actualmente no hay cursos disponibles para el nivel <strong>@Model.NivelSeleccionado</strong>.<br>
+                                    Pronto se añadirán nuevos cursos. ¡Mantente atento!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <!-- Estado inicial - sin nivel seleccionado -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="empty-state fade-in">
+                            <i class="fas fa-arrow-up fa-4x text-primary mb-4"></i>
+                            <h4 class="text-primary">¡Comienza tu capacitación!</h4>
+                            <p class="text-muted mb-0">
+                                Selecciona tu nivel de capacitación en los botones de arriba<br>
+                                para ver los cursos disponibles.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Calcular estadísticas de progreso
+            function calcularProgreso() {
+                @if (Model?.Cursos != null && Model.Cursos.Any())
+                {
+                        <text>
+                        // Datos de cursos desde el servidor
+                        var completados = 0;
+                        var enProgreso = 0;
+                        var pendientes = 0;
+                        var totalProgreso = 0;
+                        var totalCursos = 0;
+
+                        @foreach (var curso in Model.Cursos)
+                        {
+                                var progreso = curso.Progreso ?? 0;
+                                <text>
+                                totalCursos++;
+                                totalProgreso += @progreso;
+
+                                @if (progreso >= 100)
+                                {
+                                        <text>completados++;</text>
+                                }
+                                else if (progreso > 0)
+                                {
+                                        <text>enProgreso++;</text>
+                                }
+                                else
+                                {
+                                        <text>pendientes++;</text>
+                                }
+                                </text>
+                        }
+
+                        var promedioProgreso = totalCursos > 0 ? Math.round(totalProgreso / totalCursos) : 0;
+
+                        // Actualizar interfaz
+                        $('#cursosCompletados').text(completados);
+                        $('#cursosEnProgreso').text(enProgreso);
+                        $('#cursosPendientes').text(pendientes);
+                        $('#progressPercentage').text(promedioProgreso + '%');
+
+                        // Animar círculo de progreso
+                        var circumference = 2 * Math.PI * 90;
+                        var offset = circumference - (promedioProgreso / 100) * circumference;
+                        $('#progressCircle').css('stroke-dasharray', circumference + ' ' + circumference);
+
+                        setTimeout(function() {
+                            $('#progressCircle').css('stroke-dashoffset', offset);
+                        }, 500);
+                        </text>
+                }
+                else
+                {
+                        <text>
+                        // Sin cursos disponibles
+                        $('#cursosCompletados').text('0');
+                        $('#cursosEnProgreso').text('0');
+                        $('#cursosPendientes').text('0');
+                        $('#progressPercentage').text('0%');
+                        </text>
+                }
+            }
+
+            // Ejecutar cálculo de progreso
+            calcularProgreso();
+
+            // Smooth scroll automático a la sección de cursos cuando se selecciona un nivel
+            @if (!string.IsNullOrEmpty(Model?.NivelSeleccionado))
+            {
+                    <text>
+                    setTimeout(function() {
+                        $('html, body').animate({
+                            scrollTop: $('.content-section').offset().top - 100
+                        }, 800, 'easeInOutQuart');
+                    }, 300);
+                    </text>
+            }
+
+            // Animación de entrada escalonada para las tarjetas
+            $('.fade-in').each(function(index) {
+                $(this).css({
+                    'animation-delay': (index * 0.1) + 's'
+                });
+            });
+
+            // Efecto hover mejorado para botones de nivel
+            $('.nivel-btn').hover(
+                function() {
+                    $(this).addClass('shadow-lg');
+                    $(this).find('i').addClass('fa-bounce');
+                },
+                function() {
+                    $(this).removeClass('shadow-lg');
+                    $(this).find('i').removeClass('fa-bounce');
+                }
+            );
+
+            // Efecto de ripple en los botones
+            $('.nivel-btn').on('click', function(e) {
+                var ripple = $('<span class="ripple"></span>');
+                var size = Math.max($(this).width(), $(this).height());
+                var x = e.pageX - $(this).offset().left - size / 2;
+                var y = e.pageY - $(this).offset().top - size / 2;
+
+                ripple.css({
+                    width: size,
+                    height: size,
+                    left: x,
+                    top: y,
+                    position: 'absolute',
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.6)',
+                    transform: 'scale(0)',
+                    animation: 'ripple 0.6s linear',
+                    pointerEvents: 'none'
+                }).appendTo(this);
+
+                setTimeout(function() {
+                    ripple.remove();
+                }, 600);
+            });
+
+            // Loading animation para botones
+            $('.nivel-btn').on('click', function() {
+                var $this = $(this);
+                var originalText = $this.html();
+
+                $this.html('<i class="fas fa-spinner fa-spin mr-2"></i>Cargando...');
+                $this.prop('disabled', true);
+
+                // Simular delay de carga
+                setTimeout(function() {
+                    $this.closest('form')[0].submit();
+                }, 500);
+            });
+        });
+
+        // CSS para animación de ripple y bounce
+        $('<style>')
+            .prop('type', 'text/css')
+            .html(`
+                @@keyframes ripple {
+                    to {
+                        transform: scale(4);
+                        opacity: 0;
+                    }
+                }
+
+                .nivel-btn {
+                    position: relative;
+                    overflow: hidden;
+                }
+
+                .fa-bounce {
+                    animation: bounce 1s infinite;
+                }
+
+                @@keyframes bounce {
+                    0%, 20%, 60%, 100% {
+                        transform: translateY(0);
+                    }
+                    40% {
+                        transform: translateY(-10px);
+                    }
+                    80% {
+                        transform: translateY(-5px);
+                    }
+                }
+            `)
+            .appendTo('head');
+    </script>
+}
+*@
+@using ProyectoMatrix.Models
+@model UniversidadNivelViewModel
+@{
+    ViewBag.Title = "Portal Colaborador - Universidad";
+    Layout = "~/Views/Shared/_Colaborador.cshtml";
+
+}
+
+<style>
+    /* SOLO eliminar el espacio lateral - MANTENER EL TOPBAR */
+    .sidebar-left,
+    .main-sidebar,
+    .sidebar,
+    .left-side,
+    .sidebar-menu,
+    .control-sidebar,
+    aside {
+        display: none !important;
+        width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        visibility: hidden !important;
+    }
+
+    /* Ajustar el contenido principal para ocupar TODO el ancho */
+    .content-wrapper,
+    .main-content,
+    .content,
+    .wrapper {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Forzar que el body ocupe toda la pantalla horizontalmente */
+    body.layout-fixed .wrapper,
+    body.layout-navbar-fixed .wrapper,
+    .wrapper {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
+
+    /* FORZAR el fondo de universidad con máxima especificidad */
+    .colaborador-container {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #667eea url('/Imagenes/logo-universidad-ns.png') no-repeat center center !important;
+        /* CAMBIAR EL TAMAÑO DE LA IMAGEN AQUÍ: */
+        /*background-size: 400px 400px !important; /* Cambia estos valores para el tamaño deseado */
+        /*background-size: cover !important;*/
+        /*background-size: contain !important;*/
+        background-size: 900px 600px !important;
+        /* Otras opciones de tamaño:
+                   background-size: 300px 300px !important;  - Más pequeña
+                   background-size: 600px 600px !important;  - Más grande
+                   background-size: contain !important;      - Imagen completa visible
+                   background-size: cover !important;        - Imagen que cubra todo
+                */
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+        background-attachment: fixed !important;
+        min-height: calc(100vh - 60px) !important;
+        position: relative !important;
+    }
+
+        /* Overlay transparente para el fondo */
+        .colaborador-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.5)) !important;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Forzar que todo el contenido esté encima del overlay */
+        .colaborador-container > * {
+            position: relative !important;
+            z-index: 10 !important;
+        }
+
+    /* Resetear containers de Bootstrap */
+    .container-fluid {
+        padding-left: 15px !important;
+        padding-right: 15px !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+
+    .row {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    /* Header con gráfica de progreso - Mejorado para imagen de fondo */
+    .main-header {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(15px);
+        color: white;
+        padding: 30px 0;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .progress-dashboard {
+        background: rgba(255, 255, 255, 0.25);
+        backdrop-filter: blur(15px);
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Gráfica de dona */
+    .progress-chart-container {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        margin: 0 auto;
+    }
+
+    .progress-chart {
+        transform: rotate(-90deg);
+    }
+
+    .progress-circle-bg {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.2);
+        stroke-width: 12;
+    }
+
+    .progress-circle-fill {
+        fill: none;
+        stroke: #28a745;
+        stroke-width: 12;
+        stroke-linecap: round;
+        stroke-dasharray: 0 628;
+        transition: stroke-dasharray 2s ease-in-out;
+        animation: progressAnimation 2s ease-in-out;
+    }
+
+    .progress-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: white;
+    }
+
+    .progress-percentage {
+        font-size: 2.5rem;
+        font-weight: bold;
+        line-height: 1;
+        margin-bottom: 5px;
+    }
+
+    .progress-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    @@keyframes progressAnimation {
+        from {
+            stroke-dasharray: 0 628;
+        }
+    }
+
+    /* Estadísticas */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-top: 30px;
+    }
+
+    .stat-card {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(10px);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 5px;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.9);
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+        opacity: 0.8;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Barra de navegación flotante sticky */
+    .nivel-nav-sticky {
+        position: sticky;
+        top: 0;
+        z-index: 1030;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 15px 0;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    /* Botones de nivel flotantes en la barra sticky */
+    .nivel-btn {
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 2px solid transparent;
+        border-radius: 50px;
+        padding: 12px 30px;
+        margin: 0 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .nivel-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .nivel-btn:hover::before {
+            left: 100%;
+        }
+
+        .nivel-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .nivel-btn.active {
+            transform: scale(1.05);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+
+    .nivel-junior {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+    }
+
+    .nivel-senior {
+        background: linear-gradient(135deg, #ffc107, #fd7e14);
+        color: white;
+    }
+
+    .nivel-master {
+        background: linear-gradient(135deg, #dc3545, #e83e8c);
+        color: white;
+    }
+
+    /* Responsive para botones */
+    @@media (max-width: 768px) {
+        .nivel-btn {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+        }
+
+        .nivel-nav-sticky {
+            padding: 10px 0;
+        }
+
+        .progress-chart-container {
+            width: 150px;
+            height: 150px;
+        }
+
+        .progress-percentage {
+            font-size: 2rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .main-header {
+            padding: 20px 0;
+        }
+
+        .progress-dashboard {
+            padding: 20px;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .nivel-btn {
+            display: block;
+            margin: 5px auto;
+            width: 80%;
+            text-align: center;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Sección de contenido principal */
+    .content-section {
+        background: white;
+        min-height: calc(100vh - 400px);
+        padding: 40px 0;
+        margin-top: 0;
+    }
+
+    /* Estilos para las tarjetas de cursos */
+    .curso-card {
+        transition: all 0.3s ease;
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        background: white;
+    }
+
+        .curso-card:hover {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            transform: translateY(-5px);
+        }
+
+    .progress-custom {
+        height: 8px;
+        border-radius: 4px;
+        background: #f8f9fa;
+    }
+
+    .section-title {
+        color: #495057;
+        border-bottom: 3px solid #007bff;
+        padding-bottom: 15px;
+        margin-bottom: 40px;
+        font-weight: 600;
+    }
+
+    /* Animaciones de entrada */
+    .fade-in {
+        animation: fadeInUp 0.6s ease forwards;
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    @@keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Estilo para mensaje vacío */
+    .empty-state {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 20px;
+        padding: 60px 30px;
+        text-align: center;
+        border: 2px dashed #dee2e6;
+    }
+
+    /* Estilos adicionales para mejor compatibilidad */
+    .ripple {
+        position: absolute !important;
+        border-radius: 50% !important;
+        background: rgba(255,255,255,0.6) !important;
+        transform: scale(0) !important;
+        animation: ripple 0.6s linear !important;
+        pointer-events: none !important;
+    }
+
+    /* Mejoras responsive adicionales */
+    @@media (max-width: 480px) {
+        .main-header h2 {
+            font-size: 1.5rem !important;
+        }
+
+        .nivel-btn {
+            font-size: 0.8rem !important;
+            padding: 8px 16px !important;
+        }
+
+        .section-title {
+            font-size: 1.3rem !important;
+        }
+
+        .curso-card .card-title {
+            font-size: 1.1rem !important;
+        }
+    }
+</style>
+
+<div class="colaborador-container">
+    <!-- Header Principal con Dashboard de Progreso -->
+    <div class="main-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <h2 class="mb-4 text-center">🎓 Portal de Capacitación</h2>
+                </div>
+            </div>
+
+            <!-- Dashboard de Progreso -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="progress-dashboard">
+                        <div class="row align-items-center">
+                            <div class="col-lg-6 text-center">
+                                <div class="progress-chart-container">
+                                    <svg class="progress-chart" width="200" height="200" viewBox="0 0 200 200">
+                                        <circle cx="100" cy="100" r="90" class="progress-circle-bg"></circle>
+                                        <circle cx="100" cy="100" r="90" class="progress-circle-fill" id="progressCircle"></circle>
+                                    </svg>
+                                    <div class="progress-text">
+                                        <div class="progress-percentage" id="progressPercentage">0%</div>
+                                        <div class="progress-label">Completado</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="stats-grid">
+                                    <div class="stat-card">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-check-circle text-success"></i>
+                                        </div>
+                                        <div class="stat-number" id="cursosCompletados">8</div>
+                                        <div class="stat-label">Completados</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-clock text-warning"></i>
+                                        </div>
+                                        <div class="stat-number" id="cursosEnProgreso">5</div>
+                                        <div class="stat-label">En Progreso</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-play text-info"></i>
+                                        </div>
+                                        <div class="stat-number" id="cursosPendientes">3</div>
+                                        <div class="stat-label">Pendientes</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12 text-center">
+                                <p class="mb-0">Bienvenido, <strong>@User.Identity.Name</strong> - Selecciona tu nivel y accede a los cursos disponibles</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Navegación Flotante Sticky -->
+    <div class="nivel-nav-sticky">
+        <div class="container-fluid">
+            <div class="row justify-content-center">
+                <div class="col-12 text-center">
+                    @using (Html.BeginForm("IndexColaboradorPost", "Universidad", FormMethod.Post, new { @class = "d-inline" }))
+                    {
+                        <input type="hidden" name="nivel" value="JUNIOR" />
+                        <button type="submit" class="btn nivel-btn nivel-junior @(Model?.NivelSeleccionado == "JUNIOR" ? "active" : "")">
+                            <i class="fas fa-seedling mr-2"></i>Junior
+                        </button>
+                    }
+
+                    @using (Html.BeginForm("IndexColaboradorPost", "Universidad", FormMethod.Post, new { @class = "d-inline" }))
+                    {
+                        <input type="hidden" name="nivel" value="SENIOR" />
+                        <button type="submit" class="btn nivel-btn nivel-senior @(Model?.NivelSeleccionado == "SENIOR" ? "active" : "")">
+                            <i class="fas fa-user-tie mr-2"></i>Senior
+                        </button>
+                    }
+
+                    @using (Html.BeginForm("IndexColaboradorPost", "Universidad", FormMethod.Post, new { @class = "d-inline" }))
+                    {
+                        <input type="hidden" name="nivel" value="MASTER" />
+                        <button type="submit" class="btn nivel-btn nivel-master @(Model?.NivelSeleccionado == "MASTER" ? "active" : "")">
+                            <i class="fas fa-crown mr-2"></i>Master
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de Contenido Principal -->
+    <div class="content-section">
+        <div class="container-fluid">
+            <!-- Sección de Cursos por Nivel Seleccionado -->
+            @if (!string.IsNullOrEmpty(Model?.NivelSeleccionado))
+            {
+                <div class="row">
+                    <div class="col-12">
+                        <h3 class="section-title text-center">
+                            <i class="fas fa-graduation-cap mr-3"></i>
+                            Cursos disponibles para nivel @Model.NivelSeleccionado
+                        </h3>
+                    </div>
+                </div>
+
+                @if (Model.Cursos != null && Model.Cursos.Any())
+                {
+                    <div class="row">
+                        @{
+                            int index = 0;
+                        }
+                        @foreach (var curso in Model.Cursos)
+                        {
+                            <div class="col-lg-4 col-md-6 mb-4">
+                                <div class="card curso-card h-100 fade-in" style="animation-delay: @(index * 0.1)s;">
+                                    <div class="card-body d-flex flex-column">
+                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                            <h5 class="card-title mb-0 text-primary">@curso.NombreCurso</h5>
+                                            <span class="badge badge-pill @(Model.NivelSeleccionado == "JUNIOR" ? "badge-success" : Model.NivelSeleccionado == "SENIOR" ? "badge-warning" : "badge-danger")">
+                                                @Model.NivelSeleccionado
+                                            </span>
+                                        </div>
+
+                                        <p class="card-text text-muted flex-grow-1">
+                                            @curso.Descripcion
+                                        </p>
+
+                                        @if (curso.Progreso.HasValue)
+                                        {
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <small class="text-muted font-weight-bold">Progreso</small>
+                                                    <small class="text-muted">@curso.Progreso.Value%</small>
+                                                </div>
+                                                <div class="progress progress-custom">
+                                                    <div class="progress-bar @(curso.Progreso.Value >= 100 ? "bg-success" : curso.Progreso.Value >= 50 ? "bg-warning" : "bg-info")"
+                                                         role="progressbar"
+                                                         style="width: @curso.Progreso.Value%"
+                                                         aria-valuenow="@curso.Progreso.Value"
+                                                         aria-valuemin="0"
+                                                         aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+
+                                        <div class="mt-auto">
+                                            @if (curso.Progreso.HasValue && curso.Progreso.Value >= 100)
+                                            {
+                                                <a href="@Url.Action("VerContenido", "Universidad", new { id = curso.CursoID })"
+                                                   class="btn btn-success btn-block btn-lg">
+                                                    <i class="fas fa-check-circle mr-2"></i>
+                                                    Curso Completado
+                                                </a>
+                                            }
+                                            else if (curso.Progreso.HasValue && curso.Progreso.Value > 0)
+                                            {
+                                                <a href="@Url.Action("VerContenido", "Universidad", new { id = curso.CursoID })"
+                                                   class="btn btn-warning btn-block btn-lg">
+                                                    <i class="fas fa-play-circle mr-2"></i>
+                                                    Continuar Curso
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <a href="@Url.Action("ComenzarCurso", "Universidad", new { id = curso.CursoID })"
+                                                   class="btn btn-primary btn-block btn-lg">
+                                                    <i class="fas fa-play mr-2"></i>
+                                                    Comenzar Curso
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            index++;
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="empty-state fade-in">
+                                <i class="fas fa-book-open fa-4x text-muted mb-4"></i>
+                                <h4 class="text-muted">No hay cursos disponibles</h4>
+                                <p class="text-muted mb-0">
+                                    Actualmente no hay cursos disponibles para el nivel <strong>@Model.NivelSeleccionado</strong>.<br>
+                                    Pronto se añadirán nuevos cursos. ¡Mantente atento!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <!-- Estado inicial - sin nivel seleccionado -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="empty-state fade-in">
+                            <i class="fas fa-arrow-up fa-4x text-primary mb-4"></i>
+                            <h4 class="text-primary">¡Comienza tu capacitación!</h4>
+                            <p class="text-muted mb-0">
+                                Selecciona tu nivel de capacitación en los botones de arriba<br>
+                                para ver los cursos disponibles.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Esperar a que jQuery esté disponible y el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar si jQuery está disponible
+            if (typeof $ === 'undefined') {
+                console.error('jQuery no está disponible. Intentando cargar...');
+
+                // Cargar jQuery si no está disponible
+                var script = document.createElement('script');
+                script.src = 'https://code.jquery.com/jquery-3.6.0.min.js';
+                script.onload = function() {
+                    console.log('jQuery cargado dinámicamente');
+                    inicializarScript();
+                };
+                document.head.appendChild(script);
+            } else {
+                // jQuery está disponible, proceder normalmente
+                $(document).ready(function() {
+                    inicializarScript();
+                });
+            }
+        });
+
+        function inicializarScript() {
+            console.log('Iniciando script...');
+
+            // Función para mostrar datos de ejemplo y calcular progreso real
+            function calcularProgreso() {
+        @if (Model?.Cursos != null && Model.Cursos.Any())
+        {
+            <text>
+                            // Datos de cursos desde el servidor
+                            var completados = 0;
+                            var enProgreso = 0;
+                            var pendientes = 0;
+                            var totalProgreso = 0;
+                            var totalCursos = 0;
+
+                @foreach (var curso in Model.Cursos)
+                {
+                    var progreso = curso.Progreso ?? 0;
+                    <text>
+                                        totalCursos++;
+                                        totalProgreso += @progreso;
+
+                        @if (progreso >= 100)
+                        {
+                            <text>completados++;</text>
+                        }
+                        else if (progreso > 0)
+                        {
+                            <text>enProgreso++;</text>
+                        }
+                        else
+                        {
+                            <text>pendientes++;</text>
+                        }
+                    </text>
+                }
+
+                            var promedioProgreso = totalCursos > 0 ? Math.round(totalProgreso / totalCursos) : 0;
+
+                            // Actualizar interfaz
+                            actualizarInterfaz(completados, enProgreso, pendientes, promedioProgreso);
+            </text>
+        }
+        else
+        {
+            <text>
+                            // Datos de ejemplo para demostración visual (FORZADOS)
+                            var completados = 8;
+                            var enProgreso = 5;
+                            var pendientes = 3;
+                            var promedioProgreso = 73; // Porcentaje fijo para mostrar visualmente
+
+                            // Actualizar interfaz con datos de ejemplo
+                            actualizarInterfaz(completados, enProgreso, pendientes, promedioProgreso);
+            </text>
+        }
+            }
+
+            // Función para actualizar la interfaz (con y sin jQuery)
+            function actualizarInterfaz(completados, enProgreso, pendientes, promedioProgreso) {
+                console.log('Actualizando interfaz:', { completados, enProgreso, pendientes, promedioProgreso });
+
+                // FORZAR los valores de ejemplo SIEMPRE
+                completados = 8;
+                enProgreso = 5;
+                pendientes = 3;
+                promedioProgreso = 73;
+
+                console.log('Valores forzados:', { completados, enProgreso, pendientes, promedioProgreso });
+
+                // Usando JavaScript nativo como respaldo
+                var elementos = {
+                    completados: document.getElementById('cursosCompletados'),
+                    enProgreso: document.getElementById('cursosEnProgreso'),
+                    pendientes: document.getElementById('cursosPendientes'),
+                    porcentaje: document.getElementById('progressPercentage')
+                };
+
+                console.log('Elementos encontrados:', elementos);
+
+                if (elementos.completados) {
+                    elementos.completados.textContent = completados;
+                    elementos.completados.style.color = 'white';
+                    elementos.completados.style.textShadow = '1px 1px 2px rgba(0, 0, 0, 0.3)';
+                }
+                if (elementos.enProgreso) {
+                    elementos.enProgreso.textContent = enProgreso;
+                    elementos.enProgreso.style.color = 'white';
+                    elementos.enProgreso.style.textShadow = '1px 1px 2px rgba(0, 0, 0, 0.3)';
+                }
+                if (elementos.pendientes) {
+                    elementos.pendientes.textContent = pendientes;
+                    elementos.pendientes.style.color = 'white';
+                    elementos.pendientes.style.textShadow = '1px 1px 2px rgba(0, 0, 0, 0.3)';
+                }
+                if (elementos.porcentaje) {
+                    elementos.porcentaje.textContent = promedioProgreso + '%';
+                    elementos.porcentaje.style.color = 'white';
+                    elementos.porcentaje.style.textShadow = '1px 1px 2px rgba(0, 0, 0, 0.3)';
+                }
+
+                // Animar círculo de progreso
+                animarCirculoProgreso(promedioProgreso);
+
+                // Animar contadores si jQuery está disponible
+                if (typeof $ !== 'undefined') {
+                    setTimeout(function() {
+                        animarContadores();
+                    }, 500);
+                }
+            }
+
+            // Función para animar el círculo de progreso - JavaScript puro MEJORADO
+            function animarCirculoProgreso(porcentaje) {
+                console.log('Animando círculo con porcentaje:', porcentaje);
+
+                var circle = document.getElementById('progressCircle');
+                if (!circle) {
+                    console.error('Elemento progressCircle no encontrado!');
+                    return;
+                }
+
+                var circumference = 2 * Math.PI * 90; // 565.48
+                var offset = circumference - (porcentaje / 100) * circumference;
+
+                console.log('Circumference:', circumference, 'Offset calculado:', offset);
+
+                // Configurar el círculo de fondo primero
+                var bgCircle = circle.previousElementSibling;
+                if (bgCircle && bgCircle.tagName === 'circle') {
+                    bgCircle.setAttribute('stroke', 'rgba(255, 255, 255, 0.3)');
+                    bgCircle.setAttribute('stroke-width', '12');
+                    bgCircle.setAttribute('fill', 'none');
+                    console.log('Círculo de fondo configurado');
+                }
+
+                // RESETEAR el círculo de progreso - EMPEZAR VACÍO
+                circle.setAttribute('stroke', '#28a745');
+                circle.setAttribute('stroke-width', '12');
+                circle.setAttribute('fill', 'none');
+                circle.setAttribute('stroke-linecap', 'round');
+                circle.setAttribute('stroke-dasharray', '0 ' + circumference); // Empezar completamente vacío
+                circle.style.transition = 'none';
+
+                console.log('Círculo reseteado - empezando vacío');
+
+                // Animar el llenado después de un pequeño delay
+                setTimeout(function() {
+                    circle.style.transition = 'stroke-dasharray 2s ease-in-out';
+                    // LLENAR hasta el porcentaje deseado
+                    circle.setAttribute('stroke-dasharray', dashLength + ' ' + gapLength);
+                    console.log('Aplicando llenado visual:', dashLength + ' ' + gapLength);
+                }, 300);
+            }
+
+            // Función para animar los contadores (solo si jQuery está disponible)
+            function animarContadores() {
+                if (typeof $ === 'undefined') return;
+
+                console.log('Iniciando animación de contadores');
+
+                // FORZAR los valores antes de animar
+                $('#cursosCompletados').text('8');
+                $('#cursosEnProgreso').text('5');
+                $('#cursosPendientes').text('3');
+
+                $('.stat-number').each(function(index) {
+                    var $this = $(this);
+                    var countTo = parseInt($this.text());
+
+                    console.log('Animando contador', index, 'hacia:', countTo);
+
+                    // Resetear a 0 para la animación
+                    $this.text('0');
+
+                    $({ countNum: 0 }).animate({
+                        countNum: countTo
+                    }, {
+                        duration: 2000,
+                        easing: 'swing',
+                        step: function() {
+                            $this.text(Math.floor(this.countNum));
+                        },
+                        complete: function() {
+                            $this.text(countTo);
+                            console.log('Contador', index, 'completado en:', countTo);
+                        }
+                    });
+                });
+            }
+
+            // Ejecutar cálculo de progreso
+            console.log('Iniciando cálculo de progreso...');
+            calcularProgreso();
+
+            // FORZAR actualización múltiple para asegurar que funcione
+            setTimeout(function() {
+                console.log('=== FORZANDO ACTUALIZACIÓN 1 ===');
+                actualizarInterfaz(8, 5, 3, 73);
+            }, 500);
+
+            setTimeout(function() {
+                console.log('=== FORZANDO ACTUALIZACIÓN 2 ===');
+                animarCirculoProgreso(73);
+            }, 1000);
+
+            setTimeout(function() {
+                console.log('=== FORZANDO ACTUALIZACIÓN 3 ===');
+                // Última verificación y forzado directo
+                document.getElementById('cursosCompletados').textContent = '8';
+                document.getElementById('cursosEnProgreso').textContent = '5';
+                document.getElementById('cursosPendientes').textContent = '3';
+                document.getElementById('progressPercentage').textContent = '73%';
+                animarCirculoProgreso(73);
+            }, 1500);
+
+            // Configurar eventos solo si jQuery está disponible
+            if (typeof $ !== 'undefined') {
+                // Smooth scroll automático a la sección de cursos cuando se selecciona un nivel
+        @if (!string.IsNullOrEmpty(Model?.NivelSeleccionado))
+        {
+            <text>
+                            setTimeout(function() {
+                                $('html, body').animate({
+                                    scrollTop: $('.content-section').offset().top - 100
+                                }, 800);
+                            }, 300);
+            </text>
+        }
+
+                // Animación de entrada escalonada para las tarjetas
+                $('.fade-in').each(function(index) {
+                    $(this).css({
+                        'animation-delay': (index * 0.1) + 's'
+                    });
+                });
+
+                // Efectos de hover para botones
+                setupButtonEffects();
+            }
+        }
+
+        // Función para configurar efectos de botones (solo con jQuery)
+        function setupButtonEffects() {
+            if (typeof $ === 'undefined') return;
+
+            // Efecto hover mejorado para botones de nivel
+            $('.nivel-btn').hover(
+                function() {
+                    $(this).addClass('shadow-lg');
+                    $(this).find('i').addClass('fa-bounce');
+                },
+                function() {
+                    $(this).removeClass('shadow-lg');
+                    $(this).find('i').removeClass('fa-bounce');
+                }
+            );
+
+            // Efecto de ripple en los botones
+            $('.nivel-btn').on('click', function(e) {
+                var ripple = $('<span class="ripple"></span>');
+                var size = Math.max($(this).width(), $(this).height());
+                var x = e.pageX - $(this).offset().left - size / 2;
+                var y = e.pageY - $(this).offset().top - size / 2;
+
+                ripple.css({
+                    width: size,
+                    height: size,
+                    left: x,
+                    top: y,
+                    position: 'absolute',
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.6)',
+                    transform: 'scale(0)',
+                    animation: 'ripple 0.6s linear',
+                    pointerEvents: 'none'
+                }).appendTo(this);
+
+                setTimeout(function() {
+                    ripple.remove();
+                }, 600);
+            });
+
+            // Loading animation para botones
+            $('.nivel-btn').on('click', function() {
+                var $this = $(this);
+                var originalText = $this.html();
+
+                $this.html('<i class="fas fa-spinner fa-spin mr-2"></i>Cargando...');
+                $this.prop('disabled', true);
+
+                // Simular delay de carga
+                setTimeout(function() {
+                    $this.closest('form')[0].submit();
+                }, 500);
+            });
+        }
+
+        // CSS para animación de ripple y bounce (inyectado dinámicamente)
+        var style = document.createElement('style');
+        style.textContent = `
+            @@keyframes ripple {
+                to {
+                    transform: scale(4);
+                    opacity: 0;
+                }
+            }
+
+            .nivel-btn {
+                position: relative;
+                overflow: hidden;
+            }
+
+            .fa-bounce {
+                animation: bounce 1s infinite;
+            }
+
+            @@keyframes bounce {
+                0%, 20%, 60%, 100% {
+                    transform: translateY(0);
+                }
+                40% {
+                    transform: translateY(-10px);
+                }
+                80% {
+                    transform: translateY(-5px);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+}

@@ -1,0 +1,413 @@
+﻿@using ProyectoMatrix.Models
+@model UniversidadViewModel
+@{
+    ViewData["Title"] = "Universidad NS Group";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="universidad-container">
+    <!-- Header -->
+    <div class="universidad-header">
+        <h1 class="universidad-title">
+            <i class="fas fa-graduation-cap"></i>
+            Universidad NS Group
+        </h1>
+        <p class="universidad-subtitle">
+            Centro de conocimiento y capacitación empresarial
+        </p>
+    </div>
+
+    <!-- Selección de Áreas -->
+    <div class="areas-section" id="areasSection">
+        <h2 class="section-title">Selecciona tu Área de Trabajo</h2>
+        <p class="section-subtitle">Elige tu departamento para acceder a entrenamientos y recursos específicos</p>
+
+        <div class="areas-grid">
+            @foreach (var area in Model.Areas)
+            {
+                <div class="area-card" style="border-color:@area.ColorHex;" data-area="@area.Nombre.ToLower()">
+                    <div class="area-icon">
+                        <i class="@area.Icono"></i>
+                    </div>
+                    <h3 class="area-title">@area.Nombre</h3>
+                    <p class="area-description">Descripción pendiente...</p> <!-- Puedes extender tu modelo para incluir una descripción si quieres -->
+
+                    <div class="area-stats">
+                        <div class="stat-item">
+                            <span class="stat-number">0</span>
+                            <span class="stat-label">Cursos</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">0h</span>
+                            <span class="stat-label">Duración</span>
+                        </div>
+                    </div>
+                    <button class="area-button"
+                            onclick="seleccionarArea(@area.AreaID, '@area.Nombre.ToLower()', '@area.Nombre', '@area.Icono', '@area.ColorHex')"
+                            style="background-color: @area.ColorHex;">
+                        <i class="fas fa-arrow-right"></i>
+                        Acceder
+                    </button>
+
+                </div>
+            }
+
+        </div>
+    </div>
+
+    <!-- Sección de Contenido (aparece después de seleccionar área) -->
+    <div class="contenido-section" id="contenidoSection">
+        <div class="area-selected-header" id="selectedHeader">
+            <div class="selected-area-info">
+                <div class="selected-area-icon" id="selectedIcon"></div>
+                <div>
+                    <h3 id="selectedTitle">Área Seleccionada</h3>
+                    <p style="margin: 0; opacity: 0.8;">Entrenamientos y recursos especializados</p>
+                </div>
+            </div>
+            <button class="back-button" onclick="volverAreas()">
+                <i class="fas fa-arrow-left"></i>
+                Cambiar Área
+            </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filter-section">
+            <div class="filter-tabs">
+                <a href="#" class="filter-tab active" onclick="filtrarContenido('todos')">
+                    <i class="fas fa-th-large"></i>
+                    Todos
+                    <span class="badge" id="badgeTodos">0</span>
+                </a>
+                <a href="#" class="filter-tab" onclick="filtrarContenido('videos')">
+                    <i class="fas fa-play-circle"></i>
+                    Videos
+                    <span class="badge" id="badgeVideos">0</span>
+                </a>
+                <a href="#" class="filter-tab" onclick="filtrarContenido('documentos')">
+                    <i class="fas fa-file-pdf"></i>
+                    Documentos
+                    <span class="badge" id="badgeDocumentos">0</span>
+                </a>
+            </div>
+
+            <form method="get" class="search-box">
+                <input type="text" id="searchInput" placeholder="Buscar contenido..." class="search-input" />
+                <button type="button" class="search-btn" onclick="buscarContenido()">
+                    <i class="fas fa-search"></i>
+                    Buscar
+                </button>
+            </form>
+        </div>
+
+        <!-- Grid de contenido específico del área -->
+        <div class="contenido-grid" id="contenidoGrid">
+            <!-- El contenido se cargará dinámicamente aquí -->
+        </div>
+
+        <!-- Estado vacío -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <i class="fas fa-search"></i>
+            <h3>No se encontró contenido</h3>
+            <p>No hay contenido disponible para el filtro seleccionado</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modales -->
+@* PDF Modal *@
+<div class="modal fade" id="pdfModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pdfModalTitle">Visualizar Documento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="pdfViewer" src="" width="100%" height="600px" frameborder="0"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <a id="downloadBtn" href="" class="btn btn-primary" target="_blank">
+                    <i class="fas fa-download"></i> Descargar
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Video Modal *@
+<div class="modal fade" id="videoModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="videoModalTitle">Reproducir Video</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="ratio ratio-16x9">
+                    <iframe id="videoPlayer" src="" frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    let areaSeleccionada = null;
+    let contenidoCompleto = [];
+    let contenidoFiltrado = [];
+    let filtroActual = 'todos';
+        function seleccionarArea(areaId, areaKey, areaNombre, areaIcono, areaColor) {
+        areaSeleccionada = areaId;
+
+        // Actualizar color CSS
+        document.documentElement.style.setProperty('--area-color', areaColor);
+
+        // Actualizar header del área seleccionada
+        document.getElementById('selectedTitle').textContent = areaNombre;
+        document.getElementById('selectedIcon').innerHTML = `<i class="${areaIcono}"></i>`;
+        document.getElementById('selectedHeader').style.background = areaColor;
+
+        // Ocultar sección de áreas y mostrar contenido
+        document.getElementById('areasSection').style.display = 'none';
+        document.getElementById('contenidoSection').classList.add('show');
+
+        // Cargar contenido dinámicamente desde el servidor
+        fetch(`/Universidad/ContenidoPorArea?areaId=${areaId}`)
+            .then(response => response.json())
+            .then(data => {
+                contenidoCompleto = data;
+                contenidoFiltrado = [...contenidoCompleto];
+
+                actualizarContadores();
+                mostrarContenido();
+            });
+
+        // Scroll suave al contenido
+        document.getElementById('contenidoSection').scrollIntoView({
+            behavior: 'smooth'
+        });
+    }
+
+    function volverAreas() {
+        document.getElementById('areasSection').style.display = 'block';
+        document.getElementById('contenidoSection').classList.remove('show');
+
+        document.getElementById('areasSection').scrollIntoView({ behavior: 'smooth' });
+
+        areaSeleccionada = null;
+        contenidoCompleto = [];
+        contenidoFiltrado = [];
+    }
+
+    function cargarContenidoArea(areaId) {
+        fetch(`/Universidad/ContenidoPorArea?areaId=${areaId}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Error al obtener contenido');
+                return response.json();
+            })
+            .then(data => {
+                contenidoCompleto = data;
+                contenidoFiltrado = [...contenidoCompleto];
+
+                actualizarContadores();
+                mostrarContenido();
+            })
+            .catch(error => {
+                console.error('Error cargando contenido del área:', error);
+                contenidoCompleto = [];
+                contenidoFiltrado = [];
+                mostrarContenido();
+            });
+    }
+
+    function filtrarContenido(tipo) {
+        filtroActual = tipo;
+
+        document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+        event.target.closest('.filter-tab').classList.add('active');
+
+        if (tipo === 'todos') {
+            contenidoFiltrado = [...contenidoCompleto];
+        } else if (tipo === 'videos') {
+            contenidoFiltrado = contenidoCompleto.filter(c => c.tipoContenido === 'Video');
+        } else if (tipo === 'documentos') {
+            contenidoFiltrado = contenidoCompleto.filter(c => c.tipoContenido === 'PDF');
+        }
+
+        mostrarContenido();
+    }
+
+    function buscarContenido() {
+        const busqueda = document.getElementById('searchInput').value.toLowerCase();
+
+        if (busqueda.trim() === '') {
+            contenidoFiltrado = [...contenidoCompleto];
+        } else {
+            contenidoFiltrado = contenidoCompleto.filter(c =>
+                c.titulo.toLowerCase().includes(busqueda) ||
+                c.descripcion.toLowerCase().includes(busqueda) ||
+                c.categoria.toLowerCase().includes(busqueda)
+            );
+        }
+
+        if (filtroActual === 'videos') {
+            contenidoFiltrado = contenidoFiltrado.filter(c => c.tipoContenido === 'Video');
+        } else if (filtroActual === 'documentos') {
+            contenidoFiltrado = contenidoFiltrado.filter(c => c.tipoContenido === 'PDF');
+        }
+
+        mostrarContenido();
+    }
+
+    function actualizarContadores() {
+        const totalVideos = contenidoCompleto.filter(c => c.tipoContenido === 'Video').length;
+        const totalDocumentos = contenidoCompleto.filter(c => c.tipoContenido === 'PDF').length;
+
+        document.getElementById('badgeTodos').textContent = contenidoCompleto.length;
+        document.getElementById('badgeVideos').textContent = totalVideos;
+        document.getElementById('badgeDocumentos').textContent = totalDocumentos;
+    }
+
+    function mostrarContenido() {
+        const contenidoGrid = document.getElementById('contenidoGrid');
+        const emptyState = document.getElementById('emptyState');
+
+        if (contenidoFiltrado.length === 0) {
+            contenidoGrid.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        contenidoGrid.style.display = 'grid';
+        emptyState.style.display = 'none';
+
+        contenidoGrid.innerHTML = contenidoFiltrado.map(item => `
+            <div class="contenido-card" data-id="${item.id}">
+                <div class="card-thumbnail">
+                    ${item.thumbnail ?
+                        `<img src="${item.thumbnail}" alt="${item.titulo}" />` :
+                        `<i class="fas ${item.tipoContenido === 'Video' ? 'fa-play-circle' : 'fa-file-pdf'} placeholder-icon"></i>`
+                    }
+                    ${item.tipoContenido === 'Video' ? '<div class="video-overlay"><i class="fas fa-play"></i></div>' : ''}
+                    <div class="card-tipo">
+                        <i class="fas ${item.tipoContenido === 'Video' ? 'fa-video' : 'fa-file-pdf'}"></i>
+                        ${item.tipoContenido}
+                    </div>
+                    ${item.visualizaciones > 0 ? `
+                        <div class="stats-badge" style="position: absolute; bottom: 1rem; left: 1rem;">
+                            <i class="fas fa-eye"></i> ${item.visualizaciones}
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="card-content">
+                    <div>
+                        <div class="card-categoria">${item.categoria}</div>
+                        <h3 class="card-title">${item.titulo}</h3>
+                        <p class="card-description">${item.descripcion}</p>
+                    </div>
+                    <div>
+                        <div class="card-actions">
+                            ${item.tipoContenido === 'Video' ? `
+                                <button class="btn-primary-custom" onclick="abrirVideo('${item.urlVideo}', '${item.titulo}')">
+                                    <i class="fas fa-play"></i>
+                                    Ver Video
+                                </button>
+                            ` : `
+                                <button class="btn-primary-custom" onclick="abrirPDF(${item.id}, '${item.titulo}')">
+                                    <i class="fas fa-eye"></i>
+                                    Ver
+                                </button>
+                                <a href="/Universidad/DescargarArchivo/${item.id}" class="btn-secondary-custom">
+                                    <i class="fas fa-download"></i>
+                                    Descargar
+                                </a>
+                            `}
+                        </div>
+                        <div class="card-meta">
+                            <span>
+                                <i class="fas fa-user"></i>
+                                ${item.creadoPor}
+                            </span>
+                            <span>
+                                <i class="fas fa-calendar"></i>
+                                ${new Date(item.fechaCreacion).toLocaleDateString()}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        setTimeout(() => {
+            const cards = contenidoGrid.querySelectorAll('.contenido-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'all 0.5s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        }, 100);
+    }
+
+    function abrirPDF(id, titulo) {
+        document.getElementById('pdfModalTitle').textContent = titulo;
+        document.getElementById('pdfViewer').src = '/Universidad/VerPDF/' + id;
+        document.getElementById('downloadBtn').href = '/Universidad/DescargarArchivo/' + id;
+
+        fetch('/Universidad/RegistrarVisualizacion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id })
+        });
+
+        var modal = new bootstrap.Modal(document.getElementById('pdfModal'));
+        modal.show();
+    }
+
+    function abrirVideo(videoId, titulo) {
+        document.getElementById('videoModalTitle').textContent = titulo;
+        document.getElementById('videoPlayer').src = 'https://www.youtube.com/embed/' + videoId + '?autoplay=1';
+
+        var modal = new bootstrap.Modal(document.getElementById('videoModal'));
+        modal.show();
+    }
+
+    document.getElementById('videoModal').addEventListener('hidden.bs.modal', function () {
+        document.getElementById('videoPlayer').src = '';
+    });
+
+    document.getElementById('pdfModal').addEventListener('hidden.bs.modal', function () {
+        document.getElementById('pdfViewer').src = '';
+    });
+
+    document.getElementById('searchInput').addEventListener('input', function() {
+        clearTimeout(this.searchTimeout);
+        this.searchTimeout = setTimeout(() => {
+            buscarContenido();
+        }, 300);
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const areaCards = document.querySelectorAll('.area-card');
+        areaCards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                card.style.transition = 'all 0.5s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    });
+</script>
+
+
+@section Estilos {
+    <link rel="stylesheet" href="~/css/DisenioUniversidad.css" asp-append-version="true" />
+} 
