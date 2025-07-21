@@ -1,0 +1,430 @@
+﻿@using ProyectoMatrix.Models
+@model ProyectosViewModel
+@{
+    ViewData["Title"] = "Gestión de Proyectos";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Estilos {
+    <style>
+        .proyecto-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: none;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+            .proyecto-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            }
+
+        .proyecto-header {
+            background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%);
+            color: white;
+            padding: 1rem;
+        }
+
+        .proyecto-body {
+            padding: 1.5rem;
+        }
+
+        .estado-badge {
+            font-size: 0.75rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .prioridad-badge {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+        }
+
+        .progreso-container {
+            margin: 0.5rem 0;
+        }
+
+        .progreso-bar {
+            height: 8px;
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: #e9ecef;
+        }
+
+        .progreso-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .filtros-container {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+
+        .estadisticas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .estadistica-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 4px solid var(--bs-primary);
+        }
+
+        .proyectos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .archivo-info {
+            background: #f8f9fa;
+            padding: 0.5rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+    </style>
+}
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="fas fa-project-diagram me-2"></i>Gestión de Proyectos</h1>
+            <p class="text-muted">Administra y da seguimiento a todos los proyectos de la empresa</p>
+        </div>
+        <div>
+            <a href="@Url.Action("Crear")" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Nuevo Proyecto
+            </a>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="estadisticas-grid">
+        <div class="estadistica-card">
+            <i class="fas fa-clipboard-list fa-2x text-secondary mb-2"></i>
+            <h4 class="mb-1">@Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.Planificacion, 0)</h4>
+            <small class="text-muted">En Planificación</small>
+        </div>
+        <div class="estadistica-card">
+            <i class="fas fa-cogs fa-2x text-primary mb-2"></i>
+            <h4 class="mb-1">@Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.EnProgreso, 0)</h4>
+            <small class="text-muted">En Progreso</small>
+        </div>
+        <div class="estadistica-card">
+            <i class="fas fa-search fa-2x text-warning mb-2"></i>
+            <h4 class="mb-1">@Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.EnRevision, 0)</h4>
+            <small class="text-muted">En Revisión</small>
+        </div>
+        <div class="estadistica-card">
+            <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+            <h4 class="mb-1">@Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.Completado, 0)</h4>
+            <small class="text-muted">Completados</small>
+        </div>
+        <div class="estadistica-card">
+            <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+            <h4 class="mb-1">@Model.ContadorPorPrioridad.GetValueOrDefault(PrioridadProyecto.Alta, 0) + @Model.ContadorPorPrioridad.GetValueOrDefault(PrioridadProyecto.Critica, 0)</h4>
+            <small class="text-muted">Alta Prioridad</small>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filtros-container">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Buscar</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" name="busqueda" class="form-control" placeholder="Nombre, código, tags..."
+                           value="@Model.BusquedaTexto" />
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Estado</label>
+                <select name="estado" class="form-select">
+                    <option value="">Todos los estados</option>
+                    @foreach (EstadoProyecto estado in Enum.GetValues<EstadoProyecto>())
+                    {
+                        <option value="@((int)estado)" selected="@(Model.EstadoSeleccionado == estado)">
+                            @estado.ObtenerNombreEstado()
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Prioridad</label>
+                <select name="prioridad" class="form-select">
+                    <option value="">Todas las prioridades</option>
+                    @foreach (PrioridadProyecto prioridad in Enum.GetValues<PrioridadProyecto>())
+                    {
+                        <option value="@((int)prioridad)" selected="@(Model.PrioridadSeleccionada == prioridad)">
+                            @prioridad.ObtenerNombrePrioridad()
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-filter me-1"></i>Filtrar
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid">
+                    <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Limpiar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Resultados -->
+    <div class="mb-3">
+        <span class="badge bg-light text-dark">
+            @Model.ProyectosFiltrados.Count proyectos encontrados
+        </span>
+    </div>
+
+    <!-- Grid de Proyectos -->
+    @if (Model.ProyectosFiltrados.Any())
+    {
+        <div class="proyectos-grid">
+            @foreach (var proyecto in Model.ProyectosFiltrados)
+            {
+                <div class="card proyecto-card">
+                    <div class="proyecto-header">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h5 class="mb-1 text-white">@proyecto.NombreProyecto</h5>
+                                @if (!string.IsNullOrEmpty(proyecto.CodigoProyecto))
+                                {
+                                    <small class="text-white-50">Código: @proyecto.CodigoProyecto</small>
+                                }
+                            </div>
+                            <div class="text-end">
+                                <span class="badge estado-badge bg-@proyecto.Estado.ObtenerColorEstado()">
+                                    <i class="@proyecto.Estado.ObtenerIconoEstado() me-1"></i>
+                                    @proyecto.Estado.ObtenerNombreEstado()
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="proyecto-body">
+                        <!-- Descripción -->
+                        @if (!string.IsNullOrEmpty(proyecto.Descripcion))
+                        {
+                            <p class="text-muted mb-3">
+                                @(proyecto.Descripcion.Length > 100 ? proyecto.Descripcion.Substring(0, 100) + "..." : proyecto.Descripcion)
+                            </p>
+                        }
+
+                        <!-- Información del proyecto -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <small class="text-muted d-block">Prioridad</small>
+                                <span class="badge prioridad-badge bg-@proyecto.Prioridad.ObtenerColorPrioridad()">
+                                    @proyecto.Prioridad.ObtenerNombrePrioridad()
+                                </span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Creado por</small>
+                                <small>@(proyecto.CreadoPor ?? "Sin especificar")</small>
+                            </div>
+                        </div>
+
+                        <!-- Progreso -->
+                        <div class="progreso-container">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small class="text-muted">Progreso</small>
+                                <small class="text-muted">@proyecto.Progreso%</small>
+                            </div>
+                            <div class="progreso-bar">
+                                <div class="progreso-fill bg-@(proyecto.Progreso == 100 ? "success" : proyecto.Progreso >= 75 ? "info" : proyecto.Progreso >= 50 ? "warning" : "danger")"
+                                     style="width: @proyecto.Progreso%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Fechas -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <small class="text-muted d-block">Creado</small>
+                                <small>@proyecto.FechaCreacion.ToString("dd/MM/yyyy")</small>
+                            </div>
+                            @if (proyecto.FechaFinPrevista.HasValue)
+                            {
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Entrega</small>
+                                    <small class="@(proyecto.FechaFinPrevista < DateTime.Now && proyecto.Estado != EstadoProyecto.Completado ? "text-danger" : "")">
+                                        @proyecto.FechaFinPrevista.Value.ToString("dd/MM/yyyy")
+                                    </small>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Archivo adjunto -->
+                        @if (!string.IsNullOrEmpty(proyecto.ArchivoRuta))
+                        {
+                            <div class="archivo-info d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file-pdf text-danger me-2"></i>
+                                    <span>Archivo adjunto (@proyecto.TamanoArchivo.FormatearTamano())</span>
+                                </div>
+                                <div>
+                                    <a href="@Url.Action("VerArchivo", new { id = proyecto.ProyectoID })"
+                                       class="btn btn-sm btn-outline-primary me-1" target="_blank" title="Ver archivo">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="@Url.Action("DescargarArchivo", new { id = proyecto.ProyectoID })"
+                                       class="btn btn-sm btn-outline-secondary" title="Descargar">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Tags -->
+                        @if (!string.IsNullOrEmpty(proyecto.Tags))
+                        {
+                            <div class="mt-2">
+                                @foreach (var tag in proyecto.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                {
+                                    <span class="badge bg-light text-dark me-1">#@tag.Trim()</span>
+                                }
+                            </div>
+                        }
+
+                        <!-- Acciones -->
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                            <div>
+                                <small class="text-muted">
+                                    <i class="fas fa-eye me-1"></i>@proyecto.Visualizaciones vistas
+                                </small>
+                            </div>
+                            <div>
+                                <a href="@Url.Action("Detalle", new { id = proyecto.ProyectoID })"
+                                   class="btn btn-sm btn-primary me-1">
+                                    <i class="fas fa-eye me-1"></i>Ver
+                                </a>
+                                <a href="@Url.Action("Editar", new { id = proyecto.ProyectoID })"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-edit me-1"></i>Editar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-project-diagram fa-4x text-muted mb-3"></i>
+            <h4 class="text-muted">No se encontraron proyectos</h4>
+            <p class="text-muted">
+                @if (!string.IsNullOrEmpty(Model.BusquedaTexto) || Model.EstadoSeleccionado.HasValue || Model.PrioridadSeleccionada.HasValue)
+                {
+                    <text>Intenta ajustar los filtros de búsqueda.</text>
+                }
+                else
+                {
+                    <text>Comienza creando tu primer proyecto.</text>
+                }
+            </p>
+            <a href="@Url.Action("Crear")" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Crear Nuevo Proyecto
+            </a>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // Script para actualizar progreso via AJAX
+        function actualizarProgreso(proyectoId, nuevoProgreso) {
+            fetch('@Url.Action("ActualizarProgreso")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    proyectoId: proyectoId,
+                    progreso: nuevoProgreso
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Actualizar la UI
+                    location.reload();
+                } else {
+                    alert('Error al actualizar el progreso');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al actualizar el progreso');
+            });
+        }
+
+        // Script para cambiar estado via AJAX
+        function cambiarEstado(proyectoId, nuevoEstado) {
+            fetch('@Url.Action("CambiarEstado")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    proyectoId: proyectoId,
+                    estado: nuevoEstado
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error al cambiar el estado');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cambiar el estado');
+            });
+        }
+
+        // Animaciones y efectos visuales
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animar las tarjetas al cargar
+            const cards = document.querySelectorAll('.proyecto-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+}

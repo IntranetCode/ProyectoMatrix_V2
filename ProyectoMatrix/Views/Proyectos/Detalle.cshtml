@@ -1,0 +1,494 @@
+﻿@using ProyectoMatrix.Models
+@model Proyecto
+@{
+    ViewData["Title"] = "Detalle del Proyecto";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Estilos {
+    <style>
+        .proyecto-header {
+            background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 1.5rem;
+            height: 100%;
+        }
+
+            .info-card h6 {
+                color: var(--bs-primary);
+                font-weight: 600;
+                margin-bottom: 1rem;
+            }
+
+        .progreso-circular {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+        }
+
+            .progreso-circular svg {
+                transform: rotate(-90deg);
+                width: 100%;
+                height: 100%;
+            }
+
+            .progreso-circular .progreso-bg {
+                fill: none;
+                stroke: #e9ecef;
+                stroke-width: 8;
+            }
+
+            .progreso-circular .progreso-fill {
+                fill: none;
+                stroke-width: 8;
+                stroke-linecap: round;
+                transition: stroke-dasharray 0.5s ease;
+            }
+
+        .progreso-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+            .timeline::before {
+                content: '';
+                position: absolute;
+                left: 0.75rem;
+                top: 0;
+                bottom: 0;
+                width: 2px;
+                background: #dee2e6;
+            }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 1.5rem;
+        }
+
+            .timeline-item::before {
+                content: '';
+                position: absolute;
+                left: -1.75rem;
+                top: 0.25rem;
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                background: var(--bs-primary);
+                border: 3px solid white;
+                box-shadow: 0 0 0 3px var(--bs-primary);
+            }
+
+            .timeline-item.completed::before {
+                background: var(--bs-success);
+                box-shadow: 0 0 0 3px var(--bs-success);
+            }
+
+        .archivo-preview {
+            border: 2px solid #dee2e6;
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            background: #f8f9fa;
+        }
+
+        .estado-badge-large {
+            font-size: 1rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            font-weight: 600;
+        }
+
+        .prioridad-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+
+        .action-buttons {
+            position: sticky;
+            top: 100px;
+            z-index: 10;
+        }
+    </style>
+}
+
+<div class="container-fluid">
+    <!-- Header del Proyecto -->
+    <div class="proyecto-header">
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center mb-2">
+                    <h1 class="h2 mb-0 me-3">@Model.NombreProyecto</h1>
+                    <span class="badge estado-badge-large bg-@Model.Estado.ObtenerColorEstado()">
+                        <i class="@Model.Estado.ObtenerIconoEstado() me-1"></i>
+                        @Model.Estado.ObtenerNombreEstado()
+                    </span>
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.CodigoProyecto))
+                {
+                    <p class="mb-2"><strong>Código:</strong> @Model.CodigoProyecto</p>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.Descripcion))
+                {
+                    <p class="mb-0 text-white-75">@Model.Descripcion</p>
+                }
+            </div>
+
+            <div class="action-buttons">
+                <a href="@Url.Action("Editar", new { id = Model.ProyectoID })" class="btn btn-light me-2">
+                    <i class="fas fa-edit me-1"></i>Editar
+                </a>
+                <a href="@Url.Action("Index")" class="btn btn-outline-light">
+                    <i class="fas fa-arrow-left me-1"></i>Volver
+                </a>
+            </div>
+        </div>
+
+        <!-- Información rápida -->
+        <div class="row mt-3">
+            <div class="col-auto">
+                <small class="text-white-75">Creado por:</small>
+                <strong class="d-block">@(Model.CreadoPor ?? "Sin especificar")</strong>
+            </div>
+            <div class="col-auto">
+                <small class="text-white-75">Fecha de creación:</small>
+                <strong class="d-block">@Model.FechaCreacion.ToString("dd/MM/yyyy")</strong>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.ResponsableProyecto))
+            {
+                <div class="col-auto">
+                    <small class="text-white-75">Responsable:</small>
+                    <strong class="d-block">@Model.ResponsableProyecto</strong>
+                </div>
+            }
+            <div class="col-auto">
+                <small class="text-white-75">Visualizaciones:</small>
+                <strong class="d-block"><i class="fas fa-eye me-1"></i>@Model.Visualizaciones</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Columna Principal -->
+        <div class="col-lg-8">
+            <!-- Progreso del Proyecto -->
+            <div class="info-card">
+                <h6><i class="fas fa-chart-line me-2"></i>Progreso del Proyecto</h6>
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <div class="progreso-circular">
+                            <svg viewBox="0 0 42 42">
+                                <circle class="progreso-bg" cx="21" cy="21" r="15.915"></circle>
+                                <circle class="progreso-fill" cx="21" cy="21" r="15.915"
+                                        stroke="@(Model.Progreso == 100 ? "#28a745" : Model.Progreso >= 75 ? "#17a2b8" : Model.Progreso >= 50 ? "#ffc107" : "#dc3545")"
+                                        stroke-dasharray="@(Model.Progreso), 100"
+                                        stroke-dashoffset="0"></circle>
+                            </svg>
+                            <div class="progreso-text text-@(Model.Progreso == 100 ? "success" : Model.Progreso >= 75 ? "info" : Model.Progreso >= 50 ? "warning" : "danger")">
+                                @Model.Progreso%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="prioridad-indicator bg-@Model.Prioridad.ObtenerColorPrioridad()"></span>
+                            <strong>Prioridad: @Model.Prioridad.ObtenerNombrePrioridad()</strong>
+                        </div>
+
+                        @if (Model.Presupuesto.HasValue)
+                        {
+                            <p class="mb-2">
+                                <i class="fas fa-dollar-sign me-1 text-muted"></i>
+                                <strong>Presupuesto:</strong> $@Model.Presupuesto.Value.ToString("N2")
+                            </p>
+                        }
+
+                        <!-- Controles de progreso -->
+                        <div class="mt-3">
+                            <label class="form-label">Actualizar Progreso:</label>
+                            <div class="input-group">
+                                <input type="range" class="form-range me-2" min="0" max="100"
+                                       value="@Model.Progreso" id="progresoSlider"
+                                       oninput="updateProgressDisplay(this.value)" />
+                                <span class="input-group-text" id="progresoValue">@Model.Progreso%</span>
+                                <button type="button" class="btn btn-primary"
+                                        onclick="actualizarProgreso(@Model.ProyectoID)">
+                                    Actualizar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Control de estado -->
+                        <div class="mt-3">
+                            <label class="form-label">Cambiar Estado:</label>
+                            <div class="input-group">
+                                <select class="form-select" id="nuevoEstado">
+                                    @foreach (EstadoProyecto estado in Enum.GetValues<EstadoProyecto>())
+                                    {
+                                        <option value="@((int)estado)" selected="@(Model.Estado == estado)">
+                                            @estado.ObtenerNombreEstado()
+                                        </option>
+                                    }
+                                </select>
+                                <button type="button" class="btn btn-outline-primary"
+                                        onclick="cambiarEstado(@Model.ProyectoID)">
+                                    Cambiar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fechas del Proyecto -->
+            <div class="info-card">
+                <h6><i class="fas fa-calendar-alt me-2"></i>Timeline del Proyecto</h6>
+                <div class="timeline">
+                    <div class="timeline-item completed">
+                        <strong>Proyecto Creado</strong>
+                        <div class="text-muted">@Model.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</div>
+                        <small class="text-muted">por @(Model.CreadoPor ?? "Sistema")</small>
+                    </div>
+
+                    @if (Model.FechaInicio.HasValue)
+                    {
+                        <div class="timeline-item @(Model.FechaInicio <= DateTime.Now ? "completed" : "")">
+                            <strong>Fecha de Inicio</strong>
+                            <div class="text-muted">@Model.FechaInicio.Value.ToString("dd/MM/yyyy")</div>
+                        </div>
+                    }
+
+                    @if (Model.FechaFinPrevista.HasValue)
+                    {
+                        <div class="timeline-item @(Model.Estado == EstadoProyecto.Completado ? "completed" : "")">
+                            <strong>Entrega Prevista</strong>
+                            <div class="text-muted @(Model.FechaFinPrevista < DateTime.Now && Model.Estado != EstadoProyecto.Completado ? "text-danger" : "")">
+                                @Model.FechaFinPrevista.Value.ToString("dd/MM/yyyy")
+                                @if (Model.FechaFinPrevista < DateTime.Now && Model.Estado != EstadoProyecto.Completado)
+                                {
+                                    <span class="badge bg-danger ms-2">Atrasado</span>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @if (Model.FechaFinReal.HasValue)
+                    {
+                        <div class="timeline-item completed">
+                            <strong>Proyecto Completado</strong>
+                            <div class="text-success">@Model.FechaFinReal.Value.ToString("dd/MM/yyyy HH:mm")</div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Observaciones -->
+            @if (!string.IsNullOrEmpty(Model.Observaciones))
+            {
+                <div class="info-card">
+                    <h6><i class="fas fa-sticky-note me-2"></i>Observaciones</h6>
+                    <div class="bg-light p-3 rounded">
+                        @Model.Observaciones
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Columna Lateral -->
+        <div class="col-lg-4">
+            <!-- Archivo del Proyecto -->
+            @if (!string.IsNullOrEmpty(Model.ArchivoRuta))
+            {
+                <div class="info-card">
+                    <h6><i class="fas fa-paperclip me-2"></i>Documento del Proyecto</h6>
+                    <div class="archivo-preview">
+                        <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
+                        <h6>Documento Adjunto</h6>
+                        <p class="text-muted mb-3">
+                            Tamaño: @Model.TamanoArchivo.FormatearTamano()<br>
+                            Formato: @(Model.Extension?.ToUpper() ?? "PDF")
+                        </p>
+                        <div class="d-grid gap-2">
+                            <a href="@Url.Action("VerArchivo", new { id = Model.ProyectoID })"
+                               class="btn btn-primary" target="_blank">
+                                <i class="fas fa-eye me-1"></i>Ver Documento
+                            </a>
+                            <a href="@Url.Action("DescargarArchivo", new { id = Model.ProyectoID })"
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-download me-1"></i>Descargar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Tags -->
+            @if (!string.IsNullOrEmpty(Model.Tags))
+            {
+                <div class="info-card">
+                    <h6><i class="fas fa-tags me-2"></i>Etiquetas</h6>
+                    <div>
+                        @foreach (var tag in Model.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            <span class="badge bg-light text-dark me-1 mb-1">#@tag.Trim()</span>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Información Adicional -->
+            <div class="info-card">
+                <h6><i class="fas fa-info-circle me-2"></i>Información del Sistema</h6>
+                <div class="small">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>ID del Proyecto:</span>
+                        <strong>@Model.ProyectoID</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Empresa:</span>
+                        <strong>ID @Model.EmpresaID</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Estado:</span>
+                        <span class="badge bg-@Model.Estado.ObtenerColorEstado()">
+                            @Model.Estado.ObtenerNombreEstado()
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Activo:</span>
+                        <span class="badge bg-@(Model.EsActivo ? "success" : "danger")">
+                            @(Model.EsActivo ? "Sí" : "No")
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentProgress = @Model.Progreso;
+
+        // Actualizar display del progreso
+        function updateProgressDisplay(value) {
+            document.getElementById('progresoValue').textContent = value + '%';
+            currentProgress = parseInt(value);
+        }
+
+        // Actualizar progreso via AJAX
+        function actualizarProgreso(proyectoId) {
+            const nuevoProgreso = currentProgress;
+
+            fetch('@Url.Action("ActualizarProgreso")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
+                },
+                body: JSON.stringify({
+                    proyectoId: proyectoId,
+                    progreso: nuevoProgreso
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Actualizar el círculo de progreso
+                    const circle = document.querySelector('.progreso-fill');
+                    const text = document.querySelector('.progreso-text');
+
+                    circle.setAttribute('stroke-dasharray', `${nuevoProgreso}, 100`);
+                    text.textContent = `${nuevoProgreso}%`;
+
+                    // Cambiar color según el progreso
+                    let color = nuevoProgreso == 100 ? '#28a745' :
+                               nuevoProgreso >= 75 ? '#17a2b8' :
+                               nuevoProgreso >= 50 ? '#ffc107' : '#dc3545';
+                    circle.setAttribute('stroke', color);
+
+                    // Mostrar mensaje de éxito
+                    showAlert('Progreso actualizado correctamente', 'success');
+                } else {
+                    showAlert('Error al actualizar el progreso', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error de conexión', 'danger');
+            });
+        }
+
+        // Cambiar estado via AJAX
+        function cambiarEstado(proyectoId) {
+            const nuevoEstado = document.getElementById('nuevoEstado').value;
+
+            fetch('@Url.Action("CambiarEstado")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
+                },
+                body: JSON.stringify({
+                    proyectoId: proyectoId,
+                    estado: parseInt(nuevoEstado)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Estado actualizado correctamente. Recargando página...', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showAlert('Error al cambiar el estado', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error de conexión', 'danger');
+            });
+        }
+
+        // Mostrar alertas
+        function showAlert(message, type) {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show position-fixed"
+                     style="top: 100px; right: 20px; z-index: 9999;" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', alertHtml);
+
+            // Auto-eliminar después de 5 segundos
+            setTimeout(() => {
+                const alert = document.querySelector('.alert:last-child');
+                if (alert) alert.remove();
+            }, 5000);
+        }
+    </script>
+}

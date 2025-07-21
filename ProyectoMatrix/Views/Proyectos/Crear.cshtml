@@ -1,0 +1,396 @@
+﻿@using ProyectoMatrix.Models
+@model Proyecto
+@{
+    ViewData["Title"] = "Crear Nuevo Proyecto";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Estilos {
+    <style>
+        .form-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+            padding: 2rem;
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+            .form-section h5 {
+                color: var(--bs-primary);
+                margin-bottom: 1rem;
+                font-weight: 600;
+            }
+
+        .file-upload-container {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+            .file-upload-container:hover {
+                border-color: var(--bs-primary);
+                background-color: rgba(var(--bs-primary-rgb), 0.05);
+            }
+
+            .file-upload-container.dragover {
+                border-color: var(--bs-success);
+                background-color: rgba(var(--bs-success-rgb), 0.1);
+            }
+
+        .progress-slider {
+            background: linear-gradient(90deg, #dc3545 0%, #fd7e14 25%, #ffc107 50%, #198754 100%);
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        .btn-action {
+            padding: 0.75rem 2rem;
+            border-radius: 25px;
+            font-weight: 600;
+        }
+    </style>
+}
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="fas fa-plus-circle me-2 text-primary"></i>Crear Nuevo Proyecto</h1>
+            <p class="text-muted">Completa la información del proyecto y adjunta los archivos necesarios</p>
+        </div>
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver a Proyectos
+        </a>
+    </div>
+
+    <!-- Formulario -->
+    <form asp-action="Crear" method="post" enctype="multipart/form-data" class="form-container">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+        <!-- Sección: Información Básica -->
+        <div class="form-section">
+            <h5><i class="fas fa-info-circle me-2"></i>Información Básica</h5>
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label asp-for="NombreProyecto" class="form-label">
+                            <i class="fas fa-project-diagram me-1"></i>Nombre del Proyecto *
+                        </label>
+                        <input asp-for="NombreProyecto" class="form-control form-control-lg"
+                               placeholder="Ingrese el nombre del proyecto" required />
+                        <span asp-validation-for="NombreProyecto" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label asp-for="CodigoProyecto" class="form-label">
+                            <i class="fas fa-hashtag me-1"></i>Código del Proyecto
+                        </label>
+                        <input asp-for="CodigoProyecto" class="form-control"
+                               placeholder="PRY-2025-001" />
+                        <span asp-validation-for="CodigoProyecto" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Descripcion" class="form-label">
+                    <i class="fas fa-align-left me-1"></i>Descripción
+                </label>
+                <textarea asp-for="Descripcion" class="form-control" rows="3"
+                          placeholder="Describe brevemente el proyecto, sus objetivos y alcance"></textarea>
+                <span asp-validation-for="Descripcion" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Sección: Estado y Prioridad -->
+        <div class="form-section">
+            <h5><i class="fas fa-cogs me-2"></i>Estado y Prioridad</h5>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label asp-for="Estado" class="form-label">
+                            <i class="fas fa-tasks me-1"></i>Estado
+                        </label>
+                        <select asp-for="Estado" class="form-select">
+                            @foreach (EstadoProyecto estado in Enum.GetValues<EstadoProyecto>())
+                            {
+                                <option value="@estado">@estado.ObtenerNombreEstado()</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Estado" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label asp-for="Prioridad" class="form-label">
+                            <i class="fas fa-flag me-1"></i>Prioridad
+                        </label>
+                        <select asp-for="Prioridad" class="form-select">
+                            @foreach (PrioridadProyecto prioridad in Enum.GetValues<PrioridadProyecto>())
+                            {
+                                <option value="@prioridad">@prioridad.ObtenerNombrePrioridad()</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Prioridad" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label asp-for="Progreso" class="form-label">
+                            <i class="fas fa-chart-line me-1"></i>Progreso Inicial (%)
+                        </label>
+                        <input asp-for="Progreso" type="range" class="form-range" min="0" max="100"
+                               id="progresoSlider" oninput="updateProgressValue(this.value)" />
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">0%</small>
+                            <span id="progresoValue" class="badge bg-primary">@Model.Progreso%</span>
+                            <small class="text-muted">100%</small>
+                        </div>
+                        <span asp-validation-for="Progreso" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección: Fechas y Responsables -->
+        <div class="form-section">
+            <h5><i class="fas fa-calendar-alt me-2"></i>Fechas y Responsables</h5>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label asp-for="FechaInicio" class="form-label">
+                            <i class="fas fa-play-circle me-1"></i>Fecha de Inicio
+                        </label>
+                        <input asp-for="FechaInicio" type="date" class="form-control" />
+                        <span asp-validation-for="FechaInicio" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label asp-for="FechaFinPrevista" class="form-label">
+                            <i class="fas fa-flag-checkered me-1"></i>Fecha de Entrega Prevista
+                        </label>
+                        <input asp-for="FechaFinPrevista" type="date" class="form-control" />
+                        <span asp-validation-for="FechaFinPrevista" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label asp-for="ResponsableProyecto" class="form-label">
+                            <i class="fas fa-user-tie me-1"></i>Responsable del Proyecto
+                        </label>
+                        <input asp-for="ResponsableProyecto" class="form-control"
+                               placeholder="Nombre del responsable" />
+                        <span asp-validation-for="ResponsableProyecto" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="Presupuesto" class="form-label">
+                            <i class="fas fa-dollar-sign me-1"></i>Presupuesto
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input asp-for="Presupuesto" type="number" class="form-control"
+                                   placeholder="0.00" step="0.01" />
+                        </div>
+                        <span asp-validation-for="Presupuesto" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="Tags" class="form-label">
+                            <i class="fas fa-tags me-1"></i>Tags/Etiquetas
+                        </label>
+                        <input asp-for="Tags" class="form-control"
+                               placeholder="desarrollo,web,cliente-x" />
+                        <small class="form-text text-muted">Separar por comas</small>
+                        <span asp-validation-for="Tags" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección: Archivo Adjunto -->
+        <div class="form-section">
+            <h5><i class="fas fa-paperclip me-2"></i>Documento del Proyecto</h5>
+            <div class="file-upload-container" id="fileUploadContainer">
+                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Arrastra el archivo aquí o haz clic para seleccionar</h5>
+                <p class="text-muted mb-3">Formatos soportados: PDF, DOC, DOCX, XLS, XLSX (máximo 10MB)</p>
+                <input type="file" name="archivo" id="archivo" class="d-none"
+                       accept=".pdf,.doc,.docx,.xls,.xlsx" />
+                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('archivo').click();">
+                    <i class="fas fa-folder-open me-1"></i>Seleccionar Archivo
+                </button>
+            </div>
+            <div id="fileInfo" class="mt-3" style="display: none;">
+                <div class="alert alert-info d-flex align-items-center">
+                    <i class="fas fa-file-alt fa-2x me-3"></i>
+                    <div>
+                        <strong id="fileName"></strong><br>
+                        <small id="fileSize" class="text-muted"></small>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger ms-auto" onclick="clearFile()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección: Observaciones -->
+        <div class="form-section">
+            <h5><i class="fas fa-sticky-note me-2"></i>Observaciones Adicionales</h5>
+            <textarea asp-for="Observaciones" class="form-control" rows="4"
+                      placeholder="Agrega cualquier información adicional, notas especiales o comentarios sobre el proyecto"></textarea>
+            <span asp-validation-for="Observaciones" class="text-danger"></span>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="text-center pt-3 border-top">
+            <button type="submit" class="btn btn-primary btn-action me-3">
+                <i class="fas fa-save me-1"></i>Crear Proyecto
+            </button>
+            <a href="@Url.Action("Index")" class="btn btn-outline-secondary btn-action">
+                <i class="fas fa-times me-1"></i>Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        // Actualizar valor del progreso
+        function updateProgressValue(value) {
+            document.getElementById('progresoValue').textContent = value + '%';
+            document.getElementById('progresoSlider').nextElementSibling.children[1].className =
+                `badge bg-${value == 100 ? 'success' : value >= 75 ? 'info' : value >= 50 ? 'warning' : 'danger'}`;
+        }
+
+        // Manejo de archivos
+        const fileUploadContainer = document.getElementById('fileUploadContainer');
+        const fileInput = document.getElementById('archivo');
+        const fileInfo = document.getElementById('fileInfo');
+
+        // Click en el contenedor
+        fileUploadContainer.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        // Drag and drop
+        fileUploadContainer.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+
+        fileUploadContainer.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+
+        fileUploadContainer.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                showFileInfo(files[0]);
+            }
+        });
+
+        // Cuando se selecciona un archivo
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                showFileInfo(this.files[0]);
+            }
+        });
+
+        // Mostrar información del archivo
+        function showFileInfo(file) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            fileInfo.style.display = 'block';
+        }
+
+        // Limpiar archivo
+        function clearFile() {
+            fileInput.value = '';
+            fileInfo.style.display = 'none';
+        }
+
+        // Formatear tamaño del archivo
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Validar archivo antes del envío
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const file = fileInput.files[0];
+            if (file) {
+                // Validar tamaño (10MB máximo)
+                if (file.size > 10 * 1024 * 1024) {
+                    e.preventDefault();
+                    alert('El archivo no puede ser mayor a 10MB');
+                    return;
+                }
+
+                // Validar tipo
+                const allowedTypes = ['.pdf', '.doc', '.docx', '.xls', '.xlsx'];
+                const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                if (!allowedTypes.includes(fileExtension)) {
+                    e.preventDefault();
+                    alert('Tipo de archivo no permitido. Solo se permiten: PDF, DOC, DOCX, XLS, XLSX');
+                    return;
+                }
+            }
+        });
+
+        // Inicializar tooltips si están disponibles
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar tooltips de Bootstrap si están disponibles
+            if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            }
+
+            // Auto-generar código del proyecto si está vacío
+            const nombreInput = document.querySelector('input[name="NombreProyecto"]');
+            const codigoInput = document.querySelector('input[name="CodigoProyecto"]');
+
+            if (nombreInput && codigoInput) {
+                nombreInput.addEventListener('blur', function() {
+                    if (codigoInput.value === '' && this.value !== '') {
+                        const year = new Date().getFullYear();
+                        const month = String(new Date().getMonth() + 1).padStart(2, '0');
+                        const randomNum = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
+                        codigoInput.value = `PRY-${year}${month}-${randomNum}`;
+                    }
+                });
+            }
+        });
+    </script>
+}
