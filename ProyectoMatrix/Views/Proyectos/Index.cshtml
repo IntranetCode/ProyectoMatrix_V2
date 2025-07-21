@@ -2,7 +2,8 @@
 @model ProyectosViewModel
 @{
     ViewData["Title"] = "Gestión de Proyectos";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    var rol = Context.Session.GetString("Rol") ?? "Colaborador";
+    Layout = rol == "Administrador" ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_Colaborador.cshtml";
 }
 
 @section Estilos {

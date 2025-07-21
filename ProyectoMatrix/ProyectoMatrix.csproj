@@ -24,6 +24,7 @@
     <Folder Include="wwwroot\contenidos\thumbnails\" />
     <Folder Include="wwwroot\contenidos\videos\" />
     <Folder Include="wwwroot\Imagenes\Fondos\" />
+    <Folder Include="wwwroot\documentos\" />
   </ItemGroup>
 
 </Project>
