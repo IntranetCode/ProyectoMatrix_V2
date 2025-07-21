@@ -171,7 +171,7 @@ namespace ProyectoMatrix.Models
             };
         }
 
-        public static string FormatearTamano(this long bytes)
+        public static string FormatearTamanoArchivo(this long bytes)
         {
             if (bytes < 1024) return $"{bytes} B";
             if (bytes < 1048576) return $"{bytes / 1024:F1} KB";
