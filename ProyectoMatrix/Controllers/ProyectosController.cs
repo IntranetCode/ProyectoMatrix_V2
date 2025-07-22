@@ -24,7 +24,7 @@ public class ProyectosController : Controller
     {
         // Configurar navbar dinámico
         ViewBag.TituloNavbar = "Gestión de Proyectos";
-        ViewBag.LogoNavbar = "logo-proyectos.png";
+        ViewBag.LogoNavbar = "logo_proyectos.png";
 
         // Verificar sesión de usuario
         var rol = HttpContext.Session.GetString("Rol");
