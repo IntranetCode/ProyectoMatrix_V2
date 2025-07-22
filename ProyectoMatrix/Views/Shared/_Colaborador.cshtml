@@ -195,59 +195,295 @@
 </html>
 *@
 @using System.Text.Json
-@*@model List<ProyectoMatrix.Models.MenuModel>*@
-
 @{
     Layout = null;
     ViewData["Title"] = "Intranet - NS Group";
-
     var nombreUsuario = Context.Session.GetString("Username") ?? "Invitado";
     var rol = Context.Session.GetString("Rol") ?? "Colaborador";
-
     var tituloNavbar = ViewBag.TituloNavbar?.ToString() ?? "Universidad NS Group";
     var logoNavbar = ViewBag.LogoNavbar?.ToString() ?? "logo-universidad-ns.png";
-}
 
+    // *** CARGAR CSS DINÁMICO POR EMPRESA ***
+    var empresaId = Context.Session.GetString("EmpresaId") ?? "default";
+    var nombreEmpresa = Context.Session.GetString("EmpresaNombre") ?? "NS Group";
+    var cssFile = empresaId switch
+    {
+        "1" => "LoginNutriservicios.css",
+        "2" => "LoginNS_Equipo.css",
+        "3" => "LoginBSP.css",
+        "4" => "LoginHypor.css",
+        _ => "site.css"
+    };
+}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8" />
     <title>@ViewData["Title"]</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <!-- *** CARGAR CSS DINÁMICO POR EMPRESA *** -->
+    <link rel="stylesheet" href="@(Url.Content($"~/css/{cssFile}"))" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <!-- *** ESTILOS DINÁMICOS PARA COLABORADORES *** -->
+    <style>
+        /* Fondo dinámico usando variables CSS de cada empresa */
+        body {
+            background: linear-gradient(135deg, var(--color-primario, #f8fafc) 0%, var(--color-secundario, #f1f5f9) 25%, var(--color-terciario, #e2e8f0) 50%, var(--color-primario, #f8fafc) 100%) !important;
+            background-size: 400% 400% !important;
+            animation: gradientShift 20s ease infinite !important;
+            min-height: 100vh !important;
+            background-attachment: fixed !important;
+        }
+
+            /* Overlay sutil para mejor legibilidad */
+            body::before {
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(255, 255, 255, 0.85);
+                z-index: -1;
+                pointer-events: none;
+            }
+
+        /* Animación del gradiente */
+        @@keyframes gradientShift {
+            0%
+
+        {
+            background-position: 0% 50%;
+        }
+
+        50% {
+            background-position: 100% 50%;
+        }
+
+        100% {
+            background-position: 0% 50%;
+        }
+
+        }
+
+        /* Navbar con colores dinámicos */
+        .navbar-colaborador {
+            background: var(--color-primario, #007bff) !important;
+            backdrop-filter: blur(10px) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        /* Contenedor principal con fondo */
+        .container-colaborador {
+            background: rgba(255, 255, 255, 0.9) !important;
+            backdrop-filter: blur(10px) !important;
+            border-radius: 15px !important;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            margin-top: 2rem !important;
+            margin-bottom: 2rem !important;
+            padding: 2rem !important;
+        }
+
+        /* Botones con colores dinámicos */
+        .btn-primary {
+            background: var(--color-primario, #007bff) !important;
+            border-color: var(--color-primario, #007bff) !important;
+        }
+
+            .btn-primary:hover {
+                background: var(--color-secundario, #0056b3) !important;
+                border-color: var(--color-secundario, #0056b3) !important;
+            }
+
+        /* Enlaces con colores dinámicos */
+        a {
+            color: var(--color-primario, #007bff) !important;
+        }
+
+            a:hover {
+                color: var(--color-secundario, #0056b3) !important;
+            }
+
+        /* Badges y elementos de estado */
+        .badge-primary {
+            background-color: var(--color-primario, #007bff) !important;
+        }
+
+        .text-primary {
+            color: var(--color-primario, #007bff) !important;
+        }
+
+        /* Progress bars */
+        .progress-bar {
+            background-color: var(--color-primario, #007bff) !important;
+        }
+
+        /* Cards y elementos destacados */
+        .card {
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08) !important;
+        }
+
+            .card:hover {
+                box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15) !important;
+                transform: translateY(-2px) !important;
+                transition: all 0.3s ease !important;
+            }
+
+        /* Para empresas específicas - colores más intensos */
+        @@media screen {
+            /* Nutriservicios - Azul */
+            body .empresa-1
+
+        {
+            background: linear-gradient(135deg, #004AAD 0%, #0066CC 25%, #0080FF 50%, #004AAD 100%) !important;
+        }
+
+        body.empresa-1::before {
+            background: rgba(255, 255, 255, 0.88) !important;
+        }
+
+        /* NS Equipo - Marrón */
+        body.empresa-2 {
+            background: linear-gradient(135deg, #7B3F00 0%, #A0522D 25%, #CD853F 50%, #7B3F00 100%) !important;
+        }
+
+            body.empresa-2::before {
+                background: rgba(255, 255, 255, 0.88) !important;
+            }
+
+        /* BSP - Verde */
+        body.empresa-3 {
+            background: linear-gradient(135deg, #2E8B57 0%, #3CB371 25%, #90EE90 50%, #2E8B57 100%) !important;
+        }
+
+            body.empresa-3::before {
+                background: rgba(255, 255, 255, 0.88) !important;
+            }
+
+        /* Hypor - Morado */
+        body.empresa-4 {
+            background: linear-gradient(135deg, #880088 0%, #AA00AA 25%, #CC44CC 50%, #880088 100%) !important;
+        }
+
+            body.empresa-4::before {
+                background: rgba(255, 255, 255, 0.88) !important;
+            }
+
+        }
+
+        /* Responsive */
+        @@media (max-width: 768px) {
+            body:: before
+
+        {
+            background: rgba(255, 255, 255, 0.92) !important;
+        }
+
+        .container-colaborador {
+            margin: 1rem !important;
+            padding: 1rem !important;
+            border-radius: 10px !important;
+        }
+
+        .navbar-brand img {
+            height: 30px !important;
+        }
+
+        }
+
+        /* Estados y alertas con colores dinámicos */
+        .alert-primary {
+            background-color: rgba(var(--color-primario-rgb, 0, 123, 255), 0.1) !important;
+            border-color: var(--color-primario, #007bff) !important;
+            color: var(--color-primario, #007bff) !important;
+        }
+
+        /* Iconos con colores dinámicos */
+        .text-primary i,
+        .btn-primary i {
+            color: inherit !important;
+        }
+    </style>
 
     @RenderSection("Estilos", required: false)  @* Sección opcional para estilos personalizados *@
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+
+<body class="empresa-@empresaId">
+    <!-- Navbar con colores dinámicos -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-colaborador">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">
+            <a class="navbar-brand" href="/Menu">
                 @if (!string.IsNullOrEmpty(logoNavbar))
                 {
-                    <img src="~/Imagenes/@logoNavbar" alt="@tituloNavbar" style="height:40px" />
+                    <img src="~/Imagenes/@logoNavbar" alt="@tituloNavbar" style="height:40px; margin-right: 10px;" />
                 }
                 else
                 {
-                    <i class="fas fa-graduation-cap"></i> @tituloNavbar
+                    <i class="fas fa-graduation-cap me-2"></i>
                 }
+                @tituloNavbar
             </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu"
                     aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <span class="navbar-text text-white">
-                @nombreUsuario (@rol)
+
+            <div class="collapse navbar-collapse" id="navbarMenu">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/Menu">
+                            <i class="fas fa-home me-1"></i>Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/Universidad">
+                            <i class="fas fa-graduation-cap me-1"></i>Universidad
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/Proyectos">
+                            <i class="fas fa-project-diagram me-1"></i>Proyectos
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-circle me-1"></i>@nombreUsuario
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Mi Perfil</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Configuración</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/Menu/Logout"><i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Info de empresa y rol -->
+            <span class="navbar-text text-white ms-3 d-none d-lg-block">
+                <small>
+                    <i class="fas fa-building me-1"></i>@nombreEmpresa
+                    <span class="mx-2">|</span>
+                    <i class="fas fa-id-badge me-1"></i>@rol
+                </small>
             </span>
         </div>
     </nav>
 
-    <div class="container mt-4">
+    <!-- Contenedor principal -->
+    <div class="container container-colaborador">
         @RenderBody()
     </div>
 
+    <!-- Scripts -->
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-
     @RenderSection("Scripts", required: false)  @* Sección opcional para scripts personalizados *@
 </body>
 </html>
