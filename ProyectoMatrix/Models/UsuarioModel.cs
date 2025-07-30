@@ -10,7 +10,7 @@ namespace ProyectoMatrix.Models
         public string Username { get; set; }
 
         // Hasheado en la base de datos, para verificar con PasswordHasher
-        public string PasswordHash { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
 
         // Datos de la persona
         public string Nombre { get; set; } = string.Empty;

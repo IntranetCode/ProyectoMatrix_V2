@@ -1,65 +1,673 @@
-﻿@model ProyectoMatrix.Models.UserModel
+﻿@model ProyectoMatrix.Models.UsuarioModel
 @{
     Layout = null;
-    var logo = ViewBag.EmpresaLogo ?? "default.jpg";
-    var empresaId = ViewBag.EmpresaId ?? "default";
-    var cssFile = empresaId switch
-    {
-        "1" => "loginnutriservicios.css",
-        "2" => "loginns_equipo.css",
-        "3" => "loginbsp.css",
-        "4" => "loginhypor.css",
-        _ => "default.css"
-    };
 }
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Acceso al sistema | NSGroup</title>
+    <title>Acceso al Sistema | NSGroup</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
-    <link href="@Url.Content("~/css/" + cssFile)" rel="stylesheet" />
-</head>
-<body class="login-body d-flex align-items-center justify-content-center min-vh-100">
-    <main class="login-card shadow-lg p-5 rounded-4 bg-white">
-        <div class="text-center mb-4">
-            <img src="@Url.Content("~/Imagenes/" + logo)" alt="Logo de la empresa" class="img-fluid mb-3" style="max-height: 90px;" />
-            <h2 class="fw-bold text-primary mb-1">Bienvenido</h2>
-            <p class="text-muted mb-0">Accede a tu cuenta para continuar</p>
-        </div>
-
-        @if (!ViewData.ModelState.IsValid)
-        {
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <strong>Error:</strong>
-                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-                {
-                    <div>@error.ErrorMessage</div>
-                }
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-            </div>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <style>
+        :root {
+            --primary-color: #1e40af;
+            --primary-dark: #1e3a8a;
+            --secondary-color: #64748b;
+            --accent-color: #3b82f6;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            --card-shadow-hover: 0 32px 64px -12px rgba(0, 0, 0, 0.35);
         }
 
-        <form asp-action="Login" method="post" novalidate autocomplete="off">
-            <div class="form-floating mb-3">
-                <input asp-for="Username" class="form-control" placeholder="Usuario" autocomplete="username" required />
-                <label asp-for="Username">Usuario</label>
-                <span asp-validation-for="Username" class="text-danger small"></span>
-            </div>
-            <div class="form-floating mb-4">
-                <input asp-for="Password" class="form-control" placeholder="Contraseña" type="password" autocomplete="current-password" required />
-                <label asp-for="Password">Contraseña</label>
-                <span asp-validation-for="Password" class="text-danger small"></span>
-            </div>
-            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm">Ingresar</button>
-        </form>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-        <div class="text-center mt-4">
-            <small class="text-muted">© @DateTime.Now.Year - NSGroup. Todos los derechos reservados.</small>
-        </div>
-    </main>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+            body::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+                animation: float 20s ease-in-out infinite;
+            }
+
+        @@keyframes float {
+            0%, 100%
+
+        {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-20px);
+        }
+
+        }
+
+        .login-container {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            box-shadow: var(--card-shadow);
+            width: 100%;
+            max-width: 440px;
+            padding: 3rem 2.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+            .login-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: linear-gradient(90deg, var(--primary-color), var(--accent-color), var(--success-color));
+                border-radius: 24px 24px 0 0;
+            }
+
+            .login-card:hover {
+                box-shadow: var(--card-shadow-hover);
+                transform: translateY(-5px);
+            }
+
+        .brand-section {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .brand-logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            border-radius: 20px;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(30, 64, 175, 0.3);
+            transition: all 0.3s ease;
+        }
+
+            .brand-logo:hover {
+                transform: scale(1.05);
+            }
+
+            .brand-logo i {
+                font-size: 2.5rem;
+                color: white;
+            }
+
+        .brand-title {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+        }
+
+        .brand-subtitle {
+            color: var(--secondary-color);
+            font-size: 1rem;
+            font-weight: 400;
+            margin-bottom: 0;
+        }
+
+        .form-section {
+            margin-bottom: 2rem;
+        }
+
+        .input-group-custom {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+            .input-group-custom .form-control {
+                background: rgba(248, 250, 252, 0.8);
+                border: 2px solid rgba(226, 232, 240, 0.8);
+                border-radius: 12px;
+                padding: 1rem 1rem 1rem 3rem;
+                font-size: 1rem;
+                font-weight: 500;
+                color: #374151;
+                transition: all 0.3s ease;
+                backdrop-filter: blur(10px);
+            }
+
+            .input-group-custom.password-field .form-control {
+                padding-right: 3rem;
+            }
+
+            .input-group-custom .form-control:focus {
+                background: rgba(255, 255, 255, 0.95);
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+                outline: none;
+            }
+
+            .input-group-custom .input-icon {
+                position: absolute;
+                left: 1rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: var(--secondary-color);
+                font-size: 1.125rem;
+                z-index: 2;
+                transition: all 0.3s ease;
+            }
+
+            .input-group-custom .form-control:focus + .input-icon {
+                color: var(--primary-color);
+            }
+
+        .password-toggle {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--secondary-color);
+            font-size: 1.125rem;
+            cursor: pointer;
+            z-index: 3;
+            transition: all 0.3s ease;
+            padding: 0.25rem;
+            border-radius: 4px;
+        }
+
+            .password-toggle:hover {
+                color: var(--primary-color);
+                background: rgba(30, 64, 175, 0.1);
+            }
+
+        .input-group-custom label {
+            position: absolute;
+            left: 3rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--secondary-color);
+            font-size: 1rem;
+            font-weight: 500;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            background: transparent;
+            padding: 0;
+        }
+
+        .input-group-custom .form-control:focus + .input-icon + label,
+        .input-group-custom .form-control:not(:placeholder-shown) + .input-icon + label {
+            top: -8px;
+            left: 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 0 0.5rem;
+            border-radius: 4px;
+        }
+
+        .input-group-custom.password-field .form-control:focus + .input-icon + label + .password-toggle + span,
+        .input-group-custom.password-field .form-control:not(:placeholder-shown) + .input-icon + label + .password-toggle + span {
+            top: -8px;
+            left: 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 0 0.5rem;
+            border-radius: 4px;
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border: none;
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(30, 64, 175, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+            .btn-login::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+                transition: left 0.5s;
+            }
+
+            .btn-login:hover::before {
+                left: 100%;
+            }
+
+            .btn-login:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 25px rgba(30, 64, 175, 0.5);
+            }
+
+            .btn-login:active {
+                transform: translateY(0);
+            }
+
+        .alert-custom {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+            .alert-custom .alert-title {
+                font-weight: 600;
+                color: var(--error-color);
+                margin-bottom: 0.5rem;
+            }
+
+            .alert-custom .error-message {
+                color: var(--error-color);
+                font-size: 0.875rem;
+                margin: 0;
+            }
+
+        .footer-section {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(226, 232, 240, 0.5);
+        }
+
+        .footer-text {
+            color: var(--secondary-color);
+            font-size: 0.875rem;
+            font-weight: 400;
+        }
+
+        .validation-error {
+            color: var(--error-color);
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-top: 0.5rem;
+            display: block;
+        }
+
+        /* Responsive Design */
+        @@media (max-width: 768px) {
+            .login-container
+
+        {
+            padding: 1rem;
+        }
+
+        .login-card {
+            max-width: 100%;
+            padding: 2.5rem 2rem;
+        }
+
+        .brand-title {
+            font-size: 1.75rem;
+        }
+
+        }
+
+        @@media (max-width: 576px) {
+            .login-card
+
+        {
+            padding: 2rem 1.5rem;
+            margin: 0.5rem;
+            border-radius: 20px;
+        }
+
+        .brand-section {
+            margin-bottom: 2rem;
+        }
+
+        .brand-title {
+            font-size: 1.5rem;
+        }
+
+        .brand-subtitle {
+            font-size: 0.9rem;
+        }
+
+        .brand-logo {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 1rem;
+        }
+
+            .brand-logo i {
+                font-size: 2rem;
+            }
+
+        .input-group-custom {
+            margin-bottom: 1.25rem;
+        }
+
+            .input-group-custom .form-control {
+                padding: 0.875rem 0.875rem 0.875rem 2.75rem;
+                font-size: 0.95rem;
+            }
+
+            .input-group-custom.password-field .form-control {
+                padding-right: 2.75rem;
+            }
+
+            .input-group-custom .input-icon {
+                left: 0.875rem;
+                font-size: 1rem;
+            }
+
+        .password-toggle {
+            right: 0.875rem;
+            font-size: 1rem;
+        }
+
+        .input-group-custom label {
+            left: 2.75rem;
+            font-size: 0.95rem;
+        }
+
+        .input-group-custom .form-control:focus + .input-icon + label,
+        .input-group-custom .form-control:not(:placeholder-shown) + .input-icon + label {
+            left: 0.875rem;
+            font-size: 0.7rem;
+        }
+
+        .btn-login {
+            padding: 0.875rem 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .footer-text {
+            font-size: 0.8rem;
+        }
+
+        }
+
+        @@media (max-width: 400px) {
+            .login-card
+
+        {
+            padding: 1.5rem 1rem;
+            margin: 0.25rem;
+        }
+
+        .brand-title {
+            font-size: 1.375rem;
+        }
+
+        .brand-logo {
+            width: 50px;
+            height: 50px;
+        }
+
+            .brand-logo i {
+                font-size: 1.75rem;
+            }
+
+        .input-group-custom .form-control {
+            padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+            font-size: 0.9rem;
+        }
+
+        .input-group-custom.password-field .form-control {
+            padding-right: 2.5rem;
+        }
+
+        .input-group-custom .input-icon {
+            left: 0.75rem;
+        }
+
+        .password-toggle {
+            right: 0.75rem;
+        }
+
+        .input-group-custom label {
+            left: 2.5rem;
+            font-size: 0.9rem;
+        }
+
+        .btn-login {
+            padding: 0.75rem 1.25rem;
+            font-size: 0.9rem;
+        }
+
+        }
+
+        /* Landscape orientation adjustments */
+        @@media (max-height: 600px) and (orientation: landscape) {
+            .login-container
+
+        {
+            padding: 1rem;
+        }
+
+        .login-card {
+            padding: 1.5rem 2rem;
+        }
+
+        .brand-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .brand-logo {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 0.75rem;
+        }
+
+            .brand-logo i {
+                font-size: 1.75rem;
+            }
+
+        .brand-title {
+            font-size: 1.375rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .brand-subtitle {
+            font-size: 0.875rem;
+        }
+
+        .input-group-custom {
+            margin-bottom: 1rem;
+        }
+
+        .footer-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+        }
+
+        }
+
+        .btn-login.loading {
+            pointer-events: none;
+        }
+
+            .btn-login.loading::after {
+                content: '';
+                position: absolute;
+                width: 20px;
+                height: 20px;
+                top: 50%;
+                left: 50%;
+                margin-left: -10px;
+                margin-top: -10px;
+                border: 2px solid transparent;
+                border-top-color: #ffffff;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+
+        @@keyframes spin {
+            0%
+
+        {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <main class="login-card">
+            <div class="brand-section">
+                <div class="brand-logo">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h1 class="brand-title">NSGroup</h1>
+                <p class="brand-subtitle">Acceso seguro al sistema</p>
+            </div>
+
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="alert-custom">
+                    <div class="alert-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Error de autenticación
+                    </div>
+                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <div class="error-message">@error.ErrorMessage</div>
+                    }
+                </div>
+            }
+
+            <form asp-action="Login" method="post" novalidate autocomplete="off" class="form-section">
+                <div class="input-group-custom">
+                    <input asp-for="Username"
+                           class="form-control"
+                           placeholder=" "
+                           autocomplete="username"
+                           required />
+                    <i class="fas fa-user input-icon"></i>
+                    <label asp-for="Username">Usuario</label>
+                    <span asp-validation-for="Username" class="validation-error"></span>
+                </div>
+
+                <div class="input-group-custom password-field">
+                    <input asp-for="Password"
+                           class="form-control"
+                           type="password"
+                           placeholder=" "
+                           autocomplete="current-password"
+                           required
+                           id="passwordField" />
+                    <i class="fas fa-lock input-icon"></i>
+                    <label asp-for="Password">Contraseña</label>
+                    <button type="button" class="password-toggle" id="togglePassword">
+                        <i class="fas fa-eye" id="toggleIcon"></i>
+                    </button>
+                    <span asp-validation-for="Password" class="validation-error"></span>
+                </div>
+
+                <button type="submit" class="btn-login" id="loginBtn">
+                    <span class="btn-text">Acceder al Sistema</span>
+                </button>
+            </form>
+
+            <div class="footer-section">
+                <p class="footer-text">
+                    <i class="fas fa-copyright me-1"></i>
+                    @DateTime.Now.Year NSGroup. Todos los derechos reservados.
+                </p>
+            </div>
+        </main>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const loginBtn = document.getElementById('loginBtn');
+            const inputs = document.querySelectorAll('.form-control');
+            const passwordField = document.getElementById('passwordField');
+            const togglePassword = document.getElementById('togglePassword');
+            const toggleIcon = document.getElementById('toggleIcon');
+
+            // Password visibility toggle
+            togglePassword.addEventListener('click', function() {
+                const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordField.setAttribute('type', type);
+
+                if (type === 'text') {
+                    toggleIcon.classList.remove('fa-eye');
+                    toggleIcon.classList.add('fa-eye-slash');
+                } else {
+                    toggleIcon.classList.remove('fa-eye-slash');
+                    toggleIcon.classList.add('fa-eye');
+                }
+            });
+
+            // Add loading state on form submission
+            form.addEventListener('submit', function() {
+                loginBtn.classList.add('loading');
+                loginBtn.querySelector('.btn-text').textContent = 'Iniciando sesión...';
+            });
+
+            // Enhanced input focus effects
+            inputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    this.parentElement.classList.add('focused');
+                });
+
+                input.addEventListener('blur', function() {
+                    this.parentElement.classList.remove('focused');
+                });
+            });
+
+            // Auto-focus first empty input
+            const firstEmptyInput = Array.from(inputs).find(input => !input.value);
+            if (firstEmptyInput) {
+                firstEmptyInput.focus();
+            }
+        });
+    </script>
 </body>
 </html>

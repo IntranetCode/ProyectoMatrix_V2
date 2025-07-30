@@ -1,6 +1,6 @@
-﻿using ProyectoMatrix.Models;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
+using ProyectoMatrix.Models;
 
 public class HomeController : Controller
 {
