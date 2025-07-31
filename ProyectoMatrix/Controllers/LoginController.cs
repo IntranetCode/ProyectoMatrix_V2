@@ -9,12 +9,10 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 
 public class LoginController : Controller
 {
     private readonly string _connectionString;
-    //private readonly PasswordHasher<UsuarioModel> _passwordHasher = new PasswordHasher<UsuarioModel>();
 
     public LoginController(IConfiguration configuration)
     {
@@ -24,55 +22,88 @@ public class LoginController : Controller
     [HttpGet]
     public IActionResult Login()
     {
-        ViewBag.EmpresaLogo = "default.jpg";
-        ViewBag.ColorPrimario = "#007bff";
         return View();
     }
 
     [HttpPost]
     public async Task<IActionResult> Login(UsuarioModel model)
     {
-        ViewBag.EmpresaLogo = "default.jpg";
-        ViewBag.ColorPrimario = "#007bff";
-
         if (!ModelState.IsValid)
             return View(model);
 
         var usuario = await ObtenerUsuarioActivoAsync(model.Username, _connectionString);
 
+        if (usuario == null || usuario.Password != model.Password)
+        {
+            ModelState.AddModelError("", "Usuario o contraseña incorrectos");
+            return View(model);
+        }
+
+        var empresas = await ObtenerEmpresasPorUsuarioAsync(usuario.UsuarioID);
+
+        if (empresas.Count > 1)
+        {
+            // ✅ CAMBIO PRINCIPAL: Retornamos la vista Login con las empresas cargadas
+            model.Empresas = empresas;
+            model.UsuarioID = usuario.UsuarioID;
+            // Limpiar datos sensibles antes de retornar a la vista
+            model.Username = "";
+            model.Password = "";
+
+            // Retornar la misma vista Login (no SeleccionEmpresa)
+            return View(model);
+        }
+        else if (empresas.Count == 1)
+        {
+            // Continuar login normal con esa empresa
+            return await CompletarLogin(usuario, empresas[0]);
+        }
+        else
+        {
+            ModelState.AddModelError("", "El usuario no tiene empresas asignadas");
+            return View(model);
+        }
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> SeleccionarEmpresa(int usuarioId, int empresaId)
+    {
+        var usuario = await ObtenerUsuarioActivoPorIdAsync(usuarioId);
         if (usuario == null)
+            return RedirectToAction("Login");
+
+        var empresa = (await ObtenerEmpresasPorUsuarioAsync(usuarioId))
+                        .Find(e => e.EmpresaID == empresaId);
+
+        if (empresa == null)
         {
-            ModelState.AddModelError("", "Usuario o contraseña incorrectos");
-            return View(model);
+            ModelState.AddModelError("", "Empresa no válida");
+
+            // ✅ CAMBIO: Si hay error, retornar a Login con las empresas cargadas
+            var empresas = await ObtenerEmpresasPorUsuarioAsync(usuarioId);
+            var model = new UsuarioModel
+            {
+                UsuarioID = usuarioId,
+                Empresas = empresas,
+                Username = "",
+                Password = ""
+            };
+
+            return View("Login", model);
         }
 
-        /* Verificar contraseña hasheada
-        var result = _passwordHasher.VerifyHashedPassword(model, usuario.Password, model.Password);
-        if (result == PasswordVerificationResult.Failed)
-        {
-            ModelState.AddModelError("", "Usuario o contraseña incorrectos");
-            return View(model);
-        }*/
-        if (usuario.Password != model.Password)
-        {
-            ModelState.AddModelError("", "Usuario o contraseña incorrectos");
-            return View(model);
-        }
+        return await CompletarLogin(usuario, empresa);
+    }
 
-
-        // Guardar sesión
+    private async Task<IActionResult> CompletarLogin(UsuarioModel usuario, EmpresaModel empresa)
+    {
         HttpContext.Session.SetInt32("UsuarioID", usuario.UsuarioID);
         HttpContext.Session.SetString("Username", usuario.Username);
-        HttpContext.Session.SetInt32("EmpresaID", usuario.EmpresaID);
+        HttpContext.Session.SetInt32("EmpresaID", empresa.EmpresaID);
+        HttpContext.Session.SetString("EmpresaNombre", empresa.Nombre);
+        HttpContext.Session.SetString("EmpresaLogo", string.IsNullOrEmpty(empresa.Logo) ? "default.jpg" : empresa.Logo);
+        HttpContext.Session.SetString("ColorPrimario", string.IsNullOrEmpty(empresa.ColorPrimario) ? "#007bff" : empresa.ColorPrimario);
         HttpContext.Session.SetString("Rol", usuario.Rol);
-
-        var empresa = await ObtenerEmpresaPorIdAsync(usuario.EmpresaID);
-        if (empresa != null)
-        {
-            HttpContext.Session.SetString("EmpresaNombre", empresa.Nombre);
-            HttpContext.Session.SetString("EmpresaLogo", empresa.Logo ?? "default.jpg");
-            HttpContext.Session.SetString("ColorPrimario", empresa.ColorPrimario ?? "#007bff");
-        }
 
         var menuUsuario = await ObtenerMenuPorUsuarioAsync(usuario.UsuarioID);
         HttpContext.Session.SetString("MenuUsuario", JsonConvert.SerializeObject(menuUsuario));
@@ -81,7 +112,7 @@ public class LoginController : Controller
         {
             new Claim(ClaimTypes.NameIdentifier, usuario.UsuarioID.ToString()),
             new Claim(ClaimTypes.Name, usuario.Username),
-            new Claim("EmpresaID", usuario.EmpresaID.ToString())
+            new Claim("EmpresaID", empresa.EmpresaID.ToString())
         };
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -92,6 +123,7 @@ public class LoginController : Controller
         return RedirectToAction("Index", "Menu");
     }
 
+    // Métodos para obtener datos (usuario, empresas, menú) desde la base de datos
     private async Task<UsuarioModel?> ObtenerUsuarioActivoAsync(string username, string connectionString)
     {
         using (SqlConnection connection = new SqlConnection(connectionString))
@@ -101,7 +133,6 @@ public class LoginController : Controller
                 SELECT TOP 1 u.UsuarioID, 
                                u.Username, 
                                u.PasswordHash, 
-                               uer.EmpresaID, 
                                r.Nombre AS Rol
                 FROM Usuarios u
                 INNER JOIN UsuarioEmpresaRol uer ON u.UsuarioID = uer.UsuarioID
@@ -121,7 +152,6 @@ public class LoginController : Controller
                             UsuarioID = reader.GetInt32(reader.GetOrdinal("UsuarioID")),
                             Username = reader.GetString(reader.GetOrdinal("Username")),
                             Password = reader.GetString(reader.GetOrdinal("PasswordHash")),
-                            EmpresaID = reader.GetInt32(reader.GetOrdinal("EmpresaID")),
                             Rol = reader.GetString(reader.GetOrdinal("Rol"))
                         };
                     }
@@ -132,28 +162,66 @@ public class LoginController : Controller
         return null;
     }
 
-    private async Task<EmpresaModel?> ObtenerEmpresaPorIdAsync(int empresaId)
+    private async Task<UsuarioModel?> ObtenerUsuarioActivoPorIdAsync(int usuarioId)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync();
-        string query = @"SELECT empresaId, Nombre, Logo, ColorPrimario FROM Empresas WHERE empresaId = @EmpresaId";
+
+        string query = @"
+            SELECT TOP 1 u.UsuarioID, u.Username, u.PasswordHash, r.Nombre AS Rol
+            FROM Usuarios u
+            INNER JOIN UsuarioEmpresaRol uer ON u.UsuarioID = uer.UsuarioID
+            INNER JOIN Roles r ON uer.RolID = r.RolID AND uer.EmpresaID = r.EmpresaID
+            WHERE u.UsuarioID = @UsuarioID AND u.Activo = 1;";
 
         using var command = new SqlCommand(query, connection);
-        command.Parameters.AddWithValue("@EmpresaId", empresaId);
+        command.Parameters.AddWithValue("@UsuarioID", usuarioId);
 
         using var reader = await command.ExecuteReaderAsync();
         if (await reader.ReadAsync())
         {
-            return new EmpresaModel
+            return new UsuarioModel
             {
-                Id = reader.GetInt32(0).ToString(),
-                Nombre = reader.GetString(1),
-                Logo = reader.IsDBNull(2) ? null : reader.GetString(2),
-                ColorPrimario = reader.IsDBNull(3) ? null : reader.GetString(3)
+                UsuarioID = reader.GetInt32(reader.GetOrdinal("UsuarioID")),
+                Username = reader.GetString(reader.GetOrdinal("Username")),
+                Password = reader.GetString(reader.GetOrdinal("PasswordHash")),
+                Rol = reader.GetString(reader.GetOrdinal("Rol"))
             };
         }
 
         return null;
+    }
+
+    private async Task<List<EmpresaModel>> ObtenerEmpresasPorUsuarioAsync(int usuarioId)
+    {
+        var empresas = new List<EmpresaModel>();
+
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        string query = @"
+            SELECT e.EmpresaID, e.Nombre, e.Logo, e.ColorPrimario
+            FROM Empresas e
+            JOIN UsuarioEmpresaRol uer ON e.EmpresaID = uer.EmpresaID
+            WHERE uer.UsuarioID = @UsuarioID";
+
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+        using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            empresas.Add(new EmpresaModel
+            {
+                EmpresaID = reader.GetInt32(0),
+                Nombre = reader.GetString(1),
+                Logo = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                ColorPrimario = reader.IsDBNull(3) ? "" : reader.GetString(3)
+            });
+        }
+
+        return empresas;
     }
 
     private async Task<List<MenuModel>> ObtenerMenuPorUsuarioAsync(int usuarioId)
@@ -181,8 +249,8 @@ public class LoginController : Controller
             {
                 MenuID = reader.GetInt32(0),
                 Nombre = reader.GetString(1),
-                Icono = reader.IsDBNull(2) ? null : reader.GetString(2),
-                Url = reader.IsDBNull(3) ? null : reader.GetString(3),
+                Icono = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                Url = reader.IsDBNull(3) ? "" : reader.GetString(3),
                 Orden = reader.GetInt32(4),
                 MenuPadreID = reader.IsDBNull(5) ? (int?)null : reader.GetInt32(5)
             });

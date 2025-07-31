@@ -4,7 +4,7 @@ using ProyectoMatrix.Models;
 
 public class HomeController : Controller
 {
-    private static readonly List<EmpresaModel> empresas = new()
+    /*private static readonly List<EmpresaModel> empresas = new()
     {
         new EmpresaModel { Id = "1", Nombre = "Nutriservicios", Logo = "NS.jpg", ColorPrimario = "#004AAD" },
         new EmpresaModel { Id = "2", Nombre = "NS Equipo", Logo = "NE.jpg", ColorPrimario = "#7B3F00" },
@@ -15,7 +15,7 @@ public class HomeController : Controller
 
     public IActionResult Index()
     {
-        return View(empresas);
+        //return View(empresas);
     }
 
     [HttpPost]
@@ -31,5 +31,5 @@ public class HomeController : Controller
             return RedirectToAction("Login", "Login");
         }
         return RedirectToAction("Index");
-    }
+    }*/
 }

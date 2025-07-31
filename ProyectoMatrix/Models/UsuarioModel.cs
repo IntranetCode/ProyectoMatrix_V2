@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace ProyectoMatrix.Models
 {
@@ -9,7 +10,7 @@ namespace ProyectoMatrix.Models
         public int EmpresaID { get; set; }
         public string Username { get; set; }
 
-        // Hasheado en la base de datos, para verificar con PasswordHasher
+        // Contraseña hasheada en la base de datos
         public string Password { get; set; } = string.Empty;
 
         // Datos de la persona
@@ -23,8 +24,20 @@ namespace ProyectoMatrix.Models
         public string ColorPrimario { get; set; } = string.Empty;
         public string Logo { get; set; } = string.Empty;
 
-        // Nuevo: Rol del usuario (Ej. "Administrador", "Colaborador")
+        // Rol del usuario (Ej. "Administrador", "Colaborador")
         public string Rol { get; set; } = string.Empty;
+
+        // Lista de empresas asociadas (para mostrar modal si hay más de una)
+        public List<EmpresaModel> Empresas { get; set; } = new List<EmpresaModel>();
+    }
+
+    public class EmpresaModel
+    {
+        public int EmpresaID { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public string Logo { get; set; } = string.Empty;
+        public string ColorPrimario { get; set; } = string.Empty;
     }
 }
+
 
