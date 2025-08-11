@@ -14,6 +14,7 @@ namespace ProyectoMatrix.Controllers
             _configuration = configuration;
         }
 
+
         public IActionResult Logout()
         {
             HttpContext.Session.Clear();
@@ -34,16 +35,37 @@ namespace ProyectoMatrix.Controllers
             await conn.OpenAsync();
 
             // Consulta para traer solo menús que el usuario tiene permiso según su rol
-            string query = @"
-                SELECT DISTINCT m.MenuID, m.Nombre, m.Icono, m.Url, m.Orden, m.MenuPadreID
-                FROM Menu m
-                INNER JOIN Permisos p ON m.PermisoID = p.PermisoID
-                INNER JOIN RolPermisoAccion rpa ON rpa.PermisoID = p.PermisoID
-                INNER JOIN UsuarioRoles ur ON ur.RolID = rpa.RolID
-                WHERE ur.UsuarioID = @UsuarioID AND m.Activo = 1
-                ORDER BY m.Orden;
-            ";
+            /*            string query = @"
+            SELECT DISTINCT m.MenuID, m.Nombre, m.Icono, m.Url, m.Orden, m.MenuPadreID
+            FROM Menu m
+            INNER JOIN Permisos p ON m.MenuID = p.MenuID
+            INNER JOIN RolPermisoAccion rpa ON rpa.PermisoID = p.PermisoID
+            INNER JOIN UsuarioEmpresaRol uer ON uer.RolID = rpa.RolID
+            WHERE uer.UsuarioID = @UsuarioID AND m.Activo = 1
+            ORDER BY m.Orden;
 
+                        ";*/
+            string query = @"SELECT DISTINCT 
+    m.MenuID, 
+    m.Nombre AS NombreMenu,
+	sm.UrlEnlace
+FROM Menus m
+INNER JOIN SubMenus sm 
+    ON m.MenuID = sm.MenuID
+INNER JOIN SubMenuAcciones sma 
+    ON sm.SubMenuID = sma.SubMenuID
+INNER JOIN PermisosPorRol pr 
+    ON sma.SubMenuAccionID = pr.SubMenuAccionID
+INNER JOIN Roles r 
+    ON pr.RolID = r.RolID
+INNER JOIN Usuarios u 
+    ON r.RolID = u.RolID
+INNER JOIN UsuariosEmpresas ue 
+    ON u.UsuarioID = ue.UsuarioID
+INNER JOIN Empresas e 
+    ON ue.EmpresaID = e.EmpresaID
+WHERE u.UsuarioID = @UsuarioID
+ORDER BY m.Nombre;";
             using SqlCommand cmd = new(query, conn);
             cmd.Parameters.AddWithValue("@UsuarioID", usuarioID.Value);
 
@@ -54,12 +76,21 @@ namespace ProyectoMatrix.Controllers
             {
                 menusPlanos.Add(new MenuModel
                 {
-                    MenuID = reader.GetInt32(0),
+                    /*MenuID = reader.GetInt32(0),
                     Nombre = reader.GetString(1),
                     Icono = reader.IsDBNull(2) ? null : reader.GetString(2),
                     Url = reader.IsDBNull(3) ? null : reader.GetString(3),
                     Orden = reader.GetInt32(4),
                     MenuPadreID = reader.IsDBNull(5) ? (int?)null : reader.GetInt32(5),
+                    SubMenus = new List<MenuModel>()*/
+                    MenuID = reader.GetInt32(0),
+                    Nombre = reader.GetString(1),
+                    Url = reader.IsDBNull(2) ? null : reader.GetString(2),
+
+                    // Como no tienes Icono, Orden ni MenuPadreID en la consulta, pon valores por defecto
+                    Icono = null,
+                    Orden = 0,
+                    MenuPadreID = null,
                     SubMenus = new List<MenuModel>()
                 });
             }
@@ -75,55 +106,10 @@ namespace ProyectoMatrix.Controllers
             HttpContext.Session.SetString("MenuItems", JsonSerializer.Serialize(menuRaiz));
             if (rol != "Administrador")
             {
-                return View("IndexColaborador", menuRaiz); // ✅ PASAS EL MODELO
+                return View("Index", menuRaiz); // ✅ PASAS EL MODELO
             }
 
             return View(menuRaiz);
         }
     }
 }
-
-
-/*
-using Microsoft.AspNetCore.Mvc;
-using ProyectoMatrix.Models;
-using System.Collections.Generic;
-
-namespace ProyectoMatrix.Controllers
-{
-    public class MenuController : Controller
-    {
-        public IActionResult Index()
-        {
-            int? usuarioID = HttpContext.Session.GetInt32("UsuarioID");
-            if (usuarioID == null)
-            {
-                return RedirectToAction("Login", "Login");
-            }
-
-            // 🔧 Simulación de datos de menú
-            var menuItems = new List<MenuItemViewModel>
-            {
-                new MenuItemViewModel
-                {
-                    NombrePermiso = "Usuarios",
-                    Acciones = new List<string> { "Crear", "Editar", "Eliminar" }
-                },
-                new MenuItemViewModel
-                {
-                    NombrePermiso = "Cursos",
-                    Acciones = new List<string> { "Ver", "Inscribir" }
-                },
-                new MenuItemViewModel
-                {
-                    NombrePermiso = "Reportes",
-                    Acciones = new List<string> { "Ver PDF", "Exportar Excel" }
-                }
-            };
-
-            return View(menuItems);
-        }
-    }
-}
-*/
-
