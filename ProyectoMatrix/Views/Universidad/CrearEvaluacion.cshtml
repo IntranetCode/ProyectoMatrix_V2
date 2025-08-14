@@ -1,0 +1,452 @@
+﻿@model ProyectoMatrix.Models.EvaluacionViewModel
+@{
+    ViewData["Title"] = "Crear Evaluación";
+    Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
+}
+
+<div class="container-fluid p-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="text-primary mb-1">
+                        <i class="fas fa-clipboard-check me-2"></i>
+                        Crear Evaluación
+                    </h2>
+                    <p class="text-muted mb-0">
+                        <strong>SubCurso:</strong> @Model.NombreSubCurso
+                        <span class="mx-2">•</span>
+                        <strong>Curso:</strong> @Model.NombreCurso
+                    </p>
+                </div>
+                <div>
+                    <a href="/Universidad/EditarCurso" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver al Curso
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Formulario para agregar preguntas -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-plus-circle me-2 text-primary"></i>
+                        Agregar Nueva Pregunta
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="formPregunta">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-question-circle text-primary me-1"></i>
+                                Texto de la Pregunta *
+                            </label>
+                            <textarea id="textoPregunta" class="form-control" rows="3"
+                                      placeholder="Escribe aquí la pregunta..."></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">
+                                    <i class="fas fa-list text-primary me-1"></i>
+                                    Tipo de Pregunta
+                                </label>
+                                <select id="tipoPregunta" class="form-select" onchange="cambiarTipoPregunta()">
+                                    <option value="Multiple">Opción Múltiple</option>
+                                    <option value="Verdadero/Falso">Verdadero/Falso</option>
+                                    <option value="Abierta">Respuesta Abierta</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">
+                                    <i class="fas fa-star text-primary me-1"></i>
+                                    Puntos
+                                </label>
+                                <input id="puntajePregunta" type="number" class="form-control"
+                                       value="1" min="0.1" step="0.1">
+                            </div>
+                        </div>
+
+                        <!-- Opciones para preguntas múltiples -->
+                        <div id="opcionesMultiple" class="mt-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">Opciones de Respuesta</h6>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarOpcion()">
+                                    <i class="fas fa-plus me-1"></i>Agregar Opción
+                                </button>
+                            </div>
+                            <div id="contenedorOpciones">
+                                <!-- Las opciones se generan dinámicamente -->
+                            </div>
+                        </div>
+
+                        <!-- Opciones para Verdadero/Falso -->
+                        <div id="opcionesVerdaderoFalso" class="mt-4" style="display: none;">
+                            <h6>Respuesta Correcta</h6>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="respuestaVF" id="verdadero" value="true" checked>
+                                <label class="form-check-label" for="verdadero">Verdadero</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="respuestaVF" id="falso" value="false">
+                                <label class="form-check-label" for="falso">Falso</label>
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex gap-2 mt-4 pt-3 border-top">
+                            <button type="button" class="btn btn-success" onclick="agregarPregunta()">
+                                <i class="fas fa-plus-circle me-2"></i>
+                                Agregar Pregunta
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="limpiarFormulario()">
+                                <i class="fas fa-eraser me-2"></i>
+                                Limpiar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel lateral con preguntas agregadas -->
+        <div class="col-md-4">
+            <!-- Información del SubCurso -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Información del SubCurso
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>SubCurso:</strong> @Model.NombreSubCurso</p>
+                    <p><strong>Curso:</strong> @Model.NombreCurso</p>
+                    <p class="mb-0">
+                        <span class="badge bg-info" id="contadorPreguntas">0 preguntas</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Lista de preguntas -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-list me-2 text-primary"></i>
+                        Preguntas Agregadas
+                    </h6>
+                    <button class="btn btn-sm btn-primary" onclick="guardarEvaluacion()" id="btnGuardar" disabled>
+                        <i class="fas fa-save me-1"></i>Guardar
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div id="listaPreguntasAgregadas" class="p-3">
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-clipboard-list fa-3x mb-3"></i>
+                            <p>No hay preguntas agregadas</p>
+                            <small>Agrega la primera pregunta usando el formulario</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preguntas existentes (si las hay) -->
+    @if (Model.TieneEvaluacion)
+    {
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Evaluación Existente
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <strong>¡Atención!</strong> Este SubCurso ya tiene una evaluación.
+                            Al guardar nuevas preguntas, se reemplazará la evaluación existente.
+                        </div>
+
+                        <h6>Preguntas Actuales:</h6>
+                        @foreach (var pregunta in Model.Preguntas.OrderBy(p => p.Orden))
+                        {
+                            <div class="card border mb-2">
+                                <div class="card-body py-2">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <strong>@pregunta.Orden. @pregunta.TextoPregunta</strong>
+                                            <br>
+                                            <small class="text-muted">
+                                                @pregunta.TipoPregunta • @pregunta.PuntajeMaximo pts
+                                            </small>
+                                        </div>
+                                        <span class="badge bg-light text-dark">Existente</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // Variables globales
+        let preguntasTemporales = [];
+        let contadorOpciones = 0;
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            inicializarOpciones();
+        });
+
+        function cambiarTipoPregunta() {
+            const tipo = document.getElementById('tipoPregunta').value;
+
+            document.getElementById('opcionesMultiple').style.display =
+                tipo === 'Multiple' ? 'block' : 'none';
+            document.getElementById('opcionesVerdaderoFalso').style.display =
+                tipo === 'Verdadero/Falso' ? 'block' : 'none';
+
+            if (tipo === 'Multiple') {
+                inicializarOpciones();
+            }
+        }
+
+        function inicializarOpciones() {
+            const contenedor = document.getElementById('contenedorOpciones');
+            contenedor.innerHTML = '';
+            contadorOpciones = 0;
+
+            // Agregar dos opciones por defecto
+            agregarOpcion();
+            agregarOpcion();
+
+            // Marcar la primera como correcta
+            document.querySelector('input[name="opcionCorrecta"]').checked = true;
+        }
+
+        function agregarOpcion() {
+            contadorOpciones++;
+            const contenedor = document.getElementById('contenedorOpciones');
+
+            const opcionDiv = document.createElement('div');
+            opcionDiv.className = 'input-group mb-2';
+            opcionDiv.id = `opcion_${contadorOpciones}`;
+
+            opcionDiv.innerHTML = `
+                <div class="input-group-text">
+                    <input type="radio" name="opcionCorrecta" value="${contadorOpciones}">
+                </div>
+                <input type="text" class="form-control" placeholder="Opción ${contadorOpciones}"
+                       id="textoOpcion_${contadorOpciones}">
+                <button type="button" class="btn btn-outline-danger" onclick="eliminarOpcion(${contadorOpciones})">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            contenedor.appendChild(opcionDiv);
+        }
+
+        function eliminarOpcion(numero) {
+            const opciones = document.querySelectorAll('[id^="opcion_"]');
+            if (opciones.length > 2) {
+                document.getElementById(`opcion_${numero}`).remove();
+            } else {
+                alert('Debe tener al menos 2 opciones');
+            }
+        }
+
+        function agregarPregunta() {
+            const textoPregunta = document.getElementById('textoPregunta').value.trim();
+            const tipoPregunta = document.getElementById('tipoPregunta').value;
+            const puntaje = parseFloat(document.getElementById('puntajePregunta').value);
+
+            if (!textoPregunta) {
+                alert('Debe escribir el texto de la pregunta');
+                return;
+            }
+
+            const pregunta = {
+                textoPregunta: textoPregunta,
+                tipoPregunta: tipoPregunta,
+                puntajeMaximo: puntaje,
+                opciones: []
+            };
+
+            // Obtener opciones según el tipo
+            if (tipoPregunta === 'Multiple') {
+                const opciones = document.querySelectorAll('[id^="textoOpcion_"]');
+                const opcionCorrecta = document.querySelector('input[name="opcionCorrecta"]:checked');
+
+                if (!opcionCorrecta) {
+                    alert('Debe marcar una opción como correcta');
+                    return;
+                }
+
+                opciones.forEach((input, index) => {
+                    if (input.value.trim()) {
+                        pregunta.opciones.push({
+                            textoOpcion: input.value.trim(),
+                            esCorrecta: opcionCorrecta.value == (index + 1)
+                        });
+                    }
+                });
+
+                if (pregunta.opciones.length < 2) {
+                    alert('Debe tener al menos 2 opciones con texto');
+                    return;
+                }
+            } else if (tipoPregunta === 'Verdadero/Falso') {
+                const respuestaVF = document.querySelector('input[name="respuestaVF"]:checked').value;
+                pregunta.opciones.push(
+                    { textoOpcion: 'Verdadero', esCorrecta: respuestaVF === 'true' },
+                    { textoOpcion: 'Falso', esCorrecta: respuestaVF === 'false' }
+                );
+            }
+
+            // Agregar a la lista temporal
+            preguntasTemporales.push(pregunta);
+
+            // Actualizar UI
+            actualizarListaPreguntas();
+            limpiarFormulario();
+        }
+
+        function actualizarListaPreguntas() {
+            const lista = document.getElementById('listaPreguntasAgregadas');
+            const contador = document.getElementById('contadorPreguntas');
+            const btnGuardar = document.getElementById('btnGuardar');
+
+            contador.textContent = `${preguntasTemporales.length} pregunta(s)`;
+            btnGuardar.disabled = preguntasTemporales.length === 0;
+
+            if (preguntasTemporales.length === 0) {
+                lista.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-clipboard-list fa-3x mb-3"></i>
+                        <p>No hay preguntas agregadas</p>
+                        <small>Agrega la primera pregunta usando el formulario</small>
+                    </div>`;
+                return;
+            }
+
+            let html = '';
+            preguntasTemporales.forEach((pregunta, index) => {
+                html += `
+                    <div class="card border mb-2">
+                        <div class="card-body py-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <small class="fw-bold">${index + 1}. ${pregunta.textoPregunta}</small>
+                                    <br>
+                                    <small class="text-muted">
+                                        ${pregunta.tipoPregunta} • ${pregunta.puntajeMaximo} pts
+                                    </small>
+                                </div>
+                                <button class="btn btn-outline-danger btn-sm" onclick="eliminarPregunta(${index})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+
+            lista.innerHTML = html;
+        }
+
+        function eliminarPregunta(index) {
+            if (confirm('¿Está seguro de eliminar esta pregunta?')) {
+                preguntasTemporales.splice(index, 1);
+                actualizarListaPreguntas();
+            }
+        }
+
+        function limpiarFormulario() {
+            document.getElementById('textoPregunta').value = '';
+            document.getElementById('tipoPregunta').value = 'Multiple';
+            document.getElementById('puntajePregunta').value = '1';
+            cambiarTipoPregunta();
+        }
+
+        function guardarEvaluacion() {
+            if (preguntasTemporales.length === 0) {
+                alert('Debe agregar al menos una pregunta');
+                return;
+            }
+
+            if (!confirm(`¿Está seguro de guardar la evaluación con ${preguntasTemporales.length} preguntas?`)) {
+                return;
+            }
+
+            const btnGuardar = document.getElementById('btnGuardar');
+            btnGuardar.disabled = true;
+            btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Guardando...';
+
+            // Preparar datos para envío
+            const data = {
+                subCursoID: @Model.SubCursoID,
+                preguntas: preguntasTemporales
+            };
+
+            // Enviar datos
+            fetch('/Universidad/CrearEvaluacion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('Evaluación guardada exitosamente');
+                    location.reload();
+                } else {
+                    alert('Error al guardar: ' + result.message);
+                    btnGuardar.disabled = false;
+                    btnGuardar.innerHTML = '<i class="fas fa-save me-1"></i>Guardar';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al guardar la evaluación');
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = '<i class="fas fa-save me-1"></i>Guardar';
+            });
+        }
+    </script>
+}

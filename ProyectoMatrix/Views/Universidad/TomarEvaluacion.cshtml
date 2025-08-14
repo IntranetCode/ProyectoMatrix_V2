@@ -1,0 +1,386 @@
+﻿@model ProyectoMatrix.Models.TomarEvaluacionViewModel
+@{
+    ViewData["Title"] = "Evaluación";
+    Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
+}
+
+<div class="container-fluid p-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-1">
+                                <i class="fas fa-clipboard-check me-2"></i>
+                                Evaluación: @Model.NombreSubCurso
+                            </h2>
+                            <p class="mb-0 opacity-75">@Model.NombreCurso</p>
+                        </div>
+                        <div class="text-end">
+                            <div class="bg-white bg-opacity-20 rounded p-3">
+                                <div class="fs-3 fw-bold" id="cronometro">@Model.TiempoLimiteMinutos:00</div>
+                                <small>Tiempo restante</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información del intento -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="alert alert-info">
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>Intento #@Model.NumeroIntento</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>@Model.Preguntas.Count preguntas</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Mínimo: @Model.PuntajeMinimoAprobacion%</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Tiempo: @Model.TiempoLimiteMinutos min</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            @if (Model.UltimoIntento != null)
+            {
+                <div class="alert @(Model.UltimoIntento.Aprobado ? "alert-success" : "alert-warning")">
+                    <strong>Último intento:</strong>
+                    @Model.UltimoIntento.PorcentajeCalificacion.ToString("F1")%
+                    (@Model.UltimoIntento.CalificacionTexto)
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Formulario de evaluación -->
+    <form id="formEvaluacion">
+        <input type="hidden" id="subCursoId" value="@Model.SubCursoID">
+        <input type="hidden" id="tiempoInicio" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")">
+
+        @foreach (var pregunta in Model.Preguntas.OrderBy(p => p.Orden))
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-light">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    Pregunta @pregunta.Orden
+                                </h5>
+                                <span class="badge bg-primary">@pregunta.PuntajeMaximo pts</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="mb-4">@pregunta.TextoPregunta</h6>
+
+                            @if (pregunta.TipoPregunta == "Multiple")
+                            {
+                                @foreach (var opcion in pregunta.Opciones.OrderBy(o => o.Orden))
+                                {
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio"
+                                               name="pregunta_@pregunta.PreguntaID"
+                                               id="opcion_@opcion.OpcionID"
+                                               value="@opcion.OpcionID">
+                                        <label class="form-check-label w-100" for="opcion_@opcion.OpcionID">
+                                            <div class="p-2 rounded hover-bg-light">
+                                                @opcion.TextoOpcion
+                                            </div>
+                                        </label>
+                                    </div>
+                                }
+                            }
+                            else if (pregunta.TipoPregunta == "Verdadero/Falso")
+                            {
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio"
+                                           name="pregunta_@pregunta.PreguntaID"
+                                           id="verdadero_@pregunta.PreguntaID"
+                                           value="@pregunta.Opciones.First(o => o.TextoOpcion == "Verdadero").OpcionID">
+                                    <label class="form-check-label" for="verdadero_@pregunta.PreguntaID">
+                                        <span class="badge bg-success me-2">V</span> Verdadero
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio"
+                                           name="pregunta_@pregunta.PreguntaID"
+                                           id="falso_@pregunta.PreguntaID"
+                                           value="@pregunta.Opciones.First(o => o.TextoOpcion == "Falso").OpcionID">
+                                    <label class="form-check-label" for="falso_@pregunta.PreguntaID">
+                                        <span class="badge bg-danger me-2">F</span> Falso
+                                    </label>
+                                </div>
+                            }
+                            else if (pregunta.TipoPregunta == "Abierta")
+                            {
+                                <textarea class="form-control" rows="4"
+                                  name="pregunta_abierta_@pregunta.PreguntaID"
+                                  placeholder="Escriba su respuesta aquí..."></textarea>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Botones de acción -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <button type="button" class="btn btn-outline-secondary" onclick="guardarBorrador()">
+                                    <i class="fas fa-save me-2"></i>
+                                    Guardar Borrador
+                                </button>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-warning me-2" onclick="confirmarEntrega()">
+                                    <i class="fas fa-paper-plane me-2"></i>
+                                    Entregar Evaluación
+                                </button>
+                                <a href="/Universidad/MisCursos" class="btn btn-outline-danger">
+                                    <i class="fas fa-times me-2"></i>
+                                    Salir sin Guardar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Modal de confirmación -->
+<div class="modal fade" id="modalConfirmacion" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Entrega</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de entregar la evaluación?</p>
+                <p><strong>Advertencia:</strong> Una vez entregada, no podrá modificar sus respuestas.</p>
+
+                <div class="mt-3" id="resumenRespuestas">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="entregarEvaluacion()">
+                    <i class="fas fa-paper-plane me-2"></i>Entregar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Variables globales
+        let tiempoInicio = new Date();
+        let tiempoLimite = @Model.TiempoLimiteMinutos * 60; // en segundos
+        let tiempoRestante = tiempoLimite;
+        let cronometroInterval;
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            iniciarCronometro();
+            // Autoguardar cada 2 minutos
+            setInterval(guardarBorrador, 120000);
+        });
+
+        function iniciarCronometro() {
+            cronometroInterval = setInterval(function() {
+                tiempoRestante--;
+
+                const minutos = Math.floor(tiempoRestante / 60);
+                const segundos = tiempoRestante % 60;
+
+                document.getElementById('cronometro').textContent =
+                    `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
+
+                // Cambiar color cuando queden 5 minutos
+                if (tiempoRestante <= 300) {
+                    document.getElementById('cronometro').parentElement.className =
+                        'bg-danger bg-opacity-20 rounded p-3';
+                }
+
+                // Entregar automáticamente cuando se acabe el tiempo
+                if (tiempoRestante <= 0) {
+                    clearInterval(cronometroInterval);
+                    alert('Se agotó el tiempo. La evaluación se entregará automáticamente.');
+                    entregarEvaluacion();
+                }
+            }, 1000);
+        }
+
+        function guardarBorrador() {
+            const respuestas = recopilarRespuestas();
+
+            // Aquí iría la llamada AJAX para guardar borrador
+            console.log('Guardando borrador:', respuestas);
+
+            // Mostrar notificación
+            mostrarNotificacion('Borrador guardado', 'success');
+        }
+
+        function confirmarEntrega() {
+            const respuestas = recopilarRespuestas();
+            const totalPreguntas = @Model.Preguntas.Count;
+            const preguntasRespondidas = Object.keys(respuestas).length;
+
+            // Mostrar resumen en el modal
+            const resumen = document.getElementById('resumenRespuestas');
+            resumen.innerHTML = `
+                <div class="alert alert-info">
+                    <strong>Resumen:</strong><br>
+                    Preguntas respondidas: ${preguntasRespondidas} de ${totalPreguntas}<br>
+                    Tiempo empleado: ${formatearTiempo(tiempoLimite - tiempoRestante)}
+                </div>
+            `;
+
+            if (preguntasRespondidas < totalPreguntas) {
+                resumen.innerHTML += `
+                    <div class="alert alert-warning">
+                        <strong>Atención:</strong> Aún quedan ${totalPreguntas - preguntasRespondidas} preguntas sin responder.
+                    </div>
+                `;
+            }
+
+            // Mostrar modal
+            new bootstrap.Modal(document.getElementById('modalConfirmacion')).show();
+        }
+
+        function entregarEvaluacion() {
+            const respuestas = recopilarRespuestas();
+            const tiempoEmpleado = Math.floor((tiempoLimite - tiempoRestante) / 60); // en minutos
+
+            const datos = {
+                subCursoId: document.getElementById('subCursoId').value,
+                respuestas: respuestas,
+                tiempoEmpleado: tiempoEmpleado
+            };
+
+            // Deshabilitar formulario
+            document.getElementById('formEvaluacion').style.pointerEvents = 'none';
+
+            // Mostrar loading
+            mostrarNotificacion('Entregando evaluación...', 'info');
+
+            // Enviar evaluación
+            fetch('/Evaluacion/EntregarEvaluacion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: JSON.stringify(datos)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert(`Evaluación entregada exitosamente.\nCalificación: ${result.calificacion}%\nEstado: ${result.aprobado ? 'APROBADO' : 'REPROBADO'}`);
+                    window.location.href = '/Universidad/MisCursos';
+                } else {
+                    alert('Error al entregar evaluación: ' + result.message);
+                    document.getElementById('formEvaluacion').style.pointerEvents = 'auto';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al entregar la evaluación');
+                document.getElementById('formEvaluacion').style.pointerEvents = 'auto';
+            });
+        }
+
+        function recopilarRespuestas() {
+            const respuestas = {};
+
+            // Preguntas de opción múltiple y verdadero/falso
+            document.querySelectorAll('input[type="radio"]:checked').forEach(input => {
+                const nombrePregunta = input.name;
+                const preguntaId = nombrePregunta.split('_')[1];
+                respuestas[preguntaId] = {
+                    tipo: 'opcion',
+                    opcionId: input.value
+                };
+            });
+
+            // Preguntas abiertas
+            document.querySelectorAll('textarea[name^="pregunta_abierta_"]').forEach(textarea => {
+                const nombrePregunta = textarea.name;
+                const preguntaId = nombrePregunta.split('_')[2];
+                if (textarea.value.trim()) {
+                    respuestas[preguntaId] = {
+                        tipo: 'abierta',
+                        texto: textarea.value.trim()
+                    };
+                }
+            });
+
+            return respuestas;
+        }
+
+        function formatearTiempo(segundos) {
+            const minutos = Math.floor(segundos / 60);
+            const segs = segundos % 60;
+            return `${minutos}:${segs.toString().padStart(2, '0')}`;
+        }
+
+        function mostrarNotificacion(mensaje, tipo) {
+            // Crear notificación temporal
+            const notif = document.createElement('div');
+            notif.className = `alert alert-${tipo} position-fixed`;
+            notif.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notif.innerHTML = `
+                <i class="fas fa-info-circle me-2"></i>${mensaje}
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+            `;
+
+            document.body.appendChild(notif);
+
+            // Quitar después de 3 segundos
+            setTimeout(() => {
+                if (notif.parentElement) {
+                    notif.remove();
+                }
+            }, 3000);
+        }
+
+        // Prevenir salir sin guardar
+        window.addEventListener('beforeunload', function(e) {
+            e.preventDefault();
+            e.returnValue = '¿Está seguro de salir? Se perderá el progreso no guardado.';
+        });
+    </script>
+
+    <style>
+        .hover-bg-light:hover {
+            background-color: #f8f9fa !important;
+        }
+
+        .form-check-label {
+            cursor: pointer;
+        }
+
+        .form-check-input:checked + .form-check-label .p-2 {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+    </style>
+}

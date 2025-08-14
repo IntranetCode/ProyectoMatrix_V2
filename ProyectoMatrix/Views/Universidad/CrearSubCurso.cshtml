@@ -1,0 +1,259 @@
+﻿@model ProyectoMatrix.Models.CrearSubCursoRequest
+@{
+    // ✅ CAMBIAR ESTAS LÍNEAS
+    var esEdicion = ViewBag.EsEdicion == true;
+    var subCursoId = ViewBag.SubCursoId;
+    ViewData["Title"] = esEdicion ? "Editar SubCurso" : "Crear SubCurso";
+    Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
+    var cursoId = ViewBag.CursoId;
+    var nombreCurso = ViewBag.NombreCurso ?? "Curso";
+}
+
+<div class="container-fluid p-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <!-- ✅ CAMBIAR ESTA LÍNEA -->
+                    <h2 class="text-primary mb-1">
+                        <i class="fas fa-@(esEdicion ? "edit" : "plus-circle") me-2"></i>
+                        @(esEdicion ? "Editar" : "Crear") SubCurso / Módulo
+                    </h2>
+                    <p class="text-muted mb-0">Para el curso: <strong>@nombreCurso</strong></p>
+                </div>
+                <div>
+                    <a href="/Universidad/EditarCurso/@cursoId" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver al Curso
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Form -->
+    <div class="row">
+        <div class="col-xl-8 mx-auto">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-video text-primary me-2"></i>
+                        Información del SubCurso
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="@(esEdicion ? "EditarSubCurso" : "CrearSubCurso")"
+                          asp-route-id="@(esEdicion ? subCursoId : (object)null)"
+                          method="post" enctype="multipart/form-data" id="crearSubCursoForm">
+                        <input type="hidden" asp-for="CursoID" value="@cursoId" />
+
+                        <!-- Información Básica -->
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <label asp-for="NombreSubCurso" class="form-label fw-semibold">
+                                    <i class="fas fa-heading text-primary me-1"></i>
+                                    Nombre del SubCurso / Módulo *
+                                </label>
+                                <input asp-for="NombreSubCurso" type="text" class="form-control" required maxlength="200"
+                                       placeholder="Ej: Introducción a la Bioseguridad">
+                                <span asp-validation-for="NombreSubCurso" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Orden" class="form-label fw-semibold">
+                                    <i class="fas fa-sort-numeric-up text-primary me-1"></i>
+                                    Orden *
+                                </label>
+                                <input asp-for="Orden" type="number" class="form-control" required min="1" max="100" value="1">
+                                <span asp-validation-for="Orden" class="text-danger small"></span>
+                                <div class="form-text">Orden de aparición en el curso</div>
+                            </div>
+                        </div>
+
+                        <!-- Descripción -->
+                        <div class="mb-4">
+                            <label asp-for="Descripcion" class="form-label fw-semibold">
+                                <i class="fas fa-align-left text-primary me-1"></i>
+                                Descripción del SubCurso
+                            </label>
+                            <textarea asp-for="Descripcion" class="form-control" rows="3" maxlength="500"
+                                      placeholder="Describe el contenido y objetivos de este módulo..."></textarea>
+                            <span asp-validation-for="Descripcion" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Archivos -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="archivoVideo" class="form-label fw-semibold">
+                                    <i class="fas fa-video text-primary me-1"></i>
+                                    Video del SubCurso
+                                </label>
+                                <input type="file" class="form-control" id="archivoVideo" name="archivoVideo"
+                                       accept="video/*" onchange="previewVideo(this)">
+                                <div class="form-text">Formatos: MP4, AVI, MOV (máximo 500MB)</div>
+
+                                <!-- Preview Video -->
+                                <div id="videoPreview" class="mt-3" style="display: none;">
+                                    <video id="previewVideoElement" controls style="width: 100%; max-height: 200px;" preload="metadata">
+                                        Tu navegador no soporta videos HTML5.
+                                    </video>
+                                    <div class="mt-2">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeVideo()">
+                                            <i class="fas fa-times"></i> Quitar Video
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="archivoPDF" class="form-label fw-semibold">
+                                    <i class="fas fa-file-pdf text-primary me-1"></i>
+                                    Material de Apoyo (PDF)
+                                </label>
+                                <input type="file" class="form-control" id="archivoPDF" name="archivoPDF"
+                                       accept=".pdf" onchange="previewPDF(this)">
+                                <div class="form-text">Material complementario en PDF</div>
+
+                                <!-- Preview PDF -->
+                                <div id="pdfPreview" class="mt-3" style="display: none;">
+                                    <div class="alert alert-info py-2">
+                                        <i class="fas fa-file-pdf me-2"></i>
+                                        <span id="pdfName"></span>
+                                        <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removePDF()">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Duración del Video -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="DuracionVideo" class="form-label fw-semibold">
+                                    <i class="fas fa-clock text-primary me-1"></i>
+                                    Duración del Video (segundos)
+                                </label>
+                                <input asp-for="DuracionVideo" type="number" class="form-control" min="1" placeholder="Ej: 300">
+                                <span asp-validation-for="DuracionVideo" class="text-danger small"></span>
+                                <div class="form-text">Se calculará automáticamente al subir el video</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="PuntajeMinimo" class="form-label fw-semibold">
+                                    <i class="fas fa-percentage text-primary me-1"></i>
+                                    Puntaje Mínimo para Aprobar
+                                </label>
+                                <input asp-for="PuntajeMinimo" type="number" class="form-control" min="0" max="100" value="70" step="0.1">
+                                <span asp-validation-for="PuntajeMinimo" class="text-danger small"></span>
+                                <div class="form-text">Porcentaje mínimo para aprobar la evaluación</div>
+                            </div>
+                        </div>
+
+                        <!-- Configuración -->
+                        <div class="card bg-light border-0 mb-4">
+                            <div class="card-body">
+                                <h6 class="card-title text-primary mb-3">
+                                    <i class="fas fa-cogs me-2"></i>
+                                    Configuración del SubCurso
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input asp-for="EsObligatorio" class="form-check-input" type="checkbox" checked>
+                                            <label asp-for="EsObligatorio" class="form-check-label fw-semibold">
+                                                SubCurso Obligatorio
+                                            </label>
+                                            <div class="form-text">Los usuarios deben completar este módulo</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input asp-for="RequiereEvaluacion" class="form-check-input" type="checkbox" checked>
+                                            <label asp-for="RequiereEvaluacion" class="form-check-label fw-semibold">
+                                                Requiere Evaluación
+                                            </label>
+                                            <div class="form-text">Incluir evaluación al final del módulo</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Validation Summary -->
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                            <div class="form-text">
+                                <i class="fas fa-info-circle text-info me-1"></i>
+                                Los campos marcados con * son obligatorios
+                            </div>
+                            <div class="btn-group">
+                                <a href="/Universidad/EditarCurso/@cursoId" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times me-2"></i>
+                                    Cancelar
+                                </a>
+                                <button type="submit" class="btn btn-primary" id="btnCrearSubCurso">
+                                    <i class="fas fa-@(esEdicion ? "save" : "plus") me-2"></i>
+                                    @(esEdicion ? "Actualizar" : "Crear") SubCurso
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+
+    <script>
+        // Preview de video
+        function previewVideo(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const video = document.getElementById('previewVideoElement');
+                const preview = document.getElementById('videoPreview');
+
+                video.src = URL.createObjectURL(file);
+                preview.style.display = 'block';
+
+                // Calcular duración cuando se carga el metadata
+                video.addEventListener('loadedmetadata', function() {
+                    const duracion = Math.round(video.duration);
+                    document.getElementById('DuracionVideo').value = duracion;
+                });
+            }
+        }
+
+        function removeVideo() {
+            document.getElementById('archivoVideo').value = '';
+            document.getElementById('videoPreview').style.display = 'none';
+            document.getElementById('DuracionVideo').value = '';
+        }
+
+        // Preview de PDF
+        function previewPDF(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                document.getElementById('pdfName').textContent = file.name;
+                document.getElementById('pdfPreview').style.display = 'block';
+            }
+        }
+
+        function removePDF() {
+            document.getElementById('archivoPDF').value = '';
+            document.getElementById('pdfPreview').style.display = 'none';
+        }
+
+        // Form submission
+        document.getElementById('crearSubCursoForm').addEventListener('submit', function(e) {
+            const btn = document.getElementById('btnCrearSubCurso');
+            const esEdicion = @(esEdicion ? "true" : "false");
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>${esEdicion ? 'Actualizando...' : 'Creando...'}`;
+            btn.disabled = true;
+        });
+    </script>
+}

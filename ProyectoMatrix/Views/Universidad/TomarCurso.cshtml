@@ -1,0 +1,843 @@
+﻿@model ProyectoMatrix.Models.CursoDetalleViewModel
+
+@{
+    ViewData["Title"] = $"{Model.Curso.NombreCurso} - Universidad NS";
+    Layout = "_LayoutUniversidad";
+}
+
+<div class="tomar-curso-container">
+    <!-- Header del Curso -->
+    <div class="curso-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item">
+                                <a href="/Universidad">Universidad NS</a>
+                            </li>
+                            <li class="breadcrumb-item">
+                                <a href="/Universidad/MisCursos">Mis Cursos</a>
+                            </li>
+                            <li class="breadcrumb-item active">@Model.Curso.NombreCurso</li>
+                        </ol>
+                    </nav>
+
+                    <div class="curso-header-content">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <div class="curso-info">
+                                    <div class="curso-nivel-badge mb-2">
+                                        <span class="badge nivel-badge" style="background-color: @Model.Curso.ColorNivel">
+                                            @Model.Curso.NombreNivel
+                                        </span>
+                                    </div>
+                                    <h1 class="curso-title">@Model.Curso.NombreCurso</h1>
+                                    @if (!string.IsNullOrEmpty(Model.Curso.Descripcion))
+                                    {
+                                        <p class="curso-description">@Model.Curso.Descripcion</p>
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="curso-stats">
+                                    <div class="stat-card">
+                                        <div class="stat-header">
+                                            <i class="fas fa-chart-pie text-primary"></i>
+                                            <span>Progreso General</span>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="progress-circle" data-percentage="@Model.ProgresoGeneral.ToString("F0")">
+                                                <div class="progress-circle-inner">
+                                                    <span class="progress-percentage">@Model.ProgresoGeneral.ToString("F0")%</span>
+                                                </div>
+                                            </div>
+                                            <div class="stat-details">
+                                                <small class="text-muted">
+                                                    @Model.SubCursos.Count(sc => sc.Completado) de @Model.SubCursos.Count módulos
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Lista de SubCursos -->
+            <div class="col-xl-8">
+                <div class="subcursos-container">
+                    <div class="subcursos-header">
+                        <h4>
+                            <i class="fas fa-list-ol me-2"></i>
+                            Módulos del Curso
+                        </h4>
+                        <p class="text-muted">
+                            Completa los módulos en orden para desbloquear el siguiente contenido
+                        </p>
+                    </div>
+
+                    @if (Model.SubCursos.Any())
+                    {
+                        <div class="subcursos-list">
+                            @for (int i = 0; i < Model.SubCursos.Count; i++)
+                            {
+                                var subCurso = Model.SubCursos[i];
+                                var isLocked = !subCurso.PuedeAcceder;
+                                var isCompleted = subCurso.Completado;
+                                var isInProgress = subCurso.PorcentajeVisto > 0 && !subCurso.Completado;
+
+                                <div class="subcurso-item @(isLocked ? "locked" : "") @(isCompleted ? "completed" : "") @(isInProgress ? "in-progress" : "")">
+                                    <div class="subcurso-card">
+                                        <!-- Número de Orden -->
+                                        <div class="subcurso-number">
+                                            @if (isCompleted)
+                                            {
+                                                <i class="fas fa-check-circle text-success"></i>
+                                            }
+                                            else if (isLocked)
+                                            {
+                                                <i class="fas fa-lock text-muted"></i>
+                                            }
+                                            else
+                                            {
+                                                <span class="number">@subCurso.Orden</span>
+                                            }
+                                        </div>
+
+                                        <!-- Contenido del SubCurso -->
+                                        <div class="subcurso-content">
+                                            <div class="subcurso-header">
+                                                <h5 class="subcurso-title">@subCurso.NombreSubCurso</h5>
+                                                <div class="subcurso-badges">
+                                                    @if (subCurso.EsObligatorio)
+                                                    {
+                                                        <span class="badge bg-danger">Obligatorio</span>
+                                                    }
+                                                    @if (subCurso.RequiereEvaluacion)
+                                                    {
+                                                        <span class="badge bg-info">Con Evaluación</span>
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            @if (!string.IsNullOrEmpty(subCurso.Descripcion))
+                                            {
+                                                <p class="subcurso-description">@subCurso.Descripcion</p>
+                                            }
+
+                                            <!-- Información del Video -->
+                                            <div class="subcurso-meta">
+                                                <div class="meta-item">
+                                                    <i class="fas fa-play-circle text-primary me-1"></i>
+                                                    <span>Duración: @subCurso.DuracionFormateada</span>
+                                                </div>
+                                                @if (subCurso.RequiereEvaluacion)
+                                                {
+                                                    <div class="meta-item">
+                                                        <i class="fas fa-clipboard-check text-info me-1"></i>
+                                                        <span>Puntaje mínimo: @subCurso.PuntajeMinimo%</span>
+                                                    </div>
+                                                }
+                                                @if (!string.IsNullOrEmpty(subCurso.ArchivoPDF))
+                                                {
+                                                    <div class="meta-item">
+                                                        <i class="fas fa-file-pdf text-danger me-1"></i>
+                                                        <span>Material adicional disponible</span>
+                                                    </div>
+                                                }
+                                            </div>
+
+                                            <!-- Progreso Individual -->
+                                            @if (!isLocked)
+                                            {
+                                                <div class="subcurso-progress">
+                                                    <div class="d-flex justify-content-between mb-1">
+                                                        <small class="text-muted">Progreso</small>
+                                                        <small class="text-muted">@subCurso.PorcentajeVisto.ToString("F0")%</small>
+                                                    </div>
+                                                    <div class="progress progress-sm">
+                                                        <div class="progress-bar @(isCompleted ? "bg-success" : "bg-primary")"
+                                                             style="width: @subCurso.PorcentajeVisto%">
+                                                        </div>
+                                                    </div>
+                                                    @if (subCurso.TiempoTotalVisto > 0)
+                                                    {
+                                                        <small class="text-muted">
+                                                            Tiempo visto: @TimeSpan.FromSeconds(subCurso.TiempoTotalVisto).ToString(@"mm\:ss")
+                                                        </small>
+                                                    }
+                                                </div>
+                                            }
+
+                                            <!-- Estado de Evaluación -->
+                                            @if (subCurso.UltimoIntento != null && subCurso.RequiereEvaluacion)
+                                            {
+                                                <div class="evaluacion-estado mt-2">
+                                                    <div class="alert @(subCurso.UltimoIntento.Aprobado ? "alert-success" : "alert-warning") py-2">
+                                                        <small>
+                                                            <strong>Última evaluación:</strong>
+                                                            @subCurso.UltimoIntento.PorcentajeCalificacion.ToString("F1")%
+                                                            (@subCurso.UltimoIntento.CalificacionTexto)
+                                                            - Intento @subCurso.UltimoIntento.NumeroIntento
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <!-- Acciones -->
+                                        <div class="subcurso-actions">
+                                            @if (isLocked)
+                                            {
+                                                <button class="btn btn-outline-secondary btn-sm" disabled>
+                                                    <i class="fas fa-lock me-1"></i>Bloqueado
+                                                </button>
+                                                <small class="text-muted d-block mt-1">
+                                                    Completa el módulo anterior
+                                                </small>
+                                            }
+                                            else
+                                            {
+                                                <a href="/Universidad/VerSubCurso/@subCurso.SubCursoID"
+                                                   class="btn btn-universidad btn-sm">
+                                                    @if (isCompleted)
+                                                    {
+                                                        <i class="fas fa-eye me-1"></i> @:Revisar
+                                                                                            }
+                                                    else if (isInProgress)
+                                                    {
+                                                        <i class="fas fa-play me-1"></i> @:Continuar
+                                                                                }
+                                                    else
+                                                    {
+                                                        <i class="fas fa-play-circle me-1"></i> @:Comenzar
+                                                                                }
+                                                </a>
+
+                                                @if (!string.IsNullOrEmpty(subCurso.ArchivoPDF))
+                                                {
+                                                    <a href="~/contenidos/pdfs/@subCurso.ArchivoPDF"
+                                                       target="_blank"
+                                                       class="btn btn-outline-danger btn-sm ms-1"
+                                                       title="Ver material PDF">
+                                                        <i class="fas fa-file-pdf"></i>
+                                                    </a>
+                                                }
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-state text-center py-5">
+                            <i class="fas fa-video fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Sin contenido disponible</h5>
+                            <p class="text-muted">Este curso aún no tiene módulos configurados.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Sidebar de Información -->
+            <div class="col-xl-4">
+                <!-- Resumen del Curso -->
+                <div class="info-card mb-4">
+                </div>
+                <div class="info-card-body">
+                    <div class="info-item">
+                        <div class="info-label">Total de módulos</div>
+                        <div class="info-value">@Model.SubCursos.Count</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Módulos completados</div>
+                        <div class="info-value">@Model.SubCursos.Count(sc => sc.Completado)</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Progreso general</div>
+                        <div class="info-value">@Model.ProgresoGeneral.ToString("F1")%</div>
+                    </div>
+                    @if (Model.SubCursosBloqueados > 0)
+                    {
+                        <div class="info-item">
+                            <div class="info-label">Módulos bloqueados</div>
+                            <div class="info-value text-warning">@Model.SubCursosBloqueados</div>
+                        </div>
+                    }
+                    <div class="info-item">
+                        <div class="info-label">Estado del curso</div>
+                        <div class="info-value">
+                            @if (Model.CursoCompletado)
+                            {
+                                <span class="badge bg-success">Completado</span>
+                            }
+                            else if (Model.ProgresoGeneral > 0)
+                            {
+                                <span class="badge bg-primary">En Progreso</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Sin Iniciar</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progreso Detallado -->
+            <div class="info-card mb-4">
+                <div class="info-card-header">
+                    <h6><i class="fas fa-chart-line me-2"></i>Tu Progreso</h6>
+                </div>
+                <div class="info-card-body">
+                    <div class="progress-detailed">
+                        @foreach (var subCurso in Model.SubCursos.Take(5))
+                        {
+                            <div class="progress-item">
+                                <div class="progress-item-header">
+                                    <span class="progress-item-title">@subCurso.NombreSubCurso</span>
+                                    <span class="progress-item-percentage">@subCurso.PorcentajeVisto.ToString("F0")%</span>
+                                </div>
+                                <div class="progress progress-xs">
+                                    <div class="progress-bar @(subCurso.Completado ? "bg-success" : "bg-primary")"
+                                         style="width: @subCurso.PorcentajeVisto%">
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        @if (Model.SubCursos.Count > 5)
+                        {
+                            <div class="text-center mt-2">
+                                <small class="text-muted">Y @(Model.SubCursos.Count - 5) módulos más...</small>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Próximos Pasos -->
+            @{
+                var proximoSubCurso = Model.SubCursos.FirstOrDefault(sc => !sc.Completado && sc.PuedeAcceder);
+            }
+            @if (proximoSubCurso != null)
+            {
+                <div class="info-card mb-4">
+                    <div class="info-card-header">
+                        <h6><i class="fas fa-arrow-right me-2"></i>Próximo Paso</h6>
+                    </div>
+                    <div class="info-card-body">
+                        <div class="next-step">
+                            <h6 class="next-step-title">@proximoSubCurso.NombreSubCurso</h6>
+                            <p class="next-step-description text-muted">@proximoSubCurso.Descripcion</p>
+                            <div class="next-step-meta mb-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>Duración: @proximoSubCurso.DuracionFormateada
+                                </small>
+                            </div>
+                            <a href="/Universidad/VerSubCurso/@proximoSubCurso.SubCursoID"
+                               class="btn btn-universidad btn-sm w-100">
+                                @if (proximoSubCurso.PorcentajeVisto > 0)
+                                {
+                                    <i class="fas fa-play me-2"></i>
+                            
+                                    <text>Continuar Módulo</text>
+                                                            }
+                                else
+                                {
+                                    <i class="fas fa-play-circle me-2"></i>
+                            
+                                    <text>Comenzar Módulo</text>
+                                                        }
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Ayuda y Consejos -->
+            <div class="info-card">
+                <div class="info-card-header">
+                    <h6><i class="fas fa-lightbulb me-2"></i>Consejos</h6>
+                </div>
+                <div class="info-card-body">
+                    <div class="tips-list">
+                        <div class="tip-item">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <small>Completa los módulos en orden secuencial</small>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-clock text-info me-2"></i>
+                            <small>Dedica tiempo suficiente para ver cada video completo</small>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-file-pdf text-danger me-2"></i>
+                            <small>Descarga los materiales PDF para consulta posterior</small>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-graduation-cap text-warning me-2"></i>
+                            <small>Las evaluaciones requieren al menos @Model.SubCursos.FirstOrDefault()?.PuntajeMinimo ?? 70% para aprobar</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Estilos CSS -->
+<style>
+    .tomar-curso-container {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    }
+
+    .curso-header {
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 2rem 0;
+    }
+
+    .breadcrumb {
+        background: none;
+        padding: 0;
+        margin-bottom: 1rem;
+    }
+
+    .breadcrumb-item a {
+        color: var(--universidad-primary);
+        text-decoration: none;
+    }
+
+    .breadcrumb-item.active {
+        color: var(--gray-600);
+    }
+
+    .nivel-badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 0.5rem 1rem;
+    }
+
+    .curso-title {
+        color: var(--gray-800);
+        font-weight: 700;
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        line-height: 1.2;
+    }
+
+    .curso-description {
+        color: var(--gray-600);
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .stat-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        color: var(--gray-600);
+        font-weight: 500;
+    }
+
+    .progress-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: conic-gradient(var(--universidad-primary) 0deg, var(--universidad-primary) calc(var(--percentage) * 3.6deg), var(--gray-200) calc(var(--percentage) * 3.6deg));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        position: relative;
+    }
+
+    .progress-circle-inner {
+        width: 60px;
+        height: 60px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .progress-percentage {
+        font-weight: 700;
+        color: var(--universidad-primary);
+        font-size: 1.1rem;
+    }
+
+    .subcursos-container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .subcursos-header {
+        padding: 2rem;
+        border-bottom: 1px solid var(--gray-200);
+        background: var(--gray-50);
+    }
+
+        .subcursos-header h4 {
+            color: var(--gray-800);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+    .subcursos-list {
+        padding: 0;
+    }
+
+    .subcurso-item {
+        border-bottom: 1px solid var(--gray-100);
+        transition: all 0.3s ease;
+    }
+
+        .subcurso-item:last-child {
+            border-bottom: none;
+        }
+
+        .subcurso-item:hover:not(.locked) {
+            background: var(--gray-50);
+        }
+
+        .subcurso-item.locked {
+            opacity: 0.6;
+            background: var(--gray-50);
+        }
+
+        .subcurso-item.completed {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, transparent 100%);
+            border-left: 4px solid var(--color-success);
+        }
+
+        .subcurso-item.in-progress {
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, transparent 100%);
+            border-left: 4px solid var(--universidad-primary);
+        }
+
+    .subcurso-card {
+        display: flex;
+        align-items: flex-start;
+        padding: 1.5rem;
+        gap: 1rem;
+    }
+
+    .subcurso-number {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: var(--gray-600);
+    }
+
+    .subcurso-item.completed .subcurso-number {
+        background: var(--color-success);
+        color: white;
+    }
+
+    .subcurso-item.in-progress .subcurso-number {
+        background: var(--universidad-primary);
+        color: white;
+    }
+
+    .subcurso-content {
+        flex-grow: 1;
+    }
+
+    .subcurso-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.5rem;
+    }
+
+    .subcurso-title {
+        color: var(--gray-800);
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .subcurso-badges {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+        margin-left: 1rem;
+    }
+
+    .subcurso-description {
+        color: var(--gray-600);
+        margin-bottom: 1rem;
+        line-height: 1.5;
+    }
+
+    .subcurso-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+        color: var(--gray-600);
+    }
+
+    .subcurso-progress {
+        margin-bottom: 1rem;
+    }
+
+    .progress-sm {
+        height: 6px;
+    }
+
+    .progress-xs {
+        height: 4px;
+    }
+
+    .subcurso-actions {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.5rem;
+    }
+
+    .btn-universidad {
+        background: var(--universidad-primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.3s ease;
+    }
+
+        .btn-universidad:hover {
+            background: var(--universidad-secondary);
+            color: white;
+            text-decoration: none;
+            transform: translateY(-1px);
+        }
+
+    .info-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .info-card-header {
+        padding: 1rem 1.5rem;
+        background: var(--gray-50);
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+        .info-card-header h6 {
+            margin: 0;
+            color: var(--gray-800);
+            font-weight: 600;
+        }
+
+    .info-card-body {
+        padding: 1.5rem;
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--gray-100);
+    }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+    .info-label {
+        color: var(--gray-600);
+        font-size: 0.9rem;
+    }
+
+    .info-value {
+        font-weight: 600;
+        color: var(--gray-800);
+    }
+
+    .progress-detailed {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .progress-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .progress-item-title {
+        font-size: 0.9rem;
+        color: var(--gray-700);
+        font-weight: 500;
+    }
+
+    .progress-item-percentage {
+        font-size: 0.8rem;
+        color: var(--gray-500);
+        font-weight: 600;
+    }
+
+    .next-step {
+        text-align: center;
+    }
+
+    .next-step-title {
+        color: var(--gray-800);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .next-step-description {
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+
+    .tips-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .tip-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .evaluacion-estado .alert {
+        margin: 0;
+    }
+
+    @@media (max-width: 768px) {
+        .curso-title
+
+    {
+        font-size: 1.8rem;
+    }
+
+    .subcurso-card {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .subcurso-actions {
+        align-items: stretch;
+    }
+
+    .subcurso-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .subcurso-badges {
+        margin-left: 0;
+    }
+
+    .btn-universidad {
+        text-align: center;
+        justify-content: center;
+    }
+
+    }
+
+    /* Animación para el círculo de progreso */
+    .progress-circle {
+        --percentage: @Model.ProgresoGeneral;
+    }
+</style>
+
+<!-- JavaScript para interactividad -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animación del círculo de progreso
+        const progressCircle = document.querySelector('.progress-circle');
+        if (progressCircle) {
+            const percentage = progressCircle.dataset.percentage;
+            progressCircle.style.setProperty('--percentage', percentage);
+        }
+
+        // Smooth scroll para navegación interna
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Destacar próximo paso al hacer scroll
+        const nextStepCard = document.querySelector('.next-step');
+        if (nextStepCard) {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.transform = 'scale(1.02)';
+                        entry.target.style.boxShadow = '0 4px 20px rgba(59, 130, 246, 0.2)';
+                    } else {
+                        entry.target.style.transform = 'scale(1)';
+                        entry.target.style.boxShadow = 'none';
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            observer.observe(nextStepCard.closest('.info-card'));
+        }
+    });
+</script>

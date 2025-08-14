@@ -1,0 +1,693 @@
+﻿@model List<ProyectoMatrix.Models.CursoAsignado>
+
+@{
+    ViewData["Title"] = "Mis Cursos - Universidad NS";
+    Layout = "_LayoutUniversidad";
+}
+
+<div class="mis-cursos-container">
+    <!-- Header -->
+    <div class="page-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="header-content">
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb">
+                                <li class="breadcrumb-item">
+                                    <a href="/Universidad">Universidad NS</a>
+                                </li>
+                                <li class="breadcrumb-item active">Mis Cursos</li>
+                            </ol>
+                        </nav>
+                        <h1 class="page-title">
+                            <i class="fas fa-graduation-cap me-3"></i>Mis Capacitaciones
+                        </h1>
+                        <p class="page-subtitle">
+                            Accede a tus cursos asignados y continúa tu desarrollo profesional
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="header-stats">
+                        <div class="stat-item">
+                            <span class="stat-number">@Model.Count</span>
+                            <span class="stat-label">Cursos</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">@Model.Count(c => c.Estado == "Completado")</span>
+                            <span class="stat-label">Completados</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">@Model.Count(c => c.Estado == "En Progreso")</span>
+                            <span class="stat-label">En Progreso</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros y Búsqueda -->
+    <div class="container-fluid mt-4">
+        <div class="filters-section">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="search-box">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text"
+                                   class="form-control"
+                                   id="searchInput"
+                                   placeholder="Buscar cursos por nombre...">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="filter-buttons text-end">
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-outline-primary active" data-filter="todos">
+                                Todos (@Model.Count)
+                            </button>
+                            <button class="btn btn-outline-success" data-filter="completado">
+                                Completados (@Model.Count(c => c.Estado == "Completado"))
+                            </button>
+                            <button class="btn btn-outline-warning" data-filter="en-progreso">
+                                En Progreso (@Model.Count(c => c.Estado == "En Progreso"))
+                            </button>
+                            <button class="btn btn-outline-secondary" data-filter="asignado">
+                                Pendientes (@Model.Count(c => c.Estado == "Asignado"))
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Cursos -->
+    <div class="container-fluid mt-4">
+        @if (Model.Any())
+        {
+            <div class="cursos-grid" id="cursosGrid">
+                @foreach (var curso in Model)
+                {
+                    <div class="curso-card-container"
+                         data-estado="@curso.Estado.ToLower().Replace(" ", "-")"
+                         data-nombre="@curso.NombreCurso.ToLower()">
+                        <div class="curso-card @(curso.ProximoVencimiento ? "border-warning" : "")">
+                            <!-- Card Header -->
+                            <div class="curso-card-header">
+                                <div class="curso-header-left">
+                                    <div class="curso-nivel" style="background-color: @curso.ColorNivel">
+                                        @curso.NombreNivel
+                                    </div>
+                                    @if (curso.EsObligatorio)
+                                    {
+                                        <span class="badge bg-danger ms-2">
+                                            <i class="fas fa-exclamation-circle me-1"></i>Obligatorio
+                                        </span>
+                                    }
+                                </div>
+                                <div class="curso-header-right">
+                                    <span class="@curso.EstadoClass">@curso.Estado</span>
+                                    @if (curso.ProximoVencimiento)
+                                    {
+                                        <i class="fas fa-clock text-warning ms-2"
+                                           title="Próximo a vencer"></i>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Card Body -->
+                            <div class="curso-card-body">
+                                <div class="curso-image">
+                                    @if (!string.IsNullOrEmpty(curso.ImagenCurso))
+                                    {
+                                        <img src="~/contenidos/@curso.ImagenCurso"
+                                             alt="@curso.NombreCurso"
+                                             class="curso-thumbnail">
+                                    }
+                                    else
+                                    {
+                                        <div class="curso-placeholder">
+                                            <i class="fas fa-book fa-2x"></i>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="curso-content">
+                                    <h5 class="curso-title">@curso.NombreCurso</h5>
+
+                                    @if (!string.IsNullOrEmpty(curso.Descripcion))
+                                    {
+                                        <p class="curso-description">@curso.Descripcion</p>
+                                    }
+
+                                    <!-- Progreso del Curso -->
+                                    <div class="curso-progress mb-3">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="progress-label">Progreso del curso</span>
+                                            <span class="progress-percentage">@curso.PorcentajeProgreso.ToString("F0")%</span>
+                                        </div>
+                                        <div class="progress curso-progress-bar">
+                                            <div class="progress-bar @(curso.Estado == "Completado" ? "bg-success" : "bg-primary")"
+                                                 style="width: @curso.PorcentajeProgreso%"
+                                                 role="progressbar"
+                                                 aria-valuenow="@curso.PorcentajeProgreso"
+                                                 aria-valuemin="0"
+                                                 aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <div class="progress-details mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-play-circle me-1"></i>
+                                                @curso.SubCursosCompletados de @curso.TotalSubCursos módulos completados
+                                            </small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Información Adicional -->
+                                    <div class="curso-info">
+                                        <div class="info-row">
+                                            <div class="info-item">
+                                                <i class="fas fa-calendar-plus text-muted me-1"></i>
+                                                <small class="text-muted">
+                                                    Asignado: @curso.FechaAsignacion.ToString("dd/MM/yyyy")
+                                                </small>
+                                            </div>
+                                            @if (curso.TieneFechaLimite)
+                                            {
+                                                <div class="info-item">
+                                                    <i class="fas fa-calendar-times @(curso.ProximoVencimiento ? "text-warning" : "text-muted") me-1"></i>
+                                                    <small class="@(curso.ProximoVencimiento ? "text-warning" : "text-muted")">
+                                                        Límite: @curso.FechaLimiteTexto
+                                                        @if (curso.ProximoVencimiento)
+                                                        {
+                                                            <span class="badge bg-warning ms-1">¡Pronto!</span>
+                                                        }
+                                                    </small>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card Footer -->
+                            <div class="curso-card-footer">
+                                <div class="footer-actions">
+                                    <a href="/Universidad/TomarCurso/@curso.CursoID"
+                                       class="btn btn-universidad flex-grow-1">
+                                        @if (curso.Estado == "Completado")
+                                        {
+                                            <i class="fas fa-eye me-2"></i><text>Revisar Curso</text>                                            
+                                                                        }
+                                        else if (curso.Estado == "En Progreso")
+                                        {
+                                            <i class="fas fa-play me-2"></i><text>Continuar</text>                                            
+                                                                }
+                                        else
+                                        {
+                                            <i class="fas fa-play-circle me-2"></i><text>Comenzar</text>                                           
+                                                                }
+                                    </a>
+
+                                    @if (curso.Estado == "Completado")
+                                    {
+                                        <button class="btn btn-outline-success ms-2"
+                                                onclick="verCertificado(@curso.CursoID)"
+                                                title="Ver certificado">
+                                            <i class="fas fa-certificate"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <!-- Estado Vacío -->
+            <div class="empty-state">
+                <div class="text-center py-5">
+                    <div class="empty-icon mb-4">
+                        <i class="fas fa-graduation-cap fa-4x text-muted"></i>
+                    </div>
+                    <h4 class="text-muted mb-3">No tienes cursos asignados</h4>
+                    <p class="text-muted mb-4">
+                        Los cursos que te sean asignados aparecerán aquí.<br>
+                        Contacta a tu administrador para más información.
+                    </p>
+                    <a href="/Universidad" class="btn btn-universidad">
+                        <i class="fas fa-arrow-left me-2"></i>Volver al Dashboard
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Modal para Certificado -->
+    <div class="modal fade" id="certificadoModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-certificate text-warning me-2"></i>Certificado de Finalización
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="certificadoContent">
+                    <!-- Contenido se carga dinámicamente -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-success" id="descargarCertificado">
+                        <i class="fas fa-download me-2"></i>Descargar PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript para Funcionalidad -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Filtros de estado
+        const filterButtons = document.querySelectorAll('[data-filter]');
+        const cursoCards = document.querySelectorAll('.curso-card-container');
+
+        filterButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const filter = this.getAttribute('data-filter');
+
+                // Actualizar botones activos
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+
+                // Filtrar cursos
+                cursoCards.forEach(card => {
+                    const estado = card.getAttribute('data-estado');
+
+                    if (filter === 'todos' || estado === filter) {
+                        card.style.display = 'block';
+                        card.style.animation = 'fadeIn 0.3s ease';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // Búsqueda por nombre
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+
+                cursoCards.forEach(card => {
+                    const nombre = card.getAttribute('data-nombre');
+                    const isVisible = card.style.display !== 'none';
+
+                    if (nombre.includes(searchTerm) && isVisible) {
+                        card.style.display = 'block';
+                    } else if (!nombre.includes(searchTerm)) {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // Animaciones de hover
+        const cursoCardsElements = document.querySelectorAll('.curso-card');
+        cursoCardsElements.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-4px)';
+                this.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+            });
+
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+            });
+        });
+    });
+
+    // Función para ver certificado
+    function verCertificado(cursoId) {
+        // Mostrar loading
+        const modal = new bootstrap.Modal(document.getElementById('certificadoModal'));
+        const content = document.getElementById('certificadoContent');
+
+        content.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mt-3">Cargando certificado...</p>
+            </div>
+        `;
+
+        modal.show();
+
+        // Simular carga de certificado (aquí harías una llamada AJAX real)
+        setTimeout(() => {
+            content.innerHTML = `
+                <div class="text-center">
+                    <div class="certificado-preview">
+                        <i class="fas fa-certificate fa-4x text-warning mb-3"></i>
+                        <h5>Certificado de Finalización</h5>
+                        <p class="text-muted">Has completado exitosamente este curso.</p>
+                        <p><strong>Código:</strong> NSG-2025-001-${cursoId}-001</p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('descargarCertificado').onclick = function() {
+                window.open(`/Universidad/DescargarCertificado/${cursoId}`, '_blank');
+            };
+        }, 1500);
+    }
+</script>
+
+<!-- Estilos CSS -->
+<style>
+    .mis-cursos-container {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    }
+
+    .page-header {
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 2rem 0;
+    }
+
+    .page-title {
+        color: var(--universidad-primary);
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        font-size: 2rem;
+    }
+
+    .page-subtitle {
+        color: var(--gray-600);
+        margin-bottom: 0;
+    }
+
+    .header-stats {
+        display: flex;
+        gap: 2rem;
+        justify-content: flex-end;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-number {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--universidad-primary);
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 0.875rem;
+        color: var(--gray-600);
+    }
+
+    .filters-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .search-box .input-group-text {
+        background: var(--gray-50);
+        border-right: none;
+    }
+
+    .search-box .form-control {
+        border-left: none;
+        background: var(--gray-50);
+    }
+
+        .search-box .form-control:focus {
+            background: white;
+            box-shadow: none;
+            border-color: var(--universidad-primary);
+        }
+
+    .cursos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 2rem;
+        padding: 0;
+    }
+
+    .curso-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: 1px solid var(--gray-200);
+        overflow: hidden;
+        transition: all 0.3s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .curso-card-header {
+        padding: 1rem;
+        background: var(--gray-50);
+        border-bottom: 1px solid var(--gray-200);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .curso-header-left {
+        display: flex;
+        align-items: center;
+    }
+
+    .curso-nivel {
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .curso-card-body {
+        padding: 1.5rem;
+        flex-grow: 1;
+        display: flex;
+        gap: 1rem;
+    }
+
+    .curso-image {
+        flex-shrink: 0;
+        width: 80px;
+        height: 80px;
+    }
+
+    .curso-thumbnail {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .curso-placeholder {
+        width: 100%;
+        height: 100%;
+        background: var(--gray-100);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--gray-400);
+    }
+
+    .curso-content {
+        flex-grow: 1;
+    }
+
+    .curso-title {
+        color: var(--gray-800);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+        line-height: 1.3;
+    }
+
+    .curso-description {
+        color: var(--gray-600);
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .curso-progress-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: var(--gray-200);
+    }
+
+    .progress-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--gray-700);
+    }
+
+    .progress-percentage {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--universidad-primary);
+    }
+
+    .curso-info {
+        margin-top: 1rem;
+    }
+
+    .info-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: center;
+    }
+
+    .curso-card-footer {
+        padding: 1rem 1.5rem;
+        background: var(--gray-50);
+        border-top: 1px solid var(--gray-200);
+    }
+
+    .footer-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-universidad {
+        background: var(--universidad-primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .btn-universidad:hover {
+            background: var(--universidad-secondary);
+            color: white;
+            transform: translateY(-1px);
+            text-decoration: none;
+        }
+
+    .empty-state {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin: 2rem 0;
+    }
+
+    .empty-icon {
+        opacity: 0.3;
+    }
+
+    .breadcrumb {
+        background: none;
+        padding: 0;
+        margin-bottom: 1rem;
+    }
+
+    .breadcrumb-item a {
+        color: var(--universidad-primary);
+        text-decoration: none;
+    }
+
+    .breadcrumb-item.active {
+        color: var(--gray-600);
+    }
+
+    .certificado-preview {
+        padding: 2rem;
+        border: 2px dashed var(--gray-300);
+        border-radius: 8px;
+        background: var(--gray-50);
+    }
+
+    @@keyframes fadeIn {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .cursos-grid
+
+    {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .header-stats {
+        justify-content: center;
+        margin-top: 1rem;
+    }
+
+    .filter-buttons {
+        text-align: center !important;
+        margin-top: 1rem;
+    }
+
+    .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .curso-card-body {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .curso-image {
+        align-self: center;
+    }
+
+    }
+</style>

@@ -51,6 +51,7 @@ namespace ProyectoMatrix.Models
         public int Orden { get; set; }
         public int? MenuPadreID { get; set; }
         public List<MenuModel> SubMenus { get; set; } = new List<MenuModel>();
+        public string Descripcion { get; set; } = string.Empty;
     }
 
 }

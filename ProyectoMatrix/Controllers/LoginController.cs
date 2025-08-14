@@ -95,6 +95,9 @@ public class LoginController : Controller
     // ---------- COMPLETAR LOGIN ----------
     private async Task<IActionResult> CompletarLogin(UsuarioModel usuario, EmpresaModel empresa)
     {
+
+        // ✅ OBTENER EL RolID desde la base de datos
+        int rolId = await ObtenerRolIdPorUsuarioAsync(usuario.UsuarioID);
         // Guardar en sesión
         HttpContext.Session.SetInt32("UsuarioID", usuario.UsuarioID);
         HttpContext.Session.SetString("Username", usuario.Username);
@@ -104,6 +107,10 @@ public class LoginController : Controller
         HttpContext.Session.SetString("ColorPrimario", string.IsNullOrEmpty(empresa.ColorPrimario) ? "#007bff" : empresa.ColorPrimario);
         HttpContext.Session.SetString("Rol", usuario.Rol);
 
+
+        // ✅ AGREGAR ESTAS LÍNEAS - Variables que necesita Universidad NS
+        HttpContext.Session.SetInt32("RolID", rolId);                    // ← NUEVO
+        HttpContext.Session.SetInt32("EmpresaSeleccionada", empresa.EmpresaID); // ← NUEVO
         // Cargar menú
         var menuUsuario = await ObtenerMenuPorUsuarioAsync(usuario.UsuarioID);
         HttpContext.Session.SetString("MenuUsuario", JsonConvert.SerializeObject(menuUsuario));
@@ -280,5 +287,23 @@ public class LoginController : Controller
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         HttpContext.Session.Clear();
         return RedirectToAction("Login");
+    }
+
+    // ✅ AGREGAR ESTE MÉTODO NUEVO al final de tu LoginController
+    private async Task<int> ObtenerRolIdPorUsuarioAsync(int usuarioId)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        string query = @"
+        SELECT TOP 1 u.RolID 
+        FROM Usuarios u 
+        WHERE u.UsuarioID = @UsuarioID";
+
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+        var result = await command.ExecuteScalarAsync();
+        return result != null ? Convert.ToInt32(result) : 4; // Default: Autor/Editor para YOLGUINM
     }
 }

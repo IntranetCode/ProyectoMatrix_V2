@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿/*
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
 using Dapper;
@@ -26,3 +27,4 @@ public class AreasBD
         return areas.AsList();
     }
 }
+*/

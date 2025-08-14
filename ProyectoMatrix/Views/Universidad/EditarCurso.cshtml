@@ -1,0 +1,247 @@
+﻿@model ProyectoMatrix.Models.CursoDetalleViewModel
+@{
+    ViewData["Title"] = "Editar Curso";
+    Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
+}
+
+<div class="container-fluid p-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="text-primary mb-1">
+                        <i class="fas fa-edit me-2"></i>
+                        Editar Curso: @Model.Curso.NombreCurso
+                    </h2>
+                    <p class="text-muted mb-0">Gestiona el contenido y subcursos del curso</p>
+                </div>
+                <div>
+                    <a href="/Universidad/GestionCursos" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver a Gestión
+                    </a>
+                    <a href="/Universidad/CrearSubCurso?cursoId=@Model.Curso.CursoID" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        Agregar SubCurso
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Info Card -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Información del Curso
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Nivel:</strong>
+                        <span class="badge bg-secondary ms-2">@Model.Curso.NombreNivel</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Duración:</strong>
+                        <span class="text-muted">@(Model.Curso.Duracion ?? 0) minutos</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Total SubCursos:</strong>
+                        <span class="badge bg-info">@Model.SubCursos.Count</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Estado:</strong>
+                        <span class="badge @(Model.Curso.Activo ? "bg-success" : "bg-danger")">
+                            @(Model.Curso.Activo ? "Activo" : "Inactivo")
+                        </span>
+                    </div>
+                    <div class="mb-0">
+                        <strong>Descripción:</strong>
+                        <p class="text-muted small mt-1">@(Model.Curso.Descripcion ?? "Sin descripción")</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SubCursos List -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-list me-2 text-primary"></i>
+                        SubCursos / Módulos
+                    </h6>
+                    <span class="badge bg-light text-dark">@Model.SubCursos.Count módulos</span>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.SubCursos.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="60">Orden</th>
+                                        <th>Nombre del SubCurso</th>
+                                        <th width="120">Duración</th>
+                                        <th width="100">Obligatorio</th>
+                                        <th width="100">Evaluación</th>
+                                        <th width="120">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var subCurso in Model.SubCursos.OrderBy(s => s.Orden))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-secondary">@subCurso.Orden</span>
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    <strong>@subCurso.NombreSubCurso</strong>
+                                                    @if (!string.IsNullOrEmpty(subCurso.Descripcion))
+                                                    {
+                                                        <br>
+
+                                                        <small class="text-muted">@subCurso.Descripcion</small>
+                                                    }
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @if (subCurso.DuracionVideo.HasValue)
+                                                {
+                                                    <span class="text-muted">@TimeSpan.FromSeconds(subCurso.DuracionVideo.Value).ToString(@"mm\:ss")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="badge @(subCurso.EsObligatorio ? "bg-warning" : "bg-light text-dark")">
+                                                    @(subCurso.EsObligatorio ? "Sí" : "No")
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge @(subCurso.RequiereEvaluacion ? "bg-info" : "bg-light text-dark")">
+                                                    @(subCurso.RequiereEvaluacion ? "Sí" : "No")
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="/Universidad/EditarSubCurso/@subCurso.SubCursoID"
+                                                       class="btn btn-outline-primary btn-sm" title="Editar">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+
+                                                    @if (subCurso.RequiereEvaluacion)
+                                                    {
+                                                        <a href="/Universidad/CrearEvaluacion/@subCurso.SubCursoID"
+                                                           class="btn btn-warning btn-sm" title="Crear/Editar Evaluación">
+                                                            <i class="fas fa-clipboard-check"></i>
+                                                        </a>
+                                                    }
+                                                    <button class="btn btn-outline-danger btn-sm"
+                                                            onclick="eliminarSubCurso(@subCurso.SubCursoID, '@subCurso.NombreSubCurso')"
+                                                            title="Eliminar">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-plus-circle fa-3x text-muted mb-3"></i>
+                            <h6 class="text-muted">No hay subcursos creados</h6>
+                            <p class="text-muted small">Agrega el primer módulo a este curso</p>
+                            <a href="/Universidad/CrearSubCurso?cursoId=@Model.Curso.CursoID" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>
+                                Crear Primer SubCurso
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title text-primary mb-3">
+                        <i class="fas fa-cogs me-2"></i>
+                        Acciones del Curso
+                    </h6>
+                    <div class="btn-toolbar gap-2">
+                        <a href="/Universidad/CrearSubCurso?cursoId=@Model.Curso.CursoID" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>
+                            Agregar SubCurso
+                        </a>
+                        <button class="btn btn-outline-secondary" onclick="previsualizarCurso(@Model.Curso.CursoID)">
+                            <i class="fas fa-eye me-2"></i>
+                            Previsualizar Curso
+                        </button>
+                        <button class="btn btn-outline-info" onclick="exportarCurso(@Model.Curso.CursoID)">
+                            <i class="fas fa-download me-2"></i>
+                            Exportar Curso
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="duplicarCurso(@Model.Curso.CursoID)">
+                            <i class="fas fa-copy me-2"></i>
+                            Duplicar Curso
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="eliminarCurso(@Model.Curso.CursoID, '@Model.Curso.NombreCurso')">
+                            <i class="fas fa-trash me-2"></i>
+                            Eliminar Curso
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function eliminarSubCurso(subCursoId, nombre) {
+            if (confirm(`¿Estás seguro de eliminar el subcurso "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+                // Implementar eliminación
+                console.log('Eliminar subcurso:', subCursoId);
+                // TODO: Llamada AJAX para eliminar
+            }
+        }
+
+        function previsualizarCurso(cursoId) {
+            window.open(`/Universidad/TomarCurso/${cursoId}`, '_blank');
+        }
+
+        function exportarCurso(cursoId) {
+            // TODO: Implementar exportación
+            alert('Función de exportación en desarrollo');
+        }
+
+        function duplicarCurso(cursoId) {
+            if (confirm('¿Deseas crear una copia de este curso?')) {
+                // TODO: Implementar duplicación
+                console.log('Duplicar curso:', cursoId);
+            }
+        }
+
+        function eliminarCurso(cursoId, nombre) {
+            if (confirm(`¿ESTÁS SEGURO de eliminar el curso "${nombre}"?\n\nEsto eliminará:\n- El curso completo\n- Todos sus subcursos\n- Todo el progreso de usuarios\n\nEsta acción NO se puede deshacer.`)) {
+                // TODO: Implementar eliminación de curso
+                console.log('Eliminar curso:', cursoId);
+            }
+        }
+    </script>
+}

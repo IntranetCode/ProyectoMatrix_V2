@@ -1,0 +1,424 @@
+﻿@model ProyectoMatrix.Models.SubCursoDetalle
+
+@{
+    ViewData["Title"] = $"{Model.NombreSubCurso} - Universidad NS";
+    Layout = "_LayoutUniversidad";
+    
+    var usuarioId = Context.Session.GetInt32("UsuarioID") ?? 0;
+    var empresaId = Context.Session.GetInt32("EmpresaSeleccionada") ?? 0;
+    var rolId = Context.Session.GetInt32("RolID") ?? 5;
+}
+
+<div class="video-player-container">
+    <!-- Video Player Header -->
+    <div class="video-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item">
+                                <a href="/Universidad">Universidad NS</a>
+                            </li>
+                            <li class="breadcrumb-item">
+                                <a href="/Universidad/MisCursos">Mis Cursos</a>
+                            </li>
+                            <li class="breadcrumb-item">
+                                <a href="/Universidad/TomarCurso/@Model.CursoID">Curso</a>
+                            </li>
+                            <li class="breadcrumb-item active">@Model.NombreSubCurso</li>
+                        </ol>
+                    </nav>
+                    
+                    <div class="video-title-section">
+                        <h1 class="video-title">@Model.NombreSubCurso</h1>
+                        <div class="video-meta">
+                            <span class="meta-item">
+                                <i class="fas fa-play-circle"></i>
+                                Módulo @Model.Orden
+                            </span>
+                            <span class="meta-item">
+                                <i class="fas fa-clock"></i>
+                                @Model.DuracionFormateada
+                            </span>
+                            @if (Model.RequiereEvaluacion)
+                            {
+                                <span class="meta-item">
+                                    <i class="fas fa-clipboard-check"></i>
+                                    Con Evaluación
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="video-actions">
+                        @if (!string.IsNullOrEmpty(Model.ArchivoPDF))
+                        {
+                            <a href="~/contenidos/pdfs/@Model.ArchivoPDF" 
+                               target="_blank" 
+                               class="btn btn-outline-primary me-2"
+                               download>
+                                <i class="fas fa-file-pdf me-2"></i>Material PDF
+                            </a>
+                        }
+                        <button class="btn btn-outline-secondary" id="toggleFullscreen">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="video-content">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Video Player Section -->
+                <div class="col-xl-9">
+                    <div class="video-player-section">
+                        <!-- Video Container -->
+                        <div class="video-container" id="videoContainer">
+                            @if (!string.IsNullOrEmpty(Model.ArchivoVideo))
+                            {
+                                <video 
+                                    id="videoPlayer"
+                                    class="video-player"
+                                    controls
+                                    preload="metadata"
+                                       poster="~/contenidos/thumbnails/@(System.IO.Path.GetFileNameWithoutExtension(Model.ArchivoVideo)).jpg">
+                                    <source src="~/contenidos/videos/@Model.ArchivoVideo" type="video/mp4">
+                                    <p>Su navegador no soporta la reproducción de video HTML5.</p>
+                                </video>
+                                
+                                <!-- Custom Video Controls Overlay -->
+                                <div class="video-controls-overlay" id="videoControlsOverlay">
+                                    <div class="video-progress-container">
+                                        <div class="video-progress-bar">
+                                            <div class="progress-buffer" id="progressBuffer"></div>
+                                            <div class="progress-played" id="progressPlayed"></div>
+                                            <div class="progress-handle" id="progressHandle"></div>
+                                        </div>
+                                        <div class="progress-time">
+                                            <span id="currentTime">00:00</span>
+                                            <span class="time-separator">/</span>
+                                            <span id="totalTime">00:00</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="video-controls">
+                                        <div class="controls-left">
+                                            <button class="control-btn" id="playPauseBtn">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                            <button class="control-btn" id="rewindBtn">
+                                                <i class="fas fa-backward"></i>
+                                                <span class="btn-label">10s</span>
+                                            </button>
+                                            <button class="control-btn" id="forwardBtn">
+                                                <i class="fas fa-forward"></i>
+                                                <span class="btn-label">10s</span>
+                                            </button>
+                                            <div class="volume-control">
+                                                <button class="control-btn" id="volumeBtn">
+                                                    <i class="fas fa-volume-up"></i>
+                                                </button>
+                                                <input type="range" 
+                                                       class="volume-slider" 
+                                                       id="volumeSlider" 
+                                                       min="0" 
+                                                       max="100" 
+                                                       value="100">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="controls-right">
+                                            <div class="speed-control">
+                                                <select class="form-select form-select-sm" id="playbackSpeed">
+                                                    <option value="0.5">0.5x</option>
+                                                    <option value="0.75">0.75x</option>
+                                                    <option value="1" selected>1x</option>
+                                                    <option value="1.25">1.25x</option>
+                                                    <option value="1.5">1.5x</option>
+                                                    <option value="2">2x</option>
+                                                </select>
+                                            </div>
+                                            <button class="control-btn" id="fullscreenBtn">
+                                                <i class="fas fa-expand"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Video Loading State -->
+                                <div class="video-loading" id="videoLoading">
+                                    <div class="loading-spinner"></div>
+                                    <p>Cargando video...</p>
+                                </div>
+                                
+                                <!-- Video Error State -->
+                                <div class="video-error" id="videoError" style="display: none;">
+                                    <div class="error-content">
+                                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                                        <h5>Error al cargar el video</h5>
+                                        <p>No se pudo reproducir el contenido multimedia.</p>
+                                        <button class="btn btn-primary" onclick="location.reload()">
+                                            <i class="fas fa-refresh me-2"></i>Reintentar
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="no-video-placeholder">
+                                    <i class="fas fa-video-slash fa-4x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No hay video disponible</h5>
+                                    <p class="text-muted">Este módulo aún no tiene contenido multimedia.</p>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Video Description -->
+                        @if (!string.IsNullOrEmpty(Model.Descripcion))
+                        {
+                            <div class="video-description">
+                                <h6>Descripción del módulo</h6>
+                                <p>@Model.Descripcion</p>
+                            </div>
+                        }
+
+                        <!-- Progress Summary -->
+                        <div class="progress-summary">
+                            <h6>Tu progreso en este módulo</h6>
+                            <div class="progress-stats">
+                                <div class="stat-item">
+                                    <div class="stat-label">Tiempo visto</div>
+                                    <div class="stat-value" id="timeWatched">
+                                        @TimeSpan.FromSeconds(Model.TiempoTotalVisto).ToString(@"mm\:ss")
+                                    </div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Progreso</div>
+                                    <div class="stat-value">@Model.PorcentajeVisto.ToString("F1")%</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Estado</div>
+                                    <div class="stat-value">
+                                        <span class="badge @(Model.Completado ? "bg-success" : Model.PorcentajeVisto > 0 ? "bg-primary" : "bg-secondary")">
+                                            @Model.EstadoTexto
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="progress-bar-container">
+                                <div class="progress progress-lg">
+                                    <div class="progress-bar bg-primary" 
+                                         id="overallProgress"
+                                         style="width: @Model.PorcentajeVisto%"
+                                         role="progressbar">
+                                    </div>
+                                </div>
+                                <small class="text-muted">
+                                    Debes ver al menos el 95% del video para marcarlo como completado
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="col-xl-3">
+                    <!-- Navigation Controls -->
+                    <div class="navigation-controls mb-4">
+                        <div class="nav-header">
+                            <h6><i class="fas fa-list me-2"></i>Navegación del Curso</h6>
+                        </div>
+                        <div class="nav-buttons">
+                            <!-- Botón Anterior -->
+                            @{
+                                // Simulamos obtener el subcurso anterior
+                                var anteriorSubCurso = Model.Orden > 1 ? Model.Orden - 1 : 0;
+                            }
+                            @if (anteriorSubCurso > 0)
+                            {
+                                <a href="/Universidad/VerSubCurso/@(Model.SubCursoID - 1)" 
+                                   class="btn btn-outline-secondary w-100 mb-2">
+                                    <i class="fas fa-chevron-left me-2"></i>Módulo Anterior
+                                </a>
+                            }
+                            
+                            <!-- Botón Siguiente -->
+                            <button class="btn btn-universidad w-100" 
+                                    id="nextModuleBtn"
+                                    disabled>
+                                <i class="fas fa-chevron-right me-2"></i>Siguiente Módulo
+                            </button>
+                            
+                            <!-- Volver al Curso -->
+                            <a href="/Universidad/TomarCurso/@Model.CursoID" 
+                               class="btn btn-outline-primary w-100 mt-2">
+                                <i class="fas fa-arrow-left me-2"></i>Volver al Curso
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Material Adicional -->
+                    @if (!string.IsNullOrEmpty(Model.ArchivoPDF))
+                    {
+                        <div class="additional-materials mb-4">
+                            <div class="materials-header">
+                                <h6><i class="fas fa-file-alt me-2"></i>Material Adicional</h6>
+                            </div>
+                            <div class="materials-content">
+                                <div class="material-item">
+                                    <div class="material-icon">
+                                        <i class="fas fa-file-pdf text-danger"></i>
+                                    </div>
+                                    <div class="material-info">
+                                        <h6>Documento PDF</h6>
+                                        <p class="text-muted">Material complementario del módulo</p>
+                                    </div>
+                                    <div class="material-actions">
+                                        <a href="~/contenidos/pdfs/@Model.ArchivoPDF" 
+                                           target="_blank" 
+                                           class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="~/contenidos/pdfs/@Model.ArchivoPDF" 
+                                           download 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Evaluación Section -->
+                    @if (Model.RequiereEvaluacion)
+                    {
+                        <div class="evaluation-section mb-4">
+                            <div class="evaluation-header">
+                                <h6><i class="fas fa-clipboard-check me-2"></i>Evaluación</h6>
+                            </div>
+                            <div class="evaluation-content">
+                                @if (Model.UltimoIntento != null)
+                                {
+                                    <div class="last-attempt">
+                                        <h6>Último intento</h6>
+                                        <div class="attempt-stats">
+                                            <div class="stat-row">
+                                                <span>Calificación:</span>
+                                                <span class="fw-bold @(Model.UltimoIntento.Aprobado ? "text-success" : "text-danger")">
+                                                    @Model.UltimoIntento.PorcentajeCalificacion.ToString("F1")%
+                                                </span>
+                                            </div>
+                                            <div class="stat-row">
+                                                <span>Estado:</span>
+                                                <span class="badge @(Model.UltimoIntento.Aprobado ? "bg-success" : "bg-danger")">
+                                                    @Model.UltimoIntento.CalificacionTexto
+                                                </span>
+                                            </div>
+                                            <div class="stat-row">
+                                                <span>Intento:</span>
+                                                <span>@Model.UltimoIntento.NumeroIntento de 3</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                
+                                <div class="evaluation-requirements">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Puntaje mínimo requerido: @Model.PuntajeMinimo%
+                                    </small>
+                                </div>
+                                
+                                <button class="btn btn-warning w-100 mt-3" 
+                                        id="startEvaluationBtn"
+                                        disabled>
+                                    <i class="fas fa-play-circle me-2"></i>
+                                    @if (Model.UltimoIntento?.Aprobado == true)
+                                    {
+                                        <span>Repetir Evaluación</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Tomar Evaluación</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Video Notes -->
+                    <div class="video-notes">
+                        <div class="notes-header">
+                            <h6><i class="fas fa-sticky-note me-2"></i>Mis Notas</h6>
+                        </div>
+                        <div class="notes-content">
+                            <textarea class="form-control" 
+                                      id="videoNotes" 
+                                      rows="6" 
+                                      placeholder="Escribe tus notas sobre este módulo..."
+                                      data-subcurso-id="@Model.SubCursoID"></textarea>
+                            <button class="btn btn-sm btn-outline-primary mt-2" id="saveNotesBtn">
+                                <i class="fas fa-save me-1"></i>Guardar Notas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Evaluation Modal -->
+<div class="modal fade" id="evaluationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-clipboard-check me-2"></i>
+                    Evaluación: @Model.NombreSubCurso
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="evaluationContent">
+                <!-- Contenido de evaluación se carga dinámicamente -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript del Video Player -->
+<script>
+// Variables globales
+const videoData = {
+    subCursoId: @Model.SubCursoID,
+    usuarioId: @usuarioId,
+    empresaId: @empresaId,
+    duracionTotal: @(Model.DuracionVideo ?? 0),
+    progresoPrevio: @Model.PorcentajeVisto,
+    tiempoVistoPrevio: @Model.TiempoTotalVisto,
+    requiereEvaluacion: @Model.RequiereEvaluacion.ToString().ToLower(),
+    puntajeMinimo: @Model.PuntajeMinimo,
+    completado: @Model.Completado.ToString().ToLower()
+};
+
+// Inicializar cuando esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('videoPlayer')) {
+        initVideoPlayer();
+    }
+});
+</script>
+
+@section Scripts {
+    <script src="~/js/universidad/video-player.js" asp-append-version="true"></script>
+}
+
+<!-- Estilos CSS específicos del reproductor -->

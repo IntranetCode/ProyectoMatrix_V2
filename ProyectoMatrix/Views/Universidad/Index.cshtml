@@ -1,413 +1,664 @@
 ﻿@using ProyectoMatrix.Models
-@model UniversidadViewModel
+@model ProyectoMatrix.Models.UniversidadDashboardViewModel
+
 @{
     ViewData["Title"] = "Universidad NS Group";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    Layout = "_LayoutUniversidad"; // Crearemos este layout después
 }
 
-<div class="universidad-container">
-    <!-- Header -->
-    <div class="universidad-header">
-        <h1 class="universidad-title">
-            <i class="fas fa-graduation-cap"></i>
-            Universidad NS Group
-        </h1>
-        <p class="universidad-subtitle">
-            Centro de conocimiento y capacitación empresarial
-        </p>
+<div class="universidad-dashboard">
+    <!-- Header Section -->
+    <div class="dashboard-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="header-content">
+                        <h1 class="dashboard-title">
+                            <i class="fas fa-graduation-cap text-universidad me-3"></i>
+                            @Model.GetTituloSeccion()
+                        </h1>
+                        <p class="dashboard-subtitle text-muted">
+                            Bienvenido @Model.NombreUsuario - @Model.NombreEmpresa
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="header-actions">
+                        @if (Model.PuedeCrearCursos)
+                        {
+                            <a href="/Universidad/CrearCurso" class="btn btn-universidad me-2">
+                                <i class="fas fa-plus me-2"></i>Crear Curso
+                            </a>
+                        }
+                        @if (Model.PuedeAsignarCursos)
+                        {
+                            <a href="/Universidad/AsignarCursos" class="btn btn-outline-universidad">
+                                <i class="fas fa-users me-2"></i>Asignar
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Selección de Áreas -->
-    <div class="areas-section" id="areasSection">
-        <h2 class="section-title">Selecciona tu Área de Trabajo</h2>
-        <p class="section-subtitle">Elige tu departamento para acceder a entrenamientos y recursos específicos</p>
-
-        <div class="areas-grid">
-            @foreach (var area in Model.Areas)
-            {
-                <div class="area-card" style="border-color:@area.ColorHex;" data-area="@area.Nombre.ToLower()">
-                    <div class="area-icon">
-                        <i class="@area.Icono"></i>
-                    </div>
-                    <h3 class="area-title">@area.Nombre</h3>
-                    <p class="area-description">Descripción pendiente...</p> <!-- Puedes extender tu modelo para incluir una descripción si quieres -->
-
-                    <div class="area-stats">
-                        <div class="stat-item">
-                            <span class="stat-number">0</span>
-                            <span class="stat-label">Cursos</span>
+    <!-- Statistics Cards -->
+    <div class="container-fluid mt-4">
+        <div class="row g-3">
+            <!-- Mis Cursos Card -->
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-card-body">
+                        <div class="stat-icon">
+                            <i class="fas fa-book-open"></i>
                         </div>
-                        <div class="stat-item">
-                            <span class="stat-number">0h</span>
-                            <span class="stat-label">Duración</span>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@Model.Estadisticas.TotalCursosAsignados</h3>
+                            <p class="stat-label">@(Model.RolId == 5 ? "Mis Cursos" : "Cursos Activos")</p>
+                            <div class="stat-progress">
+                                <div class="progress">
+                                    <div class="progress-bar bg-primary"
+                                         style="width: @(Model.Estadisticas.TotalCursosAsignados > 0 ? (Model.Estadisticas.CursosCompletados * 100 / Model.Estadisticas.TotalCursosAsignados) : 0)%">
+                                    </div>
+                                </div>
+                                <small class="text-muted">@Model.Estadisticas.CursosCompletados completados</small>
+                            </div>
                         </div>
                     </div>
-                    <button class="area-button"
-                            onclick="seleccionarArea(@area.AreaID, '@area.Nombre.ToLower()', '@area.Nombre', '@area.Icono', '@area.ColorHex')"
-                            style="background-color: @area.ColorHex;">
-                        <i class="fas fa-arrow-right"></i>
-                        Acceder
-                    </button>
-
-                </div>
-            }
-
-        </div>
-    </div>
-
-    <!-- Sección de Contenido (aparece después de seleccionar área) -->
-    <div class="contenido-section" id="contenidoSection">
-        <div class="area-selected-header" id="selectedHeader">
-            <div class="selected-area-info">
-                <div class="selected-area-icon" id="selectedIcon"></div>
-                <div>
-                    <h3 id="selectedTitle">Área Seleccionada</h3>
-                    <p style="margin: 0; opacity: 0.8;">Entrenamientos y recursos especializados</p>
                 </div>
             </div>
-            <button class="back-button" onclick="volverAreas()">
-                <i class="fas fa-arrow-left"></i>
-                Cambiar Área
-            </button>
-        </div>
 
-        <!-- Filtros -->
-        <div class="filter-section">
-            <div class="filter-tabs">
-                <a href="#" class="filter-tab active" onclick="filtrarContenido('todos')">
-                    <i class="fas fa-th-large"></i>
-                    Todos
-                    <span class="badge" id="badgeTodos">0</span>
-                </a>
-                <a href="#" class="filter-tab" onclick="filtrarContenido('videos')">
-                    <i class="fas fa-play-circle"></i>
-                    Videos
-                    <span class="badge" id="badgeVideos">0</span>
-                </a>
-                <a href="#" class="filter-tab" onclick="filtrarContenido('documentos')">
-                    <i class="fas fa-file-pdf"></i>
-                    Documentos
-                    <span class="badge" id="badgeDocumentos">0</span>
-                </a>
-            </div>
-
-            <form method="get" class="search-box">
-                <input type="text" id="searchInput" placeholder="Buscar contenido..." class="search-input" />
-                <button type="button" class="search-btn" onclick="buscarContenido()">
-                    <i class="fas fa-search"></i>
-                    Buscar
-                </button>
-            </form>
-        </div>
-
-        <!-- Grid de contenido específico del área -->
-        <div class="contenido-grid" id="contenidoGrid">
-            <!-- El contenido se cargará dinámicamente aquí -->
-        </div>
-
-        <!-- Estado vacío -->
-        <div class="empty-state" id="emptyState" style="display: none;">
-            <i class="fas fa-search"></i>
-            <h3>No se encontró contenido</h3>
-            <p>No hay contenido disponible para el filtro seleccionado</p>
-        </div>
-    </div>
-</div>
-
-<!-- Modales -->
-@* PDF Modal *@
-<div class="modal fade" id="pdfModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="pdfModalTitle">Visualizar Documento</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-0">
-                <iframe id="pdfViewer" src="" width="100%" height="600px" frameborder="0"></iframe>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <a id="downloadBtn" href="" class="btn btn-primary" target="_blank">
-                    <i class="fas fa-download"></i> Descargar
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-@* Video Modal *@
-<div class="modal fade" id="videoModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="videoModalTitle">Reproducir Video</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div class="ratio ratio-16x9">
-                    <iframe id="videoPlayer" src="" frameborder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowfullscreen></iframe>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<script>
-    let areaSeleccionada = null;
-    let contenidoCompleto = [];
-    let contenidoFiltrado = [];
-    let filtroActual = 'todos';
-        function seleccionarArea(areaId, areaKey, areaNombre, areaIcono, areaColor) {
-        areaSeleccionada = areaId;
-
-        // Actualizar color CSS
-        document.documentElement.style.setProperty('--area-color', areaColor);
-
-        // Actualizar header del área seleccionada
-        document.getElementById('selectedTitle').textContent = areaNombre;
-        document.getElementById('selectedIcon').innerHTML = `<i class="${areaIcono}"></i>`;
-        document.getElementById('selectedHeader').style.background = areaColor;
-
-        // Ocultar sección de áreas y mostrar contenido
-        document.getElementById('areasSection').style.display = 'none';
-        document.getElementById('contenidoSection').classList.add('show');
-
-        // Cargar contenido dinámicamente desde el servidor
-        fetch(`/Universidad/ContenidoPorArea?areaId=${areaId}`)
-            .then(response => response.json())
-            .then(data => {
-                contenidoCompleto = data;
-                contenidoFiltrado = [...contenidoCompleto];
-
-                actualizarContadores();
-                mostrarContenido();
-            });
-
-        // Scroll suave al contenido
-        document.getElementById('contenidoSection').scrollIntoView({
-            behavior: 'smooth'
-        });
-    }
-
-    function volverAreas() {
-        document.getElementById('areasSection').style.display = 'block';
-        document.getElementById('contenidoSection').classList.remove('show');
-
-        document.getElementById('areasSection').scrollIntoView({ behavior: 'smooth' });
-
-        areaSeleccionada = null;
-        contenidoCompleto = [];
-        contenidoFiltrado = [];
-    }
-
-    function cargarContenidoArea(areaId) {
-        fetch(`/Universidad/ContenidoPorArea?areaId=${areaId}`)
-            .then(response => {
-                if (!response.ok) throw new Error('Error al obtener contenido');
-                return response.json();
-            })
-            .then(data => {
-                contenidoCompleto = data;
-                contenidoFiltrado = [...contenidoCompleto];
-
-                actualizarContadores();
-                mostrarContenido();
-            })
-            .catch(error => {
-                console.error('Error cargando contenido del área:', error);
-                contenidoCompleto = [];
-                contenidoFiltrado = [];
-                mostrarContenido();
-            });
-    }
-
-    function filtrarContenido(tipo) {
-        filtroActual = tipo;
-
-        document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
-        event.target.closest('.filter-tab').classList.add('active');
-
-        if (tipo === 'todos') {
-            contenidoFiltrado = [...contenidoCompleto];
-        } else if (tipo === 'videos') {
-            contenidoFiltrado = contenidoCompleto.filter(c => c.tipoContenido === 'Video');
-        } else if (tipo === 'documentos') {
-            contenidoFiltrado = contenidoCompleto.filter(c => c.tipoContenido === 'PDF');
-        }
-
-        mostrarContenido();
-    }
-
-    function buscarContenido() {
-        const busqueda = document.getElementById('searchInput').value.toLowerCase();
-
-        if (busqueda.trim() === '') {
-            contenidoFiltrado = [...contenidoCompleto];
-        } else {
-            contenidoFiltrado = contenidoCompleto.filter(c =>
-                c.titulo.toLowerCase().includes(busqueda) ||
-                c.descripcion.toLowerCase().includes(busqueda) ||
-                c.categoria.toLowerCase().includes(busqueda)
-            );
-        }
-
-        if (filtroActual === 'videos') {
-            contenidoFiltrado = contenidoFiltrado.filter(c => c.tipoContenido === 'Video');
-        } else if (filtroActual === 'documentos') {
-            contenidoFiltrado = contenidoFiltrado.filter(c => c.tipoContenido === 'PDF');
-        }
-
-        mostrarContenido();
-    }
-
-    function actualizarContadores() {
-        const totalVideos = contenidoCompleto.filter(c => c.tipoContenido === 'Video').length;
-        const totalDocumentos = contenidoCompleto.filter(c => c.tipoContenido === 'PDF').length;
-
-        document.getElementById('badgeTodos').textContent = contenidoCompleto.length;
-        document.getElementById('badgeVideos').textContent = totalVideos;
-        document.getElementById('badgeDocumentos').textContent = totalDocumentos;
-    }
-
-    function mostrarContenido() {
-        const contenidoGrid = document.getElementById('contenidoGrid');
-        const emptyState = document.getElementById('emptyState');
-
-        if (contenidoFiltrado.length === 0) {
-            contenidoGrid.style.display = 'none';
-            emptyState.style.display = 'block';
-            return;
-        }
-
-        contenidoGrid.style.display = 'grid';
-        emptyState.style.display = 'none';
-
-        contenidoGrid.innerHTML = contenidoFiltrado.map(item => `
-            <div class="contenido-card" data-id="${item.id}">
-                <div class="card-thumbnail">
-                    ${item.thumbnail ?
-                        `<img src="${item.thumbnail}" alt="${item.titulo}" />` :
-                        `<i class="fas ${item.tipoContenido === 'Video' ? 'fa-play-circle' : 'fa-file-pdf'} placeholder-icon"></i>`
-                    }
-                    ${item.tipoContenido === 'Video' ? '<div class="video-overlay"><i class="fas fa-play"></i></div>' : ''}
-                    <div class="card-tipo">
-                        <i class="fas ${item.tipoContenido === 'Video' ? 'fa-video' : 'fa-file-pdf'}"></i>
-                        ${item.tipoContenido}
-                    </div>
-                    ${item.visualizaciones > 0 ? `
-                        <div class="stats-badge" style="position: absolute; bottom: 1rem; left: 1rem;">
-                            <i class="fas fa-eye"></i> ${item.visualizaciones}
+            <!-- Progreso Card -->
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card stat-card-success">
+                    <div class="stat-card-body">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-line"></i>
                         </div>
-                    ` : ''}
-                </div>
-                <div class="card-content">
-                    <div>
-                        <div class="card-categoria">${item.categoria}</div>
-                        <h3 class="card-title">${item.titulo}</h3>
-                        <p class="card-description">${item.descripcion}</p>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@Model.Estadisticas.PromedioProgreso.ToString("F1")%</h3>
+                            <p class="stat-label">Progreso Promedio</p>
+                            <div class="stat-badge">
+                                @if (Model.Estadisticas.PromedioProgreso >= 80)
+                                {
+                                    <span class="badge bg-success">Excelente</span>
+                                }
+                                else if (Model.Estadisticas.PromedioProgreso >= 60)
+                                {
+                                    <span class="badge bg-warning">Bien</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">Mejorar</span>
+                                }
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <div class="card-actions">
-                            ${item.tipoContenido === 'Video' ? `
-                                <button class="btn-primary-custom" onclick="abrirVideo('${item.urlVideo}', '${item.titulo}')">
-                                    <i class="fas fa-play"></i>
-                                    Ver Video
-                                </button>
-                            ` : `
-                                <button class="btn-primary-custom" onclick="abrirPDF(${item.id}, '${item.titulo}')">
-                                    <i class="fas fa-eye"></i>
-                                    Ver
-                                </button>
-                                <a href="/Universidad/DescargarArchivo/${item.id}" class="btn-secondary-custom">
-                                    <i class="fas fa-download"></i>
-                                    Descargar
+                </div>
+            </div>
+
+            <!-- Certificados Card -->
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card stat-card-warning">
+                    <div class="stat-card-body">
+                        <div class="stat-icon">
+                            <i class="fas fa-certificate"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@Model.Estadisticas.CertificadosObtenidos</h3>
+                            <p class="stat-label">Certificados</p>
+                            <small class="text-muted">
+                                <i class="fas fa-download me-1"></i>
+                                <a href="/Universidad/MisCertificados" class="text-decoration-none">Ver todos</a>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tiempo de Estudio Card -->
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card stat-card-info">
+                    <div class="stat-card-body">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@Model.Estadisticas.TiempoTotalEstudioTexto</h3>
+                            <p class="stat-label">Tiempo de Estudio</p>
+                            <small class="text-muted">Total acumulado</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Cursos Section -->
+            <div class="col-xl-8">
+                @if (Model.RolId == 5) // Usuario Final
+                {
+                    <!-- Mis Cursos para Usuario Final -->
+                    <div class="content-card">
+                        <div class="content-card-header">
+                            <h5 class="content-card-title">
+                                <i class="fas fa-graduation-cap me-2"></i>Mis Capacitaciones
+                            </h5>
+                            <a href="/Universidad/MisCursos" class="btn btn-sm btn-outline-primary">Ver todos</a>
+                        </div>
+                        <div class="content-card-body">
+                            @if (Model.MisCursos.Any())
+                            {
+                                <div class="row g-3">
+                                    @foreach (var curso in Model.MisCursos.Take(4))
+                                    {
+                                        <div class="col-md-6">
+                                            <div class="curso-card @(curso.ProximoVencimiento ? "border-warning" : "")">
+                                                <div class="curso-card-header">
+                                                    <div class="curso-nivel" style="background-color: @curso.ColorNivel">
+                                                        @curso.NombreNivel
+                                                    </div>
+                                                    <span class="@curso.EstadoClass">@curso.Estado</span>
+                                                </div>
+                                                <div class="curso-card-body">
+                                                    <h6 class="curso-title">@curso.NombreCurso</h6>
+                                                    <p class="curso-description text-muted">@curso.Descripcion</p>
+
+                                                    <div class="curso-progress mb-3">
+                                                        <div class="d-flex justify-content-between mb-1">
+                                                            <small>Progreso</small>
+                                                            <small>@curso.PorcentajeProgreso.ToString("F0")%</small>
+                                                        </div>
+                                                        <div class="progress progress-sm">
+                                                            <div class="progress-bar"
+                                                                 style="width: @curso.PorcentajeProgreso%"
+                                                                 role="progressbar">
+                                                            </div>
+                                                        </div>
+                                                        <small class="text-muted">
+                                                            @curso.SubCursosCompletados de @curso.TotalSubCursos módulos
+                                                        </small>
+                                                    </div>
+
+                                                    @if (curso.TieneFechaLimite)
+                                                    {
+                                                        <div class="curso-fecha-limite mb-2">
+                                                            <small class="@(curso.ProximoVencimiento ? "text-warning" : "text-muted")">
+                                                                <i class="fas fa-calendar-alt me-1"></i>
+                                                                Fecha límite: @curso.FechaLimiteTexto
+                                                            </small>
+                                                        </div>
+                                                    }
+                                                </div>
+                                                <div class="curso-card-footer">
+                                                    <a href="/Universidad/TomarCurso/@curso.CursoID"
+                                                       class="btn btn-sm btn-universidad">
+                                                        @(curso.Estado == "Completado" ? "Revisar" : "Continuar")
+                                                        <i class="fas fa-arrow-right ms-1"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="empty-state text-center py-5">
+                                    <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
+                                    <h6 class="text-muted">No tienes cursos asignados</h6>
+                                    <p class="text-muted">Los cursos asignados aparecerán aquí</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <!-- Vista Administrativa -->
+                    <div class="content-card">
+                        <div class="content-card-header">
+                            <h5 class="content-card-title">
+                                <i class="fas fa-cogs me-2"></i>Panel de Administración
+                            </h5>
+                            <a href="/Universidad/GestionCursos" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-book me-1"></i>Gestionar Cursos
+                            </a>
+                        </div>
+                        <div class="content-card-body">
+                            <div class="row g-4">
+                                <!-- Estadísticas principales -->
+                                <div class="col-md-6">
+                                    <div class="metric-item">
+                                        <div class="metric-icon bg-primary">
+                                            <i class="fas fa-users"></i>
+                                        </div>
+                                        <div class="metric-content">
+                                            <h4>@Model.Estadisticas.TotalUsuariosActivos</h4>
+                                            <p class="text-muted">Usuarios Activos</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="metric-item">
+                                        <div class="metric-icon bg-success">
+                                            <i class="fas fa-book"></i>
+                                        </div>
+                                        <div class="metric-content">
+                                            <h4>@Model.Estadisticas.TotalCursosCreados</h4>
+                                            <p class="text-muted">Cursos Creados</p>
+                                            <small class="text-info">
+                                                <a href="/Universidad/GestionCursos" class="text-decoration-none">
+                                                    <i class="fas fa-cog me-1"></i>Gestionar
+                                                </a>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="metric-item">
+                                        <div class="metric-icon bg-warning">
+                                            <i class="fas fa-certificate"></i>
+                                        </div>
+                                        <div class="metric-content">
+                                            <h4>@Model.Estadisticas.CertificadosEmitidosMes</h4>
+                                            <p class="text-muted">Certificados este mes</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="metric-item">
+                                        <div class="metric-icon bg-info">
+                                            <i class="fas fa-chart-line"></i>
+                                        </div>
+                                        <div class="metric-content">
+                                            <h4>@Model.Estadisticas.PromedioProgreso.ToString("F1")%</h4>
+                                            <p class="text-muted">Progreso Promedio</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @if (Model.PuedeCrearCursos || Model.PuedeAsignarCursos)
+                            {
+                                <div class="mt-4 pt-4 border-top">
+                                    <h6 class="mb-3">
+                                        <i class="fas fa-bolt me-2"></i>Acciones Rápidas
+                                    </h6>
+                                    <div class="row g-2">
+                                        @if (Model.PuedeCrearCursos)
+                                        {
+                                            <div class="col-md-6">
+                                                <a href="/Universidad/CrearCurso" class="btn btn-universidad w-100">
+                                                    <i class="fas fa-plus me-2"></i>Crear Nuevo Curso
+                                                </a>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <a href="/Universidad/GestionCursos" class="btn btn-outline-universidad w-100">
+                                                    <i class="fas fa-cogs me-2"></i>Gestionar Cursos
+                                                </a>
+                                            </div>
+                                        }
+                                        @if (Model.PuedeAsignarCursos)
+                                        {
+                                            <div class="col-md-6">
+                                                <a href="/Universidad/AsignarCursos" class="btn btn-outline-primary w-100">
+                                                    <i class="fas fa-users me-2"></i>Asignar Cursos
+                                                </a>
+                                            </div>
+                                        }
+                                        @if (Model.PuedeVerReportes)
+                                        {
+                                            <div class="col-md-6">
+                                                <a href="/Universidad/Reportes" class="btn btn-outline-info w-100">
+                                                    <i class="fas fa-chart-bar me-2"></i>Ver Reportes
+                                                </a>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                          }
+
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-xl-4">
+                <!-- Certificados Recientes -->
+                @if (Model.MisCertificados.Any())
+                {
+                    <div class="content-card mb-4">
+                        <div class="content-card-header">
+                            <h6 class="content-card-title">
+                                <i class="fas fa-award me-2"></i>Certificados Recientes
+                            </h6>
+                        </div>
+                        <div class="content-card-body">
+                            @foreach (var certificado in Model.MisCertificados.Take(3))
+                            {
+                                <div class="certificado-item mb-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="certificado-icon me-3">
+                                            <i class="fas fa-certificate text-warning"></i>
+                                        </div>
+                                        <div class="certificado-content flex-grow-1">
+                                            <h6 class="mb-1">@certificado.NombreCurso</h6>
+                                            <small class="text-muted">
+                                                @certificado.FechaEmisionTexto - @certificado.NombreNivel
+                                            </small>
+                                            <div class="mt-1">
+                                                <span class="@certificado.EstadoClass">@certificado.Estado</span>
+                                            </div>
+                                        </div>
+                                        @if (certificado.TieneArchivo)
+                                        {
+                                            <a href="/Universidad/DescargarCertificado/@certificado.CertificadoID"
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                            <div class="text-center">
+                                <a href="/Universidad/MisCertificados" class="btn btn-sm btn-outline-primary">
+                                    Ver todos los certificados
                                 </a>
-                            `}
+                            </div>
                         </div>
-                        <div class="card-meta">
-                            <span>
-                                <i class="fas fa-user"></i>
-                                ${item.creadoPor}
-                            </span>
-                            <span>
-                                <i class="fas fa-calendar"></i>
-                                ${new Date(item.fechaCreacion).toLocaleDateString()}
-                            </span>
+                    </div>
+                }
+
+                <!-- Accesos Rápidos -->
+                <div class="content-card">
+                    <div class="content-card-header">
+                        <h6 class="content-card-title">
+                            <i class="fas fa-bolt me-2"></i>Accesos Rápidos
+                        </h6>
+                    </div>
+                    <div class="content-card-body">
+                        <div class="quick-links">
+                            @foreach (var menuItem in Model.MenuItems.Where(m => !m.SubItems.Any()))
+                            {
+                                <a href="@menuItem.Url" class="quick-link-item">
+                                    <i class="@menuItem.Icono me-2"></i>
+                                    @menuItem.Titulo
+                                    @if (menuItem.Badge.HasValue && menuItem.Badge > 0)
+                                    {
+                                        <span class="badge bg-primary ms-auto">@menuItem.Badge</span>
+                                    }
+                                    <i class="fas fa-chevron-right ms-auto"></i>
+                                </a>
+                            }
                         </div>
                     </div>
                 </div>
             </div>
-        `).join('');
+        </div>
+    </div>
+</div>
 
-        setTimeout(() => {
-            const cards = contenidoGrid.querySelectorAll('.contenido-card');
-            cards.forEach((card, index) => {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(20px)';
-                setTimeout(() => {
-                    card.style.transition = 'all 0.5s ease';
-                    card.style.opacity = '1';
-                    card.style.transform = 'translateY(0)';
-                }, index * 100);
-            });
-        }, 100);
+<!-- Estilos específicos del dashboard -->
+<style>
+    .universidad-dashboard {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
     }
 
-    function abrirPDF(id, titulo) {
-        document.getElementById('pdfModalTitle').textContent = titulo;
-        document.getElementById('pdfViewer').src = '/Universidad/VerPDF/' + id;
-        document.getElementById('downloadBtn').href = '/Universidad/DescargarArchivo/' + id;
-
-        fetch('/Universidad/RegistrarVisualizacion', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id })
-        });
-
-        var modal = new bootstrap.Modal(document.getElementById('pdfModal'));
-        modal.show();
+    .dashboard-header {
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 2rem 0;
+        margin-bottom: 0;
     }
 
-    function abrirVideo(videoId, titulo) {
-        document.getElementById('videoModalTitle').textContent = titulo;
-        document.getElementById('videoPlayer').src = 'https://www.youtube.com/embed/' + videoId + '?autoplay=1';
-
-        var modal = new bootstrap.Modal(document.getElementById('videoModal'));
-        modal.show();
+    .dashboard-title {
+        color: var(--universidad-primary);
+        font-weight: 700;
+        margin-bottom: 0.5rem;
     }
 
-    document.getElementById('videoModal').addEventListener('hidden.bs.modal', function () {
-        document.getElementById('videoPlayer').src = '';
-    });
+    .text-universidad {
+        color: var(--universidad-primary) !important;
+    }
 
-    document.getElementById('pdfModal').addEventListener('hidden.bs.modal', function () {
-        document.getElementById('pdfViewer').src = '';
-    });
+    .btn-universidad {
+        background: var(--universidad-primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
 
-    document.getElementById('searchInput').addEventListener('input', function() {
-        clearTimeout(this.searchTimeout);
-        this.searchTimeout = setTimeout(() => {
-            buscarContenido();
-        }, 300);
-    });
+        .btn-universidad:hover {
+            background: var(--universidad-secondary);
+            color: white;
+            transform: translateY(-1px);
+        }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const areaCards = document.querySelectorAll('.area-card');
-        areaCards.forEach((card, index) => {
-            card.style.opacity = '0';
-            card.style.transform = 'translateY(20px)';
-            setTimeout(() => {
-                card.style.transition = 'all 0.5s ease';
-                card.style.opacity = '1';
-                card.style.transform = 'translateY(0)';
-            }, index * 100);
-        });
-    });
-</script>
+    .btn-outline-universidad {
+        color: var(--universidad-primary);
+        border: 1px solid var(--universidad-primary);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
 
+        .btn-outline-universidad:hover {
+            background: var(--universidad-primary);
+            color: white;
+        }
 
-@section Estilos {
-    <link rel="stylesheet" href="~/css/DisenioUniversidad.css" asp-append-version="true" />
-} 
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: none;
+        overflow: hidden;
+        transition: transform 0.3s ease;
+    }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+    .stat-card-body {
+        padding: 1.5rem;
+        position: relative;
+    }
+
+    .stat-icon {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        opacity: 0.2;
+    }
+
+    .stat-card-primary .stat-icon {
+        background: var(--universidad-primary);
+        color: white;
+    }
+
+    .stat-card-success .stat-icon {
+        background: var(--color-success);
+        color: white;
+    }
+
+    .stat-card-warning .stat-icon {
+        background: var(--color-warning);
+        color: white;
+    }
+
+    .stat-card-info .stat-icon {
+        background: var(--color-info);
+        color: white;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: var(--gray-600);
+        font-weight: 500;
+        margin-bottom: 1rem;
+    }
+
+    .content-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: none;
+        overflow: hidden;
+    }
+
+    .content-card-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--gray-200);
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+
+    .content-card-title {
+        margin: 0;
+        color: var(--gray-800);
+        font-weight: 600;
+    }
+
+    .content-card-body {
+        padding: 1.5rem;
+    }
+
+    .curso-card {
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+        .curso-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+    .curso-card-header {
+        padding: 1rem;
+        background: var(--gray-50);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .curso-nivel {
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .curso-card-body {
+        padding: 1rem;
+    }
+
+    .curso-title {
+        color: var(--gray-800);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .curso-description {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+
+    .progress-sm {
+        height: 6px;
+    }
+
+    .curso-card-footer {
+        padding: 1rem;
+        background: var(--gray-50);
+        border-top: 1px solid var(--gray-200);
+    }
+
+    .quick-link-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        color: var(--gray-700);
+        text-decoration: none;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        margin-bottom: 0.5rem;
+    }
+
+        .quick-link-item:hover {
+            background: var(--universidad-background);
+            color: var(--universidad-primary);
+            text-decoration: none;
+        }
+
+    .metric-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background: var(--gray-50);
+        border-radius: 8px;
+    }
+
+    .metric-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        color: white;
+        font-size: 1.25rem;
+    }
+
+    .metric-content h4 {
+        margin-bottom: 0.25rem;
+        font-weight: 700;
+        color: var(--gray-800);
+    }
+
+    .empty-state {
+        padding: 3rem 1rem;
+    }
+
+    .certificado-item {
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+        .certificado-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+    .certificado-icon {
+        font-size: 1.5rem;
+    }
+</style> 

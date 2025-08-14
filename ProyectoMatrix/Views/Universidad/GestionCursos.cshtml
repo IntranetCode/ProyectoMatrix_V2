@@ -1,0 +1,223 @@
+﻿@model ProyectoMatrix.Models.GestionCursosViewModel
+@{
+    ViewData["Title"] = "Gestión de Cursos";
+    Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
+}
+
+<div class="container-fluid p-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="text-primary mb-1">
+                        <i class="fas fa-book me-2"></i>
+                        Gestión de Cursos
+                    </h2>
+                    <p class="text-muted mb-0">Administra todos los cursos de Universidad NS</p>
+                </div>
+                <div>
+                    <a href="/Universidad/CrearCurso" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        Crear Nuevo Curso
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Message -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Estadísticas por Nivel -->
+    @if (Model.Niveles.Any())
+    {
+        <div class="row mb-4">
+            @foreach (var nivel in Model.Niveles)
+            {
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm text-center">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center justify-content-center mb-2">
+                                <div class="rounded-circle p-3" style="background-color: @(nivel.ColorHex ?? "#3b82f6")20;">
+                                    <i class="fas fa-graduation-cap fa-2x" style="color: @(nivel.ColorHex ?? "#3b82f6");"></i>
+                                </div>
+                            </div>
+                            <h5 class="card-title">@nivel.NombreNivel</h5>
+                            <p class="text-muted mb-0">
+                                @(Model.CursosPorNivel.ContainsKey(nivel.NivelID) ? Model.CursosPorNivel[nivel.NivelID] : 0) cursos
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Lista de Cursos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2 text-primary"></i>
+                        Cursos Creados (@Model.Cursos.Count)
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" style="width: auto;">
+                            <option value="">Todos los Niveles</option>
+                            @foreach (var nivel in Model.Niveles)
+                            {
+                                <option value="@nivel.NivelID">@nivel.NombreNivel</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.Cursos.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Curso</th>
+                                        <th>Nivel</th>
+                                        <th>SubCursos</th>
+                                        <th>Duración</th>
+                                        <th>Estado</th>
+                                        <th>Creado</th>
+                                        <th width="200">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var curso in Model.Cursos.OrderByDescending(c => c.FechaCreacion))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    @if (!string.IsNullOrEmpty(curso.ImagenCurso))
+                                                    {
+                                                        <img src="@curso.ImagenCurso" alt="@curso.NombreCurso"
+                                                             class="rounded me-3" style="width: 40px; height: 40px; object-fit: cover;">
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="rounded me-3 d-flex align-items-center justify-content-center"
+                                                             style="width: 40px; height: 40px; background-color: @curso.ColorNivel;">
+                                                            <i class="fas fa-book text-white"></i>
+                                                        </div>
+                                                    }
+                                                    <div>
+                                                        <strong>@curso.NombreCurso</strong>
+                                                        @if (!string.IsNullOrEmpty(curso.Descripcion))
+                                                        {
+                                                            <br>
+                                                
+                                                            <small class="text-muted">@curso.Descripcion</small>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge" style="background-color: @curso.ColorNivel; color: white;">
+                                                    @curso.NombreNivel
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">@curso.TotalSubCursos</span>
+                                                @if (curso.TotalSubCursos == 0)
+                                                {
+                                                    <br>
+                                        
+                                                    <small class="text-warning">Sin contenido</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (curso.Duracion.HasValue)
+                                                {
+                                                    <span class="text-muted">@curso.Duracion min</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="badge @(curso.Activo ? "bg-success" : "bg-danger")">
+                                                    @(curso.Activo ? "Activo" : "Inactivo")
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="text-muted">@curso.FechaCreacion.ToString("dd/MM/yyyy")</span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <!-- 🎯 BOTÓN PRINCIPAL: EDITAR = AGREGAR SUBCURSOS -->
+                                                    <a href="/Universidad/EditarCurso/@curso.CursoID"
+                                                       class="btn btn-primary btn-sm"
+                                                       title="Editar y Agregar SubCursos">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+
+                                                    <!-- 🎯 BOTÓN DIRECTO: CREAR SUBCURSO -->
+                                                    <a href="/Universidad/CrearSubCurso?cursoId=@curso.CursoID"
+                                                       class="btn btn-success btn-sm"
+                                                       title="Agregar SubCurso">
+                                                        <i class="fas fa-plus"></i>
+                                                    </a>
+
+                                                    <a href="/Universidad/TomarCurso/@curso.CursoID"
+                                                       class="btn btn-outline-info btn-sm"
+                                                       title="Previsualizar" target="_blank">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+
+                                                    <button class="btn btn-outline-danger btn-sm"
+                                                            onclick="eliminarCurso(@curso.CursoID, '@curso.NombreCurso')"
+                                                            title="Eliminar">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No hay cursos creados</h5>
+                            <p class="text-muted">Crea tu primer curso para comenzar</p>
+                            <a href="/Universidad/CrearCurso" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>
+                                Crear Primer Curso
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function eliminarCurso(cursoId, nombre) {
+            if (confirm(`¿ESTÁS SEGURO de eliminar el curso "${nombre}"?\n\nEsto eliminará:\n- El curso completo\n- Todos sus subcursos\n- Todo el progreso de usuarios\n\nEsta acción NO se puede deshacer.`)) {
+                // TODO: Implementar eliminación
+                console.log('Eliminar curso:', cursoId);
+                alert('Función de eliminación en desarrollo');
+            }
+        }
+    </script>
+}
