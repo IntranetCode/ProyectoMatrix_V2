@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
 {
     // Escuchar en puerto 500 para todas las IPs
-    options.ListenAnyIP(500);
+   // options.ListenAnyIP(500);
 });
 
 // Obtener la cadena de conexión desde appsettings.json

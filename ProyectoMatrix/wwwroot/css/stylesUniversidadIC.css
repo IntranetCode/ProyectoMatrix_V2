@@ -1,0 +1,412 @@
+﻿/* SOLO eliminar el espacio lateral - MANTENER EL TOPBAR */
+.sidebar-left,
+.main-sidebar,
+.sidebar,
+.left-side,
+.sidebar-menu,
+.control-sidebar,
+aside {
+    display: none !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    visibility: hidden !important;
+}
+
+/* Ajustar el contenido principal para ocupar TODO el ancho */
+.content-wrapper,
+.main-content,
+.content,
+.wrapper {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Forzar que el body ocupe toda la pantalla horizontalmente */
+body.layout-fixed .wrapper,
+body.layout-navbar-fixed .wrapper,
+.wrapper {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+}
+
+/* FORZAR el fondo de universidad con máxima especificidad */
+.colaborador-container {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #667eea url('/Imagenes/logo-universidad-ns.png') no-repeat center center !important;
+    /* CAMBIAR EL TAMAÑO DE LA IMAGEN AQUÍ: */
+    /*background-size: 400px 400px !important; /* Cambia estos valores para el tamaño deseado */
+    /*background-size: cover !important;*/
+    /*background-size: contain !important;*/
+    background-size: 900px 600px !important;
+    /* Otras opciones de tamaño:
+                   background-size: 300px 300px !important;  - Más pequeña
+                   background-size: 600px 600px !important;  - Más grande
+                   background-size: contain !important;      - Imagen completa visible
+                   background-size: cover !important;        - Imagen que cubra todo
+                */
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    min-height: calc(100vh - 60px) !important;
+    position: relative !important;
+}
+
+    /* Overlay transparente para el fondo */
+    .colaborador-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.5)) !important;
+        z-index: 1;
+        pointer-events: none;
+    }
+
+    /* Forzar que todo el contenido esté encima del overlay */
+    .colaborador-container > * {
+        position: relative !important;
+        z-index: 10 !important;
+    }
+
+/* Resetear containers de Bootstrap */
+.container-fluid {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+.row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* Header con gráfica de progreso - Mejorado para imagen de fondo */
+.main-header {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(15px);
+    color: white;
+    padding: 30px 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.progress-dashboard {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Gráfica de dona */
+.progress-chart-container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+}
+
+.progress-chart {
+    transform: rotate(-90deg);
+}
+
+.progress-circle-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.2);
+    stroke-width: 12;
+}
+
+.progress-circle-fill {
+    fill: none;
+    stroke: #28a745;
+    stroke-width: 12;
+    stroke-linecap: round;
+    stroke-dasharray: 0 628;
+    transition: stroke-dasharray 2s ease-in-out;
+    animation: progressAnimation 2s ease-in-out;
+}
+
+.progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: white;
+}
+
+.progress-percentage {
+    font-size: 2.5rem;
+    font-weight: bold;
+    line-height: 1;
+    margin-bottom: 5px;
+}
+
+.progress-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+@@keyframes progressAnimation {
+    from {
+        stroke-dasharray: 0 628;
+    }
+}
+
+/* Estadísticas */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.stat-card {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 5px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.stat-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    opacity: 0.8;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Barra de navegación flotante sticky */
+.nivel-nav-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 15px 0;
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+/* Botones de nivel flotantes en la barra sticky */
+.nivel-btn {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 50px;
+    padding: 12px 30px;
+    margin: 0 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+}
+
+    .nivel-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .nivel-btn:hover::before {
+        left: 100%;
+    }
+
+    .nivel-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+
+    .nivel-btn.active {
+        transform: scale(1.05);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+
+.nivel-junior {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.nivel-senior {
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+    color: white;
+}
+
+.nivel-master {
+    background: linear-gradient(135deg, #dc3545, #e83e8c);
+    color: white;
+}
+
+/* Responsive para botones */
+@@media (max-width: 768px) {
+    .nivel-btn {
+        margin: 5px;
+        padding: 10px 20px;
+        font-size: 0.9rem;
+    }
+
+    .nivel-nav-sticky {
+        padding: 10px 0;
+    }
+
+    .progress-chart-container {
+        width: 150px;
+        height: 150px;
+    }
+
+    .progress-percentage {
+        font-size: 2rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .main-header {
+        padding: 20px 0;
+    }
+
+    .progress-dashboard {
+        padding: 20px;
+    }
+}
+
+@@media (max-width: 576px) {
+    .nivel-btn {
+        display: block;
+        margin: 5px auto;
+        width: 80%;
+        text-align: center;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Sección de contenido principal */
+.content-section {
+    background: white;
+    min-height: calc(100vh - 400px);
+    padding: 40px 0;
+    margin-top: 0;
+}
+
+/* Estilos para las tarjetas de cursos */
+.curso-card {
+    transition: all 0.3s ease;
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    background: white;
+}
+
+    .curso-card:hover {
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        transform: translateY(-5px);
+    }
+
+.progress-custom {
+    height: 8px;
+    border-radius: 4px;
+    background: #f8f9fa;
+}
+
+.section-title {
+    color: #495057;
+    border-bottom: 3px solid #007bff;
+    padding-bottom: 15px;
+    margin-bottom: 40px;
+    font-weight: 600;
+}
+
+/* Animaciones de entrada */
+.fade-in {
+    animation: fadeInUp 0.6s ease forwards;
+    opacity: 0;
+    transform: translateY(30px);
+}
+
+@@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Estilo para mensaje vacío */
+.empty-state {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 20px;
+    padding: 60px 30px;
+    text-align: center;
+    border: 2px dashed #dee2e6;
+}
+
+/* Estilos adicionales para mejor compatibilidad */
+.ripple {
+    position: absolute !important;
+    border-radius: 50% !important;
+    background: rgba(255,255,255,0.6) !important;
+    transform: scale(0) !important;
+    animation: ripple 0.6s linear !important;
+    pointer-events: none !important;
+}
+
+/* Mejoras responsive adicionales */
+@@media (max-width: 480px) {
+    .main-header h2 {
+        font-size: 1.5rem !important;
+    }
+
+    .nivel-btn {
+        font-size: 0.8rem !important;
+        padding: 8px 16px !important;
+    }
+
+    .section-title {
+        font-size: 1.3rem !important;
+    }
+
+    .curso-card .card-title {
+        font-size: 1.1rem !important;
+    }
+}
