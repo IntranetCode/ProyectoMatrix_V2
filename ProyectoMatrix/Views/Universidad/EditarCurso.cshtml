@@ -105,7 +105,7 @@
                                                     @if (!string.IsNullOrEmpty(subCurso.Descripcion))
                                                     {
                                                         <br>
-
+                                            
                                                         <small class="text-muted">@subCurso.Descripcion</small>
                                                     }
                                                 </div>
@@ -139,7 +139,12 @@
 
                                                     @if (subCurso.RequiereEvaluacion)
                                                     {
-                                                        <a href="/Universidad/CrearEvaluacion/@subCurso.SubCursoID"
+                                                        <div class="small text-muted mb-2">
+                                                            DEBUG - SubCursoID: @subCurso.SubCursoID |
+                                                            Nombre: @subCurso.NombreSubCurso |
+                                                            Orden: @subCurso.Orden
+                                                        </div>
+                                                        <a href="@Url.Action("CrearEvaluacion", "Universidad", new { subCursoId = subCurso.SubCursoID })"
                                                            class="btn btn-warning btn-sm" title="Crear/Editar Evaluación">
                                                             <i class="fas fa-clipboard-check"></i>
                                                         </a>

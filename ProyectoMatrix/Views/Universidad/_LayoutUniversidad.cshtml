@@ -96,7 +96,7 @@
                     
                     @if (puedeAsignarCursos)
                     {
-                        <a href="/Universidad/AsignarCursos" class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "AsignarCursos" ? "active" : "")">
+                        <a href="/Asignaciones/AsignacionMasiva" class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Asignaciones" ? "active" : "")">
                             <i class="fas fa-users"></i>
                             <span>Asignar</span>
                         </a>
@@ -248,6 +248,7 @@
     <div class="panel-overlay" id="panelOverlay"></div>
 
     <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/universidad/universidad-layout.js" asp-append-version="true"></script>
     

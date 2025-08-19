@@ -1,0 +1,474 @@
+﻿@model ProyectoMatrix.Models.AsignacionMasivaViewModel
+@{
+    ViewData["Title"] = "Asignación Masiva de Cursos";
+    Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
+}
+
+<div class="container-fluid p-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="text-primary mb-1">
+                        <i class="fas fa-users-cog me-2"></i>
+                        Asignación Masiva de Cursos
+                    </h2>
+                    <p class="text-muted mb-0">Asigna cursos a múltiples usuarios por empresa, departamento o individualmente</p>
+                </div>
+                <div>
+                    <a href="/Universidad" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver al Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Panel de Configuración -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Configuración de Asignación</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Selección de Curso -->
+                    <div class="mb-4">
+                        <label for="selectCurso" class="form-label fw-semibold">
+                            <i class="fas fa-graduation-cap text-primary me-1"></i>
+                            Curso a asignar *
+                        </label>
+                        <select id="selectCurso" class="form-control" required>
+                            <option value="">-- Seleccionar Curso --</option>
+                            @foreach (var curso in Model.Cursos)
+                            {
+                                <option value="@curso.Id" data-descripcion="@curso.Descripcion">
+                                    @curso.NombreCurso @if(!string.IsNullOrEmpty(curso.NombreNivel)) {
+                                    <text>(@curso.NombreNivel)</text>
+                                }
+                            </option>
+                                                        }
+                        </select>
+                        <small id="cursoDescripcion" class="form-text text-muted mt-1"></small>
+                    </div>
+
+                    <!-- Criterio de Filtro -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            <i class="fas fa-filter text-primary me-1"></i>
+                            Asignar por:
+                        </label>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="tipoFiltro" id="filtroTodos" value="todos">
+                            <label class="form-check-label" for="filtroTodos">
+                                <i class="fas fa-users text-info me-1"></i> Todos los usuarios activos
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="tipoFiltro" id="filtroEmpresa" value="empresa">
+                            <label class="form-check-label" for="filtroEmpresa">
+                                <i class="fas fa-building text-success me-1"></i> Por empresa
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="tipoFiltro" id="filtroDepartamento" value="departamento">
+                            <label class="form-check-label" for="filtroDepartamento">
+                                <i class="fas fa-sitemap text-warning me-1"></i> Por departamento
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Selección de Empresa -->
+                    <div class="mb-3" id="divSelectEmpresa" style="display: none;">
+                        <label for="selectEmpresa" class="form-label fw-semibold">Empresa:</label>
+                        <select id="selectEmpresa" class="form-control">
+                            <option value="">-- Seleccionar Empresa --</option>
+                            @foreach (var empresa in Model.Empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.NombreEmpresa</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Selección de Departamento -->
+                    <div class="mb-4" id="divSelectDepartamento" style="display: none;">
+                        <label for="selectDepartamento" class="form-label fw-semibold">Departamento:</label>
+                        <select id="selectDepartamento" class="form-control">
+                            <option value="">-- Seleccionar Departamento --</option>
+                        </select>
+                    </div>
+
+                    <!-- Configuración adicional -->
+                    <div class="border-top pt-3">
+                        <div class="mb-3">
+                            <label for="fechaLimite" class="form-label fw-semibold">
+                                <i class="fas fa-calendar-alt text-primary me-1"></i>
+                                Fecha límite (opcional):
+                            </label>
+                            <input type="date" id="fechaLimite" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label for="observaciones" class="form-label fw-semibold">
+                                <i class="fas fa-comment text-primary me-1"></i>
+                                Observaciones:
+                            </label>
+                            <textarea id="observaciones" class="form-control" rows="2" placeholder="Comentarios adicionales..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Botón para buscar usuarios -->
+                    <button type="button" class="btn btn-primary w-100" id="btnBuscarUsuarios" disabled>
+                        <i class="fas fa-search me-2"></i>
+                        Buscar Usuarios
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Usuarios -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-users me-2"></i>
+                            Usuarios Disponibles
+                        </h5>
+                        <div id="estadisticasUsuarios" style="display: none;">
+                            <span class="badge bg-info" id="totalUsuarios">0 usuarios</span>
+                            <span class="badge bg-warning" id="yaAsignados">0 ya tienen el curso</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Loading -->
+                    <div id="loadingUsuarios" class="text-center py-5" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Cargando usuarios...</p>
+                    </div>
+
+                    <!-- Mensaje inicial -->
+                    <div id="mensajeInicial" class="text-center py-5 text-muted">
+                        <i class="fas fa-arrow-left fa-3x mb-3"></i>
+                        <h5>Configura los filtros</h5>
+                        <p>Selecciona un curso y los criterios de filtrado para ver los usuarios disponibles.</p>
+                    </div>
+
+                    <!-- Controles de selección -->
+                    <div id="controlesSeleccion" style="display: none;" class="mb-3 p-3 bg-light rounded">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="checkTodos">
+                                    <label class="form-check-label fw-semibold" for="checkTodos">
+                                        <i class="fas fa-check-square me-1"></i>
+                                        Seleccionar Todos
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <span id="contadorSeleccionados" class="badge bg-primary">0 seleccionados</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lista de usuarios -->
+                    <div id="listaUsuarios" style="display: none;">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="50px">
+                                            <input type="checkbox" id="checkAllHeader" class="form-check-input">
+                                        </th>
+                                        <th>Usuario</th>
+                                        <th>Empresa</th>
+                                        <th>Departamento</th>
+                                        <th width="100px">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaUsuariosBody">
+                                    <!-- Se llena dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Mensaje sin usuarios -->
+                    <div id="mensajeSinUsuarios" class="text-center py-5 text-muted" style="display: none;">
+                        <i class="fas fa-users-slash fa-3x mb-3"></i>
+                        <h5>No hay usuarios disponibles</h5>
+                        <p>No se encontraron usuarios con los criterios seleccionados.</p>
+                    </div>
+
+                    <!-- Botón de asignación -->
+                    <div id="botonAsignacion" class="text-center mt-4" style="display: none;">
+                        <button type="button" class="btn btn-success btn-lg" id="btnAsignarCurso" disabled>
+                            <i class="fas fa-check me-2"></i>
+                            Asignar Curso a Usuarios Seleccionados
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let usuariosData = [];
+        let usuariosSeleccionados = [];
+
+        $(document).ready(function() {
+            // Eventos de cambio de filtros
+            $('input[name="tipoFiltro"]').change(function() {
+                const tipo = $(this).val();
+                toggleFiltros(tipo);
+                validarFormulario();
+            });
+
+            $('#selectEmpresa').change(function() {
+                const empresaId = $(this).val();
+                if (empresaId && $('input[name="tipoFiltro"]:checked').val() === 'departamento') {
+                    cargarDepartamentos(empresaId);
+                }
+                validarFormulario();
+            });
+
+            $('#selectCurso, #selectDepartamento').change(validarFormulario);
+
+            // Buscar usuarios
+            $('#btnBuscarUsuarios').click(buscarUsuarios);
+
+            // Seleccionar todos
+            $('#checkTodos, #checkAllHeader').change(function() {
+                const checked = $(this).prop('checked');
+                $('.user-checkbox').prop('checked', checked);
+                actualizarSeleccionados();
+            });
+
+            // Asignar curso
+            $('#btnAsignarCurso').click(asignarCurso);
+
+            // Descripción del curso
+            $('#selectCurso').change(function() {
+                const descripcion = $(this).find(':selected').data('descripcion');
+                $('#cursoDescripcion').text(descripcion || '');
+            });
+        });
+
+        function toggleFiltros(tipo) {
+            $('#divSelectEmpresa, #divSelectDepartamento').hide();
+
+            if (tipo === 'empresa' || tipo === 'departamento') {
+                $('#divSelectEmpresa').show();
+                if (tipo === 'departamento') {
+                    $('#divSelectDepartamento').show();
+                }
+            }
+        }
+
+        function validarFormulario() {
+            const curso = $('#selectCurso').val();
+            const tipoFiltro = $('input[name="tipoFiltro"]:checked').val();
+            let valido = false;
+
+            if (curso && tipoFiltro) {
+                if (tipoFiltro === 'todos') {
+                    valido = true;
+                } else if (tipoFiltro === 'empresa') {
+                    valido = $('#selectEmpresa').val() !== '';
+                } else if (tipoFiltro === 'departamento') {
+                    valido = $('#selectEmpresa').val() !== '' && $('#selectDepartamento').val() !== '';
+                }
+            }
+
+            $('#btnBuscarUsuarios').prop('disabled', !valido);
+        }
+
+        async function cargarDepartamentos(empresaId) {
+            try {
+                const response = await fetch(`/Asignaciones/ObtenerDepartamentosPorEmpresa?idEmpresa=${empresaId}`);
+                const data = await response.json();
+
+                const select = $('#selectDepartamento');
+                select.empty().append('<option value="">-- Seleccionar Departamento --</option>');
+
+                if (data.success && data.departamentos) {
+                    data.departamentos.forEach(dept => {
+                        select.append(`<option value="${dept.id}">${dept.nombreDepartamento}</option>`);
+                    });
+                }
+            } catch (error) {
+                console.error('Error al cargar departamentos:', error);
+                alert('Error al cargar los departamentos');
+            }
+        }
+
+        async function buscarUsuarios() {
+            const cursoId = $('#selectCurso').val();
+            const tipoFiltro = $('input[name="tipoFiltro"]:checked').val();
+            const empresaId = $('#selectEmpresa').val();
+            const departamentoId = $('#selectDepartamento').val();
+
+            // Mostrar loading
+            $('#mensajeInicial').hide();
+            $('#loadingUsuarios').show();
+            $('#listaUsuarios, #mensajeSinUsuarios, #controlesSeleccion, #botonAsignacion').hide();
+
+            try {
+                const requestData = {
+                    tipoFiltro: tipoFiltro,
+                    idCurso: parseInt(cursoId),
+                    idEmpresa: empresaId ? parseInt(empresaId) : null,
+                    idDepartamento: departamentoId ? parseInt(departamentoId) : null
+                };
+
+                const response = await fetch('/Asignaciones/ObtenerUsuariosPorCriterio', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    usuariosData = data.usuarios || [];
+                    mostrarUsuarios(usuariosData);
+                } else {
+                    throw new Error(data.message || 'Error al obtener usuarios');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al buscar usuarios: ' + error.message);
+                $('#loadingUsuarios').hide();
+                $('#mensajeInicial').show();
+            }
+        }
+
+        function mostrarUsuarios(usuarios) {
+            $('#loadingUsuarios').hide();
+
+            if (!usuarios || usuarios.length === 0) {
+                $('#mensajeSinUsuarios').show();
+                return;
+            }
+
+            // Estadísticas
+            const yaAsignados = usuarios.filter(u => u.yaTieneCurso).length;
+            $('#totalUsuarios').text(`${usuarios.length} usuarios`);
+            $('#yaAsignados').text(`${yaAsignados} ya tienen el curso`);
+            $('#estadisticasUsuarios').show();
+
+            // Tabla
+            const tbody = $('#tablaUsuariosBody');
+            tbody.empty();
+
+            usuarios.forEach(usuario => {
+                const badgeClass = usuario.yaTieneCurso ? 'bg-success' : 'bg-secondary';
+                const badgeText = usuario.yaTieneCurso ? 'Asignado' : 'Disponible';
+                const disabled = usuario.yaTieneCurso ? 'disabled' : '';
+
+                tbody.append(`
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input user-checkbox"
+                                   value="${usuario.id}" ${disabled}
+                                   onchange="actualizarSeleccionados()">
+                        </td>
+                        <td>
+                            <div>
+                                <strong>${usuario.nombreCompleto}</strong>
+                                ${usuario.email ? `<br><small class="text-muted">${usuario.email}</small>` : ''}
+                            </div>
+                        </td>
+                        <td>${usuario.nombreEmpresa || ''}</td>
+                        <td>${usuario.nombreDepartamento || 'Sin departamento'}</td>
+                        <td>
+                            <span class="badge ${badgeClass}">${badgeText}</span>
+                        </td>
+                    </tr>
+                `);
+            });
+
+            $('#listaUsuarios, #controlesSeleccion, #botonAsignacion').show();
+            actualizarSeleccionados();
+        }
+
+        function actualizarSeleccionados() {
+            usuariosSeleccionados = $('.user-checkbox:checked').map(function() {
+                return parseInt($(this).val());
+            }).get();
+
+            $('#contadorSeleccionados').text(`${usuariosSeleccionados.length} seleccionados`);
+            $('#btnAsignarCurso').prop('disabled', usuariosSeleccionados.length === 0);
+
+            // Actualizar checkboxes maestros
+            const totalDisponibles = $('.user-checkbox:not([disabled])').length;
+            const totalSeleccionados = usuariosSeleccionados.length;
+
+            $('#checkTodos, #checkAllHeader').prop('checked', totalSeleccionados > 0 && totalSeleccionados === totalDisponibles);
+        }
+
+        async function asignarCurso() {
+            if (usuariosSeleccionados.length === 0) {
+                alert('Debe seleccionar al menos un usuario');
+                return;
+            }
+
+            const btnAsignar = $('#btnAsignarCurso');
+            const originalText = btnAsignar.html();
+
+            try {
+                btnAsignar.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Asignando...');
+
+                const requestData = {
+                    idCurso: parseInt($('#selectCurso').val()),
+                    usuariosSeleccionados: usuariosSeleccionados,
+                    fechaLimite: $('#fechaLimite').val() || null,
+                    observaciones: $('#observaciones').val() || null
+                };
+
+                const response = await fetch('/Asignaciones/ProcesarAsignacionMasiva', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`¡Éxito! ${data.message}`);
+
+                    // Limpiar formulario
+                    $('#selectCurso').val('');
+                    $('input[name="tipoFiltro"]').prop('checked', false);
+                    $('#selectEmpresa, #selectDepartamento').val('');
+                    $('#fechaLimite, #observaciones').val('');
+                    toggleFiltros('');
+
+                    // Ocultar paneles
+                    $('#listaUsuarios, #controlesSeleccion, #botonAsignacion, #estadisticasUsuarios').hide();
+                    $('#mensajeInicial').show();
+
+                    validarFormulario();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al asignar el curso: ' + error.message);
+            } finally {
+                btnAsignar.prop('disabled', false).html(originalText);
+            }
+        }
+    </script>
+}

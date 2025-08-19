@@ -1,0 +1,110 @@
+﻿@model List<ProyectoMatrix.Models.AsignacionRecienteViewModel>
+@{
+    ViewData["Title"] = "Asignaciones Recientes";
+    Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
+}
+
+<div class="container-fluid p-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="text-primary mb-1">
+                        <i class="fas fa-list-check me-2"></i>
+                        Asignaciones Recientes
+                    </h2>
+                    <p class="text-muted mb-0">Historial de asignaciones de cursos de los últimos 30 días</p>
+                </div>
+                <div>
+                    <a href="/Asignaciones/AsignacionMasiva" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        Nueva Asignación
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de asignaciones -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Últimas Asignaciones
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (Model != null && Model.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Curso</th>
+                                        <th>Usuarios Asignados</th>
+                                        <th>Empresa</th>
+                                        <th>Fecha Asignación</th>
+                                        <th>Fecha Límite</th>
+                                        <th>Asignado Por</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var asignacion in Model)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@asignacion.NombreCurso</strong>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary">@asignacion.CantidadUsuarios usuarios</span>
+                                            </td>
+                                            <td>@asignacion.NombreEmpresa</td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    @asignacion.FechaAsignacion.ToString("dd/MM/yyyy HH:mm")
+                                                </small>
+                                            </td>
+                                            <td>
+                                                @if (asignacion.FechaLimite.HasValue)
+                                                {
+                                                    var diasRestantes = (asignacion.FechaLimite.Value - DateTime.Now).Days;
+                                                    var badgeClass = diasRestantes < 0 ? "bg-danger" : diasRestantes < 7 ? "bg-warning" : "bg-success";
+
+                                                    <span class="badge @badgeClass">
+                                                        @asignacion.FechaLimite.Value.ToString("dd/MM/yyyy")
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Sin límite</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <small>@asignacion.AsignadoPor</small>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-inbox fa-3x mb-3"></i>
+                            <h5>No hay asignaciones recientes</h5>
+                            <p>No se han realizado asignaciones en los últimos 30 días.</p>
+                            <a href="/Asignaciones/AsignacionMasiva" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>
+                                Crear Primera Asignación
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

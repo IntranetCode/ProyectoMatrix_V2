@@ -845,17 +845,22 @@ namespace ProyectoMatrix.Servicios
         {
             try
             {
+                _logger.LogInformation("🔍 DEBUG GetEvaluacionViewModelAsync - SubCursoId: {SubCursoId}", subCursoId);
+
                 var query = @"
-           SELECT 
-               sc.SubCursoID,
-               sc.NombreSubCurso,
-               c.NombreCurso
-           FROM dbo.SubCursos sc
-           INNER JOIN dbo.Cursos c ON sc.CursoID = c.CursoID
-           WHERE sc.SubCursoID = @SubCursoId AND sc.Activo = 1";
+        SELECT 
+            sc.SubCursoID,
+            sc.NombreSubCurso,
+            c.NombreCurso
+        FROM dbo.SubCursos sc
+        INNER JOIN dbo.Cursos c ON sc.CursoID = c.CursoID
+        WHERE sc.SubCursoID = @SubCursoId AND sc.Activo = 1";
+
                 using (var connection = new SqlConnection(_connectionString))
                 {
                     await connection.OpenAsync();
+                    _logger.LogInformation("🔍 Conexión abierta, ejecutando consulta...");
+
                     using (var command = new SqlCommand(query, connection))
                     {
                         command.Parameters.AddWithValue("@SubCursoId", subCursoId);
@@ -863,29 +868,36 @@ namespace ProyectoMatrix.Servicios
                         {
                             if (await reader.ReadAsync())
                             {
+                                _logger.LogInformation("🔍 SubCurso encontrado en BD");
+
                                 var viewModel = new EvaluacionViewModel
                                 {
                                     SubCursoID = reader.GetInt32("SubCursoID"),
                                     NombreSubCurso = reader.GetString("NombreSubCurso"),
-                                    NombreCurso = reader.GetString("NombreCurso")
+                                    NombreCurso = reader.GetString("NombreCurso"),
+                                    Preguntas = new List<PreguntaEvaluacion>(), // TEMPORAL: Sin cargar preguntas
+                                    PuedeEditarEvaluacion = true
                                 };
-                                // Cerrar el reader antes de la siguiente consulta
-                                reader.Close();
-                                // Obtener preguntas existentes
-                                viewModel.Preguntas = await GetPreguntasEvaluacionAsync(subCursoId, connection);
+
+                                _logger.LogInformation("🔍 ViewModel creado exitosamente - Nombre: {Nombre}", viewModel.NombreSubCurso);
                                 return viewModel;
+                            }
+                            else
+                            {
+                                _logger.LogWarning("🔍 SubCurso NO encontrado en BD con ID: {SubCursoId}", subCursoId);
+                                return null;
                             }
                         }
                     }
                 }
-                return null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener evaluación para SubCurso {SubCursoId}", subCursoId);
+                _logger.LogError(ex, "🔍 ERROR en GetEvaluacionViewModelAsync para SubCurso {SubCursoId}", subCursoId);
                 return null;
             }
         }
+
         public async Task<TomarEvaluacionViewModel?> GetTomarEvaluacionViewModelAsync(int subCursoId, int usuarioId, int empresaId)
         {
             try
@@ -1585,6 +1597,474 @@ namespace ProyectoMatrix.Servicios
             {
                 _logger.LogError(ex, "Error al actualizar subcurso");
                 return false;
+            }
+        }
+
+
+        ////////////////////////////////////////MODIFIACION A APARTIR DE AQUI
+        public async Task<List<CursoSimpleViewModel>> GetCursosActivosParaAsignacionAsync()
+        {
+            try
+            {
+                var cursos = new List<CursoSimpleViewModel>();
+
+                var query = @"
+                    SELECT c.CursoID, c.NombreCurso, c.Descripcion, ne.NombreNivel
+                    FROM dbo.Cursos c
+                    INNER JOIN dbo.NivelesEducativos ne ON c.NivelID = ne.NivelID
+                    WHERE c.Activo = 1
+                    ORDER BY ne.Orden, c.NombreCurso";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    cursos.Add(new CursoSimpleViewModel
+                    {
+                        Id = reader.GetInt32("CursoID"),
+                        NombreCurso = reader.GetString("NombreCurso"),
+                        Descripcion = reader.IsDBNull("Descripcion") ? null : reader.GetString("Descripcion"),
+                        NombreNivel = reader.GetString("NombreNivel")
+                    });
+                }
+
+                return cursos;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener cursos activos para asignación");
+                return new List<CursoSimpleViewModel>();
+            }
+        }
+
+        public async Task<List<EmpresaViewModel>> GetEmpresasActivasAsync()
+        {
+            try
+            {
+                var empresas = new List<EmpresaViewModel>();
+
+                var query = @"
+                    SELECT EmpresaID, Nombre
+                    FROM dbo.Empresas 
+                    WHERE Activa = 1 
+                    ORDER BY Nombre";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    empresas.Add(new EmpresaViewModel
+                    {
+                        Id = reader.GetInt32("EmpresaID"),
+                        NombreEmpresa = reader.GetString("Nombre")
+                    });
+                }
+
+                return empresas;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener empresas activas");
+                return new List<EmpresaViewModel>();
+            }
+        }
+
+        public async Task<List<DepartamentoViewModel>> GetDepartamentosPorEmpresaAsync(int idEmpresa)
+        {
+            try
+            {
+                var departamentos = new List<DepartamentoViewModel>();
+
+                var query = @"
+            SELECT DISTINCT d.Id, d.NombreDepartamento
+            FROM dbo.Departamentos d
+            INNER JOIN dbo.EmpleadoDepartamentos ed ON d.Id = ed.IdDepartamento
+            INNER JOIN dbo.Usuarios u ON ed.IdEmpleado = u.Id
+            INNER JOIN dbo.UsuariosEmpresas ue ON u.Id = ue.IdUsuario
+            WHERE ue.IdEmpresa = @IdEmpresa AND u.Activo = 1 AND d.Activo = 1
+            ORDER BY d.NombreDepartamento";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@IdEmpresa", idEmpresa);
+
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    departamentos.Add(new DepartamentoViewModel
+                    {
+                        Id = reader.GetInt32("Id"),
+                        NombreDepartamento = reader.GetString("NombreDepartamento"),
+                        IdEmpresa = idEmpresa
+                    });
+                }
+
+                return departamentos;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener departamentos por empresa");
+                return new List<DepartamentoViewModel>();
+            }
+        }
+
+        public async Task<List<UsuarioAsignacionViewModel>> GetTodosLosUsuariosActivosAsync(int? CursoID = null)
+        {
+            try
+            {
+                var usuarios = new List<UsuarioAsignacionViewModel>();
+
+                var query = @"
+                    SELECT DISTINCT 
+                        u.Id,
+                        u.NombreCompleto,
+                        u.Email,
+                        e.Nombre AS NombreEmpresa,
+                        d.NombreDepartamento,
+                        CASE 
+                            WHEN EXISTS (
+                                SELECT 1 FROM dbo.AsignacionesCursos ac 
+                                WHERE ac.IdUsuario = u.Id AND ac.CursoID = @CursoID AND ac.Activo = 1
+                            ) THEN 1 ELSE 0 
+                        END as YaTieneCurso
+                    FROM dbo.Usuarios u
+                    INNER JOIN dbo.UsuariosEmpresas ue ON u.Id = ue.IdUsuario
+                    INNER JOIN dbo.Empresas e ON ue.IdEmpresa = e.Id
+                    LEFT JOIN dbo.EmpleadoDepartamentos ed ON u.Id = ed.IdEmpleado
+                    LEFT JOIN dbo.Departamentos d ON ed.IdDepartamento = d.Id
+                    WHERE u.Activo = 1 AND ue.Activo = 1
+                    ORDER BY e.Nombre, d.NombreDepartamento, u.NombreCompleto";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@CursoID", CursoID ?? (object)DBNull.Value);
+
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    usuarios.Add(new UsuarioAsignacionViewModel
+                    {
+                        Id = reader.GetInt32("Id"),
+                        NombreCompleto = reader.GetString("NombreCompleto"),
+                        Email = reader.IsDBNull("Email") ? "" : reader.GetString("Email"),
+                        NombreEmpresa = reader.GetString("NombreEmpresa"),
+                        NombreDepartamento = reader.IsDBNull("NombreDepartamento") ? "Sin departamento" : reader.GetString("NombreDepartamento"),
+                        YaTieneCurso = reader.GetBoolean("YaTieneCurso")
+                    });
+                }
+
+                return usuarios;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener todos los usuarios activos");
+                return new List<UsuarioAsignacionViewModel>();
+            }
+        }
+
+        public async Task<List<UsuarioAsignacionViewModel>> GetUsuariosPorEmpresaAsync(int idEmpresa, int? CursoID = null)
+        {
+            try
+            {
+                var usuarios = new List<UsuarioAsignacionViewModel>();
+                /*
+                var query = @"
+                    SELECT DISTINCT 
+                        u.UsuarioID as Id,
+                        CONCAT(p.Nombre, ' ', p.ApellidoPaterno, ' ', p.ApellidoMaterno) AS NombreCompleto, 
+                        p.Correo AS Email,
+                        e.Nombre AS NombreEmpresa,
+                        d.NombreDepartamento,
+                        CASE 
+                            WHEN EXISTS (
+                                SELECT 1 FROM dbo.AsignacionesCursos ac 
+                                WHERE ac.IdUsuario = u.UsuarioID AND ac.IdCurso = @IdCurso AND ac.Activo = 1
+                            ) THEN 1 ELSE 0 
+                        END as YaTieneCurso
+                    FROM dbo.Usuarios u
+                    INNER JOIN dbo.UsuariosEmpresas ue ON u.UsuarioID = ue.UsuarioID
+                    INNER JOIN dbo.Empresas e ON ue.EmpresaID = e.EmpresaID
+                    INNER JOIN dbo.Persona p ON u.PersonaID = p.PersonaID
+                    LEFT JOIN dbo.EmpleadoDepartamentos ed ON u.PersonaID = ed.IdEmpleado
+                    LEFT JOIN dbo.Departamentos d ON ed.IdDepartamento = d.DepartamentoID
+                    WHERE u.Activo = 1 AND ue.Activo = 1 AND ue.IdEmpresa = @IdEmpresa
+                    ORDER BY e.Nombre, d.NombreDepartamento, NombreCompleto;";
+                */
+                var query = @"
+                    SELECT DISTINCT 
+                        u.UsuarioID as Id,
+                        CONCAT(p.Nombre, ' ', p.ApellidoPaterno, ' ', p.ApellidoMaterno) AS NombreCompleto, 
+                        p.Correo AS Email,
+                        e.Nombre AS NombreEmpresa,
+                        'Sin departamento' AS NombreDepartamento,  -- placeholder
+                        CAST(
+                            CASE 
+                                WHEN EXISTS (
+                                    SELECT 1 
+                                    FROM dbo.AsignacionesCursos ac 
+                                    WHERE ac.UsuarioID = u.UsuarioID 
+                                      AND ac.CursoID = @CursoID                                      AND ac.Activo = 1
+                                ) 
+                                THEN 1 ELSE 0 
+                            END 
+                        AS BIT) as YaTieneCurso
+                    FROM dbo.Usuarios u
+                    INNER JOIN dbo.UsuariosEmpresas ue ON u.UsuarioID = ue.UsuarioID
+                    INNER JOIN dbo.Empresas e ON ue.EmpresaID = e.EmpresaID
+                    INNER JOIN dbo.Persona p ON u.PersonaID = p.PersonaID
+                    WHERE u.Activo = 1 
+                      AND ue.Activo = 1 
+                      AND ue.EmpresaID = @IdEmpresa
+                    ORDER BY e.Nombre, NombreCompleto;";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@IdEmpresa", idEmpresa);
+                command.Parameters.AddWithValue("@CursoID", CursoID ?? (object)DBNull.Value);
+
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    usuarios.Add(new UsuarioAsignacionViewModel
+                    {
+                        Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                        NombreCompleto = reader.GetString(reader.GetOrdinal("NombreCompleto")),
+                        Email = reader.IsDBNull(reader.GetOrdinal("Email")) ? "" : reader.GetString(reader.GetOrdinal("Email")),
+                        NombreEmpresa = reader.GetString(reader.GetOrdinal("NombreEmpresa")),
+                        NombreDepartamento = reader.IsDBNull(reader.GetOrdinal("NombreDepartamento")) ? "Sin departamento" : reader.GetString(reader.GetOrdinal("NombreDepartamento")),
+                        YaTieneCurso = reader.GetBoolean(reader.GetOrdinal("YaTieneCurso"))
+                    });
+                }
+
+                return usuarios;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener usuarios por empresa");
+                return new List<UsuarioAsignacionViewModel>();
+            }
+        }
+
+        public async Task<List<UsuarioAsignacionViewModel>> GetUsuariosPorDepartamentoAsync(int idDepartamento, int? CursoID = null)
+        {
+            try
+            {
+                var usuarios = new List<UsuarioAsignacionViewModel>();
+
+                var query = @"
+                    SELECT DISTINCT 
+                        u.Id,
+                        u.NombreCompleto,
+                        u.Email,
+                        e.Nombre AS NombreEmpresa,
+                        d.NombreDepartamento,
+                        CASE 
+                            WHEN EXISTS (
+                                SELECT 1 FROM dbo.AsignacionesCursos ac 
+                                WHERE ac.IdUsuario = u.Id AND ac.CursoID = @CursoID AND ac.Activo = 1
+                            ) THEN 1 ELSE 0 
+                        END as YaTieneCurso
+                    FROM dbo.Usuarios u
+                    INNER JOIN dbo.EmpleadoDepartamentos ed ON u.Id = ed.IdEmpleado
+                    INNER JOIN dbo.Departamentos d ON ed.IdDepartamento = d.Id
+                    INNER JOIN dbo.UsuariosEmpresas ue ON u.Id = ue.IdUsuario
+                    INNER JOIN dbo.Empresas e ON ue.IdEmpresa = e.EmpresaID
+                    WHERE u.Activo = 1 AND d.Id = @IdDepartamento
+                    ORDER BY u.NombreCompleto";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@IdDepartamento", idDepartamento);
+                command.Parameters.AddWithValue("@CursoID", CursoID ?? (object)DBNull.Value);
+
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    usuarios.Add(new UsuarioAsignacionViewModel
+                    {
+                        Id = reader.GetInt32("Id"),
+                        NombreCompleto = reader.GetString("NombreCompleto"),
+                        Email = reader.IsDBNull("Email") ? "" : reader.GetString("Email"),
+                        NombreEmpresa = reader.GetString("NombreEmpresa"),
+                        NombreDepartamento = reader.GetString("NombreDepartamento"),
+                        YaTieneCurso = reader.GetBoolean("YaTieneCurso")
+                    });
+                }
+
+                return usuarios;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener usuarios por departamento");
+                return new List<UsuarioAsignacionViewModel>();
+            }
+        }
+
+        public async Task<ResultadoAsignacionMasiva> AsignarCursoMasivoAsync(
+            int CursoID,
+            List<int> usuariosSeleccionados,
+            int usuarioCreador,
+            int empresaId,
+            DateTime? fechaLimite,
+            string? observaciones)
+        {
+            try
+            {
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var transaction = connection.BeginTransaction();
+
+                try
+                {
+                    int usuariosAsignados = 0;
+                    int usuariosOmitidos = 0;
+
+                    foreach (var usuarioId in usuariosSeleccionados)
+                    {
+                        // Verificar si ya tiene el curso asignado
+                        var yaAsignado = await VerificarCursoYaAsignadoAsync(usuarioId, CursoID, connection, transaction);
+
+                        if (!yaAsignado)
+                        {
+                            await AsignarCursoIndividualAsync(
+                                usuarioId, CursoID, usuarioCreador, empresaId, fechaLimite, observaciones,
+                                connection, transaction);
+                            usuariosAsignados++;
+                        }
+                        else
+                        {
+                            usuariosOmitidos++;
+                        }
+                    }
+
+                    await transaction.CommitAsync();
+
+                    return new ResultadoAsignacionMasiva
+                    {
+                        Exito = true,
+                        Mensaje = "Asignación completada exitosamente",
+                        UsuariosAsignados = usuariosAsignados,
+                        UsuariosOmitidos = usuariosOmitidos
+                    };
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en asignación masiva");
+                return new ResultadoAsignacionMasiva
+                {
+                    Exito = false,
+                    Mensaje = $"Error al asignar curso: {ex.Message}",
+                    UsuariosAsignados = 0,
+                    UsuariosOmitidos = 0
+                };
+            }
+        }
+
+        private async Task<bool> VerificarCursoYaAsignadoAsync(int usuarioId, int cursoId,
+            SqlConnection connection, SqlTransaction transaction)
+        {
+            var query = @"
+                SELECT COUNT(*) 
+                FROM dbo.AsignacionesCursos 
+                WHERE UsuarioID = @UsuarioId AND CursoID = @CursoId AND Activo = 1";
+
+            using var command = new SqlCommand(query, connection, transaction);
+            command.Parameters.AddWithValue("@UsuarioId", usuarioId);
+            command.Parameters.AddWithValue("@CursoId", cursoId);
+
+            var count = (int)await command.ExecuteScalarAsync();
+            return count > 0;
+        }
+
+        private async Task AsignarCursoIndividualAsync(int usuarioId, int cursoId, int usuarioCreador,
+            int empresaId, DateTime? fechaLimite, string? observaciones,
+            SqlConnection connection, SqlTransaction transaction)
+        {
+            var query = @"
+                INSERT INTO dbo.AsignacionesCursos 
+                (UsuarioID, CursoID, AsignadoPorUsuarioID, EmpresaID, TipoAsignacionID, 
+                 FechaAsignacion, FechaLimite, EsObligatorio, Comentarios, Activo)
+                VALUES 
+                (@UsuarioId, @CursoId, @UsuarioCreador, @EmpresaId, 1, 
+                 GETDATE(), @FechaLimite, 1, @Observaciones, 1)";
+
+            using var command = new SqlCommand(query, connection, transaction);
+            command.Parameters.AddWithValue("@UsuarioId", usuarioId);
+            command.Parameters.AddWithValue("@CursoId", cursoId);
+            command.Parameters.AddWithValue("@UsuarioCreador", usuarioCreador);
+            command.Parameters.AddWithValue("@EmpresaId", empresaId);
+            command.Parameters.AddWithValue("@FechaLimite", fechaLimite ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Observaciones", observaciones ?? (object)DBNull.Value);
+
+            await command.ExecuteNonQueryAsync();
+        }
+
+        public async Task<List<AsignacionRecienteViewModel>> GetAsignacionesRecientesAsync()
+        {
+            try
+            {
+                var asignaciones = new List<AsignacionRecienteViewModel>();
+
+                var query = @"
+                    SELECT 
+                        c.NombreCurso,
+                        COUNT(ac.UsuarioID) as CantidadUsuarios,
+                        MAX(ac.FechaAsignacion) as FechaAsignacion,
+                        ac.FechaLimite,
+                        u.Username as AsignadoPor,  -- o puedes unir con Persona para nombre completo
+                        e.Nombre AS NombreEmpresa
+                    FROM dbo.AsignacionesCursos ac
+                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID
+                    INNER JOIN dbo.Usuarios u ON ac.AsignadoPorUsuarioID = u.UsuarioID
+                    INNER JOIN dbo.Empresas e ON ac.EmpresaID = e.EmpresaID
+                    WHERE ac.FechaAsignacion >= DATEADD(day, -30, GETDATE()) AND ac.Activo = 1
+                    GROUP BY c.NombreCurso, ac.FechaLimite, u.Username, e.Nombre, ac.CursoID
+                    ORDER BY MAX(ac.FechaAsignacion) DESC";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    asignaciones.Add(new AsignacionRecienteViewModel
+                    {
+                        NombreCurso = reader.GetString("NombreCurso"),
+                        CantidadUsuarios = reader.GetInt32("CantidadUsuarios"),
+                        FechaAsignacion = reader.GetDateTime("FechaAsignacion"),
+                        FechaLimite = reader.IsDBNull("FechaLimite") ? null : reader.GetDateTime("FechaLimite"),
+                        AsignadoPor = reader.GetString("AsignadoPor"),
+                        NombreEmpresa = reader.GetString("NombreEmpresa")
+                    });
+                }
+
+                return asignaciones;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener asignaciones recientes");
+                return new List<AsignacionRecienteViewModel>();
             }
         }
 
