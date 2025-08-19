@@ -39,3 +39,5 @@ namespace ProyectoMatrix.Models
         public string ColorPrimario { get; set; } = string.Empty;
     }
 }
+
+

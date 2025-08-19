@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using ProyectoMatrix.Controllers;
 using ProyectoMatrix.Servicios;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
 {
     // Escuchar en puerto 500 para todas las IPs
-   // options.ListenAnyIP(500);
+    options.ListenAnyIP(500);
 });
 
 // Obtener la cadena de conexión desde appsettings.json
@@ -34,6 +35,8 @@ builder.Services.AddSession(options =>
 
 // ? SERVICIOS Universidad NS
 builder.Services.AddScoped<UniversidadServices>();
+
+builder.Services.AddScoped<AsignacionesController>();
 
 // Agregar la autenticación antes de construir la app
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

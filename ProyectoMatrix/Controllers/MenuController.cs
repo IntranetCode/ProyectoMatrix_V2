@@ -142,10 +142,6 @@ namespace ProyectoMatrix.Controllers
             };
         }
 
-
-
-
-
         // ✅ MÉTODO HELPER - Descripciones para las tarjetas
         private string GetDescripcionParaMenu(string nombreMenu)
         {

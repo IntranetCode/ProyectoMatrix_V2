@@ -202,8 +202,8 @@ namespace ProyectoMatrix.Controllers
                     viewModel.Estadisticas.TotalCursosAsignados);
 
                 // ✅ VERIFICAR PERMISOS
-                _logger.LogInformation("Verificando permisos - PuedeCrearCursos: {PuedeCrear}, PuedeVerReportes: {PuedeVer}",
-                    viewModel.PuedeCrearCursos, viewModel.PuedeVerReportes);
+                _logger.LogInformation("Verificando permisos - PuedeCrearCursos: {PuedeCrear}, PuedeAsignarCursos: {PuedeAsignar}, PuedeVerReportes: {PuedeVer}",
+                    viewModel.PuedeCrearCursos, viewModel.PuedeAsignarCursos, viewModel.PuedeVerReportes);
 
                 // ✅ ESTADÍSTICAS ADMINISTRATIVAS (solo para roles con permisos)
                 if (viewModel.PuedeCrearCursos || viewModel.PuedeVerReportes)
@@ -332,8 +332,21 @@ namespace ProyectoMatrix.Controllers
                 items.Add(new MenuItemUniversidad
                 {
                     Titulo = "Asignar Cursos",
-                    Url = "/Universidad/AsignarCursos",
-                    Icono = "fas fa-users"
+                    Url = "/Asignaciones/AsignacionMasiva",
+                    Icono = "fas fa-users-cog",
+                    SubItems = new List<MenuItemUniversidad>
+                    {
+                        new MenuItemUniversidad { 
+                            Titulo = "Asignación Masiva",
+                            Url = "/Asignaciones/AsignacionMasiva",
+                            Icono = "fas fa-users-cog"
+                        },
+                        new MenuItemUniversidad { 
+                            Titulo = "Ver Asignaciones",
+                            Url = "/Asignaciones/VerAsignaciones",
+                            Icono = "fas fa-list-check"
+                        }
+                    }
                 });
             }
 

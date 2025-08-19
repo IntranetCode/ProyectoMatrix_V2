@@ -64,7 +64,7 @@ namespace ProyectoMatrix.Helpers
                 EsAdministradorIntranet(rolId) || EsAdministradorTI(rolId) || EsPropietarioContenido(rolId) || EsAuditor(rolId);
 
             public static bool PuedeAsignarCursos(int rolId) =>
-                EsAdministradorIntranet(rolId) || EsPropietarioContenido(rolId);
+                EsAdministradorIntranet(rolId) || EsPropietarioContenido(rolId) || EsAutorEditor(rolId);
 
             public static bool PuedeVerTodosUsuarios(int rolId) =>
                 EsAdministradorIntranet(rolId) || EsAdministradorTI(rolId) || EsPropietarioContenido(rolId) || EsAuditor(rolId);
@@ -100,8 +100,8 @@ namespace ProyectoMatrix.Helpers
 
             public static class Asignaciones
             {
-                public static bool PuedeAsignarPorEmpresa(int rolId) => EsAdministradorIntranet(rolId) || EsPropietarioContenido(rolId);
-                public static bool PuedeAsignarPorDepartamento(int rolId) => EsAdministradorIntranet(rolId) || EsPropietarioContenido(rolId);
+                public static bool PuedeAsignarPorEmpresa(int rolId) => EsAdministradorIntranet(rolId) || EsPropietarioContenido(rolId) || EsAutorEditor(rolId);
+                public static bool PuedeAsignarPorDepartamento(int rolId) => EsAdministradorIntranet(rolId) || EsPropietarioContenido(rolId) || EsAutorEditor(rolId);
                 public static bool PuedeAsignarIndividual(int rolId) => PuedeAsignarCursos(rolId);
                 public static bool PuedeRevocarAsignaciones(int rolId) => EsAdministradorIntranet(rolId) || EsPropietarioContenido(rolId);
                 public static bool PuedeVerHistorialAsignaciones(int rolId) => PuedeVerReportes(rolId);

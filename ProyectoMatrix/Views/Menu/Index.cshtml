@@ -5,9 +5,8 @@
     ViewData["Title"] = "Intranet - NS Group";
     var nombreUsuario = Context.Session.GetString("Username") ?? "Invitado";
     var nombreEmpresa = Context.Session.GetString("EmpresaNombre") ?? "NS Group";
-    var logoEmpresa = Context.Session.GetString("EmpresaLogo") ?? "default.jpg";
+    var logoEmpresa = Context.Session.GetString("EmpresaLogo") ?? "default-logo.png";
     var empresaId = Context.Session.GetString("EmpresaId") ?? "1";
- 
 
     // Configuración de archivos CSS por empresa
     var cssEmpresaFile = empresaId switch
@@ -66,7 +65,7 @@
                     <a href="#" class="navbar-brand">
                         @if (!string.IsNullOrEmpty(logoEmpresa) && logoEmpresa != "default-logo.png")
                         {
-                            <img src="~/Imagenes/@logoEmpresa"
+                            <img src="~/imagenes/@logoEmpresa"
                                  alt="Logo de @nombreEmpresa"
                                  class="navbar-logo"
                                  loading="lazy" />
@@ -79,7 +78,7 @@
                     </a>
 
                     <div class="navbar-links" role="menubar">
-                        <a href="https://nsgroup.com.mx/" class="navbar-link" role="menuitem">Página NS Group</a>
+                        <a href="#" class="navbar-link" role="menuitem">Página NS Group</a>
                         <a href="#" class="navbar-link" role="menuitem">Recursos Humanos</a>
                         <a href="#" class="navbar-link" role="menuitem">Directorio</a>
                     </div>
@@ -172,7 +171,6 @@
                                 <p class="action-description">Accede a @menu.Nombre</p>
                             }
                         </article>
-                       
                     }
                 }
 
@@ -236,8 +234,6 @@
                     <h2 class="action-title">Help Desk</h2>
                     <p class="action-description">Soporte técnico y asistencia</p>
                 </article>
-
-                
             </section>
         </main>
     </div>
@@ -258,61 +254,6 @@
             "operatingSystem": "Web"
         }
     </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-          const cards = document.querySelectorAll('.action-card');
-
-          cards.forEach(function (card) {
-            card.addEventListener('click', function () {
-              const url = card.getAttribute('data-href') || card.getAttribute ('data-href-external');
-              if (url && url !== "#") {
-                  if(card.hasAttribute('data-href-external')){
-                      window.open(url, '_blank');
-                  }else{
-                      window.location.href = url;
-                  }
-              }
-            });
-
-            card.addEventListener('keydown', function (e) {
-              if (e.key === 'Enter') {
-                const url = card.getAttribute('data-href') || card.getAttribute ('data-href-external');
-                if (url && url !== "#") {
-                    if(card.hasAttribute('data-href-external')){
-                        window.open(url, '_blank');
-                        }else{
-                            window.location.href = url;
-                        }
-                }
-              }
-              
-            });
-          });
-        });
-    </script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const toggleButton = document.getElementById('userToggle');
-            const dropdown = document.getElementById('userDropdown');
-
-            toggleButton.addEventListener('click', function () {
-                const expanded = toggleButton.getAttribute('aria-expanded') === 'true';
-                toggleButton.setAttribute('aria-expanded', !expanded);
-                dropdown.classList.toggle('show');
-            });
-
-            // Cierra el menú si haces clic fuera
-            document.addEventListener('click', function (event) {
-                if (!toggleButton.contains(event.target) && !dropdown.contains(event.target)) {
-                    toggleButton.setAttribute('aria-expanded', 'false');
-                    dropdown.classList.remove('show');
-                }
-            });
-        });
-    </script>
-
-
 </body>
 </html>
 
