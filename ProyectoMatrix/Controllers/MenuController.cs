@@ -21,8 +21,14 @@ namespace ProyectoMatrix.Controllers
             return RedirectToAction("Login", "Login");
         }
 
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public async Task<IActionResult> Index()
         {
+            //CACHE DE NAVEGADOR
+            Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            Response.Headers["Pragma"] = "no-cache";
+            Response.Headers["Expires"] = "0";
+
             int? usuarioID = HttpContext.Session.GetInt32("UsuarioID");
             if (usuarioID == null)
                 return RedirectToAction("Login", "Login");

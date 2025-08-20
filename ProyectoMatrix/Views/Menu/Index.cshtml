@@ -43,7 +43,7 @@
     <link rel="stylesheet" href="~/css/components/cards.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/pages/dashboard.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/@cssEmpresaFile" asp-append-version="true" />
-
+    <link href="~/css/stylesMenuIndex.css" rel="stylesheet" />
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
@@ -78,7 +78,7 @@
                     </a>
 
                     <div class="navbar-links" role="menubar">
-                        <a href="#" class="navbar-link" role="menuitem">Página NS Group</a>
+                        <a href="https://nsgroup.com.mx/index.html" class="navbar-link" role="menuitem">Página NS Group</a>
                         <a href="#" class="navbar-link" role="menuitem">Recursos Humanos</a>
                         <a href="#" class="navbar-link" role="menuitem">Directorio</a>
                     </div>
@@ -102,7 +102,7 @@
                         </button>
 
                         <div class="user-dropdown"
-                             id="userDropdown"
+                             id="userDropdownMenu"
                              role="menu"
                              aria-labelledby="userToggle">
                             <a href="#" class="dropdown-item" role="menuitem">
@@ -121,10 +121,11 @@
                                 <i class="fas fa-question-circle" aria-hidden="true"></i>
                                 Ayuda
                             </a>
-                            <a href="/Menu/Logout" class="dropdown-item" role="menuitem">
+                            <a href="/Login/Logout" class="dropdown-item">
                                 <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
                                 Cerrar Sesión
                             </a>
+
                         </div>
                     </div>
                 </div>
@@ -254,6 +255,68 @@
             "operatingSystem": "Web"
         }
     </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+          const cards = document.querySelectorAll('.action-card');
+
+          cards.forEach(function (card) {
+            card.addEventListener('click', function () {
+              const url = card.getAttribute('data-href') || card.getAttribute ('data-href-external');
+              if (url && url !== "#") {
+                  if(card.hasAttribute('data-href-external')){
+                      window.open(url, '_blank');
+                  }else{
+                      window.location.href = url;
+                  }
+              }
+            });
+
+            card.addEventListener('keydown', function (e) {
+              if (e.key === 'Enter') {
+                const url = card.getAttribute('data-href') || card.getAttribute ('data-href-external');
+                if (url && url !== "#") {
+                    if(card.hasAttribute('data-href-external')){
+                        window.open(url, '_blank');
+                        }else{
+                            window.location.href = url;
+                        }
+                }
+              }
+              
+            });
+          });
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleBtn = document.getElementById('userToggle');
+            const dropdown = document.getElementById('userDropdownMenu');
+
+            if (!toggleBtn || !dropdown) return;
+
+            toggleBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                dropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!dropdown.contains(e.target) && !toggleBtn.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                }
+            });
+        });
+    </script>
+
+    <script>
+        // Reemplaza la URL del login con la del index en el historial
+        if (window.history.replaceState) {
+            window.history.replaceState(null, '', '/Menu/Index');
+        }
+    </script>
+
+ 
+
 </body>
 </html>
 

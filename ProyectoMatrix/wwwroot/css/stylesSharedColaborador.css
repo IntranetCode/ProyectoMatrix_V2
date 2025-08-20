@@ -21,7 +21,7 @@ body::before {
 }
 
 /* Animación del gradiente */
-@@keyframes gradientShift {
+@keyframes gradientShift {
     0% {
         background-position: 0% 50%;
     }
@@ -42,6 +42,27 @@ body::before {
     border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
     box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1) !important;
 }
+
+.navbar,
+.navbar .nav-item,
+.dropdown {
+    position: relative;
+    z-index: 1000;
+}
+
+
+.navbar-nav .nav-link {
+    
+    color: #f1f5f9 !important;
+}
+
+    .navbar-nav .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.1); /* Fondo sutil */
+        border-radius: 6px;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2); /* Contorno */
+        transition: all 0.2s ease-in-out;
+    }
+
 
 /* Contenedor principal con fondo */
 .container-colaborador {
@@ -72,7 +93,7 @@ a {
 }
 
     a:hover {
-        color: var(--color-secundario, #0056b3) !important;
+        color: var(--color-secundario, #0056b9) !important;
     }
 
 /* Badges y elementos de estado */
@@ -102,7 +123,7 @@ a {
     }
 
 /* Para empresas específicas - colores más intensos */
-@@media screen {
+@media screen {
     /* Nutriservicios - Azul */
     body .empresa-1 {
         background: linear-gradient(135deg, #004AAD 0%, #0066CC 25%, #0080FF 50%, #004AAD 100%) !important;
@@ -138,7 +159,7 @@ a {
 }
 
 /* Responsive */
-@@media (max-width: 768px) {
+@media (max-width: 768px) {
     body:: before {
         background: rgba(255, 255, 255, 0.92) !important;
     }

@@ -53,7 +53,7 @@
     margin: 0 auto 1rem;
 }
 
-@@keyframes spin {
+@keyframes spin {
     0% {
         transform: rotate(0deg);
     }
@@ -178,6 +178,7 @@
 .quick-actions {
     display: flex;
     gap: 0.5rem;
+    margin-top:-8px;
 }
 
 .quick-action-btn {
@@ -304,7 +305,7 @@
         animation: dropdownFadeIn 0.2s ease;
     }
 
-@@keyframes dropdownFadeIn {
+@keyframes dropdownFadeIn {
     from {
         opacity: 0;
         transform: translateY(-10px);
@@ -464,7 +465,7 @@
 }
 
 /* Responsive */
-@@media (max-width: 768px) {
+@media (max-width: 768px) {
     .navbar-container {
         padding: 0 1rem;
     }
@@ -513,4 +514,5 @@
         padding-bottom: 70px;
     }
 }
+
 

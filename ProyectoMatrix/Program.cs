@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
 {
     // Escuchar en puerto 500 para todas las IPs
-    options.ListenAnyIP(500);
+   // options.ListenAnyIP(500);
 });
 
 // Obtener la cadena de conexión desde appsettings.json
@@ -46,6 +46,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LogoutPath = "/Login/Logout";
     });
 
+
+
+
+
 var app = builder.Build();
 
 // Configurar el middleware
@@ -57,6 +61,17 @@ if (!app.Environment.IsDevelopment())
 
 // ? COMENTAR O QUITAR ESTA LÍNEA para HTTP
 // app.UseHttpsRedirection();
+
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+    context.Response.Headers["Pragma"] = "no-cache";
+    context.Response.Headers["Expires"] = "0";
+    await next();
+});
+
+
 
 app.UseStaticFiles();
 app.UseRouting();
@@ -75,6 +90,8 @@ app.MapControllerRoute(
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Login}/{action=Login}/{id?}");
+
+
 
 app.MapRazorPages();
 
