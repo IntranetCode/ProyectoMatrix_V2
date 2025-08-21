@@ -84,7 +84,7 @@
     margin: 0 auto 1rem;
 }
 
-@@keyframes spin {
+@keyframes spin {
     0% {
         transform: rotate(0deg);
     }
@@ -94,7 +94,7 @@
     }
 }
 
-@@media (max-width: 768px) {
+@media (max-width: 768px) {
     .pdf-header {
         padding: 1rem;
         flex-direction: column;

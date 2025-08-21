@@ -76,15 +76,21 @@
                         }
                         <span class="navbar-title">@nombreEmpresa</span>
                     </a>
-
-                    <div class="navbar-links" role="menubar">
-                        <a href="https://nsgroup.com.mx/index.html" class="navbar-link" role="menuitem">Página NS Group</a>
-                        <a href="#" class="navbar-link" role="menuitem">Recursos Humanos</a>
-                        <a href="#" class="navbar-link" role="menuitem">Directorio</a>
-                    </div>
+                  
                 </div>
 
+                <!-- Se quitaron los links hacia RRHH, NS, Y directorio
+                    y se coloco un boton de notificaciones a la derecha,y la opcion de notificaciones
+                    del menu desplegable se quitó
+                -->
                 <div class="navbar-right">
+                    <div class="quick-actions-navbar">
+                        <button class="quick-action-btn" id="notificationsBtn" title="Notificaciones">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-badge">3</span>
+                        </button>
+                    </div>
+
                     <div class="user-menu">
                         <button class="user-toggle"
                                 id="userToggle"
@@ -112,10 +118,6 @@
                             <a href="#" class="dropdown-item" role="menuitem">
                                 <i class="fas fa-cog" aria-hidden="true"></i>
                                 Configuración
-                            </a>
-                            <a href="#" class="dropdown-item" role="menuitem">
-                                <i class="fas fa-bell" aria-hidden="true"></i>
-                                Notificaciones
                             </a>
                             <a href="#" class="dropdown-item" role="menuitem">
                                 <i class="fas fa-question-circle" aria-hidden="true"></i>
@@ -255,6 +257,22 @@
             "operatingSystem": "Web"
         }
     </script>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+          const welcome = document.querySelector('.welcome-section');
+
+          // Aplica pantalla completa
+          welcome.classList.add('fullscreen-welcome');
+
+          
+          setTimeout(() => {
+            welcome.classList.remove('fullscreen-welcome');
+          }, 3000);
+        });
+    </script>
+
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
           const cards = document.querySelectorAll('.action-card');

@@ -589,7 +589,7 @@ f
     }
 
 /* Responsive */
-@@media (max-width: 768px) {
+@media (max-width: 768px) {
     .universidad-container {
         padding: 1rem;
     }
@@ -629,7 +629,7 @@ f
     }
 }
 
-@@keyframes fadeInUp {
+@keyframes fadeInUp {
     from {
         opacity: 0;
         transform: translateY(20px);
