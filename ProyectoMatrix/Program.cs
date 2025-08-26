@@ -1,9 +1,34 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using ProyectoMatrix.Controllers;
 using ProyectoMatrix.Servicios;
+using Microsoft.AspNetCore.Server.IIS;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ? AGREGAR ESTAS LÍNEAS PARA ARCHIVOS GRANDES
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 268435456; // 256 MB
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartHeadersLengthLimit = int.MaxValue;
+});
+
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = 268435456; // 256 MB
+});
+
+// ? AGREGAR CONFIGURACIÓN DEL SERVIDOR
+builder.WebHost.ConfigureKestrel(options =>
+{
+    // Escuchar en puerto 500 para todas las IPs
+    //options.ListenAnyIP(5001);
+
+    // ? AGREGAR LÍMITES PARA KESTREL TAMBIÉN
+    options.Limits.MaxRequestBodySize = 268435456; // 256 MB
+});
 
 // ? AGREGAR CONFIGURACIÓN DEL SERVIDOR
 builder.WebHost.ConfigureKestrel(options =>

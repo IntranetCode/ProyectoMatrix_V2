@@ -466,27 +466,14 @@ namespace ProyectoMatrix.Models
         public string? NombreNivel { get; set; }
         public bool EsObligatorio { get; set; }
         public string? ColorNivel { get; set; } = "#3b82f6";
-
-        // ✅ AGREGAR ESTAS PROPIEDADES QUE FALTAN:
         public int TotalSubCursos { get; set; }
         public int SubCursosCompletados { get; set; }
 
-        // Helpers para UI (propiedades calculadas)
-        public string EstadoClass => Estado switch
-        {
-            "Completado" => "badge bg-success",
-            "En Progreso" => "badge bg-primary",
-            "Asignado" => "badge bg-secondary",
-            _ => "badge bg-light"
-        };
-
-        public bool TieneFechaLimite => FechaLimite.HasValue;
-
-        public string FechaLimiteTexto => FechaLimite?.ToString("dd/MM/yyyy") ?? "Sin límite";
-
-        public bool ProximoVencimiento => FechaLimite.HasValue &&
-            FechaLimite.Value.Subtract(DateTime.Now).TotalDays <= 7 &&
-            Estado != "Completado";
+        // CAMBIAR ESTAS PROPIEDADES CALCULADAS POR NORMALES:
+        public string EstadoClass { get; set; } = "badge bg-secondary";
+        public bool TieneFechaLimite { get; set; }
+        public string FechaLimiteTexto { get; set; } = "Sin límite";
+        public bool ProximoVencimiento { get; set; }
     }
     public class CertificadoUsuarioViewModel
     {
@@ -624,9 +611,214 @@ namespace ProyectoMatrix.Models
         public DateTime? FechaCompletado { get; set; }
     }*/
 
+    // =====================================================
+    // AGREGAR ESTOS VIEWMODELS AL ARCHIVO Models/UniversidadModels.cs
+    // =====================================================
 
+    /// <summary>
+    /// ViewModel para mostrar los cursos asignados a un usuario
+    /// </summary>
+    public class MiCursoViewModel
+    {
+        public int AsignacionCursoID { get; set; }
+        public int CursoID { get; set; }
+        public string TituloCurso { get; set; } = string.Empty;
+        public string? Descripcion { get; set; }
+        public int? DuracionHoras { get; set; }
+        public string? ImagenCurso { get; set; }
+        public string NombreNivel { get; set; } = string.Empty;
+        public string ColorNivel { get; set; } = "#3b82f6";
+        public DateTime FechaAsignacion { get; set; }
+        public DateTime? FechaLimite { get; set; }
+        public DateTime? FechaInicio { get; set; }
+        public DateTime? FechaFinalizacion { get; set; }
+        public decimal Progreso { get; set; } // Porcentaje de 0-100
+        public string Estado { get; set; } = "Pendiente"; // Pendiente, En Progreso, Completado, Vencido
+        public bool EsObligatorio { get; set; }
+        public string? Observaciones { get; set; }
+        public int TotalSubCursos { get; set; }
+        public int SubCursosCompletados { get; set; }
+        public bool EstaVencido { get; set; }
 
+        // Propiedades calculadas
+        public string EstadoDisplay => Estado switch
+        {
+            "Completado" => "Completado",
+            "En Progreso" => "En Progreso",
+            "Vencido" => "Vencido",
+            _ => "Pendiente"
+        };
 
+        public string ClaseEstado => Estado switch
+        {
+            "Completado" => "success",
+            "En Progreso" => "warning",
+            "Vencido" => "danger",
+            _ => "secondary"
+        };
+
+        public string IconoEstado => Estado switch
+        {
+            "Completado" => "fa-check-circle",
+            "En Progreso" => "fa-clock",
+            "Vencido" => "fa-exclamation-triangle",
+            _ => "fa-play-circle"
+        };
+
+        public int DiasRestantes
+        {
+            get
+            {
+                if (FechaLimite == null) return int.MaxValue;
+                var dias = (FechaLimite.Value - DateTime.Now).Days;
+                return Math.Max(0, dias);
+            }
+        }
+
+        public bool TieneLimiteProximo => DiasRestantes <= 7 && DiasRestantes > 0;
+    }
+
+    /// <summary>
+    /// ViewModel para estadísticas de progreso del usuario
+    /// </summary>
+    public class EstadisticasProgresoUsuarioViewModel
+    {
+        public int TotalCursosAsignados { get; set; }
+        public int CursosCompletados { get; set; }
+        public int CursosEnProgreso { get; set; }
+        public int CursosVencidos { get; set; }
+        public decimal PorcentajeProgresoGeneral { get; set; }
+
+        // Propiedades calculadas
+        public int CursosPendientes => TotalCursosAsignados - CursosCompletados - CursosEnProgreso - CursosVencidos;
+
+        public string ClaseProgresoGeneral => PorcentajeProgresoGeneral switch
+        {
+            >= 80 => "success",
+            >= 60 => "warning",
+            >= 40 => "info",
+            _ => "danger"
+        };
+    }
+
+    /// <summary>
+    /// ViewModel para certificados disponibles para el usuario
+    /// </summary>
+    public class CertificadoDisponibleViewModel
+    {
+        public int CursoID { get; set; }
+        public string NombreCurso { get; set; } = string.Empty;
+        public string? Descripcion { get; set; }
+        public string NombreNivel { get; set; } = string.Empty;
+        public DateTime? FechaCompletado { get; set; }
+        public bool YaTieneCertificado { get; set; }
+        public bool PuedeGenerarCertificado { get; set; }
+
+        public string EstadoCertificado => YaTieneCertificado ? "Generado" : (PuedeGenerarCertificado ? "Disponible" : "No disponible");
+        public string ClaseEstado => YaTieneCertificado ? "success" : (PuedeGenerarCertificado ? "primary" : "secondary");
+    }
+
+    /// <summary>
+    /// ViewModel principal para la vista "Mis Cursos"
+    /// </summary>
+    public class MisCursosViewModel
+    {
+        public List<MiCursoViewModel> MisCursos { get; set; } = new();
+        public EstadisticasProgresoUsuarioViewModel Estadisticas { get; set; } = new();
+        public List<CertificadoDisponibleViewModel> CertificadosDisponibles { get; set; } = new();
+
+        // Filtros
+        public string? FiltroEstado { get; set; }
+        public string? FiltroNivel { get; set; }
+        public bool? SoloObligatorios { get; set; }
+        public bool? SoloVencidos { get; set; }
+
+        // Propiedades calculadas para filtros
+        public List<MiCursoViewModel> CursosFiltrados
+        {
+            get
+            {
+                var cursos = MisCursos.AsEnumerable();
+
+                if (!string.IsNullOrEmpty(FiltroEstado))
+                    cursos = cursos.Where(c => c.Estado == FiltroEstado);
+
+                if (!string.IsNullOrEmpty(FiltroNivel))
+                    cursos = cursos.Where(c => c.NombreNivel == FiltroNivel);
+
+                if (SoloObligatorios == true)
+                    cursos = cursos.Where(c => c.EsObligatorio);
+
+                if (SoloVencidos == true)
+                    cursos = cursos.Where(c => c.EstaVencido);
+
+                return cursos.ToList();
+            }
+        }
+
+        public List<string> NivelesDisponibles => MisCursos.Select(c => c.NombreNivel).Distinct().OrderBy(n => n).ToList();
+        public List<string> EstadosDisponibles => MisCursos.Select(c => c.Estado).Distinct().OrderBy(e => e).ToList();
+    }
+
+    /// <summary>
+    /// ViewModel para el detalle de un curso específico del usuario
+    /// </summary>
+    public class DetalleMiCursoViewModel
+    {
+        public MiCursoViewModel Curso { get; set; } = new();
+        public List<SubCursoDetalle> SubCursos { get; set; } = new();
+        public List<IntentoEvaluacion> HistorialEvaluaciones { get; set; } = new();
+        public bool PuedeGenerarCertificado { get; set; }
+        public CertificadoEmitido? Certificado { get; set; }
+
+        // Propiedades calculadas
+        public decimal ProgresoDetallado
+        {
+            get
+            {
+                if (!SubCursos.Any()) return 0;
+                return SubCursos.Average(s => s.PorcentajeVisto);
+            }
+        }
+
+        public bool TodosLosSubCursosCompletados => SubCursos.All(s => s.Completado);
+        public int SubCursosConEvaluacion => SubCursos.Count(s => s.RequiereEvaluacion);
+        public int EvaluacionesAprobadas => HistorialEvaluaciones.Count(e => e.Aprobado);
+    }
+
+    // =====================================================
+    // AGREGAR ESTE VIEWMODEL ADICIONAL A UniversidadModels.cs
+    // =====================================================
+
+    /// <summary>
+    /// ViewModel para el dashboard principal del usuario
+    /// </summary>
+    public class DashboardUsuarioViewModel
+    {
+        public EstadisticasProgresoUsuarioViewModel Estadisticas { get; set; } = new();
+        public List<MiCursoViewModel> CursosRecientes { get; set; } = new();
+        public List<MiCursoViewModel> CursosProximosVencer { get; set; } = new();
+        public List<CertificadoDisponibleViewModel> CertificadosDisponibles { get; set; } = new();
+
+        // Propiedades calculadas
+        public bool TieneAlertasVencimiento => CursosProximosVencer.Any();
+        public bool TieneCertificadosDisponibles => CertificadosDisponibles.Any(c => c.PuedeGenerarCertificado);
+        public int TotalNotificaciones => CursosProximosVencer.Count + CertificadosDisponibles.Count(c => c.PuedeGenerarCertificado);
+    }
+
+    // Models/Requests/CompletarSubCursoRequest.cs
+    public class CompletarSubCursoRequest
+    {
+        public int SubCursoId { get; set; }
+        public int TiempoVisto { get; set; }
+    }
+
+    // Models/ViewModels/EvaluacionRespuestasViewModel.cs (si no lo tienes)
+    public class EvaluacionRespuestasViewModel
+    {
+        public int SubCursoId { get; set; }
+        public Dictionary<int, string> Respuestas { get; set; } = new Dictionary<int, string>();
+    }
 
 
 

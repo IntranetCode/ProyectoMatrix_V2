@@ -206,21 +206,27 @@
                                             }
                                             else
                                             {
-                                                <a href="/Universidad/VerSubCurso/@subCurso.SubCursoID"
+                                                <a asp-controller="Universidad"
+                                                   asp-action="TomarSubCurso"
+                                                   asp-route-subCursoId="@subCurso.SubCursoID"
                                                    class="btn btn-universidad btn-sm">
                                                     @if (isCompleted)
                                                     {
-                                                        <i class="fas fa-eye me-1"></i> @:Revisar
+                                                        <i class="fas fa-eye me-1"></i>
+                                                        <text>Revisar</text>
                                                                                             }
                                                     else if (isInProgress)
                                                     {
-                                                        <i class="fas fa-play me-1"></i> @:Continuar
+                                                        <i class="fas fa-play me-1"></i>
+                                                        <text>Continuar</text>
                                                                                 }
                                                     else
                                                     {
-                                                        <i class="fas fa-play-circle me-1"></i> @:Comenzar
+                                                        <i class="fas fa-play-circle me-1"></i>
+                                                        <text>Comenzar</text>
                                                                                 }
                                                 </a>
+
 
                                                 @if (!string.IsNullOrEmpty(subCurso.ArchivoPDF))
                                                 {
@@ -344,21 +350,22 @@
                                     <i class="fas fa-clock me-1"></i>Duración: @proximoSubCurso.DuracionFormateada
                                 </small>
                             </div>
-                            <a href="/Universidad/VerSubCurso/@proximoSubCurso.SubCursoID"
+                            <a asp-controller="Universidad"
+                               asp-action="TomarSubCurso"
+                               asp-route-subCursoId="@proximoSubCurso.SubCursoID"
                                class="btn btn-universidad btn-sm w-100">
                                 @if (proximoSubCurso.PorcentajeVisto > 0)
                                 {
                                     <i class="fas fa-play me-2"></i>
-                            
                                     <text>Continuar Módulo</text>
                                                             }
                                 else
                                 {
                                     <i class="fas fa-play-circle me-2"></i>
-                            
                                     <text>Comenzar Módulo</text>
                                                         }
                             </a>
+
                         </div>
                     </div>
                 </div>

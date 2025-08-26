@@ -1,0 +1,622 @@
+﻿@model ProyectoMatrix.Models.SubCursoDetalle
+
+@{
+    ViewData["Title"] = $"{Model.NombreSubCurso} - Universidad NS";
+    Layout = "_LayoutUniversidad";
+
+    var usuarioId = ViewBag.UsuarioId ?? 0;
+    var empresaId = ViewBag.EmpresaId ?? 0;
+    var subCursoId = ViewBag.SubCursoId ?? 0;
+}
+
+<div class="subcurso-container">
+    <!-- Header de navegación -->
+    <div class="subcurso-header">
+        <div class="container-fluid">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/Universidad">Universidad NS</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/Universidad/MisCursos">Mis Cursos</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/Universidad/TomarCurso/@Model.CursoID">Curso</a>
+                    </li>
+                    <li class="breadcrumb-item active">@Model.NombreSubCurso</li>
+                </ol>
+            </nav>
+
+            <div class="subcurso-title-section">
+                <h1 class="subcurso-title">@Model.NombreSubCurso</h1>
+                <div class="subcurso-meta">
+                    <span class="meta-item">
+                        <i class="fas fa-play-circle"></i>
+                        Módulo @Model.Orden
+                    </span>
+                    @if (Model.DuracionVideo.HasValue)
+                    {
+                        <span class="meta-item">
+                            <i class="fas fa-clock"></i>
+                            @TimeSpan.FromSeconds(Model.DuracionVideo.Value).ToString(@"mm\:ss")
+                        </span>
+                    }
+                    @if (Model.RequiereEvaluacion)
+                    {
+                        <span class="meta-item">
+                            <i class="fas fa-clipboard-check"></i>
+                            Con Evaluación
+                        </span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido principal -->
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Sección del video -->
+            <div class="col-xl-9">
+                <div class="video-section">
+                    <!-- Video Player -->
+                    @if (!string.IsNullOrEmpty(Model.ArchivoVideo))
+                    {
+                        <div class="video-container">
+                            <video id="videoPlayer"
+                                   class="video-player"
+                                   controls
+                                   preload="metadata"
+                                   data-subcurso-id="@Model.SubCursoID"
+                                   data-usuario-id="@usuarioId"
+                                   data-empresa-id="@empresaId">
+                                <source src="~/contenidos/@Model.ArchivoVideo" type="video/mp4">
+                                <p>Su navegador no soporta la reproducción de video.</p>
+                            </video>
+
+                            <!-- Overlay de progreso -->
+                            <div class="video-progress-overlay" id="videoProgressOverlay">
+                                <div class="progress-info">
+                                    <span>Progreso: <span id="progressPercentage">@Model.PorcentajeVisto.ToString("F0")</span>%</span>
+                                    <span>Tiempo visto: <span id="timeWatched">@TimeSpan.FromSeconds(Model.TiempoTotalVisto).ToString(@"mm\:ss")</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="no-video-placeholder">
+                            <i class="fas fa-video-slash fa-4x text-muted mb-3"></i>
+                            <h5 class="text-muted">No hay video disponible</h5>
+                            <p class="text-muted">Este módulo no tiene contenido multimedia.</p>
+                        </div>
+                    }
+
+                    <!-- Descripción del módulo -->
+                    @if (!string.IsNullOrEmpty(Model.Descripcion))
+                    {
+                        <div class="module-description mt-4">
+                            <h5>Descripción del módulo</h5>
+                            <p>@Model.Descripcion</p>
+                        </div>
+                    }
+
+                    <!-- Progreso del usuario -->
+                    <div class="progress-summary mt-4">
+                        <h5>Tu progreso</h5>
+                        <div class="progress-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Tiempo visto:</span>
+                                <span class="stat-value" id="displayTimeWatched">
+                                    @TimeSpan.FromSeconds(Model.TiempoTotalVisto).ToString(@"mm\:ss")
+                                </span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Progreso:</span>
+                                <span class="stat-value" id="displayProgress">@Model.PorcentajeVisto.ToString("F1")%</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Estado:</span>
+                                <span class="badge @(Model.Completado ? "bg-success" : Model.PorcentajeVisto > 0 ? "bg-primary" : "bg-secondary")" id="displayStatus">
+                                    @(Model.Completado ? "Completado" : Model.PorcentajeVisto > 0 ? "En Progreso" : "Sin Iniciar")
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="progress-bar-container mt-3">
+                            <div class="progress">
+                                <div class="progress-bar bg-primary"
+                                     id="overallProgressBar"
+                                     style="width: @Model.PorcentajeVisto%"
+                                     role="progressbar">
+                                </div>
+                            </div>
+                            <small class="text-muted mt-1 d-block">
+                                Debes ver al menos el 95% del video para completar el módulo
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-xl-3">
+                <!-- Navegación -->
+                <div class="sidebar-card mb-4">
+                    <h6 class="sidebar-card-title">
+                        <i class="fas fa-list me-2"></i>Navegación
+                    </h6>
+                    <div class="navigation-buttons">
+                        <a href="/Universidad/TomarCurso/@Model.CursoID"
+                           class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-arrow-left me-2"></i>Volver al Curso
+                        </a>
+
+                        <button class="btn btn-success w-100"
+                                id="completeModuleBtn"
+                                style="display: none;">
+                            <i class="fas fa-check me-2"></i>Marcar como Completado
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Material adicional -->
+                <!-- Material adicional -->
+                @if (!string.IsNullOrEmpty(Model.ArchivoPDF))
+                {
+                    <div class="sidebar-card mb-4">
+                        <h6 class="sidebar-card-title">
+                            <i class="fas fa-file-alt me-2"></i>Material Adicional
+                        </h6>
+                        <div class="material-item">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-file-pdf text-danger me-3 fa-2x"></i>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">Documento PDF</h6>
+                                    <small class="text-muted">Material complementario</small>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <a href="~/contenidos/@Model.ArchivoPDF"
+                                   target="_blank"
+                                   class="btn btn-outline-danger btn-sm me-2">
+                                    <i class="fas fa-eye me-1"></i> Ver
+                                </a>
+                                <a href="~/contenidos/@Model.ArchivoPDF"
+                                   download
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-download me-1"></i> Descargar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+
+                <!-- Evaluación -->
+                @if (Model.RequiereEvaluacion)
+                {
+                    <div class="sidebar-card mb-4">
+                        <h6 class="sidebar-card-title">
+                            <i class="fas fa-clipboard-check me-2"></i>Evaluación
+                        </h6>
+
+                        @if (Model.UltimoIntento != null)
+                        {
+                            <div class="evaluation-info mb-3">
+                                <div class="alert @(Model.UltimoIntento.Aprobado ? "alert-success" : "alert-warning") py-2">
+                                    <small>
+                                        <strong>Último intento:</strong><br>
+                                        @Model.UltimoIntento.PorcentajeCalificacion.ToString("F1")%
+                                        (@(Model.UltimoIntento.Aprobado ? "Aprobado" : "Reprobado"))
+                                    </small>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="evaluation-requirements mb-3">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Puntaje mínimo: @Model.PuntajeMinimo%
+                            </small>
+                        </div>
+
+                        <button class="btn btn-warning w-100"
+                                id="startEvaluationBtn">
+                            <i class="fas fa-play-circle me-2"></i>
+                            @if (Model.UltimoIntento?.Aprobado == true)
+                            {
+                                <span>Repetir Evaluación</span>
+                            }
+                            else
+                            {
+                                <span>Tomar Evaluación</span>
+                            }
+                        </button>
+                    </div>
+                }
+
+                <!-- Notas personales -->
+                <div class="sidebar-card">
+                    <h6 class="sidebar-card-title">
+                        <i class="fas fa-sticky-note me-2"></i>Mis Notas
+                    </h6>
+                    <textarea class="form-control"
+                              id="moduleNotes"
+                              rows="4"
+                              placeholder="Escribe tus notas sobre este módulo..."></textarea>
+                    <button class="btn btn-outline-primary btn-sm mt-2" id="saveNotesBtn">
+                        <i class="fas fa-save me-1"></i>Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de evaluación -->
+<div class="modal fade" id="evaluationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-clipboard-check me-2"></i>
+                    Evaluación: @Model.NombreSubCurso
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="evaluationContent">
+                <!-- Contenido cargado dinámicamente -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .subcurso-container {
+        min-height: 100vh;
+        background: #f8fafc;
+    }
+
+    .subcurso-header {
+        background: white;
+        padding: 2rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .breadcrumb {
+        background: none;
+        padding: 0;
+        margin-bottom: 1rem;
+    }
+
+    .breadcrumb-item a {
+        color: var(--universidad-primary);
+        text-decoration: none;
+    }
+
+    .subcurso-title {
+        color: #1f2937;
+        font-weight: 700;
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .subcurso-meta {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    .video-section {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .video-container {
+        position: relative;
+        background: #000;
+    }
+
+    .video-player {
+        width: 100%;
+        height: auto;
+        max-height: 500px;
+    }
+
+    .video-progress-overlay {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+    }
+
+    .progress-info {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .no-video-placeholder {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: #f9fafb;
+    }
+
+    .module-description,
+    .progress-summary {
+        padding: 1.5rem;
+    }
+
+    .progress-stats {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+
+    .stat-value {
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .progress-bar-container .progress {
+        height: 8px;
+        border-radius: 4px;
+    }
+
+    .sidebar-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .sidebar-card-title {
+        background: #f9fafb;
+        padding: 1rem 1.5rem;
+        margin: 0;
+        border-bottom: 1px solid #e5e7eb;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .sidebar-card > div:not(.sidebar-card-title) {
+        padding: 1.5rem;
+    }
+
+    .navigation-buttons .btn {
+        border-radius: 6px;
+    }
+
+    .material-item {
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 1rem;
+        background: #f9fafb;
+    }
+
+    .evaluation-info .alert {
+        margin-bottom: 0;
+    }
+
+    #moduleNotes {
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+    }
+
+    @@media (max-width: 768px) {
+        .subcurso-title
+
+    {
+        font-size: 1.5rem;
+    }
+
+    .progress-stats {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .meta-item {
+        font-size: 0.8rem;
+    }
+
+    }
+</style>
+
+<script>
+    // Variables globales
+    const videoConfig = {
+        subCursoId: @Model.SubCursoID,
+        usuarioId: @usuarioId,
+        empresaId: @empresaId,
+        progresoPrevio: @Model.PorcentajeVisto,
+        tiempoVistoPrevio: @Model.TiempoTotalVisto,
+        requiereEvaluacion: @Model.RequiereEvaluacion.ToString().ToLower(),
+        completado: @Model.Completado.ToString().ToLower()
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initVideoTracking();
+        initEvaluationButton();
+        initNotesFeature();
+    });
+
+    function initVideoTracking() {
+        const video = document.getElementById('videoPlayer');
+        if (!video) return;
+
+        let lastUpdateTime = 0;
+        let totalWatchTime = videoConfig.tiempoVistoPrevio;
+
+        video.addEventListener('timeupdate', function() {
+            const currentTime = Math.floor(video.currentTime);
+            const duration = Math.floor(video.duration);
+
+            if (currentTime > lastUpdateTime) {
+                totalWatchTime += (currentTime - lastUpdateTime);
+                lastUpdateTime = currentTime;
+
+                const progress = duration > 0 ? Math.min((totalWatchTime / duration) * 100, 100) : 0;
+
+                updateProgressDisplay(progress, totalWatchTime);
+
+                // Enviar progreso cada 10 segundos
+                if (currentTime % 10 === 0) {
+                    sendProgressUpdate(progress, totalWatchTime);
+                }
+
+                // Mostrar botón de completar si está cerca del final
+                if (progress >= 95 && !videoConfig.completado) {
+                    document.getElementById('completeModuleBtn').style.display = 'block';
+                }
+            }
+        });
+
+        video.addEventListener('pause', function() {
+            lastUpdateTime = Math.floor(video.currentTime);
+        });
+
+        video.addEventListener('play', function() {
+            lastUpdateTime = Math.floor(video.currentTime);
+        });
+    }
+
+    function updateProgressDisplay(progress, timeWatched) {
+        document.getElementById('progressPercentage').textContent = Math.round(progress);
+        document.getElementById('displayProgress').textContent = progress.toFixed(1) + '%';
+
+        const minutes = Math.floor(timeWatched / 60);
+        const seconds = timeWatched % 60;
+        const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+        document.getElementById('timeWatched').textContent = timeString;
+        document.getElementById('displayTimeWatched').textContent = timeString;
+
+        const progressBar = document.getElementById('overallProgressBar');
+        progressBar.style.width = progress + '%';
+
+        // Actualizar estado
+        const statusBadge = document.getElementById('displayStatus');
+        if (progress >= 95) {
+            statusBadge.className = 'badge bg-success';
+            statusBadge.textContent = 'Completado';
+        } else if (progress > 0) {
+            statusBadge.className = 'badge bg-primary';
+            statusBadge.textContent = 'En Progreso';
+        }
+    }
+
+    function sendProgressUpdate(progress, timeWatched) {
+        fetch('/Universidad/ActualizarProgreso', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                SubCursoID: videoConfig.subCursoId,
+                UsuarioID: videoConfig.usuarioId,
+                EmpresaID: videoConfig.empresaId,
+                TiempoTotalVisto: timeWatched,
+                PorcentajeVisto: progress
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Progreso actualizado');
+            }
+        })
+        .catch(error => console.error('Error actualizando progreso:', error));
+    }
+
+    function initEvaluationButton() {
+        const evaluationBtn = document.getElementById('startEvaluationBtn');
+        if (evaluationBtn) {
+            evaluationBtn.addEventListener('click', function() {
+                window.location.href = `/Universidad/TomarEvaluacion/${videoConfig.subCursoId}`;
+            });
+        }
+    }
+
+    function initNotesFeature() {
+        const saveBtn = document.getElementById('saveNotesBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', function() {
+                const notes = document.getElementById('moduleNotes').value;
+                // Aquí podrías implementar guardar notas en localStorage o enviar al servidor
+                localStorage.setItem(`notes_${videoConfig.subCursoId}`, notes);
+
+                // Mostrar confirmación
+                const originalText = saveBtn.innerHTML;
+                saveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Guardado';
+                saveBtn.classList.add('btn-success');
+
+                setTimeout(() => {
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.classList.remove('btn-success');
+                }, 2000);
+            });
+
+            // Cargar notas guardadas
+            const savedNotes = localStorage.getItem(`notes_${videoConfig.subCursoId}`);
+            if (savedNotes) {
+                document.getElementById('moduleNotes').value = savedNotes;
+            }
+        }
+    }
+
+    // Botón completar módulo
+    document.addEventListener('click', function(e) {
+        if (e.target.id === 'completeModuleBtn') {
+            fetch('/Universidad/CompletarSubCurso', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    SubCursoId: videoConfig.subCursoId,
+                    TiempoVisto: videoConfig.tiempoVistoPrevio + Math.floor(document.getElementById('videoPlayer')?.currentTime || 0)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('¡Módulo completado exitosamente!');
+                    location.reload();
+                } else {
+                    alert('Error al completar el módulo: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al completar el módulo');
+            });
+        }
+    });
+</script>

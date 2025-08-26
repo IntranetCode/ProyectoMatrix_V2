@@ -3,6 +3,7 @@
 // PROPÓSITO: Controlador principal Universidad NS
 // =====================================================
 
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using ProyectoMatrix.Helpers;
@@ -15,13 +16,16 @@ namespace ProyectoMatrix.Controllers
     {
         private readonly UniversidadServices _universidadServices;
         private readonly ILogger<UniversidadController> _logger;
+        private readonly IWebHostEnvironment _webHostEnvironment;
 
         public UniversidadController(
             UniversidadServices universidadServices,
-            ILogger<UniversidadController> logger)
+            ILogger<UniversidadController> logger,
+            IWebHostEnvironment webHostEnvironment)
         {
             _universidadServices = universidadServices;
             _logger = logger;
+            _webHostEnvironment = webHostEnvironment;
         }
 
         // =====================================================
@@ -384,34 +388,40 @@ namespace ProyectoMatrix.Controllers
         // =====================================================
         // MIS CURSOS
         // =====================================================
-
+        [HttpGet]
         public async Task<IActionResult> MisCursos()
         {
             try
             {
+                // Obtener datos de sesión
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada") ??
-                               HttpContext.Session.GetInt32("EmpresaID") ?? 1; // Fallback
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada");
 
-                if (!usuarioId.HasValue)
-                    return RedirectToAction("Index");
+                _logger.LogInformation("🔍 CONTROLLER DEBUG - UsuarioID: {UsuarioId}, EmpresaID: {EmpresaId}", usuarioId, empresaId);
 
+                if (!usuarioId.HasValue || !empresaId.HasValue)
+                {
+                    _logger.LogWarning("❌ Sesión inválida - redirigiendo a login");
+                    return RedirectToAction("Login", "Account");
+                }
+
+                // Usar el método de servicios
                 var cursosAsignados = await _universidadServices.GetCursosAsignadosUsuarioViewModelAsync(
-                    usuarioId.Value, empresaId);
+                    usuarioId.Value, empresaId.Value);
 
-                ViewBag.UsuarioId = usuarioId.Value;
-                ViewBag.EmpresaId = empresaId;
+                _logger.LogInformation("✅ CONTROLLER - Cursos obtenidos: {Total}", cursosAsignados.Count);
 
                 return View(cursosAsignados);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al cargar mis cursos");
-                TempData["Error"] = "Error al cargar los cursos. Intente nuevamente.";
-                return RedirectToAction("Index");
+                _logger.LogError(ex, "❌ ERROR en controlador MisCursos");
+                TempData["Error"] = "Error al cargar tus cursos";
+
+                // Devolver lista vacía para evitar datos falsos
+                return View(new List<CursoAsignadoViewModel>());
             }
         }
-
         // ✅ Y CAMBIAR el método GestionCursos:
         public async Task<IActionResult> GestionCursos()
         {
@@ -488,19 +498,28 @@ namespace ProyectoMatrix.Controllers
         // TOMAR CURSO - VER SUBCURSOS
         // =====================================================
 
-        public async Task<IActionResult> TomarCurso(int id)
+        [HttpGet("Universidad/TomarCurso/{cursoId:int}")]
+        public async Task<IActionResult> TomarCurso([FromRoute] int cursoId)
         {
+            _logger.LogInformation("🔍 TomarCurso ejecutándose para curso {CursoId}", cursoId);
+
+            if (cursoId <= 0)
+            {
+                TempData["Error"] = "Curso inválido.";
+                return RedirectToAction("MisCursos");
+            }
+
             try
             {
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada") ??
+                                HttpContext.Session.GetInt32("EmpresaID") ?? 1;
 
-                if (!usuarioId.HasValue || !empresaId.HasValue)
+                if (!usuarioId.HasValue)
                     return RedirectToAction("Index");
 
-                // Obtener detalles del curso y subcursos
                 var subCursos = await _universidadServices.GetSubCursosPorCursoAsync(
-                    id, usuarioId.Value, empresaId.Value);
+                    cursoId, usuarioId.Value, empresaId);
 
                 if (!subCursos.Any())
                 {
@@ -508,20 +527,18 @@ namespace ProyectoMatrix.Controllers
                     return RedirectToAction("MisCursos");
                 }
 
-                // Obtener información del curso
-                var niveles = await _universidadServices.GetNivelesEducativosAsync();
                 var cursoInfo = subCursos.FirstOrDefault();
 
                 var viewModel = new CursoDetalleViewModel
                 {
                     Curso = new CursoCompleto
                     {
-                        CursoID = id,
+                        CursoID = cursoId,
                         NombreCurso = cursoInfo?.NombreSubCurso ?? "Curso",
                         TotalSubCursos = subCursos.Count
                     },
                     SubCursos = subCursos,
-                    PuedeEditarCurso = false, // Solo para visualización del estudiante
+                    PuedeEditarCurso = false,
                     PuedeEliminarCurso = false,
                     PuedeAgregarSubCursos = false
                 };
@@ -530,31 +547,39 @@ namespace ProyectoMatrix.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al cargar curso {CursoId}", id);
+                _logger.LogError(ex, "Error al cargar curso {CursoId}", cursoId);
                 TempData["Error"] = "Error al cargar el curso. Intente nuevamente.";
                 return RedirectToAction("MisCursos");
             }
         }
 
+
         // =====================================================
         // VER VIDEO/SUBCURSO
         // =====================================================
 
-        public async Task<IActionResult> VerSubCurso(int id)
+        [HttpGet]
+        public async Task<IActionResult> TomarSubCurso(int subCursoId)
         {
             try
             {
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada") ??
+                               HttpContext.Session.GetInt32("EmpresaID") ?? 1;
 
-                if (!usuarioId.HasValue || !empresaId.HasValue)
+                if (!usuarioId.HasValue)
+                {
                     return RedirectToAction("Index");
+                }
 
-                // Obtener detalles del subcurso
-                var subCursos = await _universidadServices.GetSubCursosPorCursoAsync(
-                    0, usuarioId.Value, empresaId.Value); // Necesitamos modificar el servicio para obtener un subcurso específico
+                // CORREGIDO: Usar método existente en lugar de GetSubCursoIndividualAsync
+                // Obtener todos los subcursos del usuario para encontrar el específico
+                //var todosSubCursos = await _universidadServices.GetSubCursosPorCursoAsync(
+                //  0, usuarioId.Value, empresaId); // 0 = todos los cursos
 
-                var subCurso = subCursos.FirstOrDefault(sc => sc.SubCursoID == id);
+                //var subCurso = todosSubCursos.FirstOrDefault(sc => sc.SubCursoID == subCursoId);
+                // Obtener el subcurso específico con información del curso padre
+                var subCurso = await _universidadServices.ObtenerSubCursoConCursoAsync(subCursoId, usuarioId.Value, empresaId);
 
                 if (subCurso == null)
                 {
@@ -565,19 +590,59 @@ namespace ProyectoMatrix.Controllers
                 if (!subCurso.PuedeAcceder)
                 {
                     TempData["Warning"] = "Debe completar los prerrequisitos antes de acceder a este contenido.";
-                    return RedirectToAction("TomarCurso", new { id = subCurso.CursoID });
+                    return RedirectToAction("TomarCurso", new { cursoId = subCurso.CursoID });
                 }
 
                 ViewBag.UsuarioId = usuarioId.Value;
-                ViewBag.EmpresaId = empresaId.Value;
+                ViewBag.EmpresaId = empresaId;
+                ViewBag.SubCursoId = subCursoId;
 
                 return View(subCurso);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al cargar subcurso {SubCursoId}", id);
+                _logger.LogError(ex, "Error al cargar subcurso {SubCursoId}", subCursoId);
                 TempData["Error"] = "Error al cargar el contenido. Intente nuevamente.";
                 return RedirectToAction("MisCursos");
+            }
+        }
+        // AGREGA este método nuevo para completar subcursos:
+        [HttpPost]
+        public async Task<IActionResult> CompletarSubCurso([FromBody] CompletarSubCursoRequest request)
+        {
+            try
+            {
+                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada") ??
+                               HttpContext.Session.GetInt32("EmpresaID") ?? 1;
+
+                if (!usuarioId.HasValue)
+                {
+                    return Json(new { success = false, message = "Sesión expirada" });
+                }
+
+                // CORREGIDO: Usar las propiedades correctas de tu modelo ActualizarProgresoRequest
+                var progresoRequest = new ActualizarProgresoRequest
+                {
+                    UsuarioID = usuarioId.Value,
+                    EmpresaID = empresaId,
+                    SubCursoID = request.SubCursoId,
+                    TiempoTotalVisto = request.TiempoVisto, // Mapear TiempoVisto a TiempoTotalVisto
+                    PorcentajeVisto = 100 // Marcar como 100% visto al completar
+                };
+
+                var resultado = await _universidadServices.ActualizarProgresoVideoAsync(progresoRequest);
+
+                return Json(new
+                {
+                    success = resultado,
+                    message = resultado ? "Módulo completado exitosamente" : "Error al completar el módulo"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al completar subcurso {SubCursoId}", request?.SubCursoId);
+                return Json(new { success = false, message = "Error interno del servidor" });
             }
         }
 
@@ -875,7 +940,7 @@ namespace ProyectoMatrix.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CrearSubCurso(CrearSubCursoRequest request)
+        public async Task<IActionResult> CrearSubCurso(CrearSubCursoRequest request, IFormFile archivoVideo, IFormFile archivoPDF)
         {
             try
             {
@@ -889,6 +954,19 @@ namespace ProyectoMatrix.Controllers
                     return RedirectToAction("Index");
                 }
 
+                // PROCESAR ARCHIVOS
+                if (archivoVideo != null && archivoVideo.Length > 0)
+                {
+                    var rutaVideo = await GuardarArchivoAsync(archivoVideo, "videos");
+                    request.ArchivoVideo = rutaVideo;
+                }
+
+                if (archivoPDF != null && archivoPDF.Length > 0)
+                {
+                    var rutaPDF = await GuardarArchivoAsync(archivoPDF, "documentos");
+                    request.ArchivoPDF = rutaPDF;
+                }
+
                 if (!ModelState.IsValid)
                 {
                     var curso = await _universidadServices.GetCursoPorIdAsync(request.CursoID);
@@ -898,7 +976,6 @@ namespace ProyectoMatrix.Controllers
                 }
 
                 var subCursoId = await _universidadServices.CrearSubCursoAsync(request);
-
                 TempData["Success"] = $"SubCurso '{request.NombreSubCurso}' creado exitosamente.";
                 return RedirectToAction("EditarCurso", new { id = request.CursoID });
             }
@@ -906,12 +983,28 @@ namespace ProyectoMatrix.Controllers
             {
                 _logger.LogError(ex, "Error al crear subcurso");
                 TempData["Error"] = "Error al crear el subcurso. Intente nuevamente.";
-
                 var curso = await _universidadServices.GetCursoPorIdAsync(request.CursoID);
                 ViewBag.CursoId = request.CursoID;
                 ViewBag.NombreCurso = curso?.NombreCurso ?? "Curso";
                 return View(request);
             }
+        }
+
+        // AGREGAR TAMBIÉN ESTE MÉTODO
+        private async Task<string> GuardarArchivoAsync(IFormFile archivo, string carpeta)
+        {
+            var uploadsPath = Path.Combine(_webHostEnvironment.WebRootPath, "contenidos", carpeta);
+            Directory.CreateDirectory(uploadsPath);
+
+            var fileName = $"{Guid.NewGuid()}_{archivo.FileName}";
+            var filePath = Path.Combine(uploadsPath, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await archivo.CopyToAsync(stream);
+            }
+
+            return Path.Combine(carpeta, fileName).Replace("\\", "/");
         }
         public async Task<IActionResult> CrearEvaluacion(int subCursoId)
         {
@@ -1100,7 +1193,9 @@ namespace ProyectoMatrix.Controllers
                     DuracionVideo = subCurso.DuracionVideo,
                     EsObligatorio = subCurso.EsObligatorio,
                     RequiereEvaluacion = subCurso.RequiereEvaluacion,
-                    PuntajeMinimo = subCurso.PuntajeMinimo
+                    PuntajeMinimo = subCurso.PuntajeMinimo,
+                    ArchivoVideo = subCurso.ArchivoVideo,  // AGREGAR ESTA LÍNEA
+                    ArchivoPDF = subCurso.ArchivoPDF       // AGREGAR ESTA LÍNEA
                 };
 
                 ViewBag.SubCursoId = id;
@@ -1119,10 +1214,14 @@ namespace ProyectoMatrix.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditarSubCurso(int id, CrearSubCursoRequest request)
+        public async Task<IActionResult> EditarSubCurso(int id, CrearSubCursoRequest request, IFormFile archivoVideo, IFormFile archivoPDF)
         {
             try
             {
+                Console.WriteLine($"=== DEBUG EDITAR SUBCURSO ===");
+                Console.WriteLine($"Archivo video recibido: {archivoVideo?.FileName ?? "NULL"} - Tamaño: {archivoVideo?.Length ?? 0}");
+                Console.WriteLine($"Archivo PDF recibido: {archivoPDF?.FileName ?? "NULL"} - Tamaño: {archivoPDF?.Length ?? 0}");
+
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
                 var rolId = HttpContext.Session.GetInt32("RolID") ??
                            HttpContext.Session.GetInt32("RolId") ?? 4;
@@ -1133,6 +1232,22 @@ namespace ProyectoMatrix.Controllers
                     return RedirectToAction("Index");
                 }
 
+                // PROCESAR ARCHIVOS NUEVOS (si se subieron)
+                if (archivoVideo != null && archivoVideo.Length > 0)
+                {
+                    var rutaVideo = await GuardarArchivoAsync(archivoVideo, "videos");
+                    request.ArchivoVideo = rutaVideo;
+                }
+
+                if (archivoPDF != null && archivoPDF.Length > 0)
+                {
+                    var rutaPDF = await GuardarArchivoAsync(archivoPDF, "documentos");
+                    request.ArchivoPDF = rutaPDF;
+                }
+
+                Console.WriteLine($"ArchivoVideo en request: {request.ArchivoVideo ?? "NULL"}");
+                Console.WriteLine($"ArchivoPDF en request: {request.ArchivoPDF ?? "NULL"}");
+
                 if (!ModelState.IsValid)
                 {
                     ViewBag.SubCursoId = id;
@@ -1142,6 +1257,8 @@ namespace ProyectoMatrix.Controllers
                 }
 
                 var resultado = await _universidadServices.ActualizarSubCursoAsync(id, request);
+
+                Console.WriteLine($"Resultado de ActualizarSubCursoAsync: {resultado}");
 
                 if (resultado)
                 {
@@ -1167,5 +1284,294 @@ namespace ProyectoMatrix.Controllers
                 return View("CrearSubCurso", request);
             }
         }
+        // =====================================================
+        // AGREGAR ESTOS MÉTODOS AL UniversidadController.cs
+        // =====================================================
+
+        /// <summary>
+        /// Vista principal "Mis Cursos" para usuarios
+        /// </summary>
+        /// 
+        /*
+        [HttpGet]
+        public async Task<IActionResult> MisCursos(string? estado = null, string? nivel = null, bool? obligatorios = null, bool? vencidos = null)
+        {
+            try
+            {
+                // Obtener datos de sesión
+                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada");
+
+                if (!usuarioId.HasValue || !empresaId.HasValue)
+                {
+                    return RedirectToAction("Login", "Account");
+                }
+
+                // Crear ViewModel
+                var viewModel = new MisCursosViewModel
+                {
+                    FiltroEstado = estado,
+                    FiltroNivel = nivel,
+                    SoloObligatorios = obligatorios,
+                    SoloVencidos = vencidos
+                };
+
+                // Obtener datos
+                viewModel.MisCursos = await _universidadServices.ObtenerMisCursosAsync(usuarioId.Value, empresaId.Value);
+                viewModel.Estadisticas = await _universidadServices.ObtenerEstadisticasProgresoUsuarioAsync(usuarioId.Value, empresaId.Value);
+                viewModel.CertificadosDisponibles = await _universidadServices.ObtenerCertificadosDisponiblesAsync(usuarioId.Value, empresaId.Value);
+
+                _logger.LogInformation("Usuario {UsuarioId} consultó sus cursos. Total: {Total}",
+                    usuarioId.Value, viewModel.MisCursos.Count);
+
+                return View(viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cargar mis cursos");
+                TempData["Error"] = "Error al cargar tus cursos";
+                return RedirectToAction("Index");
+            }
+        }
+        */
+        /// <summary>
+        /// Vista detallada de un curso específico del usuario
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> DetalleMiCurso(int cursoId)
+        {
+            try
+            {
+                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada");
+
+                if (!usuarioId.HasValue || !empresaId.HasValue)
+                {
+                    return RedirectToAction("Login", "Account");
+                }
+
+                // Verificar que el usuario tenga acceso al curso
+                var tieneAcceso = await _universidadServices.UsuarioPuedeAccederCursoAsync(
+                    usuarioId.Value, cursoId, empresaId.Value);
+
+                if (!tieneAcceso)
+                {
+                    TempData["Error"] = "No tienes acceso a este curso";
+                    return RedirectToAction("MisCursos");
+                }
+
+                // Obtener datos del curso
+                var misCursos = await _universidadServices.ObtenerMisCursosAsync(usuarioId.Value, empresaId.Value);
+                var miCurso = misCursos.FirstOrDefault(c => c.CursoID == cursoId);
+
+                if (miCurso == null)
+                {
+                    return NotFound();
+                }
+
+                var viewModel = new DetalleMiCursoViewModel
+                {
+                    Curso = miCurso,
+                    SubCursos = await _universidadServices.GetSubCursosPorCursoAsync(cursoId, usuarioId.Value, empresaId.Value),
+                    // Aquí puedes agregar más datos como historial de evaluaciones
+                };
+
+                // Verificar si puede generar certificado
+                viewModel.PuedeGenerarCertificado = viewModel.TodosLosSubCursosCompletados &&
+                                                  viewModel.EvaluacionesAprobadas >= viewModel.SubCursosConEvaluacion;
+
+                return View(viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cargar detalle del curso {CursoId}", cursoId);
+                TempData["Error"] = "Error al cargar los detalles del curso";
+                return RedirectToAction("MisCursos");
+            }
+        }
+
+        /// <summary>
+        /// API para obtener progreso en tiempo real
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> ObtenerProgresoCurso(int cursoId)
+        {
+            try
+            {
+                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada");
+
+                if (!usuarioId.HasValue || !empresaId.HasValue)
+                {
+                    return Json(new { success = false, message = "Sesión expirada" });
+                }
+
+                var misCursos = await _universidadServices.ObtenerMisCursosAsync(usuarioId.Value, empresaId.Value);
+                var curso = misCursos.FirstOrDefault(c => c.CursoID == cursoId);
+
+                if (curso == null)
+                {
+                    return Json(new { success = false, message = "Curso no encontrado" });
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    progreso = curso.Progreso,
+                    estado = curso.Estado,
+                    subcursosCompletados = curso.SubCursosCompletados,
+                    totalSubcursos = curso.TotalSubCursos
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener progreso del curso {CursoId}", cursoId);
+                return Json(new { success = false, message = "Error interno" });
+            }
+        }
+
+        /// <summary>
+        /// Marcar un curso como iniciado
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> IniciarCurso(int cursoId)
+        {
+            try
+            {
+                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada");
+
+                if (!usuarioId.HasValue || !empresaId.HasValue)
+                {
+                    return Json(new { success = false, message = "Sesión expirada" });
+                }
+
+                // Verificar acceso
+                var tieneAcceso = await _universidadServices.UsuarioPuedeAccederCursoAsync(
+                    usuarioId.Value, cursoId, empresaId.Value);
+
+                if (!tieneAcceso)
+                {
+                    return Json(new { success = false, message = "No tienes acceso a este curso" });
+                }
+
+                // Redirigir al primer subcurso disponible
+                var subCursos = await _universidadServices.GetSubCursosPorCursoAsync(
+                    cursoId, usuarioId.Value, empresaId.Value);
+
+                var primerSubCurso = subCursos.OrderBy(s => s.Orden).FirstOrDefault();
+
+                if (primerSubCurso == null)
+                {
+                    return Json(new { success = false, message = "Este curso no tiene contenido disponible" });
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    redirectUrl = Url.Action("VerVideo", "Universidad", new { subCursoId = primerSubCurso.SubCursoID })
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al iniciar curso {CursoId}", cursoId);
+                return Json(new { success = false, message = "Error al iniciar el curso" });
+            }
+        }
+
+        /// <summary>
+        /// Obtener estadísticas del dashboard del usuario
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> DashboardUsuario()
+        {
+            try
+            {
+                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada");
+
+                if (!usuarioId.HasValue || !empresaId.HasValue)
+                {
+                    return RedirectToAction("Login", "Account");
+                }
+
+                var estadisticas = await _universidadServices.ObtenerEstadisticasProgresoUsuarioAsync(
+                    usuarioId.Value, empresaId.Value);
+
+                // Obtener cursos recientes
+                var misCursos = await _universidadServices.ObtenerMisCursosAsync(usuarioId.Value, empresaId.Value);
+                var cursosRecientes = misCursos
+                    .OrderByDescending(c => c.FechaInicio ?? c.FechaAsignacion)
+                    .Take(5)
+                    .ToList();
+
+                // Obtener cursos próximos a vencer
+                var cursosProximosVencer = misCursos
+                    .Where(c => c.FechaLimite.HasValue && c.DiasRestantes <= 7 && c.DiasRestantes > 0)
+                    .OrderBy(c => c.DiasRestantes)
+                    .Take(5)
+                    .ToList();
+
+                var viewModel = new DashboardUsuarioViewModel
+                {
+                    Estadisticas = estadisticas,
+                    CursosRecientes = cursosRecientes,
+                    CursosProximosVencer = cursosProximosVencer,
+                    CertificadosDisponibles = await _universidadServices.ObtenerCertificadosDisponiblesAsync(
+                        usuarioId.Value, empresaId.Value)
+                };
+
+                return View(viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cargar dashboard del usuario");
+                TempData["Error"] = "Error al cargar el dashboard";
+                return RedirectToAction("Index");
+            }
+        }
+
+        /////////////apartid e aqui eliminar subcurso editar subccurso
+        ///
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EliminarSubCurso(int id)
+        {
+            try
+            {
+                var rolId = HttpContext.Session.GetInt32("RolID") ?? 4;
+                if (!UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId))
+                {
+                    return Json(new { success = false, message = "No tiene permisos" });
+                }
+
+                var resultado = await _universidadServices.EliminarSubCursoAsync(id);
+
+                if (resultado)
+                {
+                    return Json(new { success = true, message = "SubCurso eliminado correctamente" });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Error al eliminar" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar subcurso");
+                return Json(new { success = false, message = "Error al eliminar" });
+            }
+        }
+
+        //////////////// a partir de aqui es o de tomar curso
+        // MÉTODOS NECESARIOS EN UniversidadController.cs
+
+
+
+
+
+ 
+
     }
 }

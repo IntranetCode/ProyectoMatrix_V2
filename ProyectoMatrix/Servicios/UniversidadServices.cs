@@ -3,8 +3,10 @@
 // PROPÓSITO: Servicios para módulo Universidad NS
 // =====================================================
 
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Models;
 using System.Data;
 
@@ -152,21 +154,21 @@ namespace ProyectoMatrix.Servicios
                 var subCursos = new List<SubCursoDetalle>();
 
                 var query = @"
-            SELECT 
-                SubCursoID,
-                CursoID,
-                NombreSubCurso,
-                Descripcion,
-                Orden,
-                ArchivoVideo,
-                ArchivoPDF,
-                DuracionVideo,
-                EsObligatorio,
-                RequiereEvaluacion,
-                PuntajeMinimo
-            FROM dbo.SubCursos 
-            WHERE CursoID = @CursoID AND Activo = 1
-            ORDER BY Orden";
+                    SELECT 
+                        SubCursoID,
+                        CursoID,
+                        NombreSubCurso,
+                        Descripcion,
+                        Orden,
+                        ArchivoVideo,
+                        ArchivoPDF,
+                        DuracionVideo,
+                        EsObligatorio,
+                        RequiereEvaluacion,
+                        PuntajeMinimo
+                    FROM dbo.SubCursos 
+                    WHERE CursoID = @CursoID AND Activo = 1
+                    ORDER BY Orden";
 
                 using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
@@ -218,13 +220,13 @@ namespace ProyectoMatrix.Servicios
                 await connection.OpenAsync();
 
                 var query = @"
-            INSERT INTO dbo.SubCursos 
-            (CursoID, NombreSubCurso, Descripcion, Orden, ArchivoVideo, ArchivoPDF, 
-             DuracionVideo, EsObligatorio, RequiereEvaluacion, PuntajeMinimo, Activo, FechaCreacion) -- ✅ AGREGAR estas columnas
-            OUTPUT INSERTED.SubCursoID
-            VALUES 
-            (@CursoID, @NombreSubCurso, @Descripcion, @Orden, @ArchivoVideo, @ArchivoPDF, 
-             @DuracionVideo, @EsObligatorio, @RequiereEvaluacion, @PuntajeMinimo, 1, GETDATE())";
+                    INSERT INTO dbo.SubCursos 
+                    (CursoID, NombreSubCurso, Descripcion, Orden, ArchivoVideo, ArchivoPDF, 
+                     DuracionVideo, EsObligatorio, RequiereEvaluacion, PuntajeMinimo, Activo, FechaCreacion) -- ✅ AGREGAR estas columnas
+                    OUTPUT INSERTED.SubCursoID
+                    VALUES 
+                    (@CursoID, @NombreSubCurso, @Descripcion, @Orden, @ArchivoVideo, @ArchivoPDF, 
+                     @DuracionVideo, @EsObligatorio, @RequiereEvaluacion, @PuntajeMinimo, 1, GETDATE())";
         
         using var command = new SqlCommand(query, connection);
                 command.Parameters.AddRange(new[]
@@ -509,10 +511,10 @@ namespace ProyectoMatrix.Servicios
                 await connection.OpenAsync();
 
                 var query = @"
-            SELECT NivelID, NombreNivel, Descripcion, Orden, ColorHex 
-            FROM dbo.NivelesEducativos 
-            WHERE Activo = 1 
-            ORDER BY Orden";
+                    SELECT NivelID, NombreNivel, Descripcion, Orden, ColorHex 
+                    FROM dbo.NivelesEducativos 
+                    WHERE Activo = 1 
+                    ORDER BY Orden";
 
                 using var command = new SqlCommand(query, connection);
                 using var reader = await command.ExecuteReaderAsync();
@@ -567,44 +569,105 @@ namespace ProyectoMatrix.Servicios
         {
             try
             {
-                var cursosEntity = await GetCursosAsignadosUsuarioAsync(usuarioId, empresaId);
+                var cursosAsignados = new List<CursoAsignadoViewModel>();
 
-                // Convertir de CursoAsignado a CursoAsignadoViewModel
-                return cursosEntity.Select(c => new CursoAsignadoViewModel
+                // AGREGAR LOGS PARA DEPURACIÓN
+                _logger.LogInformation("🔍 DEBUG - Buscando cursos para Usuario: {UsuarioId}, Empresa: {EmpresaId}", usuarioId, empresaId);
+
+                var query = @"
+                    SELECT DISTINCT
+                        ac.AsignacionID,
+                        ac.CursoID,
+                        c.NombreCurso,
+                        c.Descripcion,
+                        c.Duracion as DuracionHoras,
+                        c.ImagenCurso,
+                        n.NombreNivel,
+                        n.ColorHex as ColorNivel,
+                        ac.FechaAsignacion,
+                        ac.FechaLimite,
+                        ac.EsObligatorio,
+                        ac.Comentarios as Observaciones,
+                
+                        -- Cálculo de progreso (simplificado por ahora)
+                        0 as TotalSubCursos,
+                        0 as SubCursosCompletados,
+                        0 AS PorcentajeProgreso,
+                
+                        -- Estado del curso (simplificado)
+                        'Asignado' AS Estado
+                
+                    FROM dbo.AsignacionesCursos ac
+                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID
+                    INNER JOIN dbo.NivelesEducativos n ON c.NivelID = n.NivelID
+                    WHERE ac.UsuarioID = @UsuarioID 
+                        AND ac.EmpresaID = @EmpresaID 
+                        AND ac.Activo = 1
+                        AND c.Activo = 1
+                    ORDER BY ac.FechaAsignacion DESC";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                _logger.LogInformation("🔍 DEBUG - Conexión abierta, ejecutando consulta...");
+
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                command.Parameters.AddWithValue("@EmpresaID", empresaId);
+
+                using var reader = await command.ExecuteReaderAsync();
+
+                int contador = 0;
+                while (await reader.ReadAsync())
                 {
-                    CursoID = c.CursoID,
-                    NombreCurso = c.NombreCurso,
-                    Estado = c.Estado,
-                    PorcentajeProgreso = (int)c.PorcentajeProgreso,
-                    FechaAsignacion = c.FechaAsignacion
-                }).ToList();
+                    contador++;
+                    var cursoId = reader.GetInt32("CursoID");
+                    var nombreCurso = reader.GetString("NombreCurso");
+
+                    _logger.LogInformation("🔍 DEBUG - Curso #{Contador}: ID={CursoId}, Nombre={Nombre}", contador, cursoId, nombreCurso);
+
+                    var fechaLimite = reader.IsDBNull("FechaLimite") ? (DateTime?)null : reader.GetDateTime("FechaLimite");
+                    var proximoVencimiento = fechaLimite.HasValue &&
+                                           (fechaLimite.Value - DateTime.Now).TotalDays <= 7 &&
+                                           fechaLimite.Value > DateTime.Now;
+
+                    cursosAsignados.Add(new CursoAsignadoViewModel
+                    {
+                        CursoID = cursoId,
+                        NombreCurso = nombreCurso,
+                        Descripcion = reader.IsDBNull("Descripcion") ? null : reader.GetString("Descripcion"),
+                        ImagenCurso = reader.IsDBNull("ImagenCurso") ? null : reader.GetString("ImagenCurso"),
+                        NombreNivel = reader.GetString("NombreNivel"),
+                        ColorNivel = reader.IsDBNull("ColorNivel") ? "#3b82f6" : reader.GetString("ColorNivel"),
+                        Estado = "Asignado", // Por ahora fijo
+                        PorcentajeProgreso = 0, // Por ahora fijo
+                        FechaAsignacion = reader.GetDateTime("FechaAsignacion"),
+                        FechaLimite = fechaLimite,
+                        EsObligatorio = reader.GetBoolean("EsObligatorio"),
+                        TotalSubCursos = 0, // Por ahora fijo
+                        SubCursosCompletados = 0, // Por ahora fijo
+                        ProximoVencimiento = proximoVencimiento,
+
+                        // Propiedades calculadas
+                        TieneFechaLimite = fechaLimite.HasValue,
+                        FechaLimiteTexto = fechaLimite?.ToString("dd/MM/yyyy") ?? "",
+                        EstadoClass = "badge bg-secondary" // Por ahora fijo
+                    });
+                }
+
+                _logger.LogInformation("🔍 DEBUG - Total cursos encontrados: {Total}", cursosAsignados.Count);
+
+                // QUITAR LOS DATOS DE PRUEBA - DEVOLVER LISTA REAL (aunque esté vacía)
+                return cursosAsignados;
             }
             catch (Exception ex)
             {
-                // Log error y retornar datos de prueba
-                Console.WriteLine($"Error en GetCursosAsignadosUsuarioAsync: {ex.Message}");
-                return new List<CursoAsignadoViewModel>
-        {
-            new CursoAsignadoViewModel
-            {
-                CursoID = 1,
-                NombreCurso = "Curso de Inducción",
-                Estado = "En Progreso",
-                PorcentajeProgreso = 45,
-                FechaAsignacion = DateTime.Now.AddDays(-7)
-            },
-            new CursoAsignadoViewModel
-            {
-                CursoID = 2,
-                NombreCurso = "Seguridad Industrial",
-                Estado = "Completado",
-                PorcentajeProgreso = 100,
-                FechaAsignacion = DateTime.Now.AddDays(-30)
-            }
-        };
+                _logger.LogError(ex, "❌ ERROR al obtener cursos asignados para usuario {UsuarioId}", usuarioId);
+
+                // IMPORTANTE: DEVOLVER LISTA VACÍA, NO DATOS DE PRUEBA
+                return new List<CursoAsignadoViewModel>();
             }
         }
-
         public async Task<List<CertificadoUsuarioViewModel>> GetCertificadosUsuarioViewModelAsync(int usuarioId, int? empresaId = null)
         {
             try
@@ -677,18 +740,18 @@ namespace ProyectoMatrix.Servicios
                 await connection.OpenAsync();
 
                 var query = @"
-            SELECT 
-                c.CursoID, c.NivelID, c.NombreCurso, c.Descripcion, 
-                c.Duracion, c.ImagenCurso, c.Activo, c.FechaCreacion,
-                n.NombreNivel, n.ColorHex,
-                COUNT(sc.SubCursoID) as TotalSubCursos
-            FROM dbo.Cursos c
-            INNER JOIN dbo.NivelesEducativos n ON c.NivelID = n.NivelID
-            LEFT JOIN dbo.SubCursos sc ON c.CursoID = sc.CursoID AND sc.Activo = 1
-            WHERE c.CursoID = @CursoID
-            GROUP BY c.CursoID, c.NivelID, c.NombreCurso, c.Descripcion, 
-                     c.Duracion, c.ImagenCurso, c.Activo, c.FechaCreacion,
-                     n.NombreNivel, n.ColorHex";
+                    SELECT 
+                        c.CursoID, c.NivelID, c.NombreCurso, c.Descripcion, 
+                        c.Duracion, c.ImagenCurso, c.Activo, c.FechaCreacion,
+                        n.NombreNivel, n.ColorHex,
+                        COUNT(sc.SubCursoID) as TotalSubCursos
+                    FROM dbo.Cursos c
+                    INNER JOIN dbo.NivelesEducativos n ON c.NivelID = n.NivelID
+                    LEFT JOIN dbo.SubCursos sc ON c.CursoID = sc.CursoID AND sc.Activo = 1
+                    WHERE c.CursoID = @CursoID
+                    GROUP BY c.CursoID, c.NivelID, c.NombreCurso, c.Descripcion, 
+                             c.Duracion, c.ImagenCurso, c.Activo, c.FechaCreacion,
+                             n.NombreNivel, n.ColorHex";
 
                 using var command = new SqlCommand(query, connection);
                 command.Parameters.Add("@CursoID", SqlDbType.Int).Value = cursoId;
@@ -775,22 +838,22 @@ namespace ProyectoMatrix.Servicios
                 var cursos = new List<CursoCompleto>();
 
                 var query = @"
-            SELECT 
-                c.CursoID,
-                c.NivelID,
-                c.NombreCurso,
-                c.Descripcion,
-                c.Duracion,
-                c.ImagenCurso,
-                c.Activo,
-                c.FechaCreacion,
-                ne.NombreNivel,
-                ISNULL(ne.ColorHex, '#3b82f6') as ColorNivel,
-                (SELECT COUNT(*) FROM dbo.SubCursos sc WHERE sc.CursoID = c.CursoID) as TotalSubCursos
-            FROM dbo.Cursos c
-            INNER JOIN dbo.NivelesEducativos ne ON c.NivelID = ne.NivelID
-            WHERE c.Activo = 1
-            ORDER BY c.FechaCreacion DESC";
+                    SELECT 
+                        c.CursoID,
+                        c.NivelID,
+                        c.NombreCurso,
+                        c.Descripcion,
+                        c.Duracion,
+                        c.ImagenCurso,
+                        c.Activo,
+                        c.FechaCreacion,
+                        ne.NombreNivel,
+                        ISNULL(ne.ColorHex, '#3b82f6') as ColorNivel,
+                        (SELECT COUNT(*) FROM dbo.SubCursos sc WHERE sc.CursoID = c.CursoID) as TotalSubCursos
+                    FROM dbo.Cursos c
+                    INNER JOIN dbo.NivelesEducativos ne ON c.NivelID = ne.NivelID
+                    WHERE c.Activo = 1
+                    ORDER BY c.FechaCreacion DESC";
 
                 _logger.LogInformation("🔍 Ejecutando consulta de cursos...");
 
@@ -848,13 +911,13 @@ namespace ProyectoMatrix.Servicios
                 _logger.LogInformation("🔍 DEBUG GetEvaluacionViewModelAsync - SubCursoId: {SubCursoId}", subCursoId);
 
                 var query = @"
-        SELECT 
-            sc.SubCursoID,
-            sc.NombreSubCurso,
-            c.NombreCurso
-        FROM dbo.SubCursos sc
-        INNER JOIN dbo.Cursos c ON sc.CursoID = c.CursoID
-        WHERE sc.SubCursoID = @SubCursoId AND sc.Activo = 1";
+                SELECT 
+                    sc.SubCursoID,
+                    sc.NombreSubCurso,
+                    c.NombreCurso
+                FROM dbo.SubCursos sc
+                INNER JOIN dbo.Cursos c ON sc.CursoID = c.CursoID
+                WHERE sc.SubCursoID = @SubCursoId AND sc.Activo = 1";
 
                 using (var connection = new SqlConnection(_connectionString))
                 {
@@ -903,14 +966,14 @@ namespace ProyectoMatrix.Servicios
             try
             {
                 var query = @"
-            SELECT 
-                sc.SubCursoID,
-                sc.NombreSubCurso,
-                sc.PuntajeMinimo,
-                c.NombreCurso
-            FROM dbo.SubCursos sc
-            INNER JOIN dbo.Cursos c ON sc.CursoID = c.CursoID
-            WHERE sc.SubCursoID = @SubCursoId AND sc.Activo = 1 AND sc.RequiereEvaluacion = 1";
+                SELECT 
+                    sc.SubCursoID,
+                    sc.NombreSubCurso,
+                    sc.PuntajeMinimo,
+                    c.NombreCurso
+                FROM dbo.SubCursos sc
+                INNER JOIN dbo.Cursos c ON sc.CursoID = c.CursoID
+                WHERE sc.SubCursoID = @SubCursoId AND sc.Activo = 1 AND sc.RequiereEvaluacion = 1";
 
                 using (var connection = new SqlConnection(_connectionString))
                 {
@@ -1007,10 +1070,10 @@ namespace ProyectoMatrix.Servicios
             var preguntas = new List<PreguntaEvaluacion>();
 
             var query = @"
-        SELECT PreguntaID, TextoPregunta, TipoPregunta, Orden, PuntajeMaximo
-        FROM dbo.PreguntasEvaluacion
-        WHERE SubCursoID = @SubCursoId AND Activo = 1
-        ORDER BY Orden";
+            SELECT PreguntaID, TextoPregunta, TipoPregunta, Orden, PuntajeMaximo
+            FROM dbo.PreguntasEvaluacion
+            WHERE SubCursoID = @SubCursoId AND Activo = 1
+            ORDER BY Orden";
 
             using (var command = new SqlCommand(query, connection))
             {
@@ -1049,10 +1112,10 @@ namespace ProyectoMatrix.Servicios
             var opciones = new List<OpcionRespuesta>();
 
             var query = @"
-        SELECT OpcionID, TextoOpcion, EsCorrecta, Orden
-        FROM dbo.OpcionesRespuesta
-        WHERE PreguntaID = @PreguntaId AND Activo = 1
-        ORDER BY Orden";
+                SELECT OpcionID, TextoOpcion, EsCorrecta, Orden
+                FROM dbo.OpcionesRespuesta
+                WHERE PreguntaID = @PreguntaId AND Activo = 1
+                ORDER BY Orden";
 
             using (var command = new SqlCommand(query, connection))
             {
@@ -1080,11 +1143,11 @@ namespace ProyectoMatrix.Servicios
         private async Task<IntentoEvaluacion?> GetUltimoIntentoAsync(int usuarioId, int subCursoId, int empresaId, SqlConnection connection)
         {
             var query = @"
-        SELECT TOP 1 IntentoID, NumeroIntento, FechaInicio, FechaFin, 
-               PuntajeObtenido, PuntajeMaximo, Aprobado, TiempoEmpleado
-        FROM dbo.IntentosEvaluacion
-        WHERE UsuarioID = @UsuarioId AND SubCursoID = @SubCursoId AND EmpresaID = @EmpresaId
-        ORDER BY FechaInicio DESC";
+                SELECT TOP 1 IntentoID, NumeroIntento, FechaInicio, FechaFin, 
+                       PuntajeObtenido, PuntajeMaximo, Aprobado, TiempoEmpleado
+                FROM dbo.IntentosEvaluacion
+                WHERE UsuarioID = @UsuarioId AND SubCursoID = @SubCursoId AND EmpresaID = @EmpresaId
+                ORDER BY FechaInicio DESC";
 
             using (var command = new SqlCommand(query, connection))
             {
@@ -1120,9 +1183,9 @@ namespace ProyectoMatrix.Servicios
         private async Task<int> GetSiguienteNumeroIntentoAsync(int usuarioId, int subCursoId, int empresaId, SqlConnection connection)
         {
             var query = @"
-        SELECT ISNULL(MAX(NumeroIntento), 0) + 1
-        FROM dbo.IntentosEvaluacion
-        WHERE UsuarioID = @UsuarioId AND SubCursoID = @SubCursoId AND EmpresaID = @EmpresaId";
+                SELECT ISNULL(MAX(NumeroIntento), 0) + 1
+                FROM dbo.IntentosEvaluacion
+                WHERE UsuarioID = @UsuarioId AND SubCursoID = @SubCursoId AND EmpresaID = @EmpresaId";
 
             using (var command = new SqlCommand(query, connection))
             {
@@ -1139,9 +1202,9 @@ namespace ProyectoMatrix.Servicios
         {
             // Primero eliminar opciones
             var deleteOpciones = @"
-        DELETE op FROM dbo.OpcionesRespuesta op
-        INNER JOIN dbo.PreguntasEvaluacion pe ON op.PreguntaID = pe.PreguntaID
-        WHERE pe.SubCursoID = @SubCursoId";
+                DELETE op FROM dbo.OpcionesRespuesta op
+                INNER JOIN dbo.PreguntasEvaluacion pe ON op.PreguntaID = pe.PreguntaID
+                WHERE pe.SubCursoID = @SubCursoId";
 
             using (var command = new SqlCommand(deleteOpciones, connection, transaction))
             {
@@ -1162,9 +1225,9 @@ namespace ProyectoMatrix.Servicios
         private async Task<int> CrearPreguntaAsync(int subCursoId, CrearPreguntaRequest pregunta, SqlConnection connection, SqlTransaction transaction)
         {
             var query = @"
-        INSERT INTO dbo.PreguntasEvaluacion (SubCursoID, TextoPregunta, TipoPregunta, Orden, PuntajeMaximo)
-        VALUES (@SubCursoId, @TextoPregunta, @TipoPregunta, @Orden, @PuntajeMaximo);
-        SELECT SCOPE_IDENTITY();";
+                INSERT INTO dbo.PreguntasEvaluacion (SubCursoID, TextoPregunta, TipoPregunta, Orden, PuntajeMaximo)
+                VALUES (@SubCursoId, @TextoPregunta, @TipoPregunta, @Orden, @PuntajeMaximo);
+                SELECT SCOPE_IDENTITY();";
 
             using (var command = new SqlCommand(query, connection, transaction))
             {
@@ -1182,8 +1245,8 @@ namespace ProyectoMatrix.Servicios
         private async Task CrearOpcionAsync(int preguntaId, CrearOpcionRequest opcion, SqlConnection connection, SqlTransaction transaction)
         {
             var query = @"
-        INSERT INTO dbo.OpcionesRespuesta (PreguntaID, TextoOpcion, EsCorrecta, Orden)
-        VALUES (@PreguntaId, @TextoOpcion, @EsCorrecta, @Orden)";
+                INSERT INTO dbo.OpcionesRespuesta (PreguntaID, TextoOpcion, EsCorrecta, Orden)
+                VALUES (@PreguntaId, @TextoOpcion, @EsCorrecta, @Orden)";
 
             using (var command = new SqlCommand(query, connection, transaction))
             {
@@ -1279,10 +1342,10 @@ namespace ProyectoMatrix.Servicios
             SqlConnection connection, SqlTransaction transaction)
         {
             var query = @"
-        INSERT INTO dbo.IntentosEvaluacion 
-        (UsuarioID, SubCursoID, EmpresaID, NumeroIntento, FechaInicio, TiempoEmpleado)
-        VALUES (@UsuarioId, @SubCursoId, @EmpresaId, @NumeroIntento, GETDATE(), @TiempoEmpleado);
-        SELECT SCOPE_IDENTITY();";
+                INSERT INTO dbo.IntentosEvaluacion 
+                (UsuarioID, SubCursoID, EmpresaID, NumeroIntento, FechaInicio, TiempoEmpleado)
+                VALUES (@UsuarioId, @SubCursoId, @EmpresaId, @NumeroIntento, GETDATE(), @TiempoEmpleado);
+                SELECT SCOPE_IDENTITY();";
 
             using (var command = new SqlCommand(query, connection, transaction))
             {
@@ -1400,9 +1463,9 @@ namespace ProyectoMatrix.Servicios
             bool esCorrecta, decimal puntaje, SqlConnection connection, SqlTransaction transaction)
         {
             var query = @"
-        INSERT INTO dbo.RespuestasEvaluacion 
-        (IntentoID, PreguntaID, OpcionSeleccionadaID, EsCorrecta, PuntajeObtenido)
-        VALUES (@IntentoId, @PreguntaId, @OpcionId, @EsCorrecta, @Puntaje)";
+                INSERT INTO dbo.RespuestasEvaluacion 
+                (IntentoID, PreguntaID, OpcionSeleccionadaID, EsCorrecta, PuntajeObtenido)
+                VALUES (@IntentoId, @PreguntaId, @OpcionId, @EsCorrecta, @Puntaje)";
 
             using (var command = new SqlCommand(query, connection, transaction))
             {
@@ -1420,9 +1483,9 @@ namespace ProyectoMatrix.Servicios
             bool esCorrecta, decimal puntaje, SqlConnection connection, SqlTransaction transaction)
         {
             var query = @"
-        INSERT INTO dbo.RespuestasEvaluacion 
-        (IntentoID, PreguntaID, TextoRespuesta, EsCorrecta, PuntajeObtenido)
-        VALUES (@IntentoId, @PreguntaId, @Texto, @EsCorrecta, @Puntaje)";
+                INSERT INTO dbo.RespuestasEvaluacion 
+                (IntentoID, PreguntaID, TextoRespuesta, EsCorrecta, PuntajeObtenido)
+                VALUES (@IntentoId, @PreguntaId, @Texto, @EsCorrecta, @Puntaje)";
 
             using (var command = new SqlCommand(query, connection, transaction))
             {
@@ -1440,12 +1503,12 @@ namespace ProyectoMatrix.Servicios
             decimal puntajeMaximo, bool aprobado, SqlConnection connection, SqlTransaction transaction)
         {
             var query = @"
-        UPDATE dbo.IntentosEvaluacion 
-        SET FechaFin = GETDATE(), 
-            PuntajeObtenido = @PuntajeObtenido,
-            PuntajeMaximo = @PuntajeMaximo,
-            Aprobado = @Aprobado
-        WHERE IntentoID = @IntentoId";
+                UPDATE dbo.IntentosEvaluacion 
+                SET FechaFin = GETDATE(), 
+                    PuntajeObtenido = @PuntajeObtenido,
+                    PuntajeMaximo = @PuntajeMaximo,
+                    Aprobado = @Aprobado
+                WHERE IntentoID = @IntentoId";
 
             using (var command = new SqlCommand(query, connection, transaction))
             {
@@ -1462,9 +1525,9 @@ namespace ProyectoMatrix.Servicios
             SqlConnection connection, SqlTransaction transaction)
         {
             var query = @"
-        UPDATE dbo.AvancesSubCursos 
-        SET Completado = 1, FechaCompletado = GETDATE(), PorcentajeVisto = 100
-        WHERE UsuarioID = @UsuarioId AND SubCursoID = @SubCursoId AND EmpresaID = @EmpresaId";
+                UPDATE dbo.AvancesSubCursos 
+                SET Completado = 1, FechaCompletado = GETDATE(), PorcentajeVisto = 100
+                WHERE UsuarioID = @UsuarioId AND SubCursoID = @SubCursoId AND EmpresaID = @EmpresaId";
 
             using (var command = new SqlCommand(query, connection, transaction))
             {
@@ -1485,12 +1548,12 @@ namespace ProyectoMatrix.Servicios
             try
             {
                 var query = @"
-            SELECT 
-                SubCursoID, CursoID, NombreSubCurso, Descripcion, Orden,
-                ArchivoVideo, ArchivoPDF, DuracionVideo, EsObligatorio,
-                RequiereEvaluacion, PuntajeMinimo
-            FROM dbo.SubCursos 
-            WHERE SubCursoID = @SubCursoId AND Activo = 1";
+                    SELECT 
+                        SubCursoID, CursoID, NombreSubCurso, Descripcion, Orden,
+                        ArchivoVideo, ArchivoPDF, DuracionVideo, EsObligatorio,
+                        RequiereEvaluacion, PuntajeMinimo
+                    FROM dbo.SubCursos 
+                    WHERE SubCursoID = @SubCursoId AND Activo = 1";
 
                 using (var connection = new SqlConnection(_connectionString))
                 {
@@ -1536,10 +1599,10 @@ namespace ProyectoMatrix.Servicios
             try
             {
                 var query = @"
-            SELECT c.NombreCurso
-            FROM dbo.Cursos c
-            INNER JOIN dbo.SubCursos sc ON c.CursoID = sc.CursoID
-            WHERE sc.SubCursoID = @SubCursoId";
+                    SELECT c.NombreCurso
+                    FROM dbo.Cursos c
+                    INNER JOIN dbo.SubCursos sc ON c.CursoID = sc.CursoID
+                    WHERE sc.SubCursoID = @SubCursoId";
 
                 using (var connection = new SqlConnection(_connectionString))
                 {
@@ -1563,16 +1626,21 @@ namespace ProyectoMatrix.Servicios
         {
             try
             {
+                Console.WriteLine($"DEBUG: Iniciando actualización SubCurso {subCursoId}");
+                Console.WriteLine($"DEBUG: ArchivoVideo a actualizar: {request.ArchivoVideo ?? "NULL"}");
+                Console.WriteLine($"DEBUG: ArchivoPDF a actualizar: {request.ArchivoPDF ?? "NULL"}");
                 var query = @"
-            UPDATE dbo.SubCursos 
-            SET NombreSubCurso = @NombreSubCurso,
-                Descripcion = @Descripcion,
-                Orden = @Orden,
-                DuracionVideo = @DuracionVideo,
-                EsObligatorio = @EsObligatorio,
-                RequiereEvaluacion = @RequiereEvaluacion,
-                PuntajeMinimo = @PuntajeMinimo
-            WHERE SubCursoID = @SubCursoId";
+                    UPDATE dbo.SubCursos 
+                    SET NombreSubCurso = @NombreSubCurso,
+                        Descripcion = @Descripcion,
+                        Orden = @Orden,
+                        DuracionVideo = @DuracionVideo,
+                        EsObligatorio = @EsObligatorio,
+                        RequiereEvaluacion = @RequiereEvaluacion,
+                        PuntajeMinimo = @PuntajeMinimo,
+                        ArchivoVideo = @ArchivoVideo,
+                        ArchivoPDF = @ArchivoPDF  
+                    WHERE SubCursoID = @SubCursoId";
 
                 using (var connection = new SqlConnection(_connectionString))
                 {
@@ -1587,14 +1655,18 @@ namespace ProyectoMatrix.Servicios
                         command.Parameters.AddWithValue("@EsObligatorio", request.EsObligatorio);
                         command.Parameters.AddWithValue("@RequiereEvaluacion", request.RequiereEvaluacion);
                         command.Parameters.AddWithValue("@PuntajeMinimo", request.PuntajeMinimo);
+                        command.Parameters.AddWithValue("@ArchivoVideo", request.ArchivoVideo ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@ArchivoPDF", request.ArchivoPDF ?? (object)DBNull.Value);
 
                         var rowsAffected = await command.ExecuteNonQueryAsync();
+                        Console.WriteLine($"DEBUG: Filas afectadas: {rowsAffected}");
                         return rowsAffected > 0;
                     }
                 }
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"ERROR en ActualizarSubCursoAsync: {ex.Message}");
                 _logger.LogError(ex, "Error al actualizar subcurso");
                 return false;
             }
@@ -1682,13 +1754,13 @@ namespace ProyectoMatrix.Servicios
                 var departamentos = new List<DepartamentoViewModel>();
 
                 var query = @"
-            SELECT DISTINCT d.Id, d.NombreDepartamento
-            FROM dbo.Departamentos d
-            INNER JOIN dbo.EmpleadoDepartamentos ed ON d.Id = ed.IdDepartamento
-            INNER JOIN dbo.Usuarios u ON ed.IdEmpleado = u.Id
-            INNER JOIN dbo.UsuariosEmpresas ue ON u.Id = ue.IdUsuario
-            WHERE ue.IdEmpresa = @IdEmpresa AND u.Activo = 1 AND d.Activo = 1
-            ORDER BY d.NombreDepartamento";
+                    SELECT DISTINCT d.Id, d.NombreDepartamento
+                    FROM dbo.Departamentos d
+                    INNER JOIN dbo.EmpleadoDepartamentos ed ON d.Id = ed.IdDepartamento
+                    INNER JOIN dbo.Usuarios u ON ed.IdEmpleado = u.Id
+                    INNER JOIN dbo.UsuariosEmpresas ue ON u.Id = ue.IdUsuario
+                    WHERE ue.IdEmpresa = @IdEmpresa AND u.Activo = 1 AND d.Activo = 1
+                    ORDER BY d.NombreDepartamento";
 
                 using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
@@ -2065,6 +2137,608 @@ namespace ProyectoMatrix.Servicios
             {
                 _logger.LogError(ex, "Error al obtener asignaciones recientes");
                 return new List<AsignacionRecienteViewModel>();
+            }
+        }
+
+
+        // =====================================================
+        // AGREGAR ESTOS MÉTODOS AL FINAL DE UniversidadServices.cs
+        // =====================================================
+
+        /// <summary>
+        /// Obtiene los cursos asignados a un usuario específico con información detallada
+        /// </summary>
+        public async Task<List<MiCursoViewModel>> ObtenerMisCursosAsync(int usuarioId, int empresaId)
+        {
+            try
+            {
+                var misCursos = new List<MiCursoViewModel>();
+
+                var query = @"
+                    SELECT DISTINCT
+                        ac.AsignacionID,  -- CAMBIO: AsignacionCursoID → AsignacionID
+                        ac.CursoID,
+                        c.NombreCurso as TituloCurso,
+                        c.Descripcion,
+                        c.Duracion as DuracionHoras,
+                        c.ImagenCurso,
+                        n.NombreNivel,
+                        n.ColorHex as ColorNivel,
+                        ac.FechaAsignacion,
+                        ac.FechaLimite,
+                        ac.EsObligatorio,
+                        ac.Comentarios as Observaciones,
+                
+                        -- Cálculo de progreso
+                        COUNT(sc.SubCursoID) as TotalSubCursos,
+                        COUNT(CASE WHEN avs.Completado = 1 THEN 1 END) as SubCursosCompletados,  -- CAMBIO: asc → avs
+                        CASE 
+                            WHEN COUNT(sc.SubCursoID) > 0 
+                            THEN CAST(COUNT(CASE WHEN avs.Completado = 1 THEN 1 END) AS DECIMAL(5,2)) / COUNT(sc.SubCursoID) * 100 
+                            ELSE 0 
+                        END AS Progreso,
+                
+                        -- Estado del curso
+                        CASE
+                            WHEN COUNT(sc.SubCursoID) = COUNT(CASE WHEN avs.Completado = 1 THEN 1 END) 
+                                 AND COUNT(sc.SubCursoID) > 0
+                            THEN 'Completado'
+                            WHEN COUNT(CASE WHEN avs.Completado = 1 THEN 1 END) > 0 
+                            THEN 'En Progreso'
+                            WHEN ac.FechaLimite IS NOT NULL AND ac.FechaLimite < GETDATE()
+                            THEN 'Vencido'
+                            ELSE 'Pendiente'
+                        END AS Estado,
+                
+                        -- Fechas de inicio y finalización
+                        MIN(avs.InicioVisualizacion) as FechaInicio,  -- CAMBIO: asc → avs
+                        MAX(CASE WHEN avs.Completado = 1 THEN avs.FechaCompletado END) as FechaFinalizacion,
+                
+                        -- Verificar si está vencido
+                        CASE 
+                            WHEN ac.FechaLimite IS NOT NULL AND ac.FechaLimite < GETDATE() 
+                                 AND NOT (COUNT(sc.SubCursoID) = COUNT(CASE WHEN avs.Completado = 1 THEN 1 END) AND COUNT(sc.SubCursoID) > 0)
+                            THEN 1
+                            ELSE 0
+                        END as EstaVencido
+                
+                    FROM dbo.AsignacionesCursos ac
+                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID
+                    INNER JOIN dbo.NivelesEducativos n ON c.NivelID = n.NivelID
+                    LEFT JOIN dbo.SubCursos sc ON c.CursoID = sc.CursoID AND sc.Activo = 1
+                    LEFT JOIN dbo.AvancesSubCursos avs ON sc.SubCursoID = avs.SubCursoID   -- CAMBIO: asc → avs
+                        AND avs.UsuarioID = @UsuarioID AND avs.EmpresaID = @EmpresaID
+                    WHERE ac.UsuarioID = @UsuarioID 
+                        AND ac.EmpresaID = @EmpresaID 
+                        AND ac.Activo = 1
+                        AND c.Activo = 1
+                    GROUP BY 
+                        ac.AsignacionID, ac.CursoID, c.NombreCurso, c.Descripcion,   -- CAMBIO: AsignacionCursoID → AsignacionID
+                        c.Duracion, c.ImagenCurso, n.NombreNivel, n.ColorHex,
+                        ac.FechaAsignacion, ac.FechaLimite, ac.EsObligatorio, ac.Comentarios
+                    ORDER BY 
+                        CASE 
+                            WHEN ac.FechaLimite IS NOT NULL AND ac.FechaLimite < GETDATE() THEN 1
+                            ELSE 2
+                        END,
+                        ac.FechaAsignacion DESC";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                command.Parameters.AddWithValue("@EmpresaID", empresaId);
+
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    misCursos.Add(new MiCursoViewModel
+                    {
+                        AsignacionCursoID = reader.GetInt32("AsignacionID"),  // CAMBIO: usar AsignacionID
+                        CursoID = reader.GetInt32("CursoID"),
+                        TituloCurso = reader.GetString("TituloCurso"),
+                        Descripcion = reader.IsDBNull("Descripcion") ? null : reader.GetString("Descripcion"),
+                        DuracionHoras = reader.IsDBNull("DuracionHoras") ? null : reader.GetInt32("DuracionHoras"),
+                        ImagenCurso = reader.IsDBNull("ImagenCurso") ? null : reader.GetString("ImagenCurso"),
+                        NombreNivel = reader.GetString("NombreNivel"),
+                        ColorNivel = reader.IsDBNull("ColorNivel") ? "#3b82f6" : reader.GetString("ColorNivel"),
+                        FechaAsignacion = reader.GetDateTime("FechaAsignacion"),
+                        FechaLimite = reader.IsDBNull("FechaLimite") ? null : reader.GetDateTime("FechaLimite"),
+                        FechaInicio = reader.IsDBNull("FechaInicio") ? null : reader.GetDateTime("FechaInicio"),
+                        FechaFinalizacion = reader.IsDBNull("FechaFinalizacion") ? null : reader.GetDateTime("FechaFinalizacion"),
+                        Progreso = reader.GetDecimal("Progreso"),
+                        Estado = reader.GetString("Estado"),
+                        EsObligatorio = reader.GetBoolean("EsObligatorio"),
+                        Observaciones = reader.IsDBNull("Observaciones") ? null : reader.GetString("Observaciones"),
+                        TotalSubCursos = reader.GetInt32("TotalSubCursos"),
+                        SubCursosCompletados = reader.GetInt32("SubCursosCompletados"),
+                        EstaVencido = reader.GetBoolean("EstaVencido")
+                    });
+                }
+
+                _logger.LogInformation("Obtenidos {Count} cursos para usuario {UsuarioId}", misCursos.Count, usuarioId);
+                return misCursos;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener mis cursos para usuario {UsuarioId}", usuarioId);
+                return new List<MiCursoViewModel>();
+            }
+        }
+
+        /// <summary>
+        /// Obtiene estadísticas de progreso del usuario
+        /// </summary>
+        public async Task<EstadisticasProgresoUsuarioViewModel> ObtenerEstadisticasProgresoUsuarioAsync(int usuarioId, int empresaId)
+        {
+            try
+            {
+                var estadisticas = new EstadisticasProgresoUsuarioViewModel();
+
+                var query = @"
+                    SELECT 
+                        COUNT(DISTINCT ac.CursoID) as TotalCursosAsignados,
+                        COUNT(DISTINCT CASE 
+                            WHEN COUNT(sc.SubCursoID) = COUNT(CASE WHEN avs.Completado = 1 THEN 1 END)   -- CAMBIO: asc → avs
+                                 AND COUNT(sc.SubCursoID) > 0
+                            THEN ac.CursoID 
+                        END) as CursosCompletados,
+                        COUNT(DISTINCT CASE 
+                            WHEN COUNT(CASE WHEN avs.Completado = 1 THEN 1 END) > 0   -- CAMBIO: asc → avs
+                                 AND NOT (COUNT(sc.SubCursoID) = COUNT(CASE WHEN avs.Completado = 1 THEN 1 END) AND COUNT(sc.SubCursoID) > 0)
+                            THEN ac.CursoID 
+                        END) as CursosEnProgreso,
+                        COUNT(DISTINCT CASE 
+                            WHEN ac.FechaLimite IS NOT NULL AND ac.FechaLimite < GETDATE()
+                                 AND NOT (COUNT(sc.SubCursoID) = COUNT(CASE WHEN avs.Completado = 1 THEN 1 END) AND COUNT(sc.SubCursoID) > 0)
+                            THEN ac.CursoID 
+                        END) as CursosVencidos
+                    FROM dbo.AsignacionesCursos ac
+                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID
+                    LEFT JOIN dbo.SubCursos sc ON c.CursoID = sc.CursoID AND sc.Activo = 1
+                    LEFT JOIN dbo.AvancesSubCursos avs ON sc.SubCursoID = avs.SubCursoID   -- CAMBIO: asc → avs
+                        AND avs.UsuarioID = @UsuarioID AND avs.EmpresaID = @EmpresaID
+                    WHERE ac.UsuarioID = @UsuarioID 
+                        AND ac.EmpresaID = @EmpresaID 
+                        AND ac.Activo = 1
+                        AND c.Activo = 1
+                    GROUP BY ac.CursoID, ac.FechaLimite";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                command.Parameters.AddWithValue("@EmpresaID", empresaId);
+
+                using var reader = await command.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    estadisticas.TotalCursosAsignados = reader.GetInt32("TotalCursosAsignados");
+                    estadisticas.CursosCompletados = reader.GetInt32("CursosCompletados");
+                    estadisticas.CursosEnProgreso = reader.GetInt32("CursosEnProgreso");
+                    estadisticas.CursosVencidos = reader.GetInt32("CursosVencidos");
+                }
+
+                // Calcular porcentaje de progreso general
+                if (estadisticas.TotalCursosAsignados > 0)
+                {
+                    estadisticas.PorcentajeProgresoGeneral = Math.Round(
+                        (decimal)estadisticas.CursosCompletados / estadisticas.TotalCursosAsignados * 100, 1);
+                }
+
+                return estadisticas;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener estadísticas de progreso para usuario {UsuarioId}", usuarioId);
+                return new EstadisticasProgresoUsuarioViewModel();
+            }
+        }
+
+
+        /// <summary>
+        /// Obtiene los certificados disponibles para un usuario
+        /// </summary>
+        public async Task<List<CertificadoDisponibleViewModel>> ObtenerCertificadosDisponiblesAsync(int usuarioId, int empresaId)
+        {
+            try
+            {
+                var certificados = new List<CertificadoDisponibleViewModel>();
+
+                var query = @"
+                    SELECT DISTINCT
+                        c.CursoID,
+                        c.NombreCurso,
+                        c.Descripcion,
+                        n.NombreNivel,
+                        ac.FechaAsignacion,
+                        MAX(CASE WHEN asc.Completado = 1 THEN asc.FechaCompletado END) as FechaCompletado,
+                        -- Verificar si ya tiene certificado emitido
+                        CASE 
+                            WHEN EXISTS (
+                                SELECT 1 FROM dbo.CertificadosEmitidos ce 
+                                WHERE ce.UsuarioID = @UsuarioID 
+                                  AND ce.CursoID = c.CursoID 
+                                  AND ce.EmpresaID = @EmpresaID
+                                  AND ce.Activo = 1
+                            ) THEN 1 ELSE 0 
+                        END as YaTieneCertificado,
+                        -- Verificar si el curso está completado
+                        CASE
+                            WHEN COUNT(sc.SubCursoID) = COUNT(CASE WHEN asc.Completado = 1 THEN 1 END) 
+                                 AND COUNT(sc.SubCursoID) > 0
+                            THEN 1 ELSE 0
+                        END AS CursoCompletado
+                    FROM dbo.AsignacionesCursos ac
+                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID
+                    INNER JOIN dbo.NivelesEducativos n ON c.NivelID = n.NivelID
+                    LEFT JOIN dbo.SubCursos sc ON c.CursoID = sc.CursoID AND sc.Activo = 1
+                    LEFT JOIN dbo.AvancesSubCursos asc ON sc.SubCursoID = asc.SubCursoID 
+                        AND asc.UsuarioID = @UsuarioID AND asc.EmpresaID = @EmpresaID
+                    WHERE ac.UsuarioID = @UsuarioID 
+                        AND ac.EmpresaID = @EmpresaID 
+                        AND ac.Activo = 1
+                        AND c.Activo = 1
+                    GROUP BY 
+                        c.CursoID, c.NombreCurso, c.Descripcion, n.NombreNivel, ac.FechaAsignacion
+                    HAVING 
+                        -- Solo cursos completados
+                        COUNT(sc.SubCursoID) = COUNT(CASE WHEN asc.Completado = 1 THEN 1 END) 
+                        AND COUNT(sc.SubCursoID) > 0
+                    ORDER BY MAX(CASE WHEN asc.Completado = 1 THEN asc.FechaCompletado END) DESC";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                command.Parameters.AddWithValue("@EmpresaID", empresaId);
+
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    certificados.Add(new CertificadoDisponibleViewModel
+                    {
+                        CursoID = reader.GetInt32("CursoID"),
+                        NombreCurso = reader.GetString("NombreCurso"),
+                        Descripcion = reader.IsDBNull("Descripcion") ? null : reader.GetString("Descripcion"),
+                        NombreNivel = reader.GetString("NombreNivel"),
+                        FechaCompletado = reader.IsDBNull("FechaCompletado") ? null : reader.GetDateTime("FechaCompletado"),
+                        YaTieneCertificado = reader.GetBoolean("YaTieneCertificado"),
+                        PuedeGenerarCertificado = reader.GetBoolean("CursoCompletado") && !reader.GetBoolean("YaTieneCertificado")
+                    });
+                }
+
+                return certificados;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener certificados disponibles para usuario {UsuarioId}", usuarioId);
+                return new List<CertificadoDisponibleViewModel>();
+            }
+        }
+
+        /// <summary>
+        /// Verifica si un usuario puede acceder a un curso específico
+        /// </summary>
+        public async Task<bool> UsuarioPuedeAccederCursoAsync(int usuarioId, int cursoId, int empresaId)
+        {
+            try
+            {
+                var query = @"
+                    SELECT COUNT(*) 
+                    FROM dbo.AsignacionesCursos ac
+                    WHERE ac.UsuarioID = @UsuarioID 
+                        AND ac.CursoID = @CursoID 
+                        AND ac.EmpresaID = @EmpresaID 
+                        AND ac.Activo = 1";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                command.Parameters.AddWithValue("@CursoID", cursoId);
+                command.Parameters.AddWithValue("@EmpresaID", empresaId);
+
+                var count = (int)await command.ExecuteScalarAsync();
+                return count > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al verificar acceso al curso {CursoId} para usuario {UsuarioId}", cursoId, usuarioId);
+                return false;
+            }
+        }
+
+
+        public async Task<bool> EliminarSubCursoAsync(int subCursoId)
+        {
+            try
+            {
+                var query = "UPDATE dbo.SubCursos SET Activo = 0 WHERE SubCursoID = @SubCursoId";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@SubCursoId", subCursoId);
+
+                var rowsAffected = await command.ExecuteNonQueryAsync();
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar subcurso");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Verifica si un usuario tiene asignado un curso específico
+        /// </summary>
+        public async Task<bool> VerificarAccesoCursoAsync(int usuarioId, int cursoId, int empresaId)
+        {
+            try
+            {
+                var query = @"
+                    SELECT COUNT(*) 
+                    FROM dbo.AsignacionesCursos ac
+                    WHERE ac.UsuarioID = @UsuarioID 
+                        AND ac.CursoID = @CursoID 
+                        AND ac.EmpresaID = @EmpresaID 
+                        AND ac.Activo = 1";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                command.Parameters.AddWithValue("@CursoID", cursoId);
+                command.Parameters.AddWithValue("@EmpresaID", empresaId);
+
+                var count = (int)await command.ExecuteScalarAsync();
+                return count > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al verificar acceso al curso");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Registra que un usuario ha iniciado un subcurso
+        /// </summary>
+        public async Task<bool> RegistrarInicioSubCursoAsync(int usuarioId, int subCursoId, int empresaId)
+        {
+            try
+            {
+                // Verificar si ya existe registro
+                var existeQuery = @"
+                    SELECT AvanceSubCursoID 
+                    FROM dbo.AvancesSubCursos 
+                    WHERE UsuarioID = @UsuarioID 
+                        AND SubCursoID = @SubCursoID 
+                        AND EmpresaID = @EmpresaID";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                using var existeCommand = new SqlCommand(existeQuery, connection);
+                existeCommand.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                existeCommand.Parameters.AddWithValue("@SubCursoID", subCursoId);
+                existeCommand.Parameters.AddWithValue("@EmpresaID", empresaId);
+
+                var avanceId = await existeCommand.ExecuteScalarAsync();
+
+                if (avanceId == null)
+                {
+                    // Crear nuevo registro
+                    var insertQuery = @"
+                        INSERT INTO dbo.AvancesSubCursos 
+                        (UsuarioID, SubCursoID, EmpresaID, InicioVisualizacion, TiempoTotalVisto, 
+                         PorcentajeVisto, UltimaActividad, Completado)
+                        VALUES 
+                        (@UsuarioID, @SubCursoID, @EmpresaID, GETDATE(), 0, 0, GETDATE(), 0)";
+
+                    using var insertCommand = new SqlCommand(insertQuery, connection);
+                    insertCommand.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                    insertCommand.Parameters.AddWithValue("@SubCursoID", subCursoId);
+                    insertCommand.Parameters.AddWithValue("@EmpresaID", empresaId);
+
+                    await insertCommand.ExecuteNonQueryAsync();
+                }
+                else
+                {
+                    // Actualizar fecha de última actividad
+                    var updateQuery = @"
+                        UPDATE dbo.AvancesSubCursos 
+                        SET UltimaActividad = GETDATE()
+                        WHERE UsuarioID = @UsuarioID 
+                            AND SubCursoID = @SubCursoID 
+                            AND EmpresaID = @EmpresaID";
+
+                    using var updateCommand = new SqlCommand(updateQuery, connection);
+                    updateCommand.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                    updateCommand.Parameters.AddWithValue("@SubCursoID", subCursoId);
+                    updateCommand.Parameters.AddWithValue("@EmpresaID", empresaId);
+
+                    await updateCommand.ExecuteNonQueryAsync();
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al registrar inicio de subcurso");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Obtiene un subcurso específico con información del curso padre
+        /// </summary>
+        public async Task<SubCursoDetalle?> ObtenerSubCursoConCursoAsync(int subCursoId, int usuarioId, int empresaId)
+        {
+            try
+            {
+                var query = @"
+                    SELECT 
+                        sc.SubCursoID,
+                        sc.CursoID,
+                        sc.NombreSubCurso,
+                        sc.Descripcion,
+                        sc.Orden,
+                        sc.ArchivoVideo,
+                        sc.ArchivoPDF,
+                        sc.DuracionVideo,
+                        sc.EsObligatorio,
+                        sc.RequiereEvaluacion,
+                        sc.PuntajeMinimo,
+                        c.NombreCurso,
+                        -- Información de progreso del usuario
+                        ISNULL(avs.TiempoTotalVisto, 0) as TiempoTotalVisto,
+                        ISNULL(avs.PorcentajeVisto, 0) as PorcentajeVisto,
+                        ISNULL(avs.Completado, 0) as Completado,
+                        avs.FechaCompletado
+                    FROM dbo.SubCursos sc
+                    INNER JOIN dbo.Cursos c ON sc.CursoID = c.CursoID
+                    LEFT JOIN dbo.AvancesSubCursos avs ON sc.SubCursoID = avs.SubCursoID 
+                        AND avs.UsuarioID = @UsuarioID 
+                        AND avs.EmpresaID = @EmpresaID
+                    WHERE sc.SubCursoID = @SubCursoID 
+                        AND sc.Activo = 1";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@SubCursoID", subCursoId);
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                command.Parameters.AddWithValue("@EmpresaID", empresaId);
+
+                using var reader = await command.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    return new SubCursoDetalle
+                    {
+                        SubCursoID = reader.GetInt32("SubCursoID"),
+                        CursoID = reader.GetInt32("CursoID"),
+                        NombreSubCurso = reader.GetString("NombreSubCurso"),
+                        Descripcion = reader.IsDBNull("Descripcion") ? null : reader.GetString("Descripcion"),
+                        Orden = reader.GetInt32("Orden"),
+                        ArchivoVideo = reader.IsDBNull("ArchivoVideo") ? null : reader.GetString("ArchivoVideo"),
+                        ArchivoPDF = reader.IsDBNull("ArchivoPDF") ? null : reader.GetString("ArchivoPDF"),
+                        DuracionVideo = reader.IsDBNull("DuracionVideo") ? null : reader.GetInt32("DuracionVideo"),
+                        EsObligatorio = reader.GetBoolean("EsObligatorio"),
+                        RequiereEvaluacion = reader.GetBoolean("RequiereEvaluacion"),
+                        PuntajeMinimo = reader.GetDecimal("PuntajeMinimo"),
+
+                        // Información de progreso
+                        TiempoTotalVisto = reader.GetInt32("TiempoTotalVisto"),
+                        PorcentajeVisto = reader.GetDecimal("PorcentajeVisto"),
+                        Completado = reader.GetBoolean("Completado"),
+                        FechaCompletado = reader.IsDBNull("FechaCompletado") ? null : reader.GetDateTime("FechaCompletado"),
+
+                        // Por defecto puede acceder
+                        PuedeAcceder = true
+                    };
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener subcurso con información del curso");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Mejora el método GetSubCursosPorCursoAsync existente para incluir información de progreso real
+        /// </summary>
+        public async Task<List<SubCursoDetalle>> GetSubCursosPorCursoConProgresoAsync(int cursoId, int usuarioId, int empresaId)
+        {
+            try
+            {
+                var subCursos = new List<SubCursoDetalle>();
+
+                var query = @"
+                    SELECT 
+                        sc.SubCursoID,
+                        sc.CursoID,
+                        sc.NombreSubCurso,
+                        sc.Descripcion,
+                        sc.Orden,
+                        sc.ArchivoVideo,
+                        sc.ArchivoPDF,
+                        sc.DuracionVideo,
+                        sc.EsObligatorio,
+                        sc.RequiereEvaluacion,
+                        sc.PuntajeMinimo,
+                        c.NombreCurso,
+                
+                        -- Información de progreso del usuario
+                        ISNULL(avs.TiempoTotalVisto, 0) as TiempoTotalVisto,
+                        ISNULL(avs.PorcentajeVisto, 0) as PorcentajeVisto,
+                        ISNULL(avs.Completado, 0) as Completado,
+                        avs.FechaCompletado,
+                        avs.InicioVisualizacion
+                
+                    FROM dbo.SubCursos sc
+                    INNER JOIN dbo.Cursos c ON sc.CursoID = c.CursoID
+                    LEFT JOIN dbo.AvancesSubCursos avs ON sc.SubCursoID = avs.SubCursoID 
+                        AND avs.UsuarioID = @UsuarioID 
+                        AND avs.EmpresaID = @EmpresaID
+                    WHERE sc.CursoID = @CursoID 
+                        AND sc.Activo = 1
+                    ORDER BY sc.Orden";
+
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@CursoID", cursoId);
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                command.Parameters.AddWithValue("@EmpresaID", empresaId);
+
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    var subcurso = new SubCursoDetalle
+                    {
+                        SubCursoID = reader.GetInt32("SubCursoID"),
+                        CursoID = reader.GetInt32("CursoID"),
+                        NombreSubCurso = reader.GetString("NombreSubCurso"),
+                        Descripcion = reader.IsDBNull("Descripcion") ? null : reader.GetString("Descripcion"),
+                        Orden = reader.GetInt32("Orden"),
+                        ArchivoVideo = reader.IsDBNull("ArchivoVideo") ? null : reader.GetString("ArchivoVideo"),
+                        ArchivoPDF = reader.IsDBNull("ArchivoPDF") ? null : reader.GetString("ArchivoPDF"),
+                        DuracionVideo = reader.IsDBNull("DuracionVideo") ? null : reader.GetInt32("DuracionVideo"),
+                        EsObligatorio = reader.GetBoolean("EsObligatorio"),
+                        RequiereEvaluacion = reader.GetBoolean("RequiereEvaluacion"),
+                        PuntajeMinimo = reader.GetDecimal("PuntajeMinimo"),
+
+                        // Información de progreso REAL
+                        TiempoTotalVisto = reader.GetInt32("TiempoTotalVisto"),
+                        PorcentajeVisto = reader.GetDecimal("PorcentajeVisto"),
+                        Completado = reader.GetBoolean("Completado"),
+                        FechaCompletado = reader.IsDBNull("FechaCompletado") ? null : reader.GetDateTime("FechaCompletado"),
+
+                        // Control de acceso (por ahora todos pueden acceder)
+                        PuedeAcceder = true,
+                        UltimoIntento = null
+                    };
+
+                    subCursos.Add(subcurso);
+                }
+
+                return subCursos;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener subcursos con progreso del curso {CursoId}", cursoId);
+                return new List<SubCursoDetalle>();
             }
         }
 

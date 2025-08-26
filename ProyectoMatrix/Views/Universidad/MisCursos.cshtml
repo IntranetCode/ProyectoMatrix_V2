@@ -199,21 +199,30 @@
                             <!-- Card Footer -->
                             <div class="curso-card-footer">
                                 <div class="footer-actions">
-                                    <a href="/Universidad/TomarCurso/@curso.CursoID"
+                                    <a asp-controller="Universidad"
+                                       asp-action="TomarCurso"
+                                       asp-route-cursoId="@curso.CursoID"
                                        class="btn btn-universidad flex-grow-1">
                                         @if (curso.Estado == "Completado")
                                         {
-                                            <i class="fas fa-eye me-2"></i><text>Revisar Curso</text>                                            
-                                                                        }
+                                            <i class="fas fa-eye me-2"></i>
+                                
+                                            <text>Revisar Curso</text>
+                                        }
                                         else if (curso.Estado == "En Progreso")
                                         {
-                                            <i class="fas fa-play me-2"></i><text>Continuar</text>                                            
-                                                                }
+                                            <i class="fas fa-play me-2"></i>
+                                
+                                            <text>Continuar</text>
+                                        }
                                         else
                                         {
-                                            <i class="fas fa-play-circle me-2"></i><text>Comenzar</text>                                           
-                                                                }
+                                            <i class="fas fa-play-circle me-2"></i>
+                                
+                                            <text>Comenzar</text>
+                                        }
                                     </a>
+
 
                                     @if (curso.Estado == "Completado")
                                     {
