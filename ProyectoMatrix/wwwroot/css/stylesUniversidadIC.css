@@ -158,7 +158,7 @@ body.layout-navbar-fixed .wrapper,
     opacity: 0.9;
 }
 
-@@keyframes progressAnimation {
+@keyframes progressAnimation {
     from {
         stroke-dasharray: 0 628;
     }
@@ -308,7 +308,7 @@ body.layout-navbar-fixed .wrapper,
     }
 }
 
-@@media (max-width: 576px) {
+@media (max-width: 576px) {
     .nivel-btn {
         display: block;
         margin: 5px auto;

@@ -1,0 +1,78 @@
+﻿@model ProyectoMatrix.Models.ComunicadoCreateVM
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Crear Comunicado";
+
+}
+<link href="~/css/stylesComunicadosCrear.css" rel="stylesheet" />
+<h2>Crear Comunicado</h2>
+
+<form asp-action="Crear" method="post" enctype="multipart/form-data">
+    <div class="mb-3">
+        <label class="form-label">Título</label>
+        <input asp-for="NombreComunicado" class="form-control" />
+        <span asp-validation-for="NombreComunicado" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Descripción</label>
+        <textarea asp-for="Descripcion" class="form-control"></textarea>
+        <span asp-validation-for="Descripcion" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Fecha</label>
+        <input asp-for="FechaCreacion" class="form-control" type="date" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="ImagenFile" class="form-label">Archivo (max. 24MB)</label>
+        <input asp-for="ImagenFile" class="form-control" type="file" accept=".jpg,.jpeg,.png,.gif,.mp4,.pdf" />
+        <span asp-validation-for="ImagenFile" class="text-danger"></span>
+    </div>
+
+
+    <div class="mb-3 form-check">
+        <input asp-for="EsPublico" class="form-check-input" id="chkTodos" />
+        <label class="form-check-label" for="chkTodos">Enviar a todos los usuarios</label>
+    </div>
+
+    <div class="mb-3" id="empresasBox">
+        <label class="form-label">Seleccionar Empresas (si no es para todos)</label>
+        <div class="row">
+            @foreach (var e in Model.Empresas)
+            {
+                <div class="col-md-4">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               name="EmpresasSeleccionadas"
+                               value="@e.EmpresaID"
+                               id="emp_@e.EmpresaID" />
+                        <label class="form-check-label" for="emp_@e.EmpresaID">@e.Nombre</label>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const chk = document.getElementById('chkTodos');
+            const box = document.getElementById('empresasBox');
+
+            function refresh() {
+                box.style.display = chk.checked ? 'none' : 'block';
+            }
+
+            chk.addEventListener('change', refresh);
+            refresh();
+        })();
+    </script>
+}

@@ -28,65 +28,7 @@ namespace ProyectoMatrix.Controllers
             _webHostEnvironment = webHostEnvironment;
         }
 
-        // =====================================================
-        // DASHBOARD PRINCIPAL
-        // =====================================================
-        /*
-        public async Task<IActionResult> Index()
-        {
-            try
-            {
-                
-
-                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var rolId = HttpContext.Session.GetInt32("RolID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada");
-                var nombreUsuario = HttpContext.Session.GetString("Username") ?? "Usuario";
-                var nombreEmpresa = HttpContext.Session.GetString("EmpresaNombre") ?? "NS Group";
-
-                if (!usuarioId.HasValue || !rolId.HasValue)
-                {
-                    TempData["Error"] = "Sesión expirada. Por favor, inicia sesión nuevamente.";
-                    return RedirectToAction("Login", "Login");
-                }
-
-                if (!empresaId.HasValue)
-                {
-                    TempData["Error"] = "Debe seleccionar una empresa para acceder a Universidad NS.";
-                    return RedirectToAction("SeleccionEmpresas", "Login");
-                }
-
-                var viewModel = new UniversidadDashboardViewModel
-                {
-                    UsuarioId = usuarioId.Value,
-                    RolId = rolId.Value,
-                    EmpresaId = empresaId.Value,
-                    NombreUsuario = nombreUsuario,
-                    NombreEmpresa = nombreEmpresa,
-
-                    // Calcular permisos
-                    PuedeCrearCursos = UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId.Value),
-                    PuedeAsignarCursos = UniversidadPermisosHelper.PermisosUniversidad.PuedeAsignarCursos(rolId.Value),
-                    PuedeVerReportes = UniversidadPermisosHelper.PermisosUniversidad.PuedeVerReportes(rolId.Value),
-                    PuedeConfiguracion = UniversidadPermisosHelper.PermisosUniversidad.PuedeConfigurarSistema(rolId.Value)
-                };
-
-                // Cargar datos según el rol
-                await CargarDatosDashboard(viewModel);
-
-                // Generar menú dinámico
-                viewModel.MenuItems = GenerarMenuItems(viewModel);
-
-                return View(viewModel);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al cargar dashboard de Universidad NS");
-                TempData["Error"] = "Error al cargar el dashboard. Intente nuevamente.";
-                return RedirectToAction("Index", "Menu");
-            }
-        }
-        */
+     
 
         // MODIFICAR tu método Index() en UniversidadController.cs
         // Agregar DEBUG para ver qué hay en la sesión

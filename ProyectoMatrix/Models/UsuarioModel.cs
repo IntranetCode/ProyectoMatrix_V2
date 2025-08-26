@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace ProyectoMatrix.Models
 {
     public class UsuarioModel
     {
+        [Key]
         public int UsuarioID { get; set; }
         public int PersonaID { get; set; }
         public int EmpresaID { get; set; }
@@ -31,8 +33,10 @@ namespace ProyectoMatrix.Models
         public List<EmpresaModel> Empresas { get; set; } = new List<EmpresaModel>();
     }
 
+    /// SE LE AGREGO KEY AL EPRESA MODEL
     public class EmpresaModel
     {
+       [Key]
         public int EmpresaID { get; set; }
         public string Nombre { get; set; } = string.Empty;
         public string Logo { get; set; } = string.Empty;

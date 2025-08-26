@@ -21,10 +21,17 @@ public class LoginController : Controller
 
     // ---------- LOGIN GET ----------
     [HttpGet]
+  
     public IActionResult Login()
     {
+        if (HttpContext.Session.GetInt32("UsuarioID") != null)
+        {
+            return RedirectToAction("Index", "Menu"); // Redirige si el usuario es diferente de null, porque ya tiene la sesio abierta
+        }
+
         return View();
     }
+
 
     // ---------- LOGIN POST ----------
     [HttpPost]
@@ -117,11 +124,14 @@ public class LoginController : Controller
 
         // Autenticación por cookies
         var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.NameIdentifier, usuario.UsuarioID.ToString()),
-            new Claim(ClaimTypes.Name, usuario.Username),
-            new Claim("EmpresaID", empresa.EmpresaID.ToString())
-        };
+{
+    new Claim(ClaimTypes.NameIdentifier, usuario.UsuarioID.ToString()),
+    new Claim(ClaimTypes.Name, usuario.Username),
+    new Claim("EmpresaID", empresa.EmpresaID.ToString()),
+    new Claim(ClaimTypes.Role, usuario.Rol),
+    new Claim("RolID", rolId.ToString())
+};
+
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
@@ -281,7 +291,7 @@ public class LoginController : Controller
     }
 
     // ---------- LOGOUT ----------
-    [HttpPost]
+    [HttpGet]
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -306,4 +316,26 @@ public class LoginController : Controller
         var result = await command.ExecuteScalarAsync();
         return result != null ? Convert.ToInt32(result) : 4; // Default: Autor/Editor para YOLGUINM
     }
+
+    [HttpGet]
+    public IActionResult VerificarSesion()
+    {
+        int? usuarioID = HttpContext.Session.GetInt32("UsuarioID");
+        if (usuarioID == null)
+            return Json(new { sesionActiva = false });
+
+        return Json(new { sesionActiva = true });
+    }
+
+    public IActionResult Index()
+    {
+        if (HttpContext.Session.GetInt32("UsuarioID") != null)
+        {
+            return RedirectToAction("Index", "Menu"); // o "Home", según tu caso
+        }
+
+        return RedirectToAction("Login");
+    }
+
 }
+

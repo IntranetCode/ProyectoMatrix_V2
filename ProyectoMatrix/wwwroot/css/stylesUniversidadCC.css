@@ -2,9 +2,6 @@
 .curso-container {
     padding: 40px 20px;
     background: #102542;
-    @*linear-gradient(135deg, #102542;
-    , #102542;
-    *@ );
     color: white;
     min-height: calc(100vh - 60px);
 }
@@ -48,7 +45,7 @@
     border-radius: 50px;
 }
 
-@@keyframes fadeIn {
+@keyframes fadeIn {
     from {
         opacity: 0;
         transform: translateY(30px);

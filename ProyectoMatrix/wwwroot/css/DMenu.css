@@ -431,7 +431,7 @@ body {
 }
 
 /* Responsive Design */
-@@media (max-width: 768px) {
+@media (max-width: 768px) {
     .sidebar {
         transform: translateX(-100%);
     }
@@ -473,7 +473,7 @@ body {
     color: #1e293b;
 }
 
-@@media (max-width: 768px) {
+@media (max-width: 768px) {
     .mobile-toggle {
         display: block;
     }
