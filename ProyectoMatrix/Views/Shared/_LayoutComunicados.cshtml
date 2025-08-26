@@ -1,0 +1,149 @@
+﻿@using System.Security.Claims
+@using System.Text.Json
+@{
+    Layout = null;
+    ViewData["Title"] ??= "Intranet - NS Group";
+
+    // Preferimos Claims y caemos a Session si no están
+    var nombreUsuario = Context.Session.GetString("Username") ?? "Invitado";
+    var rol = Context.Session.GetString("Rol") ?? "Colaborador";
+    var tituloNavbar = ViewBag.TituloNavbar?.ToString() ?? "";
+    var logoNavbar = ViewBag.LogoNavbar?.ToString() ?? "";
+
+
+    var rolNombre = User.Identity?.IsAuthenticated == true
+        ? (User.FindFirst(ClaimTypes.Role)?.Value ?? "Colaborador")
+        : (Context.Session.GetString("Rol") ?? "Colaborador");
+
+    
+    // --- CSS dinámico por empresa (vía Session, compatible con tu layout de Universidad)
+    var empresaId = Context.Session.GetString("EmpresaId") ?? "default";
+    var nombreEmpresa = Context.Session.GetString("EmpresaNombre") ?? "NS Group";
+    var cssFile = empresaId switch
+    {
+        "1" => "LoginNutriservicios.css",
+        "2" => "LoginNS_Equipo.css",
+        "3" => "LoginBSP.css",
+        "4" => "LoginHypor.css",
+        _ => "site.css"
+    };
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>@ViewData["Title"]</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Bootstrap 5 (coherente con data-bs-*) -->
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <!-- CSS dinámico por empresa -->
+    <link rel="stylesheet" href="@(Url.Content($"~/css/{cssFile}"))" asp-append-version="true" />
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <!-- Estilos adicionales del proyecto -->
+    <link rel="stylesheet" href="~/css/stylesLayoutComunicados.css" asp-append-version="true" />
+
+    @RenderSection("Estilos", required: false)
+</head>
+<body class="empresa-@empresaId">
+    <!-- NAVBAR unificada: Inicio / Universidad / Proyectos + menú usuario -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom">
+        <div class="container-fluid">
+            
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain"
+                    aria-controls="navbarMain" aria-expanded="false" aria-label="Menú">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <!-- Inicio -->
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Menu" asp-action="Index">
+                            <i class="fas fa-home me-1"></i>Inicio
+                        </a>
+                    </li>
+
+                    <!-- Universidad -->
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Universidad" asp-action="Index">
+                            <i class="fas fa-graduation-cap me-1"></i>Universidad
+                        </a>
+                    </li>
+
+
+                    <!-- Comunicados -->
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Comunicados" asp-action="Index">
+                            <i class="fas fa-bullhorn me-1"></i>Comunicados
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Info de empresa y rol (desktop) -->
+                <span class="navbar-text text-white me-3 d-none d-lg-inline">
+                    <small>
+                        <i class="fas fa-building me-1"></i>@nombreEmpresa
+                        <span class="mx-2">|</span>
+                        <i class="fas fa-id-badge me-1"></i>@rolNombre
+                    </small>
+                </span>
+
+                <!-- Menú de usuario / Login-Logout -->
+                <ul class="navbar-nav">
+                    @if (User.Identity?.IsAuthenticated ?? false)
+                    {
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDrop" role="button"
+                               data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user-circle me-1"></i> @nombreUsuario
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDrop">
+                                <li>
+                                    <a class="dropdown-item" asp-controller="Perfil" asp-action="Index">
+                                        <i class="fas fa-user me-2"></i>Mi Perfil
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" asp-controller="Configuracion" asp-action="Index">
+                                        <i class="fas fa-cog me-2"></i>Configuración
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li>
+                                    <!-- Logout por POST (seguro) -->
+                                    <form asp-controller="Menu" asp-action="Logout" method="post" class="px-3">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-link dropdown-item p-0">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Cerrar sesión
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Account" asp-action="Login">
+                                <i class="fas fa-sign-in-alt me-1"></i>Ingresar
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido -->
+    <main role="main" class="container py-3">
+        @RenderBody()
+    </main>
+
+    <!-- Scripts -->
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

@@ -124,11 +124,14 @@ public class LoginController : Controller
 
         // Autenticación por cookies
         var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.NameIdentifier, usuario.UsuarioID.ToString()),
-            new Claim(ClaimTypes.Name, usuario.Username),
-            new Claim("EmpresaID", empresa.EmpresaID.ToString())
-        };
+{
+    new Claim(ClaimTypes.NameIdentifier, usuario.UsuarioID.ToString()),
+    new Claim(ClaimTypes.Name, usuario.Username),
+    new Claim("EmpresaID", empresa.EmpresaID.ToString()),
+    new Claim(ClaimTypes.Role, usuario.Rol),
+    new Claim("RolID", rolId.ToString())
+};
+
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
@@ -333,7 +336,6 @@ public class LoginController : Controller
 
         return RedirectToAction("Login");
     }
-
 
 }
 

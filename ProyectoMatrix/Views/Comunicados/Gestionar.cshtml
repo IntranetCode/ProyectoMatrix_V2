@@ -1,0 +1,75 @@
+﻿@model IEnumerable<ProyectoMatrix.Models.ComunicadoListItemVM>
+
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Gestionar Comunicados";
+    var tieneResultados = Model != null && Model.Any();
+}
+
+<link href="~/css/stylesComunicadosGestionar.css" rel="stylesheet" />
+
+<h2>Gestionar Comunicados</h2>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <a class="btn btn-primary" asp-action="Crear">Crear Nuevo Comunicado</a>
+
+    <form method="get" asp-action="Gestionar" class="d-flex" role="search">
+        <input name="q" class="form-control me-2" type="search" placeholder="Buscar por titulo..." />
+        <button class="btn btn-outline-success" type="submit">Buscar</button>
+    </form>
+</div>
+
+@if (!tieneResultados)
+{
+    <div class="alert alert-info">No hay comunicados para mostrar.</div>
+}
+else
+{
+    <table class="table-striped table-bordered align-middle">
+        <thead>
+            <tr>
+                <th style="width: 120px;">Fecha</th>
+                <th>Título</th>
+                <th style="width: 120px;">Imagen</th>
+                <th>Dirigido a:</th>
+                <th style="width: 200px;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in Model)
+            {
+                <tr>
+                    <td>@c.FechaCreacion.ToString("dd/MM/yyyy")</td>
+                    <td>
+                        <div class="fw-semibold">@c.NombreComunicado</div>
+                        <div class="text-muted small">@c.Descripcion</div>
+                    </td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(c.Imagen))
+                        {
+                            <img src="@c.Imagen" alt="Imagen Comunicado" style="max-height: 80px; max-width: 110px; object-fit:cover;" />
+                        }
+                        else
+                        {
+                            <span>No hay imagen</span>
+                        }
+                    </td>
+                    <td>@(string.IsNullOrWhiteSpace(c.DirigidoA) ? "-" : c.DirigidoA)</td>
+                    <td class="text-nowrap">
+                        <a asp-action="Editar" asp-route-id="@c.ComunicadoID" class="btn btn-sm btn-outline-primary me-1">
+                            Editar
+                        </a>
+                        <form asp-action="Eliminar" method="post" class="d-inline"
+                              onsubmit="return confirm('¿Está seguro de que desea eliminar el comunicado @c.NombreComunicado ?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@c.ComunicadoID" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                Eliminar
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

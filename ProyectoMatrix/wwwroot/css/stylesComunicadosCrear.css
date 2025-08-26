@@ -1,0 +1,100 @@
+﻿body {
+    background-color: #f4f9fd;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+    padding: 20px;
+}
+
+h2 {
+    color: #005f99;
+    font-weight: 600;
+    margin-bottom: 25px;
+    border-left: 5px solid #ff6b00;
+    padding-left: 15px;
+}
+
+form {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    max-width: 900px;
+    margin: auto;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #004a80;
+}
+
+.form-control,
+.form-check-input {
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    transition: all 0.3s ease;
+}
+
+    .form-control:focus,
+    .form-check-input:focus {
+        border-color: #007acc;
+        box-shadow: 0 0 0 0.2rem rgba(0, 122, 204, 0.25);
+    }
+
+    .form-check-input:checked {
+        background-color: #ff6b00;
+        border-color: #ff6b00;
+    }
+
+.btn-primary {
+    background-color: #007acc;
+    border-color: #007acc;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+    border-radius: 8px;
+}
+
+    .btn-primary:hover {
+        background-color: #005f99;
+        border-color: #005f99;
+    }
+
+.btn-secondary {
+    background-color: #007acc;
+    border-color: #007acc;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+    border-radius: 8px;
+    margin-left: 10px;
+}
+
+    .btn-secondary:hover {
+        background-color: #e65c00;
+        border-color: #e65c00;
+    }
+
+.text-danger {
+    color: #d9534f;
+    font-size: 0.875em;
+}
+
+#empresasBox {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f0f8ff;
+    border-left: 5px solid #007acc;
+    border-radius: 8px;
+}
+
+.form-check-label {
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .col-md-4 {
+        margin-bottom: 10px;
+    }
+
+    form {
+        padding: 20px;
+    }
+}

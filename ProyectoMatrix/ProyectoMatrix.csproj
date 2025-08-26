@@ -7,6 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Views\Comunicados\GestionComunicados.cshtml.cs" />
+    <Compile Remove="Views\Comunicados\IndexComunicados.cshtml.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="Views\Comunicados\GestionComunicados.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="Servicios\Servicios.cs" />
   </ItemGroup>
 

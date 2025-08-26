@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using ProyectoMatrix.Controllers;
 using ProyectoMatrix.Servicios;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +40,10 @@ builder.Services.AddScoped<UniversidadServices>();
 
 builder.Services.AddScoped<AsignacionesController>();
 
+builder.Services.AddAuthorization();
+
+
+
 // Agregar la autenticación antes de construir la app
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -46,6 +52,29 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LogoutPath = "/Login/Logout";
     });
 
+
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("GestionComunicados", policy =>
+        policy.RequireAssertion(ctx =>
+        {
+            // por nombre de rol:
+            var r = ctx.User.FindFirst(ClaimTypes.Role)?.Value;
+            if (r == "Administrador de Intranet" || r == "Propietario de Contenido" || r == "Autor/Editor de Contenido")
+                return true;
+
+            // o por RolID:
+            var rid = ctx.User.FindFirst("RolID")?.Value;
+            return rid == "1" || rid == "3" || rid == "4";
+        }));
+});
+//CONFIGURAAR PARA QUE ACEPTE ARCHIVOS GRANDES, EN ESTE CASO VIDEOS
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 104_857_600; // 100 MB
+});
 
 
 
@@ -61,6 +90,7 @@ if (!app.Environment.IsDevelopment())
 
 // ? COMENTAR O QUITAR ESTA LÍNEA para HTTP
 // app.UseHttpsRedirection();
+
 
 
 app.Use(async (context, next) =>
