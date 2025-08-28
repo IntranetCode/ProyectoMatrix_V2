@@ -286,6 +286,15 @@
                             @if (Model.CursoCompletado)
                             {
                                 <span class="badge bg-success">Completado</span>
+                                <br />
+                                <!-- Botón para descargar certificado -->
+                                <a asp-controller="Universidad"
+                                   asp-action="DescargarCertificado"
+                                   asp-route-id="@Model.Curso.CursoID"
+                                   class="btn btn-success btn-sm mt-2">
+                                    <i class="fas fa-certificate me-2"></i> Descargar Certificado
+                                </a>
+
                             }
                             else if (Model.ProgresoGeneral > 0)
                             {

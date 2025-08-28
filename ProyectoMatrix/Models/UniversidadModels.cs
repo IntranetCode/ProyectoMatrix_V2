@@ -253,6 +253,10 @@ namespace ProyectoMatrix.Models
         public int TotalCursosCreados { get; set; }
         public int CertificadosEmitidosMes { get; set; }
 
+        public int TotalSubCursos { get; set; }
+        public int SubCursosCompletados { get; set; }
+
+
         // Helpers
         public string TiempoTotalEstudioTexto =>
             TimeSpan.FromMinutes(TiempoTotalEstudio).ToString(@"hh\:mm");
@@ -573,23 +577,32 @@ namespace ProyectoMatrix.Models
     public class EntregarEvaluacionRequest
     {
         public int SubCursoId { get; set; }
-        public Dictionary<string, RespuestaUsuario> Respuestas { get; set; } = new();
-        public int TiempoEmpleado { get; set; }
+        public int UsuarioId { get; set; }
+        public int EmpresaId { get; set; }
+        public int TiempoEmpleado { get; set; } // en minutos
+        public Dictionary<int, RespuestaDto> Respuestas { get; set; } = new();
     }
 
-    public class RespuestaUsuario
+    public class RespuestaDto
     {
         public string Tipo { get; set; } = string.Empty; // "opcion" o "abierta"
-        public int? OpcionId { get; set; }
-        public string? Texto { get; set; }
+        public int? OpcionId { get; set; }               // para opcion múltiple o V/F
+        public string? Texto { get; set; }               // para preguntas abiertas
     }
 
-    public class ResultadoEvaluacion
+    public class ResultadoEvaluacionDto
     {
         public bool Success { get; set; }
         public string Message { get; set; } = string.Empty;
         public decimal Calificacion { get; set; }
         public bool Aprobado { get; set; }
+
+        public bool CursoCompleto { get; set; }
+        public string NombreUsuario { get; set; } = "";
+        public string NombreCurso { get; set; } = "";
+
+        public string CodigoCertificado { get; set; }
+        public int? CertificadoId { get; set; }
     }
 
     /*
