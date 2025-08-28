@@ -411,129 +411,116 @@
 </div>
 </div>
 
-<!-- Estilos CSS -->
 <style>
+    :root {
+        --primary: #004AAD; /* Azul corporativo */
+        --secondary: #FF6F00; /* Naranja corporativo */
+        --success: #2E7D32;
+        --warning: #FFC107;
+        --info: #0288D1;
+        --danger: #D32F2F;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-400: #9ca3af;
+        --gray-600: #4b5563;
+        --gray-700: #374151;
+        --gray-800: #1f2937;
+    }
+
     .tomar-curso-container {
         min-height: 100vh;
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #eef4ff 100%);
+        font-family: 'Segoe UI', Roboto, sans-serif;
     }
 
+    /* ===== HEADER CURSO ===== */
     .curso-header {
         background: white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         padding: 2rem 0;
-    }
-
-    .breadcrumb {
-        background: none;
-        padding: 0;
-        margin-bottom: 1rem;
-    }
-
-    .breadcrumb-item a {
-        color: var(--universidad-primary);
-        text-decoration: none;
-    }
-
-    .breadcrumb-item.active {
-        color: var(--gray-600);
-    }
-
-    .nivel-badge {
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 0.5rem 1rem;
+        border-bottom: 4px solid var(--primary);
     }
 
     .curso-title {
-        color: var(--gray-800);
-        font-weight: 700;
-        font-size: 2.5rem;
+        color: var(--primary);
+        font-weight: 800;
+        font-size: 2.3rem;
         margin-bottom: 1rem;
-        line-height: 1.2;
     }
 
     .curso-description {
         color: var(--gray-600);
         font-size: 1.1rem;
         line-height: 1.6;
-        margin: 0;
     }
 
+    .nivel-badge {
+        background: var(--secondary);
+        color: white;
+        border-radius: 20px;
+        padding: 0.4rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* ===== PROGRESO GENERAL ===== */
     .stat-card {
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-radius: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         padding: 1.5rem;
         text-align: center;
     }
 
-    .stat-header {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-        color: var(--gray-600);
-        font-weight: 500;
-    }
-
     .progress-circle {
-        width: 80px;
-        height: 80px;
+        width: 90px;
+        height: 90px;
         border-radius: 50%;
-        background: conic-gradient(var(--universidad-primary) 0deg, var(--universidad-primary) calc(var(--percentage) * 3.6deg), var(--gray-200) calc(var(--percentage) * 3.6deg));
+        background: conic-gradient(var(--primary) 0deg, var(--primary) calc(var(--percentage) * 3.6deg), var(--gray-200) calc(var(--percentage) * 3.6deg));
         display: flex;
         align-items: center;
         justify-content: center;
         margin: 0 auto 1rem;
         position: relative;
+        transition: background 0.8s ease;
     }
 
     .progress-circle-inner {
-        width: 60px;
-        height: 60px;
+        width: 65px;
+        height: 65px;
         background: white;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-
-    .progress-percentage {
-        font-weight: 700;
-        color: var(--universidad-primary);
+        font-weight: 800;
         font-size: 1.1rem;
+        color: var(--primary);
     }
 
+    /* ===== SUBCURSOS ===== */
     .subcursos-container {
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-radius: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         overflow: hidden;
+        margin-top: 2rem;
     }
 
     .subcursos-header {
-        padding: 2rem;
+        padding: 1.5rem;
         border-bottom: 1px solid var(--gray-200);
         background: var(--gray-50);
-    }
-
-        .subcursos-header h4 {
-            color: var(--gray-800);
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-
-    .subcursos-list {
-        padding: 0;
+        font-weight: 700;
+        color: var(--primary);
     }
 
     .subcurso-item {
-        border-bottom: 1px solid var(--gray-100);
         transition: all 0.3s ease;
+        border-bottom: 1px solid var(--gray-100);
     }
 
         .subcurso-item:last-child {
@@ -544,155 +531,93 @@
             background: var(--gray-50);
         }
 
+        .subcurso-item.completed {
+            background: linear-gradient(90deg, rgba(46, 125, 50, 0.12) 0%, transparent 100%);
+            border-left: 4px solid var(--success);
+        }
+
+        .subcurso-item.in-progress {
+            background: linear-gradient(90deg, rgba(0, 74, 173, 0.15) 0%, transparent 100%);
+            border-left: 4px solid var(--primary);
+        }
+
         .subcurso-item.locked {
             opacity: 0.6;
             background: var(--gray-50);
         }
 
-        .subcurso-item.completed {
-            background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, transparent 100%);
-            border-left: 4px solid var(--color-success);
-        }
-
-        .subcurso-item.in-progress {
-            background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, transparent 100%);
-            border-left: 4px solid var(--universidad-primary);
-        }
-
     .subcurso-card {
         display: flex;
-        align-items: flex-start;
-        padding: 1.5rem;
+        padding: 1.2rem 1.5rem;
         gap: 1rem;
     }
 
     .subcurso-number {
         flex-shrink: 0;
-        width: 40px;
-        height: 40px;
+        width: 42px;
+        height: 42px;
         border-radius: 50%;
         background: var(--gray-200);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 600;
+        font-weight: 700;
         color: var(--gray-600);
     }
 
     .subcurso-item.completed .subcurso-number {
-        background: var(--color-success);
+        background: var(--success);
         color: white;
     }
 
     .subcurso-item.in-progress .subcurso-number {
-        background: var(--universidad-primary);
+        background: var(--primary);
         color: white;
-    }
-
-    .subcurso-content {
-        flex-grow: 1;
-    }
-
-    .subcurso-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 0.5rem;
     }
 
     .subcurso-title {
+        font-weight: 700;
+        font-size: 1.05rem;
         color: var(--gray-800);
-        font-weight: 600;
-        font-size: 1.1rem;
-        margin: 0;
-        line-height: 1.4;
-    }
-
-    .subcurso-badges {
-        display: flex;
-        gap: 0.5rem;
-        flex-shrink: 0;
-        margin-left: 1rem;
+        margin-bottom: 0.3rem;
     }
 
     .subcurso-description {
-        color: var(--gray-600);
-        margin-bottom: 1rem;
-        line-height: 1.5;
-    }
-
-    .subcurso-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .meta-item {
-        display: flex;
-        align-items: center;
         font-size: 0.9rem;
         color: var(--gray-600);
+        margin-bottom: 0.6rem;
     }
 
-    .subcurso-progress {
-        margin-bottom: 1rem;
-    }
-
-    .progress-sm {
-        height: 6px;
-    }
-
-    .progress-xs {
-        height: 4px;
-    }
-
-    .subcurso-actions {
-        flex-shrink: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 0.5rem;
-    }
-
-    .btn-universidad {
-        background: var(--universidad-primary);
+    .subcurso-actions .btn-universidad {
+        background: var(--primary);
         color: white;
-        border: none;
-        border-radius: 6px;
-        padding: 0.5rem 1rem;
-        font-weight: 500;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
+        border-radius: 8px;
+        padding: 0.4rem 1rem;
+        font-weight: 600;
         transition: all 0.3s ease;
     }
 
-        .btn-universidad:hover {
-            background: var(--universidad-secondary);
-            color: white;
-            text-decoration: none;
-            transform: translateY(-1px);
+        .subcurso-actions .btn-universidad:hover {
+            background: var(--secondary);
+            transform: translateY(-2px);
         }
 
+    /* ===== INFO EXTRA ===== */
     .info-card {
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-radius: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         overflow: hidden;
+        margin-top: 2rem;
     }
 
     .info-card-header {
-        padding: 1rem 1.5rem;
         background: var(--gray-50);
+        padding: 1rem 1.5rem;
         border-bottom: 1px solid var(--gray-200);
+        font-weight: 700;
+        color: var(--primary);
     }
-
-        .info-card-header h6 {
-            margin: 0;
-            color: var(--gray-800);
-            font-weight: 600;
-        }
 
     .info-card-body {
         padding: 1.5rem;
@@ -701,8 +626,7 @@
     .info-item {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 0;
+        padding: 0.8rem 0;
         border-bottom: 1px solid var(--gray-100);
     }
 
@@ -716,144 +640,49 @@
     }
 
     .info-value {
-        font-weight: 600;
+        font-weight: 700;
         color: var(--gray-800);
     }
 
-    .progress-detailed {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .progress-item-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-    }
-
-    .progress-item-title {
-        font-size: 0.9rem;
-        color: var(--gray-700);
-        font-weight: 500;
-    }
-
-    .progress-item-percentage {
-        font-size: 0.8rem;
-        color: var(--gray-500);
-        font-weight: 600;
-    }
-
+    /* ===== NEXT STEP HIGHLIGHT ===== */
     .next-step {
         text-align: center;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
     }
 
     .next-step-title {
-        color: var(--gray-800);
-        font-weight: 600;
+        font-weight: 700;
+        color: var(--primary);
         margin-bottom: 0.5rem;
     }
 
     .next-step-description {
         font-size: 0.9rem;
-        line-height: 1.4;
+        color: var(--gray-700);
     }
 
-    .tips-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-
-    .tip-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-
-    .evaluacion-estado .alert {
-        margin: 0;
-    }
-
+    /* ===== RESPONSIVE ===== */
     @@media (max-width: 768px) {
         .curso-title
 
     {
-        font-size: 1.8rem;
+        font-size: 1.7rem;
     }
 
     .subcurso-card {
         flex-direction: column;
-        gap: 1rem;
+        text-align: center;
     }
 
     .subcurso-actions {
-        align-items: stretch;
-    }
-
-    .subcurso-header {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .subcurso-badges {
-        margin-left: 0;
-    }
-
-    .btn-universidad {
-        text-align: center;
-        justify-content: center;
+        align-items: center;
     }
 
     }
 
-    /* Animación para el círculo de progreso */
+    /* Animación dinámica del círculo */
     .progress-circle {
         --percentage: @Model.ProgresoGeneral;
     }
 </style>
-
-<!-- JavaScript para interactividad -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Animación del círculo de progreso
-        const progressCircle = document.querySelector('.progress-circle');
-        if (progressCircle) {
-            const percentage = progressCircle.dataset.percentage;
-            progressCircle.style.setProperty('--percentage', percentage);
-        }
-
-        // Smooth scroll para navegación interna
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            });
-        });
-
-        // Destacar próximo paso al hacer scroll
-        const nextStepCard = document.querySelector('.next-step');
-        if (nextStepCard) {
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.style.transform = 'scale(1.02)';
-                        entry.target.style.boxShadow = '0 4px 20px rgba(59, 130, 246, 0.2)';
-                    } else {
-                        entry.target.style.transform = 'scale(1)';
-                        entry.target.style.boxShadow = 'none';
-                    }
-                });
-            }, { threshold: 0.5 });
-
-            observer.observe(nextStepCard.closest('.info-card'));
-        }
-    });
-</script>

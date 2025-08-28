@@ -4,50 +4,136 @@
     ViewData["Title"] = "Mis Certificados";
 }
 
-<div class="container mt-4">
-    <h2 class="mb-3">📜 Mis Certificados</h2>
+<div class="container mt-4 mis-certificados-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="page-title">📜 Mis Certificados</h2>
+        <span class="badge bg-primary fs-6">
+            Total: @Model.Count
+        </span>
+    </div>
 
     @if (!Model.Any())
     {
-        <div class="alert alert-info">No tienes certificados emitidos aún.</div>
+        <div class="empty-state text-center p-5">
+            <i class="fas fa-award fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Aún no tienes certificados</h5>
+            <p class="text-muted">Completa cursos para obtener tus reconocimientos 🎓</p>
+        </div>
     }
     else
     {
-        <table class="table table-bordered table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>Curso</th>
-                    <th>Código</th>
-                    <th>Fecha de Emisión</th>
-                    <th>Descargar</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var cert in Model)
-                {
-                    <tr>
-                        <td>@cert.NombreCurso</td>
-                        <td>@cert.CodigoCertificado</td>
-                        <td>@cert.FechaEmision.ToString("dd/MM/yyyy")</td>
-                        <td>
+        <div class="row g-4">
+            @foreach (var cert in Model)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <div class="certificado-card h-100">
+                        <div class="certificado-icon">
+                            <i class="fas fa-certificate"></i>
+                        </div>
+                        <div class="certificado-body">
+                            <h5 class="certificado-title">@cert.NombreCurso</h5>
+                            <p class="certificado-code">Código: <strong>@cert.CodigoCertificado</strong></p>
+                            <p class="certificado-date">
+                                Emitido el @cert.FechaEmision.ToString("dd/MM/yyyy")
+                            </p>
+                        </div>
+                        <div class="certificado-footer">
                             @if (!string.IsNullOrEmpty(cert.ArchivoPDF))
                             {
                                 <a asp-controller="Certificados"
                                    asp-action="DescargarCertificado"
                                    asp-route-id="@cert.CertificadoID"
-                                   class="btn btn-sm btn-primary">
+                                   class="btn btn-download">
                                     📥 Descargar
                                 </a>
-
                             }
                             else
                             {
                                 <span class="text-muted">No disponible</span>
                             }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
     }
 </div>
+
+<!-- 🎨 Estilos CSS -->
+<style>
+    .mis-certificados-container {
+        font-family: 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .page-title {
+        color: #004AAD; /* Azul corporativo */
+        font-weight: 800;
+    }
+
+    /* ===== Tarjeta de certificado ===== */
+    .certificado-card {
+        background: white;
+        border-radius: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+        .certificado-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+        }
+
+    .certificado-icon {
+        font-size: 2rem;
+        color: #FF6F00; /* Naranja corporativo */
+        margin-bottom: 1rem;
+    }
+
+    .certificado-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #004AAD;
+        margin-bottom: 0.5rem;
+    }
+
+    .certificado-code {
+        font-size: 0.9rem;
+        color: #374151;
+        margin-bottom: 0.3rem;
+    }
+
+    .certificado-date {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+
+    .certificado-footer {
+        margin-top: 1rem;
+    }
+
+    .btn-download {
+        background: #004AAD;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+        .btn-download:hover {
+            background: #FF6F00;
+            color: white;
+        }
+
+    /* ===== Estado vacío ===== */
+    .empty-state {
+        background: white;
+        border-radius: 14px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+</style>
