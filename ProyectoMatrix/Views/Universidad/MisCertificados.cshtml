@@ -32,12 +32,13 @@
                         <td>
                             @if (!string.IsNullOrEmpty(cert.ArchivoPDF))
                             {
-                                <a asp-controller="Universidad"
+                                <a asp-controller="Certificados"
                                    asp-action="DescargarCertificado"
                                    asp-route-id="@cert.CertificadoID"
                                    class="btn btn-sm btn-primary">
                                     📥 Descargar
                                 </a>
+
                             }
                             else
                             {
