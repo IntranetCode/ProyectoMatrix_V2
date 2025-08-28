@@ -134,10 +134,10 @@ namespace ProyectoMatrix.Controllers
                     request.IdCurso,
                     request.UsuariosSeleccionados,
                     usuarioCreador.Value,
-                    empresaId,
                     request.FechaLimite,
                     request.Observaciones
                 );
+
 
                 if (resultado.Exito)
                 {

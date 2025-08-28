@@ -2276,7 +2276,6 @@ namespace ProyectoMatrix.Servicios
             int CursoID,
             List<int> usuariosSeleccionados,
             int usuarioCreador,
-            int empresaId,
             DateTime? fechaLimite,
             string? observaciones)
         {
@@ -2299,7 +2298,7 @@ namespace ProyectoMatrix.Servicios
                         if (!yaAsignado)
                         {
                             await AsignarCursoIndividualAsync(
-                                usuarioId, CursoID, usuarioCreador, empresaId, fechaLimite, observaciones,
+                                usuarioId, CursoID, usuarioCreador, fechaLimite, observaciones,
                                 connection, transaction);
                             usuariosAsignados++;
                         }
@@ -2355,9 +2354,30 @@ namespace ProyectoMatrix.Servicios
         }
 
         private async Task AsignarCursoIndividualAsync(int usuarioId, int cursoId, int usuarioCreador,
-            int empresaId, DateTime? fechaLimite, string? observaciones,
+            DateTime? fechaLimite, string? observaciones,
             SqlConnection connection, SqlTransaction transaction)
         {
+            // 1. Obtener empresa del usuario destino
+            var queryEmpresa = @"
+                SELECT TOP 1 EmpresaID 
+                FROM dbo.UsuariosEmpresas 
+                WHERE UsuarioID = @UsuarioId AND Activo = 1";
+
+
+
+            int empresaId;
+            using (var cmdEmpresa = new SqlCommand(queryEmpresa, connection, transaction))
+            {
+                cmdEmpresa.Parameters.AddWithValue("@UsuarioId", usuarioId);
+                var result = await cmdEmpresa.ExecuteScalarAsync();
+
+                if (result == null || result == DBNull.Value)
+                    throw new Exception($"El usuario {usuarioId} no tiene empresa asignada en UsuariosEmpresas.");
+
+                empresaId = (int)result;
+            }
+
+            // 2. Insertar la asignación con esa empresa
             var query = @"
                 INSERT INTO dbo.AsignacionesCursos 
                 (UsuarioID, CursoID, AsignadoPorUsuarioID, EmpresaID, TipoAsignacionID, 
@@ -2365,7 +2385,6 @@ namespace ProyectoMatrix.Servicios
                 VALUES 
                 (@UsuarioId, @CursoId, @UsuarioCreador, @EmpresaId, 1, 
                  GETDATE(), @FechaLimite, 1, @Observaciones, 1)";
-
             using var command = new SqlCommand(query, connection, transaction);
             command.Parameters.AddWithValue("@UsuarioId", usuarioId);
             command.Parameters.AddWithValue("@CursoId", cursoId);
@@ -2376,7 +2395,6 @@ namespace ProyectoMatrix.Servicios
 
             await command.ExecuteNonQueryAsync();
         }
-
         public async Task<List<AsignacionRecienteViewModel>> GetAsignacionesRecientesAsync()
         {
             try
