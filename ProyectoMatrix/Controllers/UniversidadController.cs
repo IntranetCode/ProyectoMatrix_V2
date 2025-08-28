@@ -722,7 +722,7 @@ namespace ProyectoMatrix.Controllers
                 if (!usuarioId.HasValue)
                     return RedirectToAction("Index");
 
-                var certificados = await _universidadServices.GetCertificadosUsuarioAsync(usuarioId.Value);
+                var certificados = await _universidadServices.GetCertificadosUsuarioViewModelAsync(usuarioId.Value);
                 var certificado = certificados.FirstOrDefault(c => c.CertificadoID == id);
 
                 if (certificado == null || !certificado.TieneArchivo)
@@ -1514,8 +1514,7 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
-        //////////////// a partir de aqui es o de tomar curso
-        // MÉTODOS NECESARIOS EN UniversidadController.cs
+
 
 
 

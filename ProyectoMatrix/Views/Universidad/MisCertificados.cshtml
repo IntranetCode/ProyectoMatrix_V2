@@ -1,0 +1,49 @@
+﻿@model List<ProyectoMatrix.Models.CertificadoViewModel>
+
+@{
+    ViewData["Title"] = "Mis Certificados";
+}
+
+<div class="container mt-4">
+    <h2 class="mb-3">📜 Mis Certificados</h2>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-info">No tienes certificados emitidos aún.</div>
+    }
+    else
+    {
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Curso</th>
+                    <th>Código</th>
+                    <th>Fecha de Emisión</th>
+                    <th>Descargar</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var cert in Model)
+                {
+                    <tr>
+                        <td>@cert.NombreCurso</td>
+                        <td>@cert.CodigoCertificado</td>
+                        <td>@cert.FechaEmision.ToString("dd/MM/yyyy")</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(cert.ArchivoPDF))
+                            {
+                                <a href="@cert.ArchivoPDF" class="btn btn-sm btn-primary" target="_blank">
+                                    Descargar PDF
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">No disponible</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

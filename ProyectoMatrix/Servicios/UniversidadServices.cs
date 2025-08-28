@@ -471,61 +471,47 @@ namespace ProyectoMatrix.Servicios
         // SERVICIOS DE CERTIFICADOS
         // =====================================================
 
-        public async Task<List<CertificadoEmitido>> GetCertificadosUsuarioAsync(int usuarioId, int? empresaId = null)
+        public async Task<List<CertificadoViewModel>> GetCertificadosUsuarioAsync(int usuarioId, int? empresaId)
         {
-            var certificados = new List<CertificadoEmitido>();
+            var certificados = new List<CertificadoViewModel>();
 
-            using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync();
-
-            var query = @"
-                SELECT 
-                    ce.CertificadoID, ce.CodigoCertificado, ce.FechaEmision, ce.FechaExpiracion,
-                    ce.ArchivoPDF, ce.Activo,
-                    c.NombreCurso, n.NombreNivel, e.Nombre as NombreEmpresa,
-                    CASE 
-                        WHEN ce.FechaExpiracion IS NULL OR ce.FechaExpiracion > GETDATE() 
-                        THEN 'Vigente' 
-                        ELSE 'Expirado' 
-                    END AS Estado
-                FROM dbo.CertificadosEmitidos ce
-                INNER JOIN dbo.Cursos c ON ce.CursoID = c.CursoID
-                INNER JOIN dbo.NivelesEducativos n ON c.NivelID = n.NivelID
-                INNER JOIN dbo.Empresas e ON ce.EmpresaID = e.EmpresaID
-                WHERE ce.UsuarioID = @UsuarioID 
-                AND ce.Activo = 1" +
-                (empresaId.HasValue ? " AND ce.EmpresaID = @EmpresaID" : "") + @"
-                ORDER BY ce.FechaEmision DESC";
-
-            using var command = new SqlCommand(query, connection);
-            command.Parameters.Add("@UsuarioID", SqlDbType.Int).Value = usuarioId;
-
-            if (empresaId.HasValue)
+            using (var connection = new SqlConnection(_connectionString))
             {
-                command.Parameters.Add("@EmpresaID", SqlDbType.Int).Value = empresaId.Value;
-            }
+                await connection.OpenAsync();
 
-            using var reader = await command.ExecuteReaderAsync();
+                var query = @"
+            SELECT ce.CertificadoID, ce.CursoID, c.NombreCurso, ce.FechaEmision, 
+                   ce.CodigoCertificado, ce.ArchivoPDF
+            FROM CertificadosEmitidos ce
+            INNER JOIN Cursos c ON ce.CursoID = c.CursoID
+            WHERE ce.UsuarioID = @UsuarioID AND ce.EmpresaID = @EmpresaID AND ce.Activo = 1";
 
-            while (await reader.ReadAsync())
-            {
-                certificados.Add(new CertificadoEmitido
+                using (var cmd = new SqlCommand(query, connection))
                 {
-                    CertificadoID = reader.GetInt32("CertificadoID"),
-                    CodigoCertificado = reader.GetString("CodigoCertificado"),
-                    FechaEmision = reader.GetDateTime("FechaEmision"),
-                    FechaExpiracion = reader.IsDBNull("FechaExpiracion") ? null : reader.GetDateTime("FechaExpiracion"),
-                    ArchivoPDF = reader.IsDBNull("ArchivoPDF") ? null : reader.GetString("ArchivoPDF"),
-                    NombreCurso = reader.GetString("NombreCurso"),
-                    NombreNivel = reader.GetString("NombreNivel"),
-                    NombreEmpresa = reader.GetString("NombreEmpresa"),
-                    Estado = reader.GetString("Estado"),
-                    Activo = reader.GetBoolean("Activo")
-                });
+                    cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                    cmd.Parameters.AddWithValue("@EmpresaID", (object?)empresaId ?? DBNull.Value);
+
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            certificados.Add(new CertificadoViewModel
+                            {
+                                CertificadoID = reader.GetInt32(0),
+                                CursoID = reader.GetInt32(1),
+                                NombreCurso = reader.GetString(2),
+                                FechaEmision = reader.GetDateTime(3),
+                                CodigoCertificado = reader.GetString(4),
+                                ArchivoPDF = reader.IsDBNull(5) ? null : reader.GetString(5)
+                            });
+                        }
+                    }
+                }
             }
 
             return certificados;
         }
+
 
         // AGREGAR estos métodos al FINAL de tu UniversidadServices.cs
         // (después del último método GetCertificadosUsuarioAsync)
@@ -1648,7 +1634,7 @@ namespace ProyectoMatrix.Servicios
             int usuarioId, int subCursoId, int empresaId,
             SqlConnection connection, SqlTransaction transaction)
         {
-            // Marcar subcurso como completado
+            // 1️⃣ Marcar subcurso como completado (o insertar si no existe)
             var query = @"
         UPDATE dbo.AvancesSubCursos 
         SET Completado = 1, 
@@ -1656,7 +1642,6 @@ namespace ProyectoMatrix.Servicios
             PorcentajeVisto = 100
         WHERE UsuarioID = @UsuarioId AND SubCursoID = @SubCursoId AND EmpresaID = @EmpresaId;
 
-        -- Si no existe el registro, lo insertamos
         IF @@ROWCOUNT = 0
         BEGIN
             INSERT INTO dbo.AvancesSubCursos
@@ -1673,7 +1658,7 @@ namespace ProyectoMatrix.Servicios
                 await command.ExecuteNonQueryAsync();
             }
 
-            // Verificar si ya terminó TODO el curso
+            // 2️⃣ Obtener el curso al que pertenece este subcurso
             var cursoIdQuery = "SELECT CursoID FROM SubCursos WHERE SubCursoID = @SubCursoId";
             int cursoId;
             using (var cmd = new SqlCommand(cursoIdQuery, connection, transaction))
@@ -1682,7 +1667,7 @@ namespace ProyectoMatrix.Servicios
                 cursoId = (int)await cmd.ExecuteScalarAsync();
             }
 
-            // Contar subcursos totales
+            // 3️⃣ Contar subcursos totales del curso
             var totalSubcursosQuery = "SELECT COUNT(*) FROM SubCursos WHERE CursoID = @CursoId";
             int totalSubcursos;
             using (var cmd = new SqlCommand(totalSubcursosQuery, connection, transaction))
@@ -1691,7 +1676,7 @@ namespace ProyectoMatrix.Servicios
                 totalSubcursos = (int)await cmd.ExecuteScalarAsync();
             }
 
-            // Contar subcursos aprobados
+            // 4️⃣ Contar subcursos aprobados por el usuario
             var aprobadosQuery = @"
         SELECT COUNT(DISTINCT ie.SubCursoID)
         FROM IntentosEvaluacion ie
@@ -1705,26 +1690,25 @@ namespace ProyectoMatrix.Servicios
                 subcursosAprobados = (int)await cmd.ExecuteScalarAsync();
             }
 
-            // Si terminó todo, emitir certificado
+            // 5️⃣ Si aprobó todos los subcursos => generar certificado
             if (subcursosAprobados == totalSubcursos)
             {
                 var codigoCertificado = Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper();
 
-                // Buscar la plantilla por defecto activa con fallback
-                int plantillaId = 1; // Valor por defecto
+                // Buscar plantilla activa por defecto (con fallback a 1)
+                int plantillaId = 1;
                 using (var cmd = new SqlCommand(@"
-            SELECT ISNULL(
-                (SELECT TOP 1 PlantillaID
-                 FROM PlantillasCertificados
-                 WHERE EsPorDefecto = 1 AND Activo = 1
-                 ORDER BY FechaCreacion DESC), 1
-            ) AS PlantillaID;", connection, transaction))
+            SELECT TOP 1 PlantillaID
+            FROM PlantillasCertificados
+            WHERE EsPorDefecto = 1 AND Activo = 1
+            ORDER BY FechaCreacion DESC;", connection, transaction))
                 {
                     var val = await cmd.ExecuteScalarAsync();
-                    plantillaId = Convert.ToInt32(val);
+                    if (val != null && val != DBNull.Value)
+                        plantillaId = Convert.ToInt32(val);
                 }
 
-                // Verificar si ya existe un certificado para evitar duplicados
+                // Verificar que no exista ya un certificado activo
                 var existeCertificadoQuery = @"
             SELECT COUNT(*) 
             FROM CertificadosEmitidos 
@@ -1738,7 +1722,7 @@ namespace ProyectoMatrix.Servicios
 
                     var count = (int)await cmd.ExecuteScalarAsync();
 
-                    if (count == 0) // Solo crear si no existe
+                    if (count == 0) // Solo si no existe
                     {
                         var insertCertificado = @"
                     INSERT INTO CertificadosEmitidos
@@ -1756,18 +1740,19 @@ namespace ProyectoMatrix.Servicios
 
                             await cmdInsert.ExecuteNonQueryAsync();
 
-                            _logger.LogInformation("Certificado creado exitosamente. Usuario={UsuarioId}, Curso={CursoId}, Codigo={Codigo}",
+                            _logger.LogInformation("✅ Certificado creado. Usuario={UsuarioId}, Curso={CursoId}, Codigo={Codigo}",
                                 usuarioId, cursoId, codigoCertificado);
                         }
                     }
                     else
                     {
-                        _logger.LogInformation("El certificado ya existe para Usuario={UsuarioId}, Curso={CursoId}",
+                        _logger.LogInformation("⚠️ El certificado ya existe. Usuario={UsuarioId}, Curso={CursoId}",
                             usuarioId, cursoId);
                     }
                 }
             }
         }
+
 
 
         // =====================================================

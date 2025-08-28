@@ -833,6 +833,18 @@ namespace ProyectoMatrix.Models
         public Dictionary<int, string> Respuestas { get; set; } = new Dictionary<int, string>();
     }
 
+    public class CertificadoViewModel
+    {
+        public int CertificadoID { get; set; }
+        public int CursoID { get; set; }
+        public string NombreCurso { get; set; }
+        public string CodigoCertificado { get; set; }
+        public DateTime FechaEmision { get; set; }
+        public string ArchivoPDF { get; set; }
+        public string Estado { get; set; } = "Vigente"; // 🔹 Agregada
+    }
+
+
 
 
 }
