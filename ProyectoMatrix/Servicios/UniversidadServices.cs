@@ -1634,20 +1634,20 @@ namespace ProyectoMatrix.Servicios
             int usuarioId, int subCursoId, int empresaId,
             SqlConnection connection, SqlTransaction transaction)
         {
-            // 1️⃣ Marcar subcurso como completado (o insertar si no existe)
+            // 1️⃣ Marcar subcurso como completado
             var query = @"
-        UPDATE dbo.AvancesSubCursos 
-        SET Completado = 1, 
-            FechaCompletado = GETDATE(), 
-            PorcentajeVisto = 100
-        WHERE UsuarioID = @UsuarioId AND SubCursoID = @SubCursoId AND EmpresaID = @EmpresaId;
+    UPDATE dbo.AvancesSubCursos 
+    SET Completado = 1, 
+        FechaCompletado = GETDATE(), 
+        PorcentajeVisto = 100
+    WHERE UsuarioID = @UsuarioId AND SubCursoID = @SubCursoId AND EmpresaID = @EmpresaId;
 
-        IF @@ROWCOUNT = 0
-        BEGIN
-            INSERT INTO dbo.AvancesSubCursos
-            (UsuarioID, SubCursoID, EmpresaID, Completado, FechaCompletado, PorcentajeVisto)
-            VALUES (@UsuarioId, @SubCursoId, @EmpresaId, 1, GETDATE(), 100)
-        END;";
+    IF @@ROWCOUNT = 0
+    BEGIN
+        INSERT INTO dbo.AvancesSubCursos
+        (UsuarioID, SubCursoID, EmpresaID, Completado, FechaCompletado, PorcentajeVisto)
+        VALUES (@UsuarioId, @SubCursoId, @EmpresaId, 1, GETDATE(), 100)
+    END;";
 
             using (var command = new SqlCommand(query, connection, transaction))
             {
@@ -1659,30 +1659,28 @@ namespace ProyectoMatrix.Servicios
             }
 
             // 2️⃣ Obtener el curso al que pertenece este subcurso
-            var cursoIdQuery = "SELECT CursoID FROM SubCursos WHERE SubCursoID = @SubCursoId";
             int cursoId;
-            using (var cmd = new SqlCommand(cursoIdQuery, connection, transaction))
+            using (var cmd = new SqlCommand("SELECT CursoID FROM SubCursos WHERE SubCursoID = @SubCursoId", connection, transaction))
             {
                 cmd.Parameters.AddWithValue("@SubCursoId", subCursoId);
                 cursoId = (int)await cmd.ExecuteScalarAsync();
             }
 
             // 3️⃣ Contar subcursos totales del curso
-            var totalSubcursosQuery = "SELECT COUNT(*) FROM SubCursos WHERE CursoID = @CursoId";
             int totalSubcursos;
-            using (var cmd = new SqlCommand(totalSubcursosQuery, connection, transaction))
+            using (var cmd = new SqlCommand("SELECT COUNT(*) FROM SubCursos WHERE CursoID = @CursoId", connection, transaction))
             {
                 cmd.Parameters.AddWithValue("@CursoId", cursoId);
                 totalSubcursos = (int)await cmd.ExecuteScalarAsync();
             }
 
-            // 4️⃣ Contar subcursos aprobados por el usuario
+            // 4️⃣ Contar subcursos aprobados
+            int subcursosAprobados;
             var aprobadosQuery = @"
         SELECT COUNT(DISTINCT ie.SubCursoID)
         FROM IntentosEvaluacion ie
         INNER JOIN SubCursos s ON ie.SubCursoID = s.SubCursoID
         WHERE ie.UsuarioID = @UsuarioId AND ie.Aprobado = 1 AND s.CursoID = @CursoId";
-            int subcursosAprobados;
             using (var cmd = new SqlCommand(aprobadosQuery, connection, transaction))
             {
                 cmd.Parameters.AddWithValue("@UsuarioId", usuarioId);
@@ -1690,12 +1688,12 @@ namespace ProyectoMatrix.Servicios
                 subcursosAprobados = (int)await cmd.ExecuteScalarAsync();
             }
 
-            // 5️⃣ Si aprobó todos los subcursos => generar certificado
+            // 5️⃣ Si aprobó todo → generar certificado
             if (subcursosAprobados == totalSubcursos)
             {
                 var codigoCertificado = Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper();
 
-                // Buscar plantilla activa por defecto (con fallback a 1)
+                // Buscar plantilla activa
                 int plantillaId = 1;
                 using (var cmd = new SqlCommand(@"
             SELECT TOP 1 PlantillaID
@@ -1708,50 +1706,122 @@ namespace ProyectoMatrix.Servicios
                         plantillaId = Convert.ToInt32(val);
                 }
 
-                // Verificar que no exista ya un certificado activo
-                var existeCertificadoQuery = @"
+                // Evitar duplicados
+                int existe;
+                using (var cmd = new SqlCommand(@"
             SELECT COUNT(*) 
             FROM CertificadosEmitidos 
-            WHERE UsuarioID = @UsuarioID AND CursoID = @CursoID AND EmpresaID = @EmpresaID AND Activo = 1";
-
-                using (var cmd = new SqlCommand(existeCertificadoQuery, connection, transaction))
+            WHERE UsuarioID=@UsuarioID AND CursoID=@CursoID AND EmpresaID=@EmpresaID AND Activo=1", connection, transaction))
                 {
                     cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
                     cmd.Parameters.AddWithValue("@CursoID", cursoId);
                     cmd.Parameters.AddWithValue("@EmpresaID", empresaId);
+                    existe = (int)await cmd.ExecuteScalarAsync();
+                }
 
-                    var count = (int)await cmd.ExecuteScalarAsync();
+                if (existe == 0)
+                {
+                    // 🔥 Generar PDF físico
+                    var nombreArchivo = $"Certificado_{codigoCertificado}.pdf";
+                    var rutaArchivo = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/certificados", nombreArchivo);
 
-                    if (count == 0) // Solo si no existe
+                    // Crear carpeta si no existe
+                    var carpeta = Path.GetDirectoryName(rutaArchivo);
+                    if (!Directory.Exists(carpeta))
+                        Directory.CreateDirectory(carpeta);
+
+                    // Obtener datos usuario (JOIN con Persona) y curso
+                    string nombreUsuario = "USUARIO";
+                    string nombreCurso = "CURSO";
+
+                    using (var cmdUsr = new SqlCommand(@"
+                SELECT p.Nombre + ' ' + p.ApellidoPaterno + ' ' + p.ApellidoMaterno
+                FROM Usuarios u
+                INNER JOIN Persona p ON u.PersonaID = p.PersonaID
+                WHERE u.UsuarioID = @UsuarioID", connection, transaction))
                     {
-                        var insertCertificado = @"
-                    INSERT INTO CertificadosEmitidos
-                        (UsuarioID, CursoID, FechaEmision, PlantillaID, CodigoCertificado, EmpresaID, Activo)
-                    VALUES
-                        (@UsuarioID, @CursoID, GETDATE(), @PlantillaID, @CodigoCertificado, @EmpresaID, 1);";
-
-                        using (var cmdInsert = new SqlCommand(insertCertificado, connection, transaction))
-                        {
-                            cmdInsert.Parameters.AddWithValue("@UsuarioID", usuarioId);
-                            cmdInsert.Parameters.AddWithValue("@CursoID", cursoId);
-                            cmdInsert.Parameters.AddWithValue("@PlantillaID", plantillaId);
-                            cmdInsert.Parameters.AddWithValue("@CodigoCertificado", codigoCertificado);
-                            cmdInsert.Parameters.AddWithValue("@EmpresaID", empresaId);
-
-                            await cmdInsert.ExecuteNonQueryAsync();
-
-                            _logger.LogInformation("✅ Certificado creado. Usuario={UsuarioId}, Curso={CursoId}, Codigo={Codigo}",
-                                usuarioId, cursoId, codigoCertificado);
-                        }
+                        cmdUsr.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                        var val = await cmdUsr.ExecuteScalarAsync();
+                        if (val != null) nombreUsuario = val.ToString();
                     }
-                    else
+
+                    using (var cmdCurso = new SqlCommand("SELECT NombreCurso FROM Cursos WHERE CursoID=@CursoID", connection, transaction))
                     {
-                        _logger.LogInformation("⚠️ El certificado ya existe. Usuario={UsuarioId}, Curso={CursoId}",
-                            usuarioId, cursoId);
+                        cmdCurso.Parameters.AddWithValue("@CursoID", cursoId);
+                        var val = await cmdCurso.ExecuteScalarAsync();
+                        if (val != null) nombreCurso = val.ToString();
                     }
+
+                    // Logo
+                    var logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Imagenes/logo.png");
+                    var logo = File.Exists(logoPath) ? File.ReadAllBytes(logoPath) : new byte[0];
+
+                    var certificadoPdf = new CertificadoDocument(nombreUsuario, nombreCurso, DateTime.Now, logo);
+                    certificadoPdf.GeneratePdf(rutaArchivo);
+
+                    // 7️⃣ Insertar en BD con ArchivoPDF
+                    var insertCertificado = @"
+                INSERT INTO CertificadosEmitidos
+                    (UsuarioID, CursoID, FechaEmision, PlantillaID, CodigoCertificado, EmpresaID, Activo, ArchivoPDF)
+                VALUES
+                    (@UsuarioID, @CursoID, GETDATE(), @PlantillaID, @CodigoCertificado, @EmpresaID, 1, @ArchivoPDF);";
+
+                    using (var cmdInsert = new SqlCommand(insertCertificado, connection, transaction))
+                    {
+                        cmdInsert.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                        cmdInsert.Parameters.AddWithValue("@CursoID", cursoId);
+                        cmdInsert.Parameters.AddWithValue("@PlantillaID", plantillaId);
+                        cmdInsert.Parameters.AddWithValue("@CodigoCertificado", codigoCertificado);
+                        cmdInsert.Parameters.AddWithValue("@EmpresaID", empresaId);
+                        cmdInsert.Parameters.AddWithValue("@ArchivoPDF", nombreArchivo);
+
+                        await cmdInsert.ExecuteNonQueryAsync();
+                    }
+
+                    _logger.LogInformation("✅ Certificado generado en PDF. Usuario={UsuarioId}, Curso={CursoId}, Archivo={Archivo}",
+                        usuarioId, cursoId, nombreArchivo);
                 }
             }
         }
+
+
+
+
+        public async Task<CertificadoEmitido?> GetCertificadoAsync(int certificadoId, int usuarioId)
+        {
+            CertificadoEmitido? cert = null;
+            string query = @"
+        SELECT CertificadoID, CodigoCertificado, ArchivoPDF
+        FROM CertificadosEmitidos
+        WHERE CertificadoID = @CertificadoID AND UsuarioID = @UsuarioID";
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@CertificadoID", certificadoId);
+                    cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            cert = new CertificadoEmitido
+                            {
+                                CertificadoID = reader.GetInt32(0),
+                                CodigoCertificado = reader.GetString(1),
+                                ArchivoPDF = reader.IsDBNull(2) ? null : reader.GetString(2)
+                            };
+                        }
+                    }
+                }
+            }
+
+            return cert;
+        }
+
+
 
 
 
@@ -3004,6 +3074,30 @@ namespace ProyectoMatrix.Servicios
             cmd.Parameters.AddWithValue("@CursoID", cursoId);
             return (int)await cmd.ExecuteScalarAsync();
         }
+
+
+        private async Task<string> GetNombreUsuarioAsync(int usuarioId, SqlConnection connection, SqlTransaction transaction)
+        {
+            var query = "SELECT Nombre FROM Usuarios WHERE UsuarioID = @UsuarioID";
+            using (var cmd = new SqlCommand(query, connection, transaction))
+            {
+                cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                var result = await cmd.ExecuteScalarAsync();
+                return result?.ToString() ?? "Alumno";
+            }
+        }
+
+        private async Task<string> GetNombreCursoAsync(int cursoId, SqlConnection connection, SqlTransaction transaction)
+        {
+            var query = "SELECT NombreCurso FROM Cursos WHERE CursoID = @CursoID";
+            using (var cmd = new SqlCommand(query, connection, transaction))
+            {
+                cmd.Parameters.AddWithValue("@CursoID", cursoId);
+                var result = await cmd.ExecuteScalarAsync();
+                return result?.ToString() ?? "Curso";
+            }
+        }
+
 
 
 

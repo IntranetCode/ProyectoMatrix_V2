@@ -1,4 +1,4 @@
-﻿@model List<ProyectoMatrix.Models.CertificadoViewModel>
+﻿@model List<ProyectoMatrix.Models.CertificadoUsuarioViewModel>
 
 @{
     ViewData["Title"] = "Mis Certificados";
@@ -32,8 +32,11 @@
                         <td>
                             @if (!string.IsNullOrEmpty(cert.ArchivoPDF))
                             {
-                                <a href="@cert.ArchivoPDF" class="btn btn-sm btn-primary" target="_blank">
-                                    Descargar PDF
+                                <a asp-controller="Universidad"
+                                   asp-action="DescargarCertificado"
+                                   asp-route-id="@cert.CertificadoID"
+                                   class="btn btn-sm btn-primary">
+                                    📥 Descargar
                                 </a>
                             }
                             else

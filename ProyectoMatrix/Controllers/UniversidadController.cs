@@ -696,7 +696,7 @@ namespace ProyectoMatrix.Controllers
                 if (!usuarioId.HasValue)
                     return RedirectToAction("Index");
 
-                var certificados = await _universidadServices.GetCertificadosUsuarioAsync(
+                var certificados = await _universidadServices.GetCertificadosUsuarioViewModelAsync(
                     usuarioId.Value, empresaId);
 
                 return View(certificados);
@@ -1520,7 +1520,7 @@ namespace ProyectoMatrix.Controllers
 
 
 
- 
+
 
     }
 }
