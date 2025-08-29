@@ -102,8 +102,22 @@ namespace ProyectoMatrix.Controllers
 
             if (rol != "Administrador")
             {
+                bool esGestor = User.IsInRole("Autor/Editor de Contenido")
+             || User.IsInRole("Administrador de Intranet")
+             || User.IsInRole("Propietario de Contenido");
+
+                foreach (var m in menuRaiz)
+                {
+                    var nombre = (m.Nombre ?? "").ToLowerInvariant();
+                    if (nombre.Contains("líder") || nombre.Contains("lider"))
+                    {
+                        m.Url = esGestor ? Url.Action("Index", "Lider")
+                                         : Url.Action("Lista", "Webinars");
+                    }
+                }
                 return View("Index", menuRaiz);
             }
+
 
             return View(menuRaiz);
         }
@@ -113,14 +127,18 @@ namespace ProyectoMatrix.Controllers
         {
             if (string.IsNullOrEmpty(nombreMenu)) return "#";
 
-            var menuLower = nombreMenu.ToLowerInvariant();
+            var menuLower = nombreMenu?.Trim().ToLowerInvariant() ?? "";
+
+
+
 
             return menuLower switch
             {
                 var x when x.Contains("universidad") => "/Universidad",
                 var x when x.Contains("usuario") => "/Usuario",
                 var x when x.Contains("gestión") => "/Usuario",
-                var x when x.Contains("líder") => "/Lider/Index",
+                var x when x.Contains("líder") || x.Contains("lider") => "/Lider",
+
                 var x when x.Contains("comunicado") => "/Comunicados/Index",
                 _ => "#"
             };
@@ -131,14 +149,16 @@ namespace ProyectoMatrix.Controllers
         {
             if (string.IsNullOrEmpty(nombreMenu)) return "fa-cogs";
 
-            var menuLower = nombreMenu.ToLowerInvariant();
+            var menuLower = nombreMenu?.Trim().ToLowerInvariant() ?? "";
+
 
             return menuLower switch
             {
                 var x when x.Contains("universidad") => "fa-graduation-cap",
                 var x when x.Contains("usuario") => "fa-users",
                 var x when x.Contains("gestión") => "fa-users-cog",
-                var x when x.Contains("líder") => "fa-user-tie",
+                var x when x.Contains("líder") || x.Contains("lider") => "fa-user-tie",
+
                 var x when x.Contains("comunicado") => "fa-bullhorn",
                 var x when x.Contains("mejora") => "fa-chart-line",
                 var x when x.Contains("compra") => "fa-shopping-cart",
@@ -153,14 +173,16 @@ namespace ProyectoMatrix.Controllers
         {
             if (string.IsNullOrEmpty(nombreMenu)) return "";
 
-            var menuLower = nombreMenu.ToLowerInvariant();
+            var menuLower = nombreMenu?.Trim().ToLowerInvariant() ?? "";
+
 
             return menuLower switch
             {
                 var x when x.Contains("universidad") => "Capacitación y Certificación Corporativa",
                 var x when x.Contains("usuario") => "Administración de usuarios del sistema",
                 var x when x.Contains("gestión") => "Gestión de usuarios y permisos",
-                var x when x.Contains("líder") => "Comunicación entre líderes",
+                var x when x.Contains("líder") || x.Contains("lider") => "Comunicación entre líderes",
+
                 var x when x.Contains("comunicado") => "Anuncios y comunicaciones internas",
                 var x when x.Contains("mejora") => "Procesos de mejora continua",
                 var x when x.Contains("compra") => "Solicitudes y gestión de compras",

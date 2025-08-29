@@ -1,0 +1,127 @@
+﻿@model ProyectoMatrix.Models.Webinar
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@{
+    ViewData["Title"] = "Editar Webinar";
+    Layout = "~/Views/Shared/_LayoutComunicados.cshtml";
+    
+}
+
+<h2 class="mb-3">Editar Webinar</h2>
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+<form asp-action="Editar" method="post" enctype="multipart/form-data">
+    @Html.AntiForgeryToken()
+
+  
+    <input type="hidden" asp-for="WebinarID" />
+   
+    <input type="hidden" asp-for="FechaCreacion" />
+
+    <div class="row g-3">
+        <div class="col-md-8">
+             <div class="mb-3">
+                <label asp-for="Titulo" class="form-label"></label>
+                <input asp-for="Titulo" class="form-control" />
+                <span asp-validation-for="Titulo" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Descripcion" class="form-label"></label>
+                <textarea asp-for="Descripcion" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="Descripcion" class="text-danger"></span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="FechaInicio" class="form-label"></label>
+                    <input asp-for="FechaInicio" type="datetime-local" class="form-control" />
+                    <span asp-validation-for="FechaInicio" class="text-danger"></span>
+                </div>
+                      <div class="col-md-6">
+                    <label asp-for="FechaFin" class="form-label"></label>
+                    <input asp-for="FechaFin" type="datetime-local" class="form-control" />
+                    <span asp-validation-for="FechaFin" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="form-check my-3">
+                <input asp-for="EsPublico" class="form-check-input" id="esPublicoCheck" />
+                <label class="form-check-label" for="esPublicoCheck">
+                    Es público (visible para todas las empresas)
+                </label>
+            </div>
+
+            <div id="empresasSelect" class="mb-3">
+                <label class="form-label">Dirigido a (selecciona empresas)</label>
+                
+                <select name="empresasSeleccionadas"
+                        asp-items="@(ViewBag.Empresas as MultiSelectList ?? new MultiSelectList(Enumerable.Empty<SelectListItem>()))"
+                        multiple class="form-control" size="6">
+                </select>
+                <small class="text-muted d-block mt-1">Mantén presionada la tecla Ctrl/⌘ para seleccionar varias.</small>
+                </div>
+
+            <div class="mb-3">
+                <label asp-for="UrlTeams" class="form-label">URL de Teams</label>
+                <input asp-for="UrlTeams" class="form-control" placeholder="https://teams.microsoft.com/l/meetup-join/..." />
+                <span asp-validation-for="UrlTeams" class="text-danger"></span>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">Guardar cambios</button>
+                <a asp-controller="Webinars" asp-action="MisWebinars" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">Imagen del webinar</label>
+            <input type="file" name="imagenFile" class="form-control" accept="image/*" id="imagenFileInput" />
+            <small class="text-muted d-block mt-1">Si seleccionas una nueva, reemplazará la actual.</small>
+
+       @if (!string.IsNullOrWhiteSpace(Model?.Imagen))
+            {
+                <div class="mt-3">
+                    <div class="form-text mb-1">Imagen actual:</div>
+                    <img src="@Model.Imagen" alt="Imagen actual"
+                         style="max-width:100%; height:auto; border:1px solid #eee; border-radius:6px;" />
+                </div>
+            }
+
+            <div class="mt-3" id="previewWrap" style="display:none;">
+                <div class="form-text mb-1">Vista previa:</div>
+                <img id="previewImg" style="max-width:100%; height:auto; border:1px solid #eee; border-radius:6px;" />
+       </div>
+        </div>
+      </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+      
+        (function () {
+            const check = document.getElementById("esPublicoCheck");
+            const empresasDiv = document.getElementById("empresasSelect");
+            function toggleEmpresas() { empresasDiv.style.display = check && check.checked ? "none" : "block"; }
+            if (check) { check.addEventListener("change", toggleEmpresas); toggleEmpresas(); }
+        })();
+
+    
+        (function () {
+            const input = document.getElementById("imagenFileInput");
+            const wrap = document.getElementById("previewWrap");
+            const img  = document.getElementById("previewImg");
+            if (!input || !wrap || !img) return;
+            input.addEventListener("change", function (e) {
+                const file = e.target.files && e.target.files[0];
+                if (!file) { wrap.style.display = "none"; img.src = ""; return; }
+                const reader = new FileReader();
+                reader.onload = function (ev) { img.src = ev.target.result; wrap.style.display = "block"; }
+                reader.readAsDataURL(file);
+            });
+        })();
+    </script>
+}

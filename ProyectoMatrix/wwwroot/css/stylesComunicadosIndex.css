@@ -1,75 +1,166 @@
-﻿/* stylesComunicadosIndex.css */
+﻿
 
+/* Opción B: Burbujas + CERDITOS (marca de agua ultra sutil) */
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
-    color: #333;
+    /* patrón SVG repetible (cerdito contorno) súper tenue */
+    --pat-sv: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'>\
+<defs>\
+<style><![CDATA[ .o{fill:none;stroke:%23ffffff;stroke-width:2;opacity:.12} ]]></style>\
+</defs>\
+<circle cx='20' cy='20' r='3' fill='%23ffffff' opacity='.09'/>\
+<circle cx='95' cy='95' r='2.5' fill='%23ffffff' opacity='.08'/>\
+<!-- cerdito minimal (contorno) -->\
+<path class='o' d='M35 70c0-12 13-22 29-22s29 10 29 22-13 22-29 22c-3 0-6-.4-9-1.3-4 3.5-9 5.6-14.4 5.8 4-3.4 6.4-7 7.7-10.6C40 83 35 77 35 70Z'/>\
+<circle class='o' cx='64' cy='70' r='6'/>\
+<circle class='o' cx='55' cy='62' r='2'/>\
+<circle class='o' cx='73' cy='62' r='2'/>\
+</svg>");
+    background:
+    /* blobs/burbujas suaves */
+    radial-gradient(200px 200px at 15% 18%, rgba(173,216,230,0.9), transparent 60%), radial-gradient(250px 250px at 85% 12%, rgba(135,206,250,0.40), transparent 65%), radial-gradient(150px 150px at 78% 70%, rgba(176,224,230,0.45), transparent 60%), radial-gradient(280px 280px at 12% 85%, rgba(135,206,235,0.35), transparent 65%),
+    /* patrón de cerditos */
+    var(--pat-sv) repeat,
+    /* base */
+    linear-gradient(135deg, #e6f3ff, #d9eeff 35%, #cfe7ff 70%, #eaf4ff);
+    background-size: auto, auto, auto, auto, 120px 120px, /* tamaño del mosaico SVG */
+    cover;
+    background-attachment: fixed, fixed, fixed, fixed, fixed, fixed;
+    min-height: 100vh;
+    color: #2c3e50;
+    flex-direction: column;
 }
 
+
+/* TIPOGRAFÍA Y TITULOS */
 h2 {
-    font-weight: bold;
-    color: #2c3e50;
+    font-weight: 800;
+    color: #1a2b6d;
+    letter-spacing: 0.2px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+    position: relative;
+    z-index: 1;
 }
 
 .text-muted {
-    font-size: 1.1rem;
-}
-
-.btn {
-    border-radius: 12px;
     font-size: 1.05rem;
-    font-weight: 600;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    align-items: center !important; /* Centra verticalmente */
-    justify-content: center !important;
+    color: #4f5b6b;
 }
 
-.btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+.comunicados-container {
+    display:flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 50vh;
+    flex-direction: column;
 }
 
-/* Personalización de colores de botones */
-.btn-info {
-    background: linear-gradient(45deg, #04207c, #051d90);
-    color: #fff;
-    border: none;
+
+/* BOTONES (AISLADOS A .comunicados-container)*/
+.comunicados-container .btn {
+    border-radius: 14px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding: 3rem 6rem;
+    transition: transform .25s ease, box-shadow .25s ease, filter .25s ease;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.16);
+    position: relative;
+    z-index: 1;
 }
 
-.btn-success {
-    background: linear-gradient(45deg, #bf5425, #e17316);
-    color: #fff;
-    border: none;
-}
-
-.btn-warning {
-    background: linear-gradient(45deg, #04207c, #051d90);
-    color: #fff;
-    border: none;
-}
-
-/* Asegura que los botones no tengan decoraciones extra al estar enfocados */
-.btn:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(0,123,255,.25);
-}
-
-/* Responsive padding for better feel */
-@media (max-width: 768px) {
-    .btn {
-        font-size: 1rem;
-        padding: 0.75rem;
+    .comunicados-container .btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 14px 28px rgba(0,0,0,0.22);
+        filter: brightness(1.03);
     }
+
+    .comunicados-container .btn:active {
+        transform: translateY(0);
+    }
+
+.comunicados-container .btn-info {
+    background: linear-gradient(45deg, #04207c, #1565c0);
+    color: #fff;
+    border: none;
 }
-/* Asegura que tenga más peso que Bootstrap */
-button.btn, a.btn {
-    padding-top: 3rem !important;
-    padding-bottom: 1.5rem !important;
+
+.comunicados-container .btn-success {
+    background: linear-gradient(45deg, #1e88e5, #00acc1);
+    color: #fff;
+    border: none;
 }
-.container a.btn {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    text-align: center;
+
+.comunicados-container .btn-warning {
+    background: linear-gradient(45deg, #ee5b11, #fb8c00);
+    color: #fff;
+    border: none;
 }
+
+.comunicados-container .button-container {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/*WEBINARS (GLASS SUAVE) */
+
+
+.webinar-actions-container {
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.35);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.15);
+    position: relative;
+    top:15rem;
+    overflow: hidden;
+    margin-top: 2rem;
+    padding: 2rem;
+    z-index: 1;
+    display: flex;
+    
+}
+
+    .webinar-actions-container::before {
+        content: "";
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 180px;
+        height: 180px;
+        background: radial-gradient(circle, rgba(0,123,255,0.18), transparent 72%);
+        border-radius: 50%;
+        z-index: 0;
+    }
+
+    .webinar-actions-container .custom-btn {
+        font-size: 1.15rem;
+        font-weight: 700;
+        padding: 1.2rem 2.4rem;
+        border-radius: 12px;
+        transition: all .25s ease;
+        position: relative;
+        z-index: 1;
+        box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+        border: none;
+        color: #fff;
+    }
+
+    .webinar-actions-container .btn-primary {
+        background: linear-gradient(45deg, #007bff, #0056b3);
+    }
+
+        .webinar-actions-container .btn-primary:hover {
+            transform: translateY(-3px);
+            background: linear-gradient(45deg, #0a66d3, #00408b);
+        }
+
+    .webinar-actions-container .btn-warning {
+        background: linear-gradient(45deg, #ff5b08, #e67e22);
+    }
+
+        .webinar-actions-container .btn-warning:hover {
+            transform: translateY(-3px);
+            background: linear-gradient(45deg, #ff8c00, #cc6f00);
+        }

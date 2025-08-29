@@ -24,7 +24,7 @@
                         <source src="@c.Imagen" type="video/mp4" />
                         Tu navegador no soporta el elemento de video.
                     </video>
-                  
+
 
                 }
                 else if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif")
@@ -47,18 +47,18 @@
                 <div div class="com-desc">@c.Descripcion</div>
                 <div class="com-meta"> @c.FechaCreacion.ToString("dd/MM/yyyy")</div>
             </div>
-<div class="com-footer">
+            <div class="com-footer">
                 <span class="com-chip">@(string.IsNullOrWhiteSpace(c.DirigidoA) ? "-" : c.DirigidoA)</span>
 
-</div>
+            </div>
         </div>
-}
+    }
 </div>
 
 <div id="comModalBackdrop" class="com-modal-backdrop" aria-hidden="true">
-    <div id="comModal" class="com-modal" role="dialog" aria-modal="true" aria-labelledby="comModalTitle" >
-        
-                <div class="com-modal-header">
+    <div id="comModal" class="com-modal" role="dialog" aria-modal="true" aria-labelledby="comModalTitle">
+
+        <div class="com-modal-header">
             <h5 id="comModalTitle" class="com-modal-title">Detalle del Comunicado</h5>
             <button type="button" class="com-modal-close" aria-label="Cerrar" title="Cerrar"> &times;</button>
         </div>
@@ -206,4 +206,4 @@
 
     </script>
 
-    }
+}

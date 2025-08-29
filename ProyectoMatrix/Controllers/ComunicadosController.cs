@@ -22,7 +22,45 @@ namespace ProyectoMatrix.Controllers
             _env = env;
         }
 
-        public IActionResult Index() => View();
+        public async Task<IActionResult> Index()
+        {
+            var puedeGestionar = EsGestor(User);
+
+            int? empresaId = null;
+            if (!puedeGestionar && int.TryParse(User.FindFirst("EmpresaID")?.Value, out var eid))
+                empresaId = eid;
+
+            var query = _db.Comunicados
+                .Include(c => c.ComunicadosEmpresas).ThenInclude(ce => ce.Empresa)
+                .AsQueryable();
+
+            if (!puedeGestionar)
+            {
+                if (empresaId.HasValue)
+                    query = query.Where(c => c.EsPublico || c.ComunicadosEmpresas.Any(ce => ce.EmpresaID == empresaId.Value));
+                else
+                    query = query.Where(c => c.EsPublico);
+            }
+
+            var vm = await query
+                .OrderByDescending(c => c.FechaCreacion)
+                .Select(c => new ComunicadoListItemVM
+                {
+                    ComunicadoID = c.ComunicadoID,
+                    NombreComunicado = c.NombreComunicado,
+                    Descripcion = c.Descripcion,
+                    FechaCreacion = c.FechaCreacion,
+                    DirigidoA = c.EsPublico
+                        ? "Todos"
+                        : string.Join(", ", c.ComunicadosEmpresas.Select(ce => ce.Empresa.Nombre)),
+                    Imagen = c.Imagen
+                })
+                .ToListAsync();
+
+            return View(vm);
+        }
+
+
 
         [HttpGet]
         public async Task<IActionResult> Lista()

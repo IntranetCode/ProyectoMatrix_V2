@@ -1,4 +1,5 @@
-﻿@{
+﻿@model IEnumerable<ProyectoMatrix.Models.ComunicadoListItemVM>
+@{
     Layout = "_LayoutComunicados";
     ViewData["Title"] = "Comunicados";
     var esGestor = User.IsInRole("Autor/Editor de Contenido")
@@ -7,31 +8,226 @@
 }
 
 <link href="~/css/stylesComunicadosIndex.css" rel="stylesheet" />
-
+<link href="~/css/stylesComunicadosLista.css" rel="stylesheet" />
 <div class="container py-4">
-    <h2 class="mb-3">Comunicados</h2>
-    <p class="text-muted mb-4">Elige una opción:</p>
-
-    <div class="row g-3">
-        <div class="col-md-4">
-            <a class="btn btn-info w-100 " asp-action="Lista">
-                📄 Ver mis comunicados 
-            </a>
-        </div>
+ 
+    
 
         @if (esGestor)
         {
-            <div class="col-md-4">
-                <a class="btn btn-success w-100 " asp-action="Crear">
-                    ➕ Agregar Comunicado
-                </a>
+        <p class="text-muted mb-4">Elige una opción:</p>
+
+        <div class="comunicados-container">
+            <div class="button-container">
+                <a class="btn btn-info" href="#">🔔 Ver comunicados</a>
+                <a class="btn btn-success" href="#">➕ Crear comunicado</a>
+                <a class="btn btn-warning" href="#">⚙️ Gestionar</a>
             </div>
-            <div class="col-md-4">
-                <a class="btn btn-warning w-100 " asp-action="Gestionar">
-                    ⚙️ Gestionar Comunicados
-                </a>
+        </div>
+
+
+        }
+        else
+        {
+        <h2 class="mb-3">Comunicados</h2>
+        <div class=" comunicados-grid" id="comGrid">
+            @foreach (var c in Model)
+            {
+                <div class="com-card" tabindex="0">
+
+                    @if (!string.IsNullOrEmpty(c.Imagen))
+                    {
+                        var ext = System.IO.Path.GetExtension(c.Imagen).ToLower();
+
+                        if (ext == ".mp4")
+                        {
+                            <video class="com-img" width="100%" controls>
+                                <source src="@c.Imagen" type="video/mp4" />
+                                Tu navegador no soporta el elemento de video.
+                            </video>
+
+
+                        }
+                        else if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif")
+                        {
+                            <img class="com-img" src="@c.Imagen" alt="Imagen comunicado" />
+                        }
+                        else if (ext == ".pdf")
+                        {
+                            <div class="com-img com-pdf">
+                                <a href="@c.Imagen" target="_blank">
+                                    <img src="~/Imagenes/pdf.png" alt="Icono PDF" style="width: 150px; cursor:pointer;" />
+                                </a>
+                            </div>
+                        }
+
+                    }
+
+                    <div class="com-body">
+                        <h5 class="com-title">@c.NombreComunicado</h5>
+                        <div div class="com-desc">@c.Descripcion</div>
+                        <div class="com-meta"> @c.FechaCreacion.ToString("dd/MM/yyyy")</div>
+                    </div>
+                    <div class="com-footer">
+                        <span class="com-chip">@(string.IsNullOrWhiteSpace(c.DirigidoA) ? "-" : c.DirigidoA)</span>
+
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div id="comModalBackdrop" class="com-modal-backdrop" aria-hidden="true">
+            <div id="comModal" class="com-modal" role="dialog" aria-modal="true" aria-labelledby="comModalTitle">
+
+                <div class="com-modal-header">
+                    <h5 id="comModalTitle" class="com-modal-title">Detalle del Comunicado</h5>
+                    <button type="button" class="com-modal-close" aria-label="Cerrar" title="Cerrar"> &times;</button>
+                </div>
+                <img id="comModalImg" class="com-modal-img" src="" alt="Imagen Comunicado" style="display:none;" />
+                <video id="comModalVideo" class="com-modal-video" controls style="display:none;" width="100%">
+                    <source id="comModalVideoSrc" src="" type="video/mp4" />
+                    Tu navegador no soporta el elemento de video.
+                </video>
+                <iframe id="comModalPdf" class="com-modal-pdf" style="display:none;" width="100%" height="500px"></iframe>
+                <div class="com-modal-body">
+                    <div id="comModalMeta" class="com-modal-name"></div>
+                    <div id="comModalDesc" class="com-modal-description"></div>
+                    <div id="comModalDirigido" class="com-modal-dirigido"></div>
+
+                </div>
             </div>
+        </div>
         }
     </div>
     
-</div>
+@section Scripts {
+    <script>
+               (function () {
+            const cards = document.querySelectorAll('.com-card');
+            const modal = document.getElementById('comModal');
+            const backdrop = document.getElementById('comModalBackdrop');
+
+            const img = document.getElementById('comModalImg');
+            const video = document.getElementById('comModalVideo');
+            const videoSrc = document.getElementById('comModalVideoSrc');
+            const pdf = document.getElementById('comModalPdf');
+
+            const title = document.getElementById('comModalTitle');
+            const meta = document.getElementById('comModalMeta');
+            const desc = document.getElementById('comModalDesc');
+            const dirigido = document.getElementById('comModalDirigido');
+
+            const btnClose = document.querySelector('.com-modal-close');
+
+            function openFromCard(card) {
+                const t = card.querySelector('.com-title')?.textContent?.trim() || '';
+                const m = card.querySelector('.com-meta')?.textContent?.trim() || '';
+                const d = card.querySelector('.com-desc')?.textContent?.trim() || '';
+                const chip = card.querySelector('.com-chip')?.textContent?.trim() || '';
+
+                       const mediaElement = card.querySelector('.com-img');
+        let mediaSrc = '';
+        if (mediaElement) {
+            if (mediaElement.tagName.toLowerCase() === 'img') {
+                mediaSrc = mediaElement.getAttribute('src') || '';
+            } else if (mediaElement.tagName.toLowerCase() === 'video') {
+                const source = mediaElement.querySelector('source');
+                mediaSrc = source ? source.getAttribute('src') : '';
+            } else if (mediaElement.tagName.toLowerCase() === 'div') {
+                // Si es un div, buscamos si contiene un <a> con href
+                const a = mediaElement.querySelector('a');
+                if (a) {
+                    mediaSrc = a.getAttribute('href') || '';
+                }
+            }
+        }
+
+                title.textContent = t;
+                meta.textContent = m;
+                desc.textContent = d;
+
+                if (chip) {
+                    dirigido.innerHTML = 'Dirigido a : <span class="com-chip">' + chip + '</span>';
+                } else {
+                    dirigido.textContent = '';
+                }
+
+                const ext = mediaSrc.split('.').pop().toLowerCase();
+
+                if (['mp4', 'webm', 'ogg'].includes(ext)) {
+                    videoSrc.src = mediaSrc;
+                    video.load();
+                    video.style.display = '';
+                    img.style.display = 'none';
+                    img.src = '';
+                    pdf.style.display = 'none';
+                    pdf.src = '';
+                } else if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
+                    img.src = mediaSrc;
+                    img.style.display = '';
+                    video.style.display = 'none';
+                    videoSrc.src = '';
+                    video.load();
+                    pdf.style.display = 'none';
+                    pdf.src = '';
+                } else if (ext === 'pdf') {
+                    pdf.style.display = '';
+                    pdf.src = mediaSrc;
+
+                    video.style.display = 'none';
+                    videoSrc.src = '';
+                    video.load();
+
+                    img.style.display = 'none';
+                    img.src = '';
+                } else {
+                    img.style.display = 'none';
+                    img.src = '';
+                    video.style.display = 'none';
+                    videoSrc.src = '';
+                    video.load();
+                    pdf.style.display = 'none';
+                    pdf.src = '';
+                }
+
+                backdrop.classList.add('show');
+                requestAnimationFrame(() => modal.classList.add('show'));
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeModal() {
+                modal.classList.remove('show');
+                backdrop.classList.remove('show');
+                document.body.style.overflow = '';
+                pdf.style.display = 'none';
+                pdf.src = '';
+            }
+
+            cards.forEach(card => {
+                card.addEventListener('click', () => openFromCard(card));
+                card.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openFromCard(card);
+                    }
+                });
+            });
+
+            btnClose.addEventListener('click', closeModal);
+            backdrop.addEventListener('click', (e) => {
+                if (e.target === backdrop) {
+                    closeModal();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && backdrop.classList.contains('show')) {
+                    closeModal();
+                }
+            });
+
+        })();
+
+    </script>
+
+}

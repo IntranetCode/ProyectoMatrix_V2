@@ -1,5 +1,6 @@
 ﻿@model List<ProyectoMatrix.Models.MenuModel>
 
+
 @{
     Layout = null;
     ViewData["Title"] = "Intranet - NS Group";
@@ -8,6 +9,7 @@
     var logoEmpresa = Context.Session.GetString("EmpresaLogo") ?? "default-logo.png";
     var empresaId = Context.Session.GetString("EmpresaId") ?? "1";
 
+   
     // Configuración de archivos CSS por empresa
     var cssEmpresaFile = empresaId switch
     {
@@ -18,7 +20,7 @@
         _ => "site.css"
     };
 
-    // Enlaces SharePoint configurables
+    // Enlaces SharePoint configurables 
     var enlacesMejoraContina = "https://nsgroupmx.sharepoint.com/sites/ProcesosyMejoraContinua";
     var enlacesCompras = "https://forms.office.com/r/K7u3UMVVKi";
     var enlacesLogistica = "https://forms.office.com/r/77fwUyxuE0";
@@ -155,6 +157,8 @@
                     {
                         var cssClass = GetCssClassForMenu(menu.Nombre);
                         var isUniversidad = menu.Nombre.Contains("Universidad", StringComparison.OrdinalIgnoreCase);
+
+                        
 
                         <article class="action-card @cssClass @(isUniversidad ? "with-logo" : "")"
                                  data-href="@menu.Url"
@@ -349,7 +353,8 @@
         return menuLower switch
         {
             var x when x.Contains("universidad") => "universidad",
-            var x when x.Contains("lider") => "lider",
+            var x when x.Contains("líder") || x.Contains("lider") => "lider",
+
             var x when x.Contains("comunicados") => "comunicados",
             var x when x.Contains("proyectos") => "proyectos",
             _ => ""

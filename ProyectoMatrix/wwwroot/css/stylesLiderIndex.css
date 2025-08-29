@@ -20,7 +20,7 @@ body {
 }
 
 /* Header Principal */
-.lider-header {
+ .videoteca .lider-header {
     background: linear-gradient(135deg, var(--color-primario) 0%, #1a1a1a 100%);
     padding: 3rem 2rem;
     text-align: center;
@@ -192,7 +192,7 @@ body {
     padding-bottom: 1rem;
 }
 
-.video-card {
+ .videoteca .video-card {
     background: #1a1a1a;
     border-radius: 12px;
     overflow: hidden;
@@ -327,7 +327,7 @@ body {
 }
 
 /* Filtros y Búsqueda */
-.filters-section {
+.videoteca .filters-section {
     padding: 2rem;
     background: #1a1a1a;
     border-bottom: 1px solid #333;

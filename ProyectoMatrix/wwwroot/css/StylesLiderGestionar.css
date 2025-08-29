@@ -1,0 +1,244 @@
+﻿
+    
+    .webinars-admin .container,
+    .webinars-admin .table-responsive {
+        position: relative;
+        z-index: 1;
+    }
+
+   
+    .webinars-admin h2 {
+        font-weight: 800;
+        color: #183066;
+        letter-spacing: .2px;
+        text-shadow: 0 1px 0 rgba(255,255,255,.5);
+        margin-bottom: .75rem !important;
+    }
+
+    .webinars-admin .d-flex.gap-2 .btn {
+        border-radius: 12px;
+        font-weight: 700;
+        padding: .8rem 1.2rem;
+        box-shadow: 0 8px 18px rgba(0,0,0,.14);
+        transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+    }
+
+        .webinars-admin .d-flex.gap-2 .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(0,0,0,.18);
+            filter: brightness(1.03);
+        }
+
+
+    .webinars-admin .alert-info {
+        border: 1px solid rgba(25,118,210,.25);
+        background: linear-gradient(180deg, rgba(227,242,253,.85), rgba(227,242,253,.65));
+        color: #0f285c;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(0,0,0,.1);
+    }
+
+
+    .webinars-admin .table-responsive {
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 18px 40px rgba(16,22,58,.16);
+        background: rgba(255,255,255,.65);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,.4);
+    }
+
+    .webinars-admin table.table {
+        margin: 0;
+    }
+
+        .webinars-admin table.table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: linear-gradient(180deg, #e3f2fd, #d6ecff);
+            color: #0b2763;
+            font-weight: 800;
+            border-bottom: 1px solid rgba(12,44,110,.15);
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            font-size: .85rem;
+            vertical-align: middle;
+        }
+
+        .webinars-admin table.table tbody tr {
+            transition: background-color .15s ease, box-shadow .15s ease, transform .15s ease;
+        }
+
+            .webinars-admin table.table tbody tr:nth-child(odd) {
+                background: rgba(255,255,255,.55);
+            }
+
+            .webinars-admin table.table tbody tr:nth-child(even) {
+                background: rgba(255,255,255,.85);
+            }
+
+        .webinars-admin table.table tbody td {
+            vertical-align: middle;
+            border-color: rgba(15,40,92,.08);
+            color: #21324f;
+        }
+
+        /* Hover con brillo */
+        .webinars-admin table.table tbody tr:hover {
+            background: #eef7ff;
+            box-shadow: inset 0 0 0 1px rgba(25,118,210,.15);
+            transform: translateY(-1px);
+        }
+
+
+    .webinars-admin table .fw-semibold {
+        color: #112856;
+        font-weight: 800 !important;
+    }
+
+    .webinars-admin table small.text-muted {
+        display: block;
+        color: #5a6d85 !important;
+    }
+
+    /* Botones dentro de la tabla (solo aquí, no global) */
+    .webinars-admin table .btn {
+        border-radius: 10px;
+        font-weight: 700;
+        padding: .45rem .7rem;
+        box-shadow: 0 6px 12px rgba(0,0,0,.12);
+    }
+
+    .webinars-admin table .btn-outline-primary {
+        border-color: #1976d2;
+        color: #1565c0;
+    }
+
+        .webinars-admin table .btn-outline-primary:hover {
+            background: linear-gradient(45deg, #1e88e5, #1565c0);
+            color: #fff;
+            border-color: transparent;
+        }
+
+    /* Píldoras rápidas (si Bootstrap las renderiza como badges) */
+    .webinars-admin .badge {
+        border-radius: 999px;
+        font-weight: 700;
+        padding: .4rem .7rem;
+    }
+
+
+    .webinars-admin table .text-nowrap .btn {
+        margin-bottom: .25rem;
+    }
+
+
+@media (max-width: 768px) {
+    .webinars-admin .table-responsive {
+        border-radius: 14px;
+    }
+
+    .webinars-admin table.table thead {
+        display: none;
+    }
+
+    .webinars-admin table.table,
+    .webinars-admin table.table tbody,
+    .webinars-admin table.table tr,
+    .webinars-admin table.table td {
+        display: block;
+        width: 100%;
+    }
+
+        .webinars-admin table.table tr {
+            margin: .85rem;
+            background: rgba(255,255,255,.9);
+            border: 1px solid rgba(12,44,110,.08);
+            border-radius: 14px;
+            box-shadow: 0 10px 24px rgba(16,22,58,.14);
+            overflow: hidden;
+            padding: .25rem .25rem .5rem;
+        }
+
+        .webinars-admin table.table td {
+            border: none;
+            border-bottom: 1px dashed rgba(12,44,110,.12);
+            position: relative;
+            padding: .75rem 1rem .75rem 8.5rem; /* deja espacio a la etiqueta */
+        }
+
+            .webinars-admin table.table td:last-child {
+                border-bottom: none;
+                padding-bottom: 1rem;
+            }
+            /* Etiquetas automáticas por columna (ajustadas a tu orden actual) */
+            .webinars-admin table.table td:nth-child(1)::before {
+                content: "Título";
+            }
+
+            .webinars-admin table.table td:nth-child(2)::before {
+                content: "Inicio";
+            }
+
+            .webinars-admin table.table td:nth-child(3)::before {
+                content: "Fin";
+            }
+
+            .webinars-admin table.table td:nth-child(4)::before {
+                content: "Público";
+            }
+
+            .webinars-admin table.table td:nth-child(5)::before {
+                content: "Dirigido a";
+            }
+
+            .webinars-admin table.table td:nth-child(6)::before {
+                content: "Teams";
+            }
+
+            .webinars-admin table.table td:nth-child(7)::before {
+                content: "Dirigido a";
+            }
+            /* OJO: tu código repite esta columna */
+            .webinars-admin table.table td:nth-child(8)::before {
+                content: "Acciones";
+            }
+
+            .webinars-admin table.table td::before {
+                position: absolute;
+                left: 1rem;
+                top: .75rem;
+                font-weight: 800;
+                color: #0b2763;
+                background: #e3f2fd;
+                padding: .35rem .6rem;
+                border-radius: 8px;
+                box-shadow: inset 0 -1px 0 rgba(0,0,0,.06);
+                min-width: 6.8rem;
+                text-align: left;
+            }
+    /* Botones apilados en móviles */
+    .webinars-admin table .text-nowrap {
+        white-space: normal !important;
+    }
+
+        .webinars-admin table .text-nowrap .btn {
+            width: 100%;
+        }
+}
+
+
+.webinars-admin a:focus,
+.webinars-admin button:focus {
+    outline: 3px solid rgba(25,118,210,.5);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(25,118,210,.15);
+}
+
+
+.webinars-admin .btn-outline-danger:hover {
+    background: linear-gradient(45deg, #ef5350, #d32f2f);
+    color: #fff;
+    border-color: transparent;
+}
