@@ -402,263 +402,252 @@
     </div>
 </div>
 
-<!-- Estilos específicos del dashboard -->
 <style>
+    :root {
+        --primary: #004AAD; /* Azul corporativo NS */
+        --secondary: #FF6F00; /* Naranja acento */
+        --success: #2E7D32;
+        --warning: #FFC107;
+        --info: #0288D1;
+        --danger: #D32F2F;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-600: #4b5563;
+        --gray-800: #1f2937;
+    }
+
     .universidad-dashboard {
         min-height: 100vh;
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #eef4ff 100%);
+        font-family: 'Segoe UI', Roboto, sans-serif;
     }
 
     .dashboard-header {
         background: white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-bottom: 4px solid var(--primary);
         padding: 2rem 0;
-        margin-bottom: 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
     .dashboard-title {
-        color: var(--universidad-primary);
-        font-weight: 700;
-        margin-bottom: 0.5rem;
+        color: var(--primary);
+        font-weight: 800;
+        font-size: 1.8rem;
     }
 
-    .text-universidad {
-        color: var(--universidad-primary) !important;
+    .dashboard-subtitle {
+        color: var(--gray-600);
+        font-size: 1rem;
     }
 
+    /* ==== BOTONES ==== */
     .btn-universidad {
-        background: var(--universidad-primary);
+        background: var(--primary);
         color: white;
         border: none;
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-weight: 500;
+        border-radius: 10px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
         transition: all 0.3s ease;
     }
 
         .btn-universidad:hover {
-            background: var(--universidad-secondary);
-            color: white;
-            transform: translateY(-1px);
+            background: var(--secondary);
+            transform: translateY(-2px);
         }
 
     .btn-outline-universidad {
-        color: var(--universidad-primary);
-        border: 1px solid var(--universidad-primary);
-        border-radius: 8px;
+        color: var(--primary);
+        border: 2px solid var(--primary);
+        border-radius: 10px;
         padding: 0.5rem 1rem;
-        font-weight: 500;
+        font-weight: 600;
         transition: all 0.3s ease;
     }
 
         .btn-outline-universidad:hover {
-            background: var(--universidad-primary);
+            background: var(--primary);
             color: white;
         }
 
+    /* ==== TARJETAS ESTADÍSTICAS ==== */
     .stat-card {
+        border-radius: 14px;
+        color: var(--gray-800);
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        border: none;
+        padding: 1.8rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        position: relative;
         overflow: hidden;
-        transition: transform 0.3s ease;
     }
 
         .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.12);
         }
-
-    .stat-card-body {
-        padding: 1.5rem;
-        position: relative;
-    }
 
     .stat-icon {
         position: absolute;
         top: 1rem;
         right: 1rem;
-        width: 50px;
-        height: 50px;
+        width: 55px;
+        height: 55px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1.5rem;
-        opacity: 0.2;
+        opacity: 0.9;
+        color: white;
     }
 
     .stat-card-primary .stat-icon {
-        background: var(--universidad-primary);
-        color: white;
+        background: var(--primary);
     }
 
     .stat-card-success .stat-icon {
-        background: var(--color-success);
-        color: white;
+        background: var(--success);
     }
 
     .stat-card-warning .stat-icon {
-        background: var(--color-warning);
-        color: white;
+        background: var(--warning);
     }
 
     .stat-card-info .stat-icon {
-        background: var(--color-info);
-        color: white;
+        background: var(--info);
     }
 
     .stat-number {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--gray-800);
+        font-size: 2.2rem;
+        font-weight: 800;
         margin-bottom: 0.5rem;
+        color: var(--gray-800);
     }
 
     .stat-label {
+        font-size: 1rem;
         color: var(--gray-600);
         font-weight: 500;
-        margin-bottom: 1rem;
     }
 
+    /* ==== CONTENEDORES ==== */
     .content-card {
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        border: none;
-        overflow: hidden;
-    }
-
-    .content-card-header {
-        padding: 1.5rem;
-        border-bottom: 1px solid var(--gray-200);
-        display: flex;
-        justify-content: between;
-        align-items: center;
-    }
-
-    .content-card-title {
-        margin: 0;
-        color: var(--gray-800);
-        font-weight: 600;
-    }
-
-    .content-card-body {
-        padding: 1.5rem;
-    }
-
-    .curso-card {
-        border: 1px solid var(--gray-200);
-        border-radius: 8px;
+        border-radius: 14px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
         overflow: hidden;
         transition: all 0.3s ease;
     }
 
-        .curso-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
+        .content-card:hover {
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
         }
 
-    .curso-card-header {
-        padding: 1rem;
+    .content-card-header {
+        padding: 1.2rem 1.5rem;
+        border-bottom: 1px solid var(--gray-200);
         background: var(--gray-50);
+        font-weight: 600;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
 
-    .curso-nivel {
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 600;
+    .content-card-title {
+        color: var(--primary);
+        font-size: 1.1rem;
+        margin: 0;
     }
 
-    .curso-card-body {
-        padding: 1rem;
+    /* ==== CURSOS ==== */
+    .curso-card {
+        border-radius: 10px;
+        border: 1px solid var(--gray-200);
+        background: #fff;
+        transition: all 0.3s ease;
+    }
+
+        .curso-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.1);
+        }
+
+    .curso-card-header {
+        padding: 0.8rem 1rem;
+        background: var(--gray-100);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
     .curso-title {
-        color: var(--gray-800);
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }
-
-    .curso-description {
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-    }
-
-    .progress-sm {
-        height: 6px;
-    }
-
-    .curso-card-footer {
-        padding: 1rem;
-        background: var(--gray-50);
-        border-top: 1px solid var(--gray-200);
-    }
-
-    .quick-link-item {
-        display: flex;
-        align-items: center;
-        padding: 0.75rem;
-        color: var(--gray-700);
-        text-decoration: none;
-        border-radius: 6px;
-        transition: all 0.3s ease;
-        margin-bottom: 0.5rem;
-    }
-
-        .quick-link-item:hover {
-            background: var(--universidad-background);
-            color: var(--universidad-primary);
-            text-decoration: none;
-        }
-
-    .metric-item {
-        display: flex;
-        align-items: center;
-        padding: 1rem;
-        background: var(--gray-50);
-        border-radius: 8px;
-    }
-
-    .metric-icon {
-        width: 50px;
-        height: 50px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 1rem;
-        color: white;
-        font-size: 1.25rem;
-    }
-
-    .metric-content h4 {
-        margin-bottom: 0.25rem;
         font-weight: 700;
         color: var(--gray-800);
     }
 
-    .empty-state {
-        padding: 3rem 1rem;
+    .curso-description {
+        font-size: 0.9rem;
+        color: var(--gray-600);
     }
 
+    /* ==== BADGES ==== */
+    .badge {
+        padding: 0.4rem 0.7rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+        .badge.bg-success {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .badge.bg-warning {
+            background: var(--warning);
+            color: #000;
+        }
+
+        .badge.bg-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .badge.bg-info {
+            background: var(--info);
+            color: #fff;
+        }
+
+    /* ==== LINKS RÁPIDOS ==== */
+    .quick-link-item {
+        display: flex;
+        align-items: center;
+        padding: 0.9rem 1rem;
+        border-radius: 10px;
+        background: var(--gray-50);
+        margin-bottom: 0.5rem;
+        color: var(--gray-700);
+        font-weight: 500;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+
+        .quick-link-item:hover {
+            background: var(--secondary);
+            color: #fff !important;
+        }
+
+    /* ==== CERTIFICADOS ==== */
     .certificado-item {
-        padding-bottom: 1rem;
+        padding: 1rem 0;
         border-bottom: 1px solid var(--gray-200);
     }
 
-        .certificado-item:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
+        .certificado-item h6 {
+            font-weight: 600;
+            color: var(--gray-800);
         }
-
-    .certificado-icon {
-        font-size: 1.5rem;
-    }
-</style> 
+</style>

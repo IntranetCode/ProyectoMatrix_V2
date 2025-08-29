@@ -131,6 +131,10 @@ namespace ProyectoMatrix.Controllers
                 viewModel.MisCertificados = await _universidadServices.GetCertificadosUsuarioViewModelAsync(
                     viewModel.UsuarioId, viewModel.EmpresaId);
 
+                // Tiempo de estudio
+                int tiempoEstudio = await _universidadServices.GetTiempoEstudioUsuarioAsync(
+                    viewModel.UsuarioId, viewModel.EmpresaId);
+
                 _logger.LogInformation("Certificados cargados: {Count}", viewModel.MisCertificados?.Count ?? 0);
 
                 // ✅ CALCULAR ESTADÍSTICAS BÁSICAS (para todos los roles)
@@ -140,18 +144,24 @@ namespace ProyectoMatrix.Controllers
                     CursosCompletados = viewModel.MisCursos?.Count(c => c.Estado == "Completado") ?? 0,
                     CursosEnProgreso = viewModel.MisCursos?.Count(c => c.Estado == "En Progreso") ?? 0,
                     CertificadosObtenidos = viewModel.MisCertificados?.Count(c => c.Estado == "Vigente") ?? 0,
+
+                    // Promedio de progreso en %
                     PromedioProgreso = viewModel.MisCursos?.Any() == true ?
-                        (decimal)viewModel.MisCursos.Average(c => (double)c.PorcentajeProgreso) : 0m
+                        (decimal)viewModel.MisCursos.Average(c => (double)c.PorcentajeProgreso) : 0m,
+
+                    // 👇 Estadísticas de subcursos
+                    TotalSubCursos = viewModel.MisCursos?.Sum(c => c.TotalSubCursos) ?? 0,
+                    SubCursosCompletados = viewModel.MisCursos?.Sum(c => c.SubCursosCompletados) ?? 0,
+                    TiempoTotalEstudio = tiempoEstudio
                 };
 
-                _logger.LogInformation("Estadísticas básicas calculadas - TotalCursosAsignados: {Total}",
-                    viewModel.Estadisticas.TotalCursosAsignados);
+                _logger.LogInformation("Estadísticas básicas calculadas - Cursos: {Total}, SubCursos: {SubCursos}, Completados: {Completados}, Progreso: {Progreso}%",
+                    viewModel.Estadisticas.TotalCursosAsignados,
+                    viewModel.Estadisticas.TotalSubCursos,
+                    viewModel.Estadisticas.SubCursosCompletados,
+                    viewModel.Estadisticas.PromedioProgreso);
 
-                // ✅ VERIFICAR PERMISOS
-                _logger.LogInformation("Verificando permisos - PuedeCrearCursos: {PuedeCrear}, PuedeAsignarCursos: {PuedeAsignar}, PuedeVerReportes: {PuedeVer}",
-                    viewModel.PuedeCrearCursos, viewModel.PuedeAsignarCursos, viewModel.PuedeVerReportes);
-
-                // ✅ ESTADÍSTICAS ADMINISTRATIVAS (solo para roles con permisos)
+                // ✅ VERIFICAR PERMISOS (solo roles con acceso admin)
                 if (viewModel.PuedeCrearCursos || viewModel.PuedeVerReportes)
                 {
                     _logger.LogInformation("🎯 ENTRANDO a cargar estadísticas administrativas...");
@@ -163,24 +173,16 @@ namespace ProyectoMatrix.Controllers
 
                         if (estadisticasAdmin != null)
                         {
-                            _logger.LogInformation("✅ Estadísticas recibidas del servicio - Usuarios: {Usuarios}, Cursos: {Cursos}, Certificados: {Certificados}",
-                                estadisticasAdmin.TotalUsuariosActivos,
-                                estadisticasAdmin.TotalCursosCreados,
-                                estadisticasAdmin.CertificadosEmitidosMes);
-
                             viewModel.Estadisticas.TotalUsuariosActivos = estadisticasAdmin.TotalUsuariosActivos;
                             viewModel.Estadisticas.TotalCursosCreados = estadisticasAdmin.TotalCursosCreados;
                             viewModel.Estadisticas.CertificadosEmitidosMes = estadisticasAdmin.CertificadosEmitidosMes;
 
-                            _logger.LogInformation("✅ Estadísticas asignadas al ViewModel - TotalCursosCreados: {Total}",
-                                viewModel.Estadisticas.TotalCursosCreados);
+                            _logger.LogInformation("✅ Estadísticas administrativas cargadas correctamente");
                         }
                         else
                         {
                             _logger.LogWarning("❌ GetEstadisticasAdministrativasAsync devolvió NULL");
                         }
-
-                        _logger.LogInformation("Estadísticas administrativas cargadas");
                     }
                     catch (Exception adminEx)
                     {
@@ -188,11 +190,8 @@ namespace ProyectoMatrix.Controllers
 
                         // 🔧 VALORES TEMPORALES PARA TESTING
                         viewModel.Estadisticas.TotalUsuariosActivos = 5;
-                        viewModel.Estadisticas.TotalCursosCreados = 2; // ✅ HARDCODED temporalmente
+                        viewModel.Estadisticas.TotalCursosCreados = 2;
                         viewModel.Estadisticas.CertificadosEmitidosMes = 1;
-
-                        _logger.LogInformation("🔧 Usando valores temporales - TotalCursosCreados: {Total}",
-                            viewModel.Estadisticas.TotalCursosCreados);
                     }
                 }
                 else
@@ -200,14 +199,13 @@ namespace ProyectoMatrix.Controllers
                     _logger.LogInformation("❌ Usuario SIN permisos administrativos - No se cargan estadísticas del sistema");
                 }
 
-                _logger.LogInformation("=== FIN CargarDatosDashboard - TotalCursosCreados final: {Total} ===",
-                    viewModel.Estadisticas.TotalCursosCreados);
+                _logger.LogInformation("=== FIN CargarDatosDashboard ===");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ ERROR GENERAL en CargarDatosDashboard");
 
-                // ✅ FALLBACK: Inicializar con datos vacíos en lugar de fallar
+                // ✅ FALLBACK: Inicializar con datos vacíos
                 viewModel.MisCursos = new List<CursoAsignadoViewModel>();
                 viewModel.MisCertificados = new List<CertificadoUsuarioViewModel>();
                 viewModel.Estadisticas = new EstadisticasUniversidadViewModel
@@ -218,13 +216,14 @@ namespace ProyectoMatrix.Controllers
                     CertificadosObtenidos = 0,
                     PromedioProgreso = 0,
                     TotalUsuariosActivos = 0,
-                    TotalCursosCreados = 2, // 🔧 TEMPORAL para testing
-                    CertificadosEmitidosMes = 0
+                    TotalCursosCreados = 0,
+                    CertificadosEmitidosMes = 0,
+                    TotalSubCursos = 0,
+                    SubCursosCompletados = 0
                 };
-
-                _logger.LogWarning("🔧 Datos del dashboard inicializados con valores por defecto debido a error");
             }
         }
+
         private List<MenuItemUniversidad> GenerarMenuItems(UniversidadDashboardViewModel viewModel)
         {
             var items = new List<MenuItemUniversidad>
@@ -697,7 +696,7 @@ namespace ProyectoMatrix.Controllers
                 if (!usuarioId.HasValue)
                     return RedirectToAction("Index");
 
-                var certificados = await _universidadServices.GetCertificadosUsuarioAsync(
+                var certificados = await _universidadServices.GetCertificadosUsuarioViewModelAsync(
                     usuarioId.Value, empresaId);
 
                 return View(certificados);
@@ -723,7 +722,7 @@ namespace ProyectoMatrix.Controllers
                 if (!usuarioId.HasValue)
                     return RedirectToAction("Index");
 
-                var certificados = await _universidadServices.GetCertificadosUsuarioAsync(usuarioId.Value);
+                var certificados = await _universidadServices.GetCertificadosUsuarioViewModelAsync(usuarioId.Value);
                 var certificado = certificados.FirstOrDefault(c => c.CertificadoID == id);
 
                 if (certificado == null || !certificado.TieneArchivo)
@@ -1031,35 +1030,40 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
-        public async Task<IActionResult> TomarEvaluacion(int subCursoId)
+        [HttpGet("Universidad/TomarEvaluacion/{subCursoId:int}")]
+        public async Task<IActionResult> TomarEvaluacion([FromRoute] int subCursoId)
         {
+            _logger.LogInformation("🎯 Entrando a TomarEvaluacion para SubCursoID={SubCursoId}", subCursoId);
+
             try
             {
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
                 var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada") ??
-                               HttpContext.Session.GetInt32("EmpresaID") ?? 1;
+                                HttpContext.Session.GetInt32("EmpresaID") ?? 1;
 
                 if (!usuarioId.HasValue)
-                    return RedirectToAction("Index");
+                    return RedirectToAction("Login", "Login");
 
                 var viewModel = await _universidadServices.GetTomarEvaluacionViewModelAsync(
                     subCursoId, usuarioId.Value, empresaId);
 
-                if (viewModel == null)
+                if (viewModel == null || viewModel.Preguntas == null || !viewModel.Preguntas.Any())
                 {
-                    TempData["Error"] = "Evaluación no disponible.";
-                    return RedirectToAction("MisCursos");
+                    TempData["Warning"] = "Este módulo no tiene evaluación disponible.";
+                    return RedirectToAction("TomarSubCurso", new { subCursoId });
                 }
 
-                return View(viewModel);
+                // 👀 Asegurarte que usa la vista correcta
+                return View("TomarEvaluacion", viewModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al cargar evaluación para tomar");
+                _logger.LogError(ex, "❌ Error al cargar evaluación para SubCursoID={SubCursoId}", subCursoId);
                 TempData["Error"] = "Error al cargar la evaluación.";
                 return RedirectToAction("MisCursos");
             }
         }
+
 
         [HttpPost]
         public async Task<IActionResult> EntregarEvaluacion([FromBody] EntregarEvaluacionRequest request)
@@ -1085,6 +1089,9 @@ namespace ProyectoMatrix.Controllers
                         success = true,
                         calificacion = resultado.Calificacion,
                         aprobado = resultado.Aprobado,
+                        cursoCompleto = resultado.CursoCompleto,    // 👈 NUEVO
+                        nombreUsuario = resultado.NombreUsuario,    // 👈 NUEVO
+                        nombreCurso = resultado.NombreCurso,        // 👈 NUEVO
                         message = "Evaluación entregada exitosamente."
                     });
                 }
@@ -1099,6 +1106,7 @@ namespace ProyectoMatrix.Controllers
                 return Json(new { success = false, message = "Error interno del servidor." });
             }
         }
+
 
         // =====================================================
         // EDITAR SUBCURSO
@@ -1506,14 +1514,13 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
-        //////////////// a partir de aqui es o de tomar curso
-        // MÉTODOS NECESARIOS EN UniversidadController.cs
 
 
 
 
 
- 
+
+
 
     }
 }

@@ -66,6 +66,9 @@
     <form id="formEvaluacion">
         <input type="hidden" id="subCursoId" value="@Model.SubCursoID">
         <input type="hidden" id="tiempoInicio" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")">
+        <input type="hidden" id="usuarioId" value="@ViewBag.UsuarioId">
+        <input type="hidden" id="empresaId" value="@ViewBag.EmpresaId">
+
 
         @foreach (var pregunta in Model.Preguntas.OrderBy(p => p.Orden))
         {
@@ -150,7 +153,7 @@
                                     <i class="fas fa-paper-plane me-2"></i>
                                     Entregar Evaluación
                                 </button>
-                                <a href="/Universidad/MisCursos" class="btn btn-outline-danger">
+                                <a id="btnSalirSinGuardar" href="/Universidad/MisCursos" class="btn btn-outline-danger">
                                     <i class="fas fa-times me-2"></i>
                                     Salir sin Guardar
                                 </a>
@@ -189,8 +192,33 @@
     </div>
 </div>
 
+
+
+
 @section Scripts {
     <script>
+
+        // Guard para bloquear salir/recargar mientras se responde
+        window.unloadGuard = {
+            enabled: false,
+            handler: function (e) {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            },
+            enable: function () {
+                if (this.enabled) return;
+                window.addEventListener('beforeunload', this.handler);
+                this.enabled = true;
+            },
+            disable: function () {
+                if (!this.enabled) return;
+                window.removeEventListener('beforeunload', this.handler);
+                this.enabled = false;
+            }
+        };
+
+
         // Variables globales
         let tiempoInicio = new Date();
         let tiempoLimite = @Model.TiempoLimiteMinutos * 60; // en segundos
@@ -199,6 +227,7 @@
 
         // Inicializar
         document.addEventListener('DOMContentLoaded', function() {
+            unloadGuard.enable();
             iniciarCronometro();
             // Autoguardar cada 2 minutos
             setInterval(guardarBorrador, 120000);
@@ -267,64 +296,64 @@
         }
 
         function entregarEvaluacion() {
+            // 🚫 Quita el aviso justo al entregar
+            unloadGuard.disable();
+
             const respuestas = recopilarRespuestas();
-            const tiempoEmpleado = Math.floor((tiempoLimite - tiempoRestante) / 60); // en minutos
+            const tiempoEmpleado = Math.floor((tiempoLimite - tiempoRestante) / 60);
 
             const datos = {
-                subCursoId: document.getElementById('subCursoId').value,
-                respuestas: respuestas,
-                tiempoEmpleado: tiempoEmpleado
+                subCursoId: parseInt(document.getElementById('subCursoId').value),
+                tiempoEmpleado: tiempoEmpleado,
+                respuestas: respuestas
             };
 
-            // Deshabilitar formulario
-            document.getElementById('formEvaluacion').style.pointerEvents = 'none';
-
-            // Mostrar loading
-            mostrarNotificacion('Entregando evaluación...', 'info');
-
-            // Enviar evaluación
-            fetch('/Evaluacion/EntregarEvaluacion', {
+            fetch('/Universidad/EntregarEvaluacion', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(datos)
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(result => {
                 if (result.success) {
-                    alert(`Evaluación entregada exitosamente.\nCalificación: ${result.calificacion}%\nEstado: ${result.aprobado ? 'APROBADO' : 'REPROBADO'}`);
+                    let msg = `Evaluación entregada exitosamente.\nCalificación: ${result.calificacion}%\nEstado: ${result.aprobado ? 'APROBADO' : 'REPROBADO'}`;
+
+                    // 👇 Mostrar felicitación si terminó el curso
+                    if (result.cursoCompleto) {
+                        msg += "\n🎉 ¡Felicidades! Has completado el curso. Tu certificado ya está disponible en 'Mis Certificados'.";
+                    }
+
+                    alert(msg);
                     window.location.href = '/Universidad/MisCursos';
                 } else {
-                    alert('Error al entregar evaluación: ' + result.message);
-                    document.getElementById('formEvaluacion').style.pointerEvents = 'auto';
+                    alert('Error: ' + result.message);
+                    unloadGuard.enable();
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 alert('Error al entregar la evaluación');
-                document.getElementById('formEvaluacion').style.pointerEvents = 'auto';
+                unloadGuard.enable();
             });
         }
 
-        function recopilarRespuestas() {
+                function recopilarRespuestas() {
             const respuestas = {};
 
-            // Preguntas de opción múltiple y verdadero/falso
+            // Opción múltiple y V/F
             document.querySelectorAll('input[type="radio"]:checked').forEach(input => {
-                const nombrePregunta = input.name;
-                const preguntaId = nombrePregunta.split('_')[1];
+                const preguntaId = parseInt(input.name.split('_')[1]);
                 respuestas[preguntaId] = {
                     tipo: 'opcion',
-                    opcionId: input.value
+                    opcionId: parseInt(input.value)
                 };
             });
 
             // Preguntas abiertas
             document.querySelectorAll('textarea[name^="pregunta_abierta_"]').forEach(textarea => {
-                const nombrePregunta = textarea.name;
-                const preguntaId = nombrePregunta.split('_')[2];
+                const preguntaId = parseInt(textarea.name.split('_')[2]);
                 if (textarea.value.trim()) {
                     respuestas[preguntaId] = {
                         tipo: 'abierta',
@@ -335,6 +364,11 @@
 
             return respuestas;
         }
+
+        
+
+
+
 
         function formatearTiempo(segundos) {
             const minutos = Math.floor(segundos / 60);
@@ -362,11 +396,7 @@
             }, 3000);
         }
 
-        // Prevenir salir sin guardar
-        window.addEventListener('beforeunload', function(e) {
-            e.preventDefault();
-            e.returnValue = '¿Está seguro de salir? Se perderá el progreso no guardado.';
-        });
+
     </script>
 
     <style>
