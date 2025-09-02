@@ -6,7 +6,7 @@ public class ApplicationDbContext : DbContext
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : base(options)
     {
-    }
+    } 
 
     //public DbSet<TuEntidad> TuTabla { get; set; } // Reemplaza con tu entidad
 
@@ -20,6 +20,15 @@ public class ApplicationDbContext : DbContext
     public DbSet<Webinar> Webinars { get; set; }
 
     public DbSet<WebinarEmpresa> WebinarsEmpresas { get; set; }
+
+    public DbSet<Notificacion> Notificaciones { get; set; }
+
+    public DbSet<NotificacionLectura>  NotificacionLecturas { get; set; }
+
+    public DbSet<NotificacionEmpresas> NotificacionEmpresas { get; set; }
+
+
+
 
     //  public DbSet<Nivel> NivelesEducativos { get; set; } // Asegúrate de tener una entidad Nivel
 
@@ -69,6 +78,23 @@ public class ApplicationDbContext : DbContext
             .ValueGeneratedOnAdd();
 
 
+        modelBuilder.Entity<NotificacionLectura>()
+            .HasIndex(x=> new { x.NotificacionId, x.UsuarioId }).IsUnique();
+
+        modelBuilder.Entity<NotificacionLectura>()
+            .HasOne(x => x.Notificacion)
+            .WithMany()
+            .HasForeignKey(x => x.NotificacionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<NotificacionEmpresas>()
+            .HasIndex(x => new { x.EmpresaId, x.NotificacionId });
+
+        modelBuilder.Entity<NotificacionEmpresas>()
+            .HasOne(x => x.Notificacion)
+            .WithMany()
+            .HasForeignKey(x => x.NotificacionId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
 }

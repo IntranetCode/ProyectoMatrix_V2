@@ -87,10 +87,21 @@
                 -->
                 <div class="navbar-right">
                     <div class="quick-actions-navbar">
-                        <button class="quick-action-btn" id="notificationsBtn" title="Notificaciones">
-                            <i class="fas fa-bell"></i>
-                            <span class="notification-badge">3</span>
-                        </button>
+                        <a class="quick-action-btn" id="btnNotificaciones" aria-haspopup="true" aria-expanded="false" title="Notificaciones">
+                            <i class="fas fa-bell" aria-hidden="true"></i>
+                            <span id="notifCount" class="badge rounded-pill" hidden="true">0</span>  </a>
+
+                        <div id="notifDropdown" class="notif-dropdown" aria-labelledby="btnNotificaciones">
+                        
+                            <div class="notif-header">
+                              <strong>Notificaciones</strong>
+                                <form id="formMarcarTodas" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn-link">Marcar todas como leídas</button>
+                                </form>
+                            </div>
+                            <ul id="notifList" class="notif-list"></ul>
+                        </div>
                     </div>
 
                     <div class="user-menu">
@@ -136,18 +147,28 @@
             </div>
         </nav>
 
+       
         <!-- Main Content -->
         <main class="main-content" id="main-content" role="main">
             <!-- Welcome Section -->
-            <section class="welcome-section" aria-labelledby="welcome-title">
-                <div class="welcome-content">
+            @{
+                var claseBienvenida = (ViewBag.MostrarBienvenida == true) 
+                ? "welcome-section as-overlay"
+                : "welcome-section is-pinned";
+            }
+            <section id="welcome-section" class="@claseBienvenida" aria-labelledby="welcome-title">
+
+                <div class="welcome-box">
                     <h1 id="welcome-title" class="welcome-title">¡Hola, @nombreUsuario!</h1>
                     <p class="welcome-subtitle">
                         Bienvenido al portal interno de @nombreEmpresa.
                         Accede a recursos, capacitaciones y herramientas internas.
                     </p>
                 </div>
-            </section>
+                </section>
+                  
+                    
+               
 
             <!-- Quick Actions Grid -->
             <section class="quick-actions" aria-label="Módulos disponibles">
@@ -263,16 +284,35 @@
     </script>
 
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
-          const welcome = document.querySelector('.welcome-section');
+        window.mostrarBienvenida= '@((ViewBag.MostrarBienvenida== true) ? "true" : "false")';
 
-          // Aplica pantalla completa
-          welcome.classList.add('fullscreen-welcome');
+    </script>
+   
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const welcomeSection = document.querySelector(".welcome-section");
+            const mainWrapper = document.querySelector(".main-wrapper");
 
+            if (welcomeSection.classList.contains("as-overlay")){
+
+            
+            mainWrapper.classList.add("overlay-lock");
+
+
+            setTimeout(()=>{
+                welcomeSection.classList.add("leaving");
+
+                setTimeout(() =>{
+                welcomeSection.classList.remove("as-overlay", "leaving");
+
+                welcomeSection.classList.add("is-pinned");
+
+                mainWrapper.classList.remove("overlay-lock");
+            }, 400);
+        }, 2000);
+         }
           
-          setTimeout(() => {
-            welcome.classList.remove('fullscreen-welcome');
-          }, 3000);
+
         });
     </script>
 
@@ -337,7 +377,160 @@
         }
     </script>
 
- 
+    <script>
+        (function () {
+          const btn = document.getElementById('btnNotificaciones');
+          const badge = document.getElementById('notifCount');
+          const dropdown = document.getElementById('notifDropdown');
+          const list = document.getElementById('notifList');
+          const formMarcarTodas = document.getElementById('formMarcarTodas');
+
+
+          function renderBadge(total) {
+            if (!badge) return;
+            if (total > 0) {
+              badge.textContent = total;
+              badge.hidden = false;
+            } else {
+              badge.textContent = '0';
+              badge.hidden = true;
+            }
+          }
+
+          // POST con antiforgery
+          async function post(url, body = {}) {
+            const tokenInput = formMarcarTodas?.querySelector('input[name="__RequestVerificationToken"]');
+            const token = tokenInput ? tokenInput.value : '';
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+              body: JSON.stringify(body)
+            });
+            if (!res.ok) throw new Error('Error en POST ' + url);
+            try { return await res.json(); } catch { return {}; }
+          }
+
+        
+          async function actualizarContador() {
+            try {
+              const res = await fetch('/Notificaciones/Contar');
+             const data = await res.json();
+              renderBadge(data.total ?? 0);
+            } catch (e) {
+              console.error('Error al contar notificaciones:', e);
+            }
+          }
+
+          async function cargarLista(pagina = 1, tamanio = 10) {
+            try {
+              const res = await fetch(`/Notificaciones/Listar?pagina=${pagina}&tamanio=${tamanio}`);
+              const data = await res.json();
+              list.innerHTML = '';
+
+             if (!data.items || data.items.length === 0) {
+                list.innerHTML = '<li class="notif-empty">Sin notificaciones</li>';
+                return;
+             }
+
+              data.items.forEach(n => {
+                const li = document.createElement('li');
+                li.className = 'notif-item';
+                li.innerHTML = `
+                  <div class="notif-row">
+                    <div class="notif-main">
+                      <div class="notif-title">${escapeHtml(n.titulo)}</div>
+                     <div class="notif-date">${new Date(n.fechaCreacion).toLocaleString()}</div>
+                      ${n.mensaje ? `<div class="notif-msg">${escapeHtml(n.mensaje)}` : ''}
+                    </div>
+                    ${!n.esLeida ? '<span class="notif-new">Nueva</span>' : ''}
+                  </div>
+                  <div class="notif-actions">
+                    <button class="js-marcar" data-id="${n.id}">Marcar leída</button>
+                    ${linkDestino(n)}
+                  </div>
+                `;
+                list.appendChild(li);
+              });
+
+           
+              list.querySelectorAll('.js-marcar').forEach(b => {
+                b.addEventListener('click', async () => {
+                  try {
+                    await post(`/Notificaciones/MarcarLeida/${b.dataset.id}`);
+                   await actualizarContador();
+                    await cargarLista();
+                  } catch (e) {
+                    console.error('MarcarLeida:', e);
+                  }
+                });
+              });
+
+            } catch (e) {
+              console.error('Error al listar notificaciones:', e);
+              list.innerHTML = '<li class="notif-error">Error al cargar</li>';
+            }
+          }
+
+         
+          function linkDestino(n) {
+            let url = '#';
+           if (n.tipo === 'CursoAsignado') url = `/Cursos/MisCursos/${n.idOrigen}`;
+            else if (n.tipo === 'WebinarAsignado') url = `/Webinars/LiderLista/${n.idOrigen}`;
+            else if (n.tipo === 'Comunicado_Nuevo') url = `/Comunicados/Lista/${n.idOrigen}`;
+            return `<a class="js-ver" href="${url}">Ver</a>`;
+          }
+
+         
+         function escapeHtml(str) {
+            return String(str)
+              .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
+          }
+
+      
+          btn?.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const visible = dropdown.getAttribute('data-open') === '1';
+            dropdown.setAttribute('data-open', visible ? '0' : '1');
+            dropdown.style.display = visible ? 'none' : 'block';
+            if (!visible) await cargarLista();
+          });
+
+          document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+              dropdown.setAttribute('data-open', '0');
+              dropdown.style.display = 'none';
+            }
+          });
+
+          formMarcarTodas?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+              await post('/Notificaciones/MarcarTodasLeidas');
+              await actualizarContador();
+              await cargarLista();
+            } catch (err) {
+              console.error('MarcarTodasLeidas:', err);
+            }
+          });
+
+          
+          actualizarContador();
+          setInterval(actualizarContador, 30000);
+
+          // Exponer para pruebas
+          window.Notificaciones = {
+            actualizarContador,
+            cargarLista,
+            abrir: async () => {
+              dropdown.setAttribute('data-open', '1');
+              dropdown.style.display = 'block';
+              await cargarLista();
+            }
+          };
+        })();
+    </script>
 
 </body>
 </html>

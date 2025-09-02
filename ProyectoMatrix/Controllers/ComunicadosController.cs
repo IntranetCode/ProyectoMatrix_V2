@@ -3,11 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using ProyectoMatrix.Models;
-using System.IO;
-using System.Linq;
-using Microsoft.AspNetCore.Hosting;
-using System.Threading.Tasks;
-using System;
+using ProyectoMatrix.Servicios;
+
+
 
 namespace ProyectoMatrix.Controllers
 {
@@ -15,11 +13,14 @@ namespace ProyectoMatrix.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly IWebHostEnvironment _env;
+        private readonly ServicioNotificaciones _notif;
+        
 
-        public ComunicadosController(ApplicationDbContext db, IWebHostEnvironment env)
+        public ComunicadosController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif)
         {
             _db = db;
             _env = env;
+            _notif = notif;
         }
 
         public async Task<IActionResult> Index()
@@ -112,6 +113,12 @@ namespace ProyectoMatrix.Controllers
             };
             return View(vm);
         }
+
+
+
+
+
+
         [RequestSizeLimit(104_857_600)]
         [Authorize(Policy = "GestionComunicados")]
         [HttpPost]
@@ -133,7 +140,7 @@ namespace ProyectoMatrix.Controllers
                 EsPublico = vm.EsPublico,
                 UsuarioCreadorID = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null
             };
-
+            // Si se subió una imagen, guárdala
             if (vm.ImagenFile != null && vm.ImagenFile.Length > 0)
             {
                 var ext = Path.GetExtension(vm.ImagenFile.FileName).ToLowerInvariant();
@@ -155,6 +162,7 @@ namespace ProyectoMatrix.Controllers
 
                 comunicado.Imagen = $"/uploads/{fileName}";
             }
+            // Asocia las empresas seleccionadas
 
             if (!vm.EsPublico && vm.EmpresasSeleccionadas.Any())
             {
@@ -162,10 +170,39 @@ namespace ProyectoMatrix.Controllers
                     comunicado.ComunicadosEmpresas.Add(new ComunicadoEmpresa { EmpresaID = empId });
             }
 
+            // Guarda en la base de datos
             _db.Comunicados.Add(comunicado);
             await _db.SaveChangesAsync();
-            return RedirectToAction(nameof(Gestionar));
+
+
+            // Notifica a los usuarios
+
+            if(vm.EsPublico)
+            {
+                await _notif.EmitirGlobal(
+                    "Comunicado_Nuevo",
+                    comunicado.NombreComunicado,
+                    comunicado.Descripcion,
+                    comunicado.ComunicadoID,
+                    "Comunicados");
+            }
+            else if(vm.EmpresasSeleccionadas.Any() == true)
+            {
+                await _notif.EmitirParaEmpresas(
+                    "Comunicado_Nuevo",
+                    comunicado.NombreComunicado,
+                    comunicado.Descripcion,
+                    comunicado.ComunicadoID,
+                    "Comunicados",
+                    vm.EmpresasSeleccionadas);
+            }
+
+
+                return RedirectToAction(nameof(Gestionar));
         }
+
+
+
 
         [Authorize(Policy = "GestionComunicados")]
         [HttpGet]

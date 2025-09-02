@@ -35,11 +35,11 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 // ? AGREGAR CONFIGURACIÓN DEL SERVIDOR
-builder.WebHost.ConfigureKestrel(options =>
-{
+//builder.WebHost.ConfigureKestrel(options =>
+//{
     // Escuchar en puerto 500 para todas las IPs
    // options.ListenAnyIP(500);
-});
+//});
 
 // Obtener la cadena de conexión desde appsettings.json
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -65,7 +65,7 @@ builder.Services.AddSession(options =>
 // ? SERVICIOS Universidad NS
 builder.Services.AddScoped<UniversidadServices>();
 
-builder.Services.AddScoped<AsignacionesController>();
+
 
 builder.Services.AddAuthorization();
 
@@ -105,6 +105,12 @@ builder.Services.Configure<FormOptions>(options =>
 
 
 
+// Registrar el servicio de notificacionesa
+builder.Services.AddScoped<ServicioNotificaciones>();
+
+builder.Services.AddDistributedMemoryCache();
+
+
 
 var app = builder.Build();
 
@@ -129,7 +135,7 @@ app.Use(async (context, next) =>
 });
 
 
-
+app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
@@ -137,6 +143,8 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapControllers();
 
 // ? MAPEAR Controllers ANTES de RazorPages
 app.MapControllerRoute(

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using ProyectoMatrix.Models;
+using ProyectoMatrix.Servicios;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -19,11 +20,13 @@ namespace ProyectoMatrix.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly IWebHostEnvironment _env;
+        private readonly ServicioNotificaciones _notif;
 
-        public WebinarsController(ApplicationDbContext db, IWebHostEnvironment env)
+        public WebinarsController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif)
         {
             _db = db;
             _env = env;
+            _notif = notif;
         }
 
 
@@ -229,6 +232,8 @@ namespace ProyectoMatrix.Controllers
             return View("~/Views/Lider/CrearWebinar.cshtml");
         }
 
+
+
         [Authorize(Roles = "Autor/Editor de Contenido,Administrador de Intranet,Propietario de Contenido")]
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> CrearWebinar(Webinar model, int[]? empresasSeleccionadas, IFormFile? imagenFile)
@@ -248,15 +253,42 @@ namespace ProyectoMatrix.Controllers
             _db.Webinars.Add(model);
             await _db.SaveChangesAsync();
 
-            if (!model.EsPublico && empresasSeleccionadas is { Length: > 0 })
+            // Relaciones empresa ↔ webinar (si no es público)
+            if (!model.EsPublico && (empresasSeleccionadas?.Length > 0))
             {
-                var relaciones = empresasSeleccionadas.Select(eid => new WebinarEmpresa
-                {
-                    WebinarID = model.WebinarID,
-                    EmpresaID = eid
-                });
+                var relaciones = empresasSeleccionadas
+                    .Distinct()
+                    .Select(eid => new WebinarEmpresa
+                    {
+                        WebinarID = model.WebinarID,
+                        EmpresaID = eid
+                    });
                 _db.WebinarsEmpresas.AddRange(relaciones);
                 await _db.SaveChangesAsync();
+            }
+
+            var tipoNotif = "WebinarAsignado"; // unifica con tu JS
+
+            if (model.EsPublico)
+            {
+                await _notif.EmitirGlobal(
+                    tipoNotif,
+                    model.Titulo,
+                    $"Webinar programado: {model.Titulo} - {model.FechaInicio:dd/MM/yyyy HH:mm}",
+                    model.WebinarID,
+                    "Webinars"
+                );
+            }
+            else if (empresasSeleccionadas?.Any() == true) // <- null-safe
+            {
+                await _notif.EmitirParaEmpresas(
+                    tipoNotif,
+                    model.Titulo,
+                    $"Webinar programado: {model.Titulo} - {model.FechaInicio:dd/MM/yyyy HH:mm}",
+                    model.WebinarID,
+                    "Webinars",
+                    empresasSeleccionadas.Distinct()
+                );
             }
 
             return RedirectToAction(nameof(MisWebinars));

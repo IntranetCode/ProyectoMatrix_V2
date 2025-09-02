@@ -8,6 +8,9 @@ using Microsoft.Extensions.Logging;
 using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
+using Microsoft.EntityFrameworkCore;
+
+
 
 namespace ProyectoMatrix.Controllers
 {
@@ -15,13 +18,20 @@ namespace ProyectoMatrix.Controllers
     {
         private readonly UniversidadServices _universidadServices;
         private readonly ILogger<AsignacionesController> _logger;
+        private readonly ServicioNotificaciones _notif;
+        private readonly ApplicationDbContext _db;
+     
 
         public AsignacionesController(
             UniversidadServices universidadServices,
-            ILogger<AsignacionesController> logger)
+            ILogger<AsignacionesController> logger, ServicioNotificaciones notif,
+            ApplicationDbContext db
+           )
         {
             _universidadServices = universidadServices;
             _logger = logger;
+            _notif = notif;
+            _db = db;
         }
 
         // =====================================================
@@ -55,6 +65,9 @@ namespace ProyectoMatrix.Controllers
                 return RedirectToAction("Index", "Universidad");
             }
         }
+
+
+
 
         // =====================================================
         // OBTENER DEPARTAMENTOS POR EMPRESA - AJAX
@@ -141,6 +154,20 @@ namespace ProyectoMatrix.Controllers
 
                 if (resultado.Exito)
                 {
+                    var nombreCurso = "Curso";
+                    foreach (var uid in request.UsuariosSeleccionados.Distinct())
+                    {
+                        await _notif.EmitirUsuario(
+                            "CursoAsignado",
+                            nombreCurso,
+                            "Se te asigno un nuevo curso",
+                            request.IdCurso,
+                            "Cursos",
+                            uid
+                            );
+                    }
+
+
                     return Json(new
                     {
                         success = true,

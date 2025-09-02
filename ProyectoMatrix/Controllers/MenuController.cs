@@ -24,6 +24,12 @@ namespace ProyectoMatrix.Controllers
         [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public async Task<IActionResult> Index()
         {
+
+            ViewBag.MostrarBienvenida = (TempData["MostrarBienvenida"] as string) == "true";
+
+            HttpContext.Session.SetInt32("UsuarioID", 1);
+            HttpContext.Session.SetInt32("EmpresaID", 2);
+
             //CACHE DE NAVEGADOR
             Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
             Response.Headers["Pragma"] = "no-cache";

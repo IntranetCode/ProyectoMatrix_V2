@@ -49,15 +49,22 @@
 <body class="empresa-@empresaId">
     <!-- NAVBAR unificada: Inicio / Universidad / Proyectos + menú usuario -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom">
-        <div class="container-fluid">
-            
+
+        
+        <div class="container-fluid ">
+
+            <a class="navbar-brand nombre-empresa" href="#">
+                <i class="fas fa-building me-1"></i>@nombreEmpresa
+            </a>
+
+            <div class="d-flex align-items-center">
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain"
                     aria-controls="navbarMain" aria-expanded="false" aria-label="Menú">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
-            <div class="collapse navbar-collapse" id="navbarMain">
+            <div class="collapse navbar-collapse justify-content-end" id="navbarMain">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <!-- Inicio -->
                     <li class="nav-item">
@@ -80,16 +87,8 @@
                             <i class="fas fa-bullhorn me-1"></i>Comunicados
                         </a>
                     </li>
-                </ul>
 
-                <!-- Info de empresa y rol (desktop) -->
-                <span class="navbar-text text-white me-3 d-none d-lg-inline">
-                    <small>
-                        <i class="fas fa-building me-1"></i>@nombreEmpresa
-                        <span class="mx-2">|</span>
-                        
-                    </small>
-                </span>
+
 
                 <!-- Menú de usuario / Login-Logout -->
                 <ul class="navbar-nav">
@@ -134,6 +133,7 @@
                     }
                 </ul>
             </div>
+        </div>
         </div>
     </nav>
 

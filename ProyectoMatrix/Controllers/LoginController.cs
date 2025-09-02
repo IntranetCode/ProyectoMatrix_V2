@@ -27,6 +27,7 @@ public class LoginController : Controller
         if (HttpContext.Session.GetInt32("UsuarioID") != null)
         {
             return RedirectToAction("Index", "Menu"); // Redirige si el usuario es diferente de null, porque ya tiene la sesio abierta
+       
         }
 
         return View();
@@ -35,17 +36,22 @@ public class LoginController : Controller
 
     // ---------- LOGIN POST ----------
     [HttpPost]
-    public async Task<IActionResult> Login(UsuarioModel model)
+    public async Task<IActionResult> Login(UsuarioModel model, EmpresaModel empresa)
     {
         if (!ModelState.IsValid)
             return View(model);
 
         var usuario = await ObtenerUsuarioActivoAsync(model.Username, _connectionString);
 
+ 
+       
+
         if (usuario == null || usuario.Password != model.Password)
         {
             ModelState.AddModelError("", "Usuario o contraseña incorrectos");
             return View(model);
+
+
         }
 
         var empresas = await ObtenerEmpresasPorUsuarioAsync(usuario.UsuarioID);
@@ -61,8 +67,13 @@ public class LoginController : Controller
         }
         else if (empresas.Count == 1)
         {
+
+
             // Una empresa → continuar login
             return await CompletarLogin(usuario, empresas[0]);
+
+
+            
         }
         else
         {
@@ -131,6 +142,10 @@ public class LoginController : Controller
     new Claim(ClaimTypes.Role, usuario.Rol),
     new Claim("RolID", rolId.ToString())
 };
+
+
+        TempData["MostrarBienvenida"] = "true";
+
 
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -329,8 +344,14 @@ public class LoginController : Controller
 
     public IActionResult Index()
     {
+
+        
+      
+
         if (HttpContext.Session.GetInt32("UsuarioID") != null)
         {
+
+
             return RedirectToAction("Index", "Menu"); // o "Home", según tu caso
         }
 
