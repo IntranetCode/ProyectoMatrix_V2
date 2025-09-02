@@ -176,6 +176,7 @@ namespace ProyectoMatrix.Controllers
                 .AsNoTracking()
                 .Where(w => w.UsuarioCreadorID == userId.Value)
                 .OrderByDescending(w => w.FechaCreacion)
+                .ThenByDescending(w => w.WebinarID)
                 .Select(w => new WebinarListItemVm
                 {
                     WebinarID = w.WebinarID,

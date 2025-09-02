@@ -45,6 +45,7 @@ namespace ProyectoMatrix.Controllers
 
             var vm = await query
                 .OrderByDescending(c => c.FechaCreacion)
+                .ThenByDescending(c => c.ComunicadoID)
                 .Select(c => new ComunicadoListItemVM
                 {
                     ComunicadoID = c.ComunicadoID,
@@ -87,6 +88,7 @@ namespace ProyectoMatrix.Controllers
 
             var vm = await query
                 .OrderByDescending(c => c.FechaCreacion)
+                .ThenByDescending(c => c.ComunicadoID)
                 .Select(c => new ComunicadoListItemVM
                 {
                     ComunicadoID = c.ComunicadoID,
@@ -217,6 +219,7 @@ namespace ProyectoMatrix.Controllers
 
             var lista = await query
                 .OrderByDescending(c => c.FechaCreacion)
+                .ThenByDescending(c => c.ComunicadoID)
                 .Select(c => new ComunicadoListItemVM
                 {
                     ComunicadoID = c.ComunicadoID,

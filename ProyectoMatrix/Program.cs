@@ -19,6 +19,7 @@ builder.Services.Configure<FormOptions>(options =>
     options.MultipartHeadersLengthLimit = int.MaxValue;
 });
 
+
 builder.Services.Configure<IISServerOptions>(options =>
 {
     options.MaxRequestBodySize = 268435456; // 256 MB
@@ -96,12 +97,7 @@ builder.Services.AddAuthorization(options =>
             return rid == "1" || rid == "3" || rid == "4";
         }));
 });
-//CONFIGURAAR PARA QUE ACEPTE ARCHIVOS GRANDES, EN ESTE CASO VIDEOS
 
-builder.Services.Configure<FormOptions>(options =>
-{
-    options.MultipartBodyLengthLimit = 104_857_600; // 100 MB
-});
 
 
 
