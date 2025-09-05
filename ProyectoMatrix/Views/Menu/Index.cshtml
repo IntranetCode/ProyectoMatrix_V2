@@ -377,160 +377,199 @@
         }
     </script>
 
+  
     <script>
-        (function () {
-          const btn = document.getElementById('btnNotificaciones');
-          const badge = document.getElementById('notifCount');
-          const dropdown = document.getElementById('notifDropdown');
-          const list = document.getElementById('notifList');
-          const formMarcarTodas = document.getElementById('formMarcarTodas');
+(function () {
+  const btn = document.getElementById('btnNotificaciones');
+  const badge = document.getElementById('notifCount');
+  const dropdown = document.getElementById('notifDropdown');
+  const list = document.getElementById('notifList');
+  const formMarcarTodas = document.getElementById('formMarcarTodas');
 
+  function renderBadge(total) {
+    if (!badge) return;
+    if (total > 0) { badge.textContent = total; badge.hidden = false; }
+    else { badge.textContent = '0'; badge.hidden = true; }
+  }
 
-          function renderBadge(total) {
-            if (!badge) return;
-            if (total > 0) {
-              badge.textContent = total;
-              badge.hidden = false;
-            } else {
-              badge.textContent = '0';
-              badge.hidden = true;
-            }
-          }
+  async function post(url, body = {}) {
+    const token =
+      document.querySelector('meta[name="request-verification-token"]')?.content ||
+      document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
+      formMarcarTodas?.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+      credentials: 'same-origin',
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('POST ' + url + ' -> ' + res.status);
+    try { return await res.json(); } catch { return {}; }
+  }
 
-          // POST con antiforgery
-          async function post(url, body = {}) {
-            const tokenInput = formMarcarTodas?.querySelector('input[name="__RequestVerificationToken"]');
-            const token = tokenInput ? tokenInput.value : '';
-            const res = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
-              body: JSON.stringify(body)
-            });
-            if (!res.ok) throw new Error('Error en POST ' + url);
-            try { return await res.json(); } catch { return {}; }
-          }
+  async function actualizarContador() {
+    try {
+      const res = await fetch('/Notificaciones/Contar', { credentials: 'same-origin' });
+      const data = await res.json();
+      renderBadge(data.total ?? 0);
+    } catch (e) { console.error('Contar:', e); }
+  }
 
-        
-          async function actualizarContador() {
-            try {
-              const res = await fetch('/Notificaciones/Contar');
-             const data = await res.json();
-              renderBadge(data.total ?? 0);
-            } catch (e) {
-              console.error('Error al contar notificaciones:', e);
-            }
-          }
+  function val(n, up, low) { return n[up] ?? n[low]; } // helper para Id/id, etc.
 
-          async function cargarLista(pagina = 1, tamanio = 10) {
-            try {
-              const res = await fetch(`/Notificaciones/Listar?pagina=${pagina}&tamanio=${tamanio}`);
-              const data = await res.json();
-              list.innerHTML = '';
+  async function cargarLista(pagina = 1, tamanio = 10) {
+    try {
+      const res = await fetch(`/Notificaciones/Listar?pagina=${pagina}&tamanio=${tamanio}`, { credentials: 'same-origin' });
+      const data = await res.json();
+      list.innerHTML = '';
 
-             if (!data.items || data.items.length === 0) {
-                list.innerHTML = '<li class="notif-empty">Sin notificaciones</li>';
-                return;
-             }
+      if (!data.items || data.items.length === 0) {
+        list.innerHTML = '<li class="notif-empty">Sin notificaciones</li>';
+        return;
+      }
 
-              data.items.forEach(n => {
-                const li = document.createElement('li');
-                li.className = 'notif-item';
-                li.innerHTML = `
-                  <div class="notif-row">
-                    <div class="notif-main">
-                      <div class="notif-title">${escapeHtml(n.titulo)}</div>
-                     <div class="notif-date">${new Date(n.fechaCreacion).toLocaleString()}</div>
-                      ${n.mensaje ? `<div class="notif-msg">${escapeHtml(n.mensaje)}` : ''}
-                    </div>
-                    ${!n.esLeida ? '<span class="notif-new">Nueva</span>' : ''}
-                  </div>
-                  <div class="notif-actions">
-                    <button class="js-marcar" data-id="${n.id}">Marcar leída</button>
-                    ${linkDestino(n)}
-                  </div>
-                `;
-                list.appendChild(li);
-              });
+      data.items.forEach(n => {
+        const id = val(n, 'Id', 'id');
+        const titulo = val(n, 'Titulo', 'titulo') ?? '';
+        const mensaje = val(n, 'Mensaje', 'mensaje') ?? '';
+        const tipo = val(n, 'Tipo', 'tipo') ?? '';
+        const idOrigen = val(n, 'IdOrigen', 'idOrigen');
+        const fecha = new Date(val(n, 'FechaCreacion', 'fechaCreacion') || Date.now()).toLocaleString();
+        const esLeida = !!(n.EsLeida ?? n.esLeida);
 
-           
-              list.querySelectorAll('.js-marcar').forEach(b => {
-                b.addEventListener('click', async () => {
-                  try {
-                    await post(`/Notificaciones/MarcarLeida/${b.dataset.id}`);
-                   await actualizarContador();
-                    await cargarLista();
-                  } catch (e) {
-                    console.error('MarcarLeida:', e);
-                  }
-                });
-              });
+        const li = document.createElement('li');
+        li.className = 'notif-item' + (!esLeida ? ' unread' : '');
+        li.dataset.id = id;
+        li.dataset.tipo = tipo;
+        li.dataset.idorigen = idOrigen;
 
-            } catch (e) {
-              console.error('Error al listar notificaciones:', e);
-              list.innerHTML = '<li class="notif-error">Error al cargar</li>';
-            }
-          }
+        li.innerHTML = `
+          <div class="notif-row">
+            <div class="notif-main">
+              <div class="notif-title">${escapeHtml(titulo)}</div>
+              <div class="notif-date">${fecha}</div>
+              ${mensaje ? `<div class="notif-msg">${escapeHtml(mensaje)}</div>` : ''}
+            </div>
+            ${!esLeida ? '<span class="notif-new">Nueva</span>' : ''}
+          </div>
+          <div class="notif-actions">
+            <button class="js-marcar${esLeida ? ' ya-leido' : ''}" data-id="${id}" ${esLeida ? 'disabled' : ''}>
+              ${esLeida ? 'Leído' : 'Marcar leída'}
+            </button>
+            ${linkDestino(tipo, idOrigen)}
+          </div>
+        `;
+        list.appendChild(li);
+      });
 
-         
-          function linkDestino(n) {
-            let url = '#';
-           if (n.tipo === 'CursoAsignado') url = `/Cursos/MisCursos/${n.idOrigen}`;
-            else if (n.tipo === 'WebinarAsignado') url = `/Webinars/LiderLista/${n.idOrigen}`;
-            else if (n.tipo === 'Comunicado_Nuevo') url = `/Comunicados/Lista/${n.idOrigen}`;
-            return `<a class="js-ver" href="${url}">Ver</a>`;
-          }
+    } catch (e) {
+      console.error('Listar:', e);
+      list.innerHTML = '<li class="notif-error">Error al cargar</li>';
+    }
+  }
 
-         
-         function escapeHtml(str) {
-            return String(str)
-              .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-              .replace(/'/g, '&#039;');
-          }
+  function linkDestino(tipo, idOrigen) {
+    let url = '#';
+    if (tipo === 'CursoAsignado') url = `/Cursos/MisCursos/${idOrigen}`;
+    else if (tipo === 'WebinarAsignado') url = `/Webinars/LiderLista/${idOrigen}`;
+    else if (tipo === 'Comunicado_Nuevo') url = `/Comunicados/Lista/${idOrigen}`;
+    return `<a class="js-ver" href="${url}">Ver</a>`;
+  }
 
-      
-          btn?.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const visible = dropdown.getAttribute('data-open') === '1';
-            dropdown.setAttribute('data-open', visible ? '0' : '1');
-            dropdown.style.display = visible ? 'none' : 'block';
-            if (!visible) await cargarLista();
-          });
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
 
-          document.addEventListener('click', (e) => {
-            if (!dropdown.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-              dropdown.setAttribute('data-open', '0');
-              dropdown.style.display = 'none';
-            }
-          });
+  function aplicarLeidoUI(btn){
+    btn.textContent = 'Leído';
+    btn.disabled = true;
+    btn.classList.add('ya-leido');
+    const li = btn.closest('.notif-item');
+    if (li) {
+      li.classList.remove('unread');
+      const chip = li.querySelector('.notif-new');
+      if (chip) chip.remove();
+    }
+    const actual = parseInt((badge?.textContent || '0').trim(), 10);
+    renderBadge(isNaN(actual) ? 0 : Math.max(0, actual - 1));
+  }
 
-          formMarcarTodas?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            try {
-              await post('/Notificaciones/MarcarTodasLeidas');
-              await actualizarContador();
-              await cargarLista();
-            } catch (err) {
-              console.error('MarcarTodasLeidas:', err);
-            }
-          });
+  // Delegación de eventos (un solo listener)
+  list?.addEventListener('click', async (e) => {
+    const btnMark = e.target.closest('.js-marcar');
+    if (!btnMark) return;
 
-          
-          actualizarContador();
-          setInterval(actualizarContador, 30000);
+    e.preventDefault();
+    if (btnMark.disabled) return;
 
-          // Exponer para pruebas
-          window.Notificaciones = {
-            actualizarContador,
-            cargarLista,
-            abrir: async () => {
-              dropdown.setAttribute('data-open', '1');
-              dropdown.style.display = 'block';
-              await cargarLista();
-            }
-          };
-        })();
-    </script>
+    aplicarLeidoUI(btnMark);
+    try {
+      await post(`/Notificaciones/MarcarLeida/${btnMark.dataset.id}`);
+    } catch (err) {
+      console.error('MarcarLeida:', err);
+      // revertir
+      btnMark.textContent = 'Marcar leída';
+      btnMark.disabled = false;
+      btnMark.classList.remove('ya-leido');
+      const li = btnMark.closest('.notif-item');
+      if (li) {
+        li.classList.add('unread');
+        if (!li.querySelector('.notif-new')) {
+          const chip = document.createElement('span');
+          chip.className = 'notif-new';
+          chip.textContent = 'Nueva';
+          li.querySelector('.notif-row')?.appendChild(chip);
+        }
+      }
+      try { await actualizarContador(); } catch {}
+    }
+  });
+
+  // Abrir/cerrar dropdown
+  btn?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const open = dropdown.getAttribute('data-open') === '1';
+    dropdown.setAttribute('data-open', open ? '0' : '1');
+    dropdown.style.display = open ? 'none' : 'block';
+    if (!open) await cargarLista();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+      dropdown.setAttribute('data-open', '0');
+      dropdown.style.display = 'none';
+    }
+  });
+
+  formMarcarTodas?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await post('/Notificaciones/MarcarTodasLeidas');
+      await actualizarContador();
+      await cargarLista();
+    } catch (err) {
+      console.error('MarcarTodasLeidas:', err);
+    }
+  });
+
+  actualizarContador();
+  setInterval(actualizarContador, 30000);
+
+  window.Notificaciones = {
+    actualizarContador,
+    cargarLista,
+    abrir: async () => {
+      dropdown.setAttribute('data-open', '1');
+      dropdown.style.display = 'block';
+      await cargarLista();
+    }
+  };
+})();
+</script>
+
 
 </body>
 </html>

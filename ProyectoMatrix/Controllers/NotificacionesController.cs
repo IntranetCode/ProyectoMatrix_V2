@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
 using System;
+using System.Security.Claims;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -18,102 +19,111 @@ namespace ProyectoMatrix.Controllers
             _servicio = servicio;
         }
 
+        // Helpers
+        private (int? usuarioId, int? empresaId) GetIds()
+        {
+            int? uid = null, eid = null;
+
+            // 1) Claims (preferido)
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(claim, out var cid)) uid = cid;
+
+            // 2) Sesión (preferir las variantes con "ID")
+            var uID = HttpContext.Session.GetInt32("UsuarioID");
+            var uId = HttpContext.Session.GetInt32("UsuarioId");
+            var eID = HttpContext.Session.GetInt32("EmpresaID");
+            var eId = HttpContext.Session.GetInt32("EmpresaId");
+
+            if (uid == null) uid = uID ?? uId;
+            eid = eID ?? eId;
+
+            // Normalizar: si ambas existen y son distintas, sobrescribe la vieja
+            if (uID != null && uId != null && uID != uId)
+                HttpContext.Session.SetInt32("UsuarioId", uID.Value);
+            if (eID != null && eId != null && eID != eId)
+                HttpContext.Session.SetInt32("EmpresaId", eID.Value);
+
+            return (uid, eid);
+        }
+
+        private IQueryable<Notificacion> QueryVisiblesPara(int? usuarioId, int? empresaId)
+        {
+            var ahora = DateTime.UtcNow;
+            return _context.Notificaciones
+                .Where(n => n.FechaEliminacion == null && n.FechaExpiracion > ahora)
+                .Where(n =>
+                       (n.UsuarioId == null && n.EmpresaId == null
+                            && !_context.NotificacionEmpresas.Any(ne => ne.NotificacionId == n.Id)) // GLOBAL
+                    || (empresaId != null && (
+                            _context.NotificacionEmpresas.Any(ne => ne.NotificacionId == n.Id && ne.EmpresaId == empresaId)
+                         || n.EmpresaId == empresaId))                                           // EMPRESA
+                    || (usuarioId != null && n.UsuarioId == usuarioId)                            // USUARIO
+                );
+        }
+
         [HttpGet("Contar")]
         public async Task<IActionResult> Contar()
         {
-            var usuarioId = HttpContext.Session.GetInt32("UsuarioId")?? HttpContext.Session.GetInt32("UsuarioID");
-            var empresaId = HttpContext.Session.GetInt32("EmpresaId")?? HttpContext.Session.GetInt32("EmpresaID");
+            var (usuarioId, empresaId) = GetIds();
             if (usuarioId == null && empresaId == null) return Json(new { total = 0 });
 
-            var ahora = DateTime.UtcNow;
+            var visibles = QueryVisiblesPara(usuarioId, empresaId);
 
-            var total = await _context.Notificaciones
-              .Where(n => n.FechaEliminacion == null && n.FechaExpiracion > ahora)
-              .Where(n =>
-                   (n.UsuarioId == null && n.EmpresaId == null
-                        && !_context.NotificacionEmpresas.Any(ne => ne.NotificacionId == n.Id))      // GLOBAL
-                || (empresaId != null && (
-                        _context.NotificacionEmpresas.Any(ne => ne.NotificacionId == n.Id && ne.EmpresaId == empresaId)
-                     || n.EmpresaId == empresaId))                                                  // EMPRESA
-                || (usuarioId != null && n.UsuarioId == usuarioId)                                  // USUARIO
-              )
-              .Where(n => !_context.NotificacionLecturas
-                       .Any(l => l.NotificacionId == n.Id && l.UsuarioId == usuarioId))
-              .CountAsync();
+            // Si no hay usuario, no se puede saber "leídas"; cuenta todas visibles
+            var total = (usuarioId == null)
+                ? await visibles.CountAsync()
+                : await visibles.CountAsync(n =>
+                        !_context.NotificacionLecturas.Any(l => l.NotificacionId == n.Id && l.UsuarioId == usuarioId));
 
             return Json(new { total });
         }
 
-
-
         [HttpGet("Listar")]
-        public async Task<IActionResult> Listar(int pagina = 1, int tamanio = 10, bool soloNoLeidas = false)
+        public async Task<IActionResult> Listar(int pagina = 1, int tamanio = 12, bool soloNoLeidas = false)
         {
-            var usuarioId = HttpContext.Session.GetInt32("UsuarioId") ?? HttpContext.Session.GetInt32("UsuarioID");
-            var empresaId = HttpContext.Session.GetInt32("EmpresaId") ?? HttpContext.Session.GetInt32("EmpresaID");
+            var (usuarioId, empresaId) = GetIds();
             if (usuarioId == null && empresaId == null)
                 return Json(new { total = 0, pagina, tamanio, items = Array.Empty<object>() });
 
-            var ahora = DateTime.UtcNow;
+            var q = QueryVisiblesPara(usuarioId, empresaId);
 
-            var q = _context.Notificaciones
-              .Where(n => n.FechaEliminacion == null && n.FechaExpiracion > ahora)
-              .Where(n =>
-                   (n.UsuarioId == null && n.EmpresaId == null
-                        && !_context.NotificacionEmpresas.Any(ne => ne.NotificacionId == n.Id))      // GLOBAL
-                || (empresaId != null && (
-                        _context.NotificacionEmpresas.Any(ne => ne.NotificacionId == n.Id && ne.EmpresaId == empresaId)
-                     || n.EmpresaId == empresaId))                                                  // EMPRESA
-                || (usuarioId != null && n.UsuarioId == usuarioId)                                  // USUARIO
-              );
-
-            if (soloNoLeidas)
+            if (soloNoLeidas && usuarioId != null)
+            {
                 q = q.Where(n => !_context.NotificacionLecturas
-                            .Any(l => l.NotificacionId == n.Id && l.UsuarioId == usuarioId));
+                                  .Any(l => l.NotificacionId == n.Id && l.UsuarioId == usuarioId));
+            }
 
             q = q.OrderByDescending(n => n.FechaCreacion);
 
             var total = await q.CountAsync();
 
             var items = await q.Skip((pagina - 1) * tamanio).Take(tamanio)
-              .Select(n => new {
-                  n.Id,
-                  n.Titulo,
-                  n.Mensaje,
-                  n.Tipo,
-                  n.IdOrigen,
-                  n.TablaOrigen,
-                  EsLeida = _context.NotificacionLecturas
-                              .Any(l => l.NotificacionId == n.Id && l.UsuarioId == usuarioId),
-                  n.FechaCreacion
-              })
-              .ToListAsync();
+                .Select(n => new
+                {
+                   n.Id,
+                    n.Titulo,
+                    n.Mensaje,
+                    n.Tipo,
+                    n.IdOrigen,
+                    n.TablaOrigen,
+                    EsLeida = usuarioId != null && _context.NotificacionLecturas
+                                  .Any(l => l.NotificacionId == n.Id && l.UsuarioId == usuarioId),
+                    n.FechaCreacion
+                })
+                .ToListAsync();
 
-            return Json(new { total, pagina, tamanio, items });
+           return Json(new { total, pagina, tamanio, items });
         }
-
-
 
         [HttpPost("MarcarLeida/{id:int}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> MarcarLeida(int id)
         {
-            var usuarioId = HttpContext.Session.GetInt32("UsuarioId") ?? HttpContext.Session.GetInt32("UsuarioID");
-            var empresaId = HttpContext.Session.GetInt32("EmpresaId") ?? HttpContext.Session.GetInt32("EmpresaID");
-            if (usuarioId == null && empresaId == null) return BadRequest();
+            var (usuarioId, empresaId) = GetIds();
+            if (usuarioId == null) return Unauthorized();
 
-            var aplica = await _context.Notificaciones.AnyAsync(n =>
-                n.Id == id && (
-                    (n.UsuarioId == null && n.EmpresaId == null
-                         && !_context.NotificacionEmpresas.Any(ne => ne.NotificacionId == n.Id))    // GLOBAL
-                  || (empresaId != null && (
-                         _context.NotificacionEmpresas.Any(ne => ne.NotificacionId == n.Id && ne.EmpresaId == empresaId)
-                      || n.EmpresaId == empresaId))                                                // EMPRESA
-                  || (usuarioId != null && n.UsuarioId == usuarioId)                               // USUARIO
-                )
-            );
-            if (!aplica) return NotFound();
-
+            var visible = await QueryVisiblesPara(usuarioId, empresaId).AnyAsync(n => n.Id == id);
+            if (!visible) return NotFound();
             var ya = await _context.NotificacionLecturas
                 .AnyAsync(l => l.NotificacionId == id && l.UsuarioId == usuarioId);
             if (!ya)
@@ -121,55 +131,49 @@ namespace ProyectoMatrix.Controllers
                 _context.NotificacionLecturas.Add(new NotificacionLectura
                 {
                     NotificacionId = id,
-                    UsuarioId = usuarioId!.Value,
+                    UsuarioId = usuarioId.Value,
                     FechaLeida = DateTime.UtcNow
                 });
-                await _context.SaveChangesAsync();
+                try { await _context.SaveChangesAsync(); } catch { /* índice UNIQUE */ }
             }
-            return Ok(new { ok = true });
+            return Json(new { ok = true });
         }
-
-
-
 
         [HttpPost("MarcarTodasLeidas")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> MarcarTodasLeidas()
         {
-            var usuarioId = HttpContext.Session.GetInt32("UsuarioId") ?? HttpContext.Session.GetInt32("UsuarioID");
-            var empresaId = HttpContext.Session.GetInt32("EmpresaId") ?? HttpContext.Session.GetInt32("EmpresaID");
-            if (usuarioId == null && empresaId == null) return BadRequest();
+            var (usuarioId, empresaId) = GetIds();
+            if (usuarioId == null) return Unauthorized();
 
-            var ahora = DateTime.UtcNow;
-
-            // Notis que aplican a este usuario (GLOBAL / EMPRESA / USUARIO) y aún NO leídas por él
-            var ids = await _context.Notificaciones
-                .Where(n => n.FechaEliminacion == null && n.FechaExpiracion > ahora)
-                .Where(n =>
-                     (n.UsuarioId == null && n.EmpresaId == null
-                        && !_context.NotificacionEmpresas.Any(ne => ne.NotificacionId == n.Id))      // GLOBAL
-                  || (empresaId != null && (
-                         _context.NotificacionEmpresas.Any(ne => ne.NotificacionId == n.Id && ne.EmpresaId == empresaId)
-                      || n.EmpresaId == empresaId))                                                  // EMPRESA (compat)
-                  || (usuarioId != null && n.UsuarioId == usuarioId)                                 // USUARIO
-                )
-                .Where(n => !_context.NotificacionLecturas.Any(l => l.NotificacionId == n.Id && l.UsuarioId == usuarioId))
+            var visiblesIds = await QueryVisiblesPara(usuarioId, empresaId)
                 .Select(n => n.Id)
                 .ToListAsync();
 
-            foreach (var id in ids)
-                _context.NotificacionLecturas.Add(new NotificacionLectura
-                {
-                    NotificacionId = id,
-                    UsuarioId = usuarioId!.Value,
-                    FechaLeida = DateTime.UtcNow
-                });
+            if (visiblesIds.Count == 0)
+                return Json(new { ok = true, total = 0 });
 
-            await _context.SaveChangesAsync();
-            return Ok(new { ok = true, total = ids.Count });
+            var yaLeidos = await _context.NotificacionLecturas
+               .Where(l => l.UsuarioId == usuarioId && visiblesIds.Contains(l.NotificacionId))
+                .Select(l => l.NotificacionId)
+                .ToListAsync();
+
+            var faltantes = visiblesIds.Except(yaLeidos).ToList();
+            if (faltantes.Count > 0)
+            {
+                _context.NotificacionLecturas.AddRange(
+                    faltantes.Select(id => new NotificacionLectura
+                    {
+                        NotificacionId = id,
+                        UsuarioId = usuarioId.Value,
+                        FechaLeida = DateTime.UtcNow
+                    })
+                );
+                await _context.SaveChangesAsync();
+            }
+
+            return Json(new { ok = true, total = faltantes.Count });
         }
-
-
 
         [HttpPost("Crear")]
         [ValidateAntiForgeryToken]
@@ -182,7 +186,7 @@ namespace ProyectoMatrix.Controllers
             [FromForm] int? usuarioId,
             [FromForm] int? empresaId)
         {
-            var notif = new Models.Notificacion
+            var notif = new Notificacion
             {
                 Tipo = tipo,
                 Titulo = titulo,
@@ -192,18 +196,13 @@ namespace ProyectoMatrix.Controllers
                 UsuarioId = usuarioId,
                 EmpresaId = empresaId,
                 FechaCreacion = DateTime.UtcNow,
-                FechaExpiracion = DateTime.UtcNow.AddDays(30),
+                FechaExpiracion = DateTime.UtcNow.AddDays(30)
             };
 
             _context.Notificaciones.Add(notif);
             await _context.SaveChangesAsync();
 
-            return Ok(new { ok = true, notif.Id });
+            return Json(new { ok = true, id = notif.Id });
         }
-
-       
-
-
-
     }
 }

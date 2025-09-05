@@ -1,14 +1,10 @@
-﻿/* stylesLayoutComunicados.css */
-
-
-
-/* Navbar principal con degradado */
+﻿
 .navbar.bg-dark {
     background: linear-gradient(135deg, #04173b 0%, #063f63 50%, #04173b 100%) !important;
     border-bottom: none; /* elimina el borde para un look más limpio */
 }
 
-/* Color de los enlaces  y texto dentro de la navbar */
+
 .navbar-dark .navbar-nav .nav-link,
 .navbar-dark .navbar-text {
     color: #e0e7f7; /* blanco azulado suave para buen contraste */

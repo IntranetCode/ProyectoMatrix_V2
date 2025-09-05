@@ -8,7 +8,7 @@
 }
 
 <link href="~/css/stylesComunicadosIndex.css" rel="stylesheet" />
-<link href="~/css/stylesComunicadosLista.css" rel="stylesheet" />
+
 <div class="container py-4">
  
     
@@ -19,61 +19,100 @@
 
         <div class="comunicados-container">
             <div class="button-container">
-                <a class="btn btn-info" href="/Comunicados/Lista">🔔 Ver comunicados</a>
+                <a class="btn btn-info" href="/Comunicados/Lista">🔔 Ver todos los comunicados</a>
                 <a class="btn btn-success" href="/Comunicados/Crear">➕ Crear comunicado</a>
                 <a class="btn btn-warning" href="/Comunicados/Gestionar">⚙️ Gestionar</a>
             </div>
         </div>
 
 
-        }
-        else
-        {
         <h2 class="mb-3">Comunicados</h2>
-        <div class=" comunicados-grid" id="comGrid">
-            @foreach (var c in Model)
-            {
-                <div class="com-card" tabindex="0">
 
+        <div class="comunicados-grid" id="comGrid">
+            @foreach (var c in Model.Take(3))
+            {
+                <article class="com-card" tabindex="0">
                     @if (!string.IsNullOrEmpty(c.Imagen))
                     {
                         var ext = System.IO.Path.GetExtension(c.Imagen).ToLower();
 
                         if (ext == ".mp4")
                         {
-                            <video class="com-img" width="100%" controls>
+                            <video class="com-media" controls playsinline preload="metadata">
                                 <source src="@c.Imagen" type="video/mp4" />
                                 Tu navegador no soporta el elemento de video.
                             </video>
-
-
                         }
                         else if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif")
                         {
-                            <img class="com-img" src="@c.Imagen" alt="Imagen comunicado" />
+                            <img class="com-media" src="@c.Imagen" alt="Imagen comunicado" />
                         }
                         else if (ext == ".pdf")
                         {
-                            <div class="com-img com-pdf">
-                                <a href="@c.Imagen" target="_blank">
-                                    <img src="~/Imagenes/pdf.png" alt="Icono PDF" style="width: 150px; cursor:pointer;" />
+                            <div class="com-media-pdf">
+                                <a href="@c.Imagen" target="_blank" class="com-pdf-link" aria-label="Abrir PDF del comunicado">
+                                    <img src="~/Imagenes/pdf.png" alt="Icono PDF" />
                                 </a>
                             </div>
                         }
-
                     }
 
-                    <div class="com-body">
-                        <h5 class="com-title">@c.NombreComunicado</h5>
-                        <div div class="com-desc">@c.Descripcion</div>
-                        <div class="com-meta"> @c.FechaCreacion.ToString("dd/MM/yyyy")</div>
+                    <div class="com-card-body">
+                        <h3 class="com-title">@c.NombreComunicado</h3>
+                        <p class="com-desc">@c.Descripcion</p>
+                        <div class="com-meta">@c.FechaCreacion.ToString("dd/MM/yyyy")</div>
                     </div>
-                    <div class="com-footer">
-                        <span class="com-chip">@(string.IsNullOrWhiteSpace(c.DirigidoA) ? "-" : c.DirigidoA)</span>
-
-                    </div>
-                </div>
+                </article>
             }
+        </div>
+
+     
+        }
+        else
+        {
+
+        <h2 class="mb-3">Comunicados recientes</h2>
+
+        <div class="comunicados-grid" id="comGrid">
+            @foreach (var c in Model.Take(3))
+            {
+                <article class="com-card" tabindex="0">
+                    @if (!string.IsNullOrEmpty(c.Imagen))
+                    {
+                        var ext = System.IO.Path.GetExtension(c.Imagen).ToLower();
+
+                        if (ext == ".mp4")
+                        {
+                            <video class="com-media" controls playsinline preload="metadata">
+                                <source src="@c.Imagen" type="video/mp4" />
+                                Tu navegador no soporta el elemento de video.
+                            </video>
+                        }
+                        else if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif")
+                        {
+                            <img class="com-media" src="@c.Imagen" alt="Imagen comunicado" />
+                        }
+                        else if (ext == ".pdf")
+                        {
+                            <div class="com-media-pdf">
+                                <a href="@c.Imagen" target="_blank" class="com-pdf-link" aria-label="Abrir PDF del comunicado">
+                                    <img src="~/Imagenes/pdf.png" alt="Icono PDF" />
+                                </a>
+                            </div>
+                        }
+                    }
+
+                    <div class="com-card-body">
+                        <h3 class="com-title">@c.NombreComunicado</h3>
+                        <p class="com-desc">@c.Descripcion</p>
+                        <div class="com-meta">@c.FechaCreacion.ToString("dd/MM/yyyy")</div>
+                    </div>
+                </article>
+            }
+        </div>
+
+        <div class="text-center mt-3">
+            <a asp-controller="Comunicados" asp-action="Lista" class="btn btn-primary">Ver comunicados anteriores</a>
         </div>
 
         <div id="comModalBackdrop" class="com-modal-backdrop" aria-hidden="true">
@@ -124,23 +163,23 @@
                 const m = card.querySelector('.com-meta')?.textContent?.trim() || '';
                 const d = card.querySelector('.com-desc')?.textContent?.trim() || '';
                 const chip = card.querySelector('.com-chip')?.textContent?.trim() || '';
+                const mediaElement = card.querySelector('.com-media') || card.querySelector('.com-media-pdf');
 
-                       const mediaElement = card.querySelector('.com-img');
         let mediaSrc = '';
-        if (mediaElement) {
+            if (mediaElement) {
             if (mediaElement.tagName.toLowerCase() === 'img') {
                 mediaSrc = mediaElement.getAttribute('src') || '';
             } else if (mediaElement.tagName.toLowerCase() === 'video') {
                 const source = mediaElement.querySelector('source');
                 mediaSrc = source ? source.getAttribute('src') : '';
-            } else if (mediaElement.tagName.toLowerCase() === 'div') {
-                // Si es un div, buscamos si contiene un <a> con href
+            } else if (mediaElement.classList.contains('com-media-pdf')) {
                 const a = mediaElement.querySelector('a');
                 if (a) {
                     mediaSrc = a.getAttribute('href') || '';
                 }
             }
         }
+
 
                 title.textContent = t;
                 meta.textContent = m;
