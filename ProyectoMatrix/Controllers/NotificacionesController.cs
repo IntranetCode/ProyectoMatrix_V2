@@ -60,22 +60,33 @@ namespace ProyectoMatrix.Controllers
                     || (usuarioId != null && n.UsuarioId == usuarioId)                            // USUARIO
                 );
         }
-
         [HttpGet("Contar")]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public async Task<IActionResult> Contar()
         {
-            var (usuarioId, empresaId) = GetIds();
-            if (usuarioId == null && empresaId == null) return Json(new { total = 0 });
+            var (usuarioId, empresaId) = GetIds(); // tu helper
+            if (usuarioId == null && empresaId == null)
+                return Json(new { total = 0 });
 
-            var visibles = QueryVisiblesPara(usuarioId, empresaId);
+            // Notificaciones visibles para el contexto actual
+            var visibles = QueryVisiblesPara(usuarioId, empresaId).AsNoTracking();
 
-            // Si no hay usuario, no se puede saber "leídas"; cuenta todas visibles
-            var total = (usuarioId == null)
-                ? await visibles.CountAsync()
-                : await visibles.CountAsync(n =>
-                        !_context.NotificacionLecturas.Any(l => l.NotificacionId == n.Id && l.UsuarioId == usuarioId));
+            // Si no hay usuario logueado, no sabemos lecturas -> cuenta todas visibles
+            if (usuarioId == null)
+            {
+                var totalVisibles = await visibles.CountAsync();
+                return Json(new { total = totalVisibles });
+            }
 
-            return Json(new { total });
+            // NO leídas = visibles donde no existe registro en NotificacionLecturas para este usuario
+            var uid = usuarioId.Value;
+
+            var totalNoLeidas = await visibles
+                .Where(n => !_context.NotificacionLecturas
+                    .Any(l => l.NotificacionId == n.Id && l.UsuarioId == uid))
+                .CountAsync();
+
+            return Json(new { total = totalNoLeidas });
         }
 
         [HttpGet("Listar")]
@@ -115,65 +126,81 @@ namespace ProyectoMatrix.Controllers
            return Json(new { total, pagina, tamanio, items });
         }
 
+        // Marca UNA como leída (con mismo contrato JSON)
         [HttpPost("MarcarLeida/{id:int}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> MarcarLeida(int id)
         {
             var (usuarioId, empresaId) = GetIds();
             if (usuarioId == null) return Unauthorized();
+            var uid = usuarioId.Value;
 
-            var visible = await QueryVisiblesPara(usuarioId, empresaId).AnyAsync(n => n.Id == id);
+            var visible = await QueryVisiblesPara(usuarioId, empresaId)
+                .AsNoTracking()
+                .AnyAsync(n => n.Id == id);
             if (!visible) return NotFound();
+
             var ya = await _context.NotificacionLecturas
-                .AnyAsync(l => l.NotificacionId == id && l.UsuarioId == usuarioId);
+                .AnyAsync(l => l.NotificacionId == id && l.UsuarioId == uid);
+
             if (!ya)
             {
                 _context.NotificacionLecturas.Add(new NotificacionLectura
                 {
                     NotificacionId = id,
-                    UsuarioId = usuarioId.Value,
+                    UsuarioId = uid,
                     FechaLeida = DateTime.UtcNow
                 });
-                try { await _context.SaveChangesAsync(); } catch { /* índice UNIQUE */ }
+                try { await _context.SaveChangesAsync(); }
+                catch { /* si tienes UNIQUE, ignora duplicado por carrera */ }
             }
-            return Json(new { ok = true });
+
+            return Json(new { ok = true, updated = ya ? 0 : 1 });
         }
 
+        // Marca TODAS las visibles como leídas (usada al abrir el panel)
         [HttpPost("MarcarTodasLeidas")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> MarcarTodasLeidas()
         {
             var (usuarioId, empresaId) = GetIds();
             if (usuarioId == null) return Unauthorized();
+            var uid = usuarioId.Value;
 
+            // Ids de notificaciones visibles para este contexto
             var visiblesIds = await QueryVisiblesPara(usuarioId, empresaId)
                 .Select(n => n.Id)
                 .ToListAsync();
 
             if (visiblesIds.Count == 0)
-                return Json(new { ok = true, total = 0 });
+                return Json(new { ok = true, updated = 0 });
 
+            // Ids ya leídos por este usuario
             var yaLeidos = await _context.NotificacionLecturas
-               .Where(l => l.UsuarioId == usuarioId && visiblesIds.Contains(l.NotificacionId))
+                .Where(l => l.UsuarioId == uid && visiblesIds.Contains(l.NotificacionId))
                 .Select(l => l.NotificacionId)
                 .ToListAsync();
 
-            var faltantes = visiblesIds.Except(yaLeidos).ToList();
-            if (faltantes.Count > 0)
+            var setYa = new HashSet<int>(yaLeidos);
+            var nuevos = visiblesIds
+                .Where(id => !setYa.Contains(id))
+                .Select(id => new NotificacionLectura
+                {
+                    NotificacionId = id,
+                    UsuarioId = uid,
+                    FechaLeida = DateTime.UtcNow
+                })
+                .ToList();
+
+            if (nuevos.Count > 0)
             {
-                _context.NotificacionLecturas.AddRange(
-                    faltantes.Select(id => new NotificacionLectura
-                    {
-                        NotificacionId = id,
-                        UsuarioId = usuarioId.Value,
-                        FechaLeida = DateTime.UtcNow
-                    })
-                );
+                _context.NotificacionLecturas.AddRange(nuevos);
                 await _context.SaveChangesAsync();
             }
 
-            return Json(new { ok = true, total = faltantes.Count });
+            return Json(new { ok = true, updated = nuevos.Count });
         }
+
 
         [HttpPost("Crear")]
         [ValidateAntiForgeryToken]

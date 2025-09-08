@@ -37,10 +37,14 @@ body::before {
 
 /* Navbar con colores dinámicos */
 .navbar-colaborador {
-    background: var(--color-primario, #007bff) !important;
+    background: linear-gradient(135deg, #04173b 0%, #063f63 50%, #04173b 100%) !important;
     backdrop-filter: blur(10px) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
     box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+.navbar-brand {
+    color: #ffffff !important;
 }
 
 .navbar,

@@ -689,6 +689,28 @@ body {
     opacity: 0;
 }
 
+.welcome-section.is-pinned {
+    position: relative; /* O puedes usar 'sticky' si quieres que se quede arriba al hacer scroll */
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 1rem; /* O el padding que quieras para la versión reducida */
+    z-index: auto;
+    /* Elimina el box-shadow, el backdrop-filter y otros estilos del overlay */
+    background: linear-gradient(135deg, #04173b 0%, #063f63 50%, #04173b 100%);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Reducir el tamaño del "welcome-box" dentro de la versión "pinned" */
+.welcome-section.is-pinned .welcome-box {
+    width: 100%;
+    max-width: 900px; /* Mantener un máximo si lo deseas */
+    padding: 1rem 2rem; /* Reduce el padding para hacerlo más pequeño */
+    border-radius: 0; /* Quitar el borde redondeado si quieres una barra */
+    box-shadow: none; /* Eliminar el box-shadow de la caja interna */
+    background: transparent; /* Fondo transparente para que el color de la sección se vea */
+}
+
 /* Estilo opcional una vez “anclada” en su lugar 
 .welcome-section.is-pinned .welcome-title {
     font-weight: 800;

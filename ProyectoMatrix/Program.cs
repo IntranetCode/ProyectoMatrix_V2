@@ -104,6 +104,10 @@ builder.Services.AddAuthorization(options =>
 // Registrar el servicio de notificacionesa
 builder.Services.AddScoped<ServicioNotificaciones>();
 
+
+//Restra el servicio de Bitacora
+builder.Services.AddScoped<BitacoraService>();
+
 builder.Services.AddDistributedMemoryCache();
 
 

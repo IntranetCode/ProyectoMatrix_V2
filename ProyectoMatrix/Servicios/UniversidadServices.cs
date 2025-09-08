@@ -262,8 +262,8 @@ namespace ProyectoMatrix.Servicios
                     VALUES 
                     (@CursoID, @NombreSubCurso, @Descripcion, @Orden, @ArchivoVideo, @ArchivoPDF, 
                      @DuracionVideo, @EsObligatorio, @RequiereEvaluacion, @PuntajeMinimo, 1, GETDATE())";
-        
-        using var command = new SqlCommand(query, connection);
+
+                using var command = new SqlCommand(query, connection);
                 command.Parameters.AddRange(new[]
                 {
             new SqlParameter("@CursoID", request.CursoID),

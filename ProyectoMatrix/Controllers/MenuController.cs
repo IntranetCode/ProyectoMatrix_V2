@@ -145,7 +145,7 @@ namespace ProyectoMatrix.Controllers
                 var x when x.Contains("usuario") => "/Usuario",
                 var x when x.Contains("gestión") => "/Usuario",
                 var x when x.Contains("líder") || x.Contains("lider") => "/Lider",
-
+                var x when x.Contains("proyectos") => "/Proyectos/Index",
                 var x when x.Contains("comunicado") => "/Comunicados/Index",
                 _ => "#"
             };

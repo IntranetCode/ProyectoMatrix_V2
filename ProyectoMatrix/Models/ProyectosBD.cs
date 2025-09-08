@@ -26,7 +26,7 @@ public class ProyectosBD
                        FechaCreacion, FechaInicio, FechaFinPrevista, FechaFinReal, CreadoPor, 
                        ResponsableProyecto, EsActivo, EmpresaID, Tags, TamanoArchivo, Extension, 
                        Estado, Prioridad, Presupuesto, Progreso, Observaciones, Visualizaciones
-                FROM Proyectos 
+                FROM [dbo].[Proyectos] 
                 WHERE EmpresaID = @EmpresaID 
                 ORDER BY FechaCreacion DESC";
 
@@ -81,7 +81,7 @@ public class ProyectosBD
                        FechaCreacion, FechaInicio, FechaFinPrevista, FechaFinReal, CreadoPor, 
                        ResponsableProyecto, EsActivo, EmpresaID, Tags, TamanoArchivo, Extension, 
                        Estado, Prioridad, Presupuesto, Progreso, Observaciones, Visualizaciones
-                FROM Proyectos 
+                FROM [dbo].[Proyectos] 
                 WHERE ProyectoID = @ProyectoID AND EmpresaID = @EmpresaID";
 
             using (var command = new SqlCommand(query, connection))
@@ -322,7 +322,7 @@ public class ProyectosBD
                        FechaCreacion, FechaInicio, FechaFinPrevista, FechaFinReal, CreadoPor, 
                        ResponsableProyecto, EsActivo, EmpresaID, Tags, TamanoArchivo, Extension, 
                        Estado, Prioridad, Presupuesto, Progreso, Observaciones, Visualizaciones
-                FROM Proyectos 
+                 FROM [dbo].[Proyectos]
                 WHERE EmpresaID = @EmpresaID 
                     AND EsActivo = 1
                     AND (NombreProyecto LIKE @Termino 

@@ -28,7 +28,7 @@ namespace ProyectoMatrix.Controllers
             _webHostEnvironment = webHostEnvironment;
         }
 
-     
+
 
         // MODIFICAR tu método Index() en UniversidadController.cs
         // Agregar DEBUG para ver qué hay en la sesión
@@ -281,12 +281,12 @@ namespace ProyectoMatrix.Controllers
                     Icono = "fas fa-users-cog",
                     SubItems = new List<MenuItemUniversidad>
                     {
-                        new MenuItemUniversidad { 
+                        new MenuItemUniversidad {
                             Titulo = "Asignación Masiva",
                             Url = "/Asignaciones/AsignacionMasiva",
                             Icono = "fas fa-users-cog"
                         },
-                        new MenuItemUniversidad { 
+                        new MenuItemUniversidad {
                             Titulo = "Ver Asignaciones",
                             Url = "/Asignaciones/VerAsignaciones",
                             Icono = "fas fa-list-check"
@@ -959,7 +959,7 @@ namespace ProyectoMatrix.Controllers
                 _logger.LogInformation("🎯 ENTRANDO a CrearEvaluacion con subCursoId: {SubCursoId}", subCursoId);
                 var rolId = HttpContext.Session.GetInt32("RolID") ??
                            HttpContext.Session.GetInt32("RolId") ?? 4;
-                
+
                 _logger.LogInformation("🎯 RolId obtenido: {RolId}", rolId);
 
 

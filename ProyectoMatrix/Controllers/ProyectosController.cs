@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using System.IO;
 
+
+
 public class ProyectosController : Controller
 {
     private readonly ProyectosBD _proyectosBD;

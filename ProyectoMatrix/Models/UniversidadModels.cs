@@ -307,7 +307,7 @@ namespace ProyectoMatrix.Models
 
         public List<NivelEducativoViewModel> Niveles { get; set; } = new();
         public List<CursoCompleto> Cursos { get; set; } = new();
-        
+
 
         // Filtros
         public int? NivelFiltro { get; set; }

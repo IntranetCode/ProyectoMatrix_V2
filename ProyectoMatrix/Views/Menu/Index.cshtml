@@ -95,10 +95,7 @@
                         
                             <div class="notif-header">
                               <strong>Notificaciones</strong>
-                                <form id="formMarcarTodas" method="post">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn-link">Marcar todas como leídas</button>
-                                </form>
+                               
                             </div>
                             <ul id="notifList" class="notif-list"></ul>
                         </div>
@@ -166,9 +163,9 @@
                     </p>
                 </div>
                 </section>
-                  
-                    
-               
+
+            <div id="welcome-pinned-container" style="display: none;"></div>
+
 
             <!-- Quick Actions Grid -->
             <section class="quick-actions" aria-label="Módulos disponibles">
@@ -287,32 +284,43 @@
         window.mostrarBienvenida= '@((ViewBag.MostrarBienvenida== true) ? "true" : "false")';
 
     </script>
-   
+
+
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const welcomeSection = document.querySelector(".welcome-section");
+            const welcomeSectionOverlay = document.getElementById("welcome-section");
             const mainWrapper = document.querySelector(".main-wrapper");
+            const pinnedContainer = document.getElementById("welcome-pinned-container");
 
-            if (welcomeSection.classList.contains("as-overlay")){
+            if (welcomeSectionOverlay.classList.contains("as-overlay")) {
+                mainWrapper.classList.add("overlay-lock");
 
-            
-            mainWrapper.classList.add("overlay-lock");
+                // 1. Clonar el elemento de bienvenida para la versión "pinned"
+                const welcomePinned = welcomeSectionOverlay.cloneNode(true);
+                welcomePinned.classList.remove("as-overlay", "leaving");
+                welcomePinned.classList.add("is-pinned");
+                welcomePinned.style.opacity = '0'; // Inicialmente invisible
+                welcomePinned.style.transition = 'opacity 0.4s ease-in-out';
+                pinnedContainer.appendChild(welcomePinned);
+                pinnedContainer.style.display = 'block';
 
+                // 2. Transición del overlay y aparición del elemento fijo
+                setTimeout(() => {
+                    welcomeSectionOverlay.classList.add("leaving"); // Inicia la transición del overlay
+                    welcomePinned.style.opacity = '1'; // El elemento fijo empieza a aparecer
+                }, 2000);
 
-            setTimeout(()=>{
-                welcomeSection.classList.add("leaving");
+                // 3. Cuando la transición del overlay termina, eliminarlo
+                welcomeSectionOverlay.addEventListener("transitionend", function handler(event) {
+                    if (event.propertyName === 'opacity' && welcomeSectionOverlay.classList.contains("leaving")) {
+                        welcomeSectionOverlay.remove();
+                        mainWrapper.classList.remove("overlay-lock");
 
-                setTimeout(() =>{
-                welcomeSection.classList.remove("as-overlay", "leaving");
-
-                welcomeSection.classList.add("is-pinned");
-
-                mainWrapper.classList.remove("overlay-lock");
-            }, 400);
-        }, 2000);
-         }
-          
-
+                        // Asegúrate de que la transición termine y luego remueve el listener
+                        welcomeSectionOverlay.removeEventListener('transitionend', handler);
+                    }
+                });
+            }
         });
     </script>
 
@@ -377,198 +385,211 @@
         }
     </script>
 
-  
+    @Html.AntiForgeryToken()
+
     <script>
-(function () {
-  const btn = document.getElementById('btnNotificaciones');
-  const badge = document.getElementById('notifCount');
-  const dropdown = document.getElementById('notifDropdown');
-  const list = document.getElementById('notifList');
-  const formMarcarTodas = document.getElementById('formMarcarTodas');
+        (function () {
+          const btn = document.getElementById('btnNotificaciones');
+          const badge = document.getElementById('notifCount');
+          const dropdown = document.getElementById('notifDropdown');
+          const list = document.getElementById('notifList');
 
-  function renderBadge(total) {
-    if (!badge) return;
-    if (total > 0) { badge.textContent = total; badge.hidden = false; }
-    else { badge.textContent = '0'; badge.hidden = true; }
-  }
+          // === Utils ===
+          function getToken() {
+            return (
+              document.querySelector('meta[name="request-verification-token"]')?.content ||
+              document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
+              ''
+            );
+          }
 
-  async function post(url, body = {}) {
-    const token =
-      document.querySelector('meta[name="request-verification-token"]')?.content ||
-      document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
-      formMarcarTodas?.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
-      credentials: 'same-origin',
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) throw new Error('POST ' + url + ' -> ' + res.status);
-    try { return await res.json(); } catch { return {}; }
-  }
+          function renderBadge(total) {
+            if (!badge) return;
+            const n = Number(total) || 0;
+            if (n > 0) { badge.textContent = n; badge.hidden = false; }
+            else { badge.textContent = '0'; badge.hidden = true; }
+          }
 
-  async function actualizarContador() {
-    try {
-      const res = await fetch('/Notificaciones/Contar', { credentials: 'same-origin' });
-      const data = await res.json();
-      renderBadge(data.total ?? 0);
-    } catch (e) { console.error('Contar:', e); }
-  }
+          function bust(url) {
+            return url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
+          }
 
-  function val(n, up, low) { return n[up] ?? n[low]; } // helper para Id/id, etc.
+          async function post(url, body = {}) {
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getToken()
+              },
+              credentials: 'same-origin',
+              cache: 'no-store',
+              body: JSON.stringify(body)
+            });
+            if (!res.ok) throw new Error('POST ' + url + ' -> ' + res.status);
+            try { return await res.json(); } catch { return {}; }
+          }
 
-  async function cargarLista(pagina = 1, tamanio = 10) {
-    try {
-      const res = await fetch(`/Notificaciones/Listar?pagina=${pagina}&tamanio=${tamanio}`, { credentials: 'same-origin' });
-      const data = await res.json();
-      list.innerHTML = '';
+          async function getJson(url) {
+            const res = await fetch(bust(url), {
+              credentials: 'same-origin',
+              cache: 'no-store',
+              headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) throw new Error('GET ' + url + ' -> ' + res.status);
+            return await res.json();
+          }
 
-      if (!data.items || data.items.length === 0) {
-        list.innerHTML = '<li class="notif-empty">Sin notificaciones</li>';
-        return;
-      }
+          async function actualizarContador() {
+            try {
+              const data = await getJson('/Notificaciones/Contar');
+              const total = data.total ?? data.unread ?? data.count ?? 0;
+              renderBadge(total);
+            } catch (e) {
+              console.error('Contar:', e);
+            }
+          }
 
-      data.items.forEach(n => {
-        const id = val(n, 'Id', 'id');
-        const titulo = val(n, 'Titulo', 'titulo') ?? '';
-        const mensaje = val(n, 'Mensaje', 'mensaje') ?? '';
-        const tipo = val(n, 'Tipo', 'tipo') ?? '';
-        const idOrigen = val(n, 'IdOrigen', 'idOrigen');
-        const fecha = new Date(val(n, 'FechaCreacion', 'fechaCreacion') || Date.now()).toLocaleString();
-        const esLeida = !!(n.EsLeida ?? n.esLeida);
+          // helper para Id/id, etc.
+          function val(n, up, low) { return n[up] ?? n[low]; }
 
-        const li = document.createElement('li');
-        li.className = 'notif-item' + (!esLeida ? ' unread' : '');
-        li.dataset.id = id;
-        li.dataset.tipo = tipo;
-        li.dataset.idorigen = idOrigen;
+          function escapeHtml(str) {
+            return String(str)
+              .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
+          }
 
-        li.innerHTML = `
-          <div class="notif-row">
-            <div class="notif-main">
-              <div class="notif-title">${escapeHtml(titulo)}</div>
-              <div class="notif-date">${fecha}</div>
-              ${mensaje ? `<div class="notif-msg">${escapeHtml(mensaje)}</div>` : ''}
-            </div>
-            ${!esLeida ? '<span class="notif-new">Nueva</span>' : ''}
-          </div>
-          <div class="notif-actions">
-            <button class="js-marcar${esLeida ? ' ya-leido' : ''}" data-id="${id}" ${esLeida ? 'disabled' : ''}>
-              ${esLeida ? 'Leído' : 'Marcar leída'}
-            </button>
-            ${linkDestino(tipo, idOrigen)}
-          </div>
-        `;
-        list.appendChild(li);
-      });
+          function linkDestino(tipo, idOrigen) {
+            let url = '#';
+            if (tipo === 'CursoAsignado') url = `/Cursos/MisCursos/${idOrigen}`;
+            else if (tipo === 'WebinarAsignado') url = `/Webinars/LiderLista/${idOrigen}`;
+            else if (tipo === 'Comunicado_Nuevo') url = `/Comunicados/Index/${idOrigen}`;
+            return `<a class="js-ver" href="${url}">Ver</a>`;
+          }
 
-    } catch (e) {
-      console.error('Listar:', e);
-      list.innerHTML = '<li class="notif-error">Error al cargar</li>';
-    }
-  }
+          async function cargarLista(pagina = 1, tamanio = 10) {
+            try {
+              const data = await getJson(`/Notificaciones/Listar?pagina=${pagina}&tamanio=${tamanio}`);
+              list.innerHTML = '';
 
-  function linkDestino(tipo, idOrigen) {
-    let url = '#';
-    if (tipo === 'CursoAsignado') url = `/Cursos/MisCursos/${idOrigen}`;
-    else if (tipo === 'WebinarAsignado') url = `/Webinars/LiderLista/${idOrigen}`;
-    else if (tipo === 'Comunicado_Nuevo') url = `/Comunicados/Lista/${idOrigen}`;
-    return `<a class="js-ver" href="${url}">Ver</a>`;
-  }
+              if (!data.items || data.items.length === 0) {
+                list.innerHTML = '<li class="notif-empty">Sin notificaciones</li>';
+                return;
+              }
 
-  function escapeHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
+              data.items.forEach(n => {
+                const id = val(n, 'Id', 'id');
+                const titulo = val(n, 'Titulo', 'titulo') ?? '';
+                const mensaje = val(n, 'Mensaje', 'mensaje') ?? '';
+                const tipo = val(n, 'Tipo', 'tipo') ?? '';
+                const idOrigen = val(n, 'IdOrigen', 'idOrigen');
+                const fechaStr = val(n, 'FechaCreacion', 'fechaCreacion');
+                const fecha = new Date(fechaStr || Date.now()).toLocaleString();
+                const esLeida = !!(n.Leida ?? n.leida ?? n.EsLeida ?? n.esLeida);
 
-  function aplicarLeidoUI(btn){
-    btn.textContent = 'Leído';
-    btn.disabled = true;
-    btn.classList.add('ya-leido');
-    const li = btn.closest('.notif-item');
-    if (li) {
-      li.classList.remove('unread');
-      const chip = li.querySelector('.notif-new');
-      if (chip) chip.remove();
-    }
-    const actual = parseInt((badge?.textContent || '0').trim(), 10);
-    renderBadge(isNaN(actual) ? 0 : Math.max(0, actual - 1));
-  }
+                const li = document.createElement('li');
+                li.className = 'notif-item' + (!esLeida ? ' unread' : '');
+                li.dataset.id = id;
+                li.dataset.tipo = tipo;
+                li.dataset.idorigen = idOrigen;
 
-  // Delegación de eventos (un solo listener)
-  list?.addEventListener('click', async (e) => {
-    const btnMark = e.target.closest('.js-marcar');
-    if (!btnMark) return;
+                li.innerHTML = `
+                  <div class="notif-row">
+                    <div class="notif-main">
+                      <div class="notif-title">${escapeHtml(titulo)}</div>
+                      <div class="notif-date">${fecha}</div>
+                      ${mensaje ? `<div class="notif-msg">${escapeHtml(mensaje)}</div>` : ''}
+                    </div>
+                    ${!esLeida ? '<span class="notif-new">Nueva</span>' : ''}
+                  </div>
+                  <div class="notif-actions">
+                    ${linkDestino(tipo, idOrigen)}
+                  </div>
+                `;
+                list.appendChild(li);
+              });
 
-    e.preventDefault();
-    if (btnMark.disabled) return;
+            } catch (e) {
+              console.error('Listar:', e);
+              list.innerHTML = '<li class="notif-error">Error al cargar</li>';
+            }
+          }
 
-    aplicarLeidoUI(btnMark);
-    try {
-      await post(`/Notificaciones/MarcarLeida/${btnMark.dataset.id}`);
-    } catch (err) {
-      console.error('MarcarLeida:', err);
-      // revertir
-      btnMark.textContent = 'Marcar leída';
-      btnMark.disabled = false;
-      btnMark.classList.remove('ya-leido');
-      const li = btnMark.closest('.notif-item');
-      if (li) {
-        li.classList.add('unread');
-        if (!li.querySelector('.notif-new')) {
-          const chip = document.createElement('span');
-          chip.className = 'notif-new';
-          chip.textContent = 'Nueva';
-          li.querySelector('.notif-row')?.appendChild(chip);
+          // Marca todas como leídas y luego vuelve a contar DESDE EL SERVIDOR
+          async function marcarTodasAlAbrir() {
+            try {
+              const r = await post('/Notificaciones/MarcarTodasLeidas');
+              // Limpieza visual
+              list?.querySelectorAll('.notif-item.unread').forEach(li => {
+                li.classList.remove('unread');
+                li.querySelector('.notif-new')?.remove();
+              });
+              // Relee contador real (evita caches)
+              await actualizarContador();
+
+              // (opcional) log para depurar cuántas actualizó el servidor
+                      if (typeof r.updated !== 'undefined' || typeof r.total !== 'undefined') {
+          console.debug('Notificaciones actualizadas:', r.updated ?? r.total);
         }
-      }
-      try { await actualizarContador(); } catch {}
-    }
-  });
 
-  // Abrir/cerrar dropdown
-  btn?.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const open = dropdown.getAttribute('data-open') === '1';
-    dropdown.setAttribute('data-open', open ? '0' : '1');
-    dropdown.style.display = open ? 'none' : 'block';
-    if (!open) await cargarLista();
-  });
+            } catch (e) {
+              console.error('MarcarTodasLeidas:', e);
+              // Si falla, recontamos por si quedó inconsistente
+              try { await actualizarContador(); } catch {}
+            }
+          }
 
-  document.addEventListener('click', (e) => {
-    if (!dropdown.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-      dropdown.setAttribute('data-open', '0');
-      dropdown.style.display = 'none';
-    }
-  });
+          // === Abrir/cerrar dropdown ===
+          let yaMarqueEnEstaApertura = false;
 
-  formMarcarTodas?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try {
-      await post('/Notificaciones/MarcarTodasLeidas');
-      await actualizarContador();
-      await cargarLista();
-    } catch (err) {
-      console.error('MarcarTodasLeidas:', err);
-    }
-  });
+          btn?.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const open = dropdown.getAttribute('data-open') === '1';
+            if (open) {
+              dropdown.setAttribute('data-open', '0');
+              dropdown.style.display = 'none';
+              yaMarqueEnEstaApertura = false;
+              return;
+            }
+            dropdown.setAttribute('data-open', '1');
+            dropdown.style.display = 'block';
 
-  actualizarContador();
-  setInterval(actualizarContador, 30000);
+            await cargarLista(); // el usuario “ve/lee”…
 
-  window.Notificaciones = {
-    actualizarContador,
-    cargarLista,
-    abrir: async () => {
-      dropdown.setAttribute('data-open', '1');
-      dropdown.style.display = 'block';
-      await cargarLista();
-    }
-  };
-})();
-</script>
+            if (!yaMarqueEnEstaApertura) {
+              yaMarqueEnEstaApertura = true;
+              await marcarTodasAlAbrir(); // …y luego pedimos marcarlas
+            }
+          });
+
+          document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+              dropdown.setAttribute('data-open', '0');
+              dropdown.style.display = 'none';
+              yaMarqueEnEstaApertura = false;
+            }
+          });
+
+          // Contador inicial + refresco periódico (sin caché)
+          actualizarContador();
+          setInterval(actualizarContador, 30000);
+
+          // API opcional
+          window.Notificaciones = {
+            actualizarContador,
+            cargarLista,
+            abrir: async () => {
+              dropdown.setAttribute('data-open', '1');
+              dropdown.style.display = 'block';
+              await cargarLista();
+              if (!yaMarqueEnEstaApertura) {
+                yaMarqueEnEstaApertura = true;
+                await marcarTodasAlAbrir();
+              }
+            }
+          };
+        })();
+    </script>
 
 
 </body>

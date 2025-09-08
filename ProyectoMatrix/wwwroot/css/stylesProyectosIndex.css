@@ -1,89 +1,318 @@
-﻿  .proyecto-card {
-        transition: transform 0.2s, box-shadow 0.2s;
-        border: none;
-        border-radius: 12px;
-        overflow: hidden;
+﻿body {
+    background-color: #f8f9fa; /* Un fondo claro para un aspecto limpio */
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color: #343a40; /* Color de texto oscuro para mayor legibilidad */
+}
+
+.container-fluid {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* --- Encabezado y Botones --- */
+h1.h3 {
+    font-weight: 600;
+    color: #343a40;
+}
+
+.btn-proyectos-principal,
+.btn-proyectos-outline-principal,
+.btn-proyectos-outline-secundario,
+.btn-proyectos-crear {
+    padding: 0.6rem 1.2rem; /* Ajusta el tamaño del botón */
+    border-radius: 50px; /* Bordes completamente redondeados (estilo "pastilla") */
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease-in-out;
+    text-decoration: none; /* Elimina el subrayado de los enlaces */
+}
+
+    .btn-proyectos-principal:hover,
+    .btn-proyectos-outline-principal:hover,
+    .btn-proyectos-outline-secundario:hover,
+    .btn-proyectos-crear:hover {
+        transform: translateY(-2px); /* Un ligero efecto de elevación al pasar el ratón */
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
     }
+
+/* --- Botón Principal (Azul) --- */
+.btn-proyectos-principal,
+.btn-proyectos-crear {
+    background-color: #004085;
+    border: 1px solid #007bff;
+    color: white;
+}
+
+    .btn-proyectos-principal:hover,
+    .btn-proyectos-principal:focus,
+    .btn-proyectos-crear:hover,
+    .btn-proyectos-crear:focus {
+        background-color: #0056b3;
+        border-color: #004085;
+        color: #ffffff;
+    }
+
+    .btn-proyectos-principal i,
+    .btn-proyectos-crear i {
+        color: #ffffff;
+    }
+
+/* --- Botón de Contorno (Azul) para Filtrar --- */
+.btn-proyectos-outline-principal {
+    color: #007bff;
+    border: 1px solid #007bff;
+    background-color: transparent;
+}
+
+    .btn-proyectos-outline-principal:hover,
+    .btn-proyectos-outline-principal:focus {
+        background-color: #007bff;
+        color: #ffffff;
+        border-color: #007bff;
+    }
+
+    .btn-proyectos-outline-principal i {
+        color: #007bff;
+    }
+
+/* --- Botón de Contorno Secundario (Naranja) para Limpiar --- */
+.btn-proyectos-outline-secundario {
+    color: #fd7e14;
+    border: 1px solid #fd7e14;
+    background-color: transparent;
+}
+
+    .btn-proyectos-outline-secundario:hover,
+    .btn-proyectos-outline-secundario:focus {
+        background-color: #fd7e14;
+        color: #ffffff;
+        border-color: #fd7e14;
+    }
+
+    .btn-proyectos-outline-secundario i {
+        color: #fd7e14;
+    }
+
+
+.btn-proyectos-principal {
+    padding: 0.6rem 1.2rem;
+    border-radius: 50px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease-in-out;
+    text-decoration: none;
+    white-space: nowrap; /* Evita que el texto se parta en varias líneas */
+}
+
+/* Media Query para pantallas pequeñas (máximo 768px de ancho) */
+@media (max-width: 768px) {
+    .btn-proyectos-principal {
+        padding: 0.5rem 0.8rem; /* Reduce el relleno para un tamaño más compacto */
+        font-size: 0.8rem; /* Disminuye el tamaño de la fuente */
+    }
+
+        .btn-proyectos-principal .fas {
+            margin-right: 0 !important; /* Elimina el margen del ícono para ahorrar espacio */
+        }
+
+        .btn-proyectos-principal span {
+            display: none; /* Oculta el texto en pantallas pequeñas si no es esencial */
+        }
+}
+
+
+/* --- Sección de Estadísticas --- */
+.estadisticas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.estadistica-card {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+    .estadistica-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    }
+
+    .estadistica-card i {
+        color: #007bff; /* Iconos en azul principal */
+    }
+
+    .estadistica-card h4 {
+        color: #343a40;
+        font-weight: 700;
+        margin-top: 0.5rem;
+    }
+
+    .estadistica-card small {
+        color: #6c757d;
+    }
+
+/* --- Sección de Filtros --- */
+.filtros-container {
+    background-color: #ffffff;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin-bottom: 2rem;
+}
+
+    .filtros-container .form-label {
+        font-weight: 600;
+        color: #343a40;
+    }
+
+    .filtros-container .form-control,
+    .filtros-container .form-select {
+        border-radius: 8px;
+        border-color: #e9ecef;
+    }
+
+/* --- Grid y Tarjetas de Proyectos --- */
+.proyectos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2rem;
+}
+
+.proyecto-card {
+    background-color: #ffffff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
 
     .proyecto-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        transform: translateY(-8px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     }
 
-    .proyecto-header {
-        background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%);
-        color: white;
-        padding: 1rem;
-    }
+.proyecto-header {
+    background-color: #007bff; /* Encabezado de la tarjeta en azul */
+    color: #ffffff;
+    padding: 1.5rem;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+}
 
-    .proyecto-body {
-        padding: 1.5rem;
-    }
-
-    .estado-badge {
-        font-size: 0.75rem;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
+    .proyecto-header h5 {
         font-weight: 600;
     }
 
-    .prioridad-badge {
-        font-size: 0.7rem;
-        padding: 0.25rem 0.75rem;
-        border-radius: 15px;
+.proyecto-body {
+    padding: 1.5rem;
+}
+
+/* --- Badges de Estado y Prioridad --- */
+.estado-badge {
+    padding: 0.5rem 0.8rem;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.8em;
+}
+
+.prioridad-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.8em;
+}
+
+/* Colores de los badges de estado y prioridad */
+.bg-success {
+    background-color: #28a745 !important;
+}
+
+.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+.bg-primary {
+    background-color: #007bff !important;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.text-light {
+    color: #f8f9fa !important;
+}
+
+.text-dark {
+    color: #343a40 !important;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+
+.text-white-50 {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Otros estilos para la tarjeta de proyecto */
+.progreso-container {
+    background-color: #e9ecef;
+    border-radius: 15px;
+    height: 8px;
+    margin-top: 0.5rem;
+}
+
+.progreso-bar {
+    background-color: #e9ecef;
+    border-radius: 15px;
+    position: relative;
+    height: 8px;
+}
+
+.progreso-fill {
+    height: 100%;
+    border-radius: 15px;
+    transition: width 0.4s ease-in-out;
+}
+
+.archivo-info {
+    padding: 0.75rem;
+    background-color: #f1f1f1;
+    border-radius: 8px;
+}
+
+    .archivo-info .fas {
+        font-size: 1.25rem;
     }
 
-    .progreso-container {
-        margin: 0.5rem 0;
-    }
+.border-top {
+    border-top: 1px solid #dee2e6 !important;
+}
 
-    .progreso-bar {
-        height: 8px;
-        border-radius: 10px;
-        overflow: hidden;
-        background-color: #e9ecef;
-    }
-
-    .progreso-fill {
-        height: 100%;
-        transition: width 0.3s ease;
-        border-radius: 10px;
-    }
-
-    .filtros-container {
-        background: white;
-        border-radius: 15px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        margin-bottom: 2rem;
-    }
-
-    .estadisticas-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-
-    .estadistica-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        border-left: 4px solid var(--bs-primary);
-    }
-
-    .proyectos-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-        gap: 1.5rem;
-    }
-
-    .archivo-info {
-        background: #f8f9fa;
-        padding: 0.5rem;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        margin-top: 1rem;
-    }
+/* Estilos para el estado "No hay proyectos" */
+.text-center.py-5 .fas {
+    color: #6c757d;
+}

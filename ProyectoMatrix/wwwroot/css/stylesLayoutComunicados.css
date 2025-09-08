@@ -2,6 +2,8 @@
 .navbar.bg-dark {
     background: linear-gradient(135deg, #04173b 0%, #063f63 50%, #04173b 100%) !important;
     border-bottom: none; /* elimina el borde para un look más limpio */
+    padding-top: 15px;
+    padding-bottom: 15px;
 }
 
 

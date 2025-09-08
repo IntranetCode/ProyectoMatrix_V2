@@ -14,13 +14,15 @@ namespace ProyectoMatrix.Controllers
         private readonly ApplicationDbContext _db;
         private readonly IWebHostEnvironment _env;
         private readonly ServicioNotificaciones _notif;
+        private readonly BitacoraService _bitacora;
         
 
-        public ComunicadosController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif)
+        public ComunicadosController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif, BitacoraService bitacora)
         {
             _db = db;
             _env = env;
             _notif = notif;
+            _bitacora = bitacora;
         }
 
         public async Task<IActionResult> Index()
@@ -121,65 +123,70 @@ namespace ProyectoMatrix.Controllers
 
 
 
-        [RequestSizeLimit(104_857_600)]
-        [Authorize(Policy = "GestionComunicados")]
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Crear(ComunicadoCreateVM vm)
+       
+[RequestSizeLimit(104_857_600)]
+    [Authorize(Policy = "GestionComunicados")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Crear(ComunicadoCreateVM vm, [FromServices] BitacoraService bitacora)
+    {
+        // Ids desde claims (ajusta si usas otros)
+        int? idUsuario = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid)
+            ? uid : (int?)null;
+        int? idEmpresaContexto = int.TryParse(User.FindFirstValue("IdEmpresa"), out var eid)
+            ? eid : (int?)null;
+
+        if (!ModelState.IsValid)
         {
+            vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
+            return View(vm);
+        }
 
-            if (!ModelState.IsValid)
-            {
-                vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
-                return View(vm);
-            }
-
+        try
+        {
             var comunicado = new Comunicado
             {
                 NombreComunicado = vm.NombreComunicado,
                 Descripcion = vm.Descripcion,
                 FechaCreacion = vm.FechaCreacion,
                 EsPublico = vm.EsPublico,
-                UsuarioCreadorID = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null
+                UsuarioCreadorID = idUsuario
             };
-            // Si se subió una imagen, guárdala
+
+            // Media opcional
             if (vm.ImagenFile != null && vm.ImagenFile.Length > 0)
             {
                 var ext = Path.GetExtension(vm.ImagenFile.FileName).ToLowerInvariant();
-                var allowed = new[] { ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".pdf" };
-                if(!allowed.Contains(ext))
+                var permitidos = new[] { ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".pdf" };
+                if (!permitidos.Contains(ext))
                 {
                     ModelState.AddModelError("MediaFile", "Formato no soportado");
-                    vm.Empresas=await _db.Empresas.OrderBy(e  => e.Nombre).ToListAsync();
+                    vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
                     return View(vm);
-
                 }
+
                 var uploads = Path.Combine(_env.WebRootPath, "uploads");
                 Directory.CreateDirectory(uploads);
                 var fileName = $"{Guid.NewGuid()}{ext}";
                 var path = Path.Combine(uploads, fileName);
                 using var fs = new FileStream(path, FileMode.Create);
                 await vm.ImagenFile.CopyToAsync(fs);
-
-
                 comunicado.Imagen = $"/uploads/{fileName}";
             }
-            // Asocia las empresas seleccionadas
 
+            // Empresas destino
             if (!vm.EsPublico && vm.EmpresasSeleccionadas.Any())
             {
                 foreach (var empId in vm.EmpresasSeleccionadas.Distinct())
                     comunicado.ComunicadosEmpresas.Add(new ComunicadoEmpresa { EmpresaID = empId });
             }
 
-            // Guarda en la base de datos
+            // Guardado
             _db.Comunicados.Add(comunicado);
             await _db.SaveChangesAsync();
 
-
-            // Notifica a los usuarios
-
-            if(vm.EsPublico)
+           
+            if (vm.EsPublico)
             {
                 await _notif.EmitirGlobal(
                     "Comunicado_Nuevo",
@@ -188,7 +195,7 @@ namespace ProyectoMatrix.Controllers
                     comunicado.ComunicadoID,
                     "Comunicados");
             }
-            else if(vm.EmpresasSeleccionadas.Any() == true)
+            else if (vm.EmpresasSeleccionadas.Any())
             {
                 await _notif.EmitirParaEmpresas(
                     "Comunicado_Nuevo",
@@ -199,14 +206,43 @@ namespace ProyectoMatrix.Controllers
                     vm.EmpresasSeleccionadas);
             }
 
+            await bitacora.RegistrarAsync(
+                idUsuario: idUsuario,
+                idEmpresa: idEmpresaContexto,   // o null si no aplica
+                accion: "COMUNICADO_CREAR",
+                mensaje: vm.EsPublico
+                    ? "Comunicado público creado"
+                    : $"Comunicado privado creado para {vm.EmpresasSeleccionadas.Distinct().Count()} empresas"
+            // resultado=null, severidad=null -> usan DEFAULT: 'OK' y 1
+            );
 
-                return RedirectToAction(nameof(Gestionar));
+            return RedirectToAction(nameof(Gestionar));
         }
+        catch (Exception ex)
+        {
+            // 📝 Bitácora: error
+            await bitacora.RegistrarAsync(
+                idUsuario: idUsuario,
+                idEmpresa: idEmpresaContexto,
+                accion: "COMUNICADO_CREAR",
+                mensaje: ex.Message,
+                resultado: "ERROR",
+                severidad: 3
+            );
+
+            // UI
+            ModelState.AddModelError(string.Empty, "No se pudo crear el comunicado.");
+            vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
+            return View(vm);
+        }
+    }
 
 
 
 
-        [Authorize(Policy = "GestionComunicados")]
+
+
+    [Authorize(Policy = "GestionComunicados")]
         [HttpGet]
         public async Task<IActionResult> Gestionar(string? q = null)
         {

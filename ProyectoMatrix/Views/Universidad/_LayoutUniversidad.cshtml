@@ -5,7 +5,7 @@
     var empresaId = Context.Session.GetString("EmpresaId") ?? "1";
     var rolId = Context.Session.GetInt32("RolID") ?? 5;
     var usuarioId = Context.Session.GetInt32("UsuarioID") ?? 0;
-    
+
     // Usar el helper de permisos
     var puedeCrearCursos = ProyectoMatrix.Helpers.UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId);
     var puedeAsignarCursos = ProyectoMatrix.Helpers.UniversidadPermisosHelper.PermisosUniversidad.PuedeAsignarCursos(rolId);
@@ -19,7 +19,7 @@
     <meta charset="utf-8" />
     <title>@ViewData["Title"] - Universidad NS Group</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    
+
     <!-- CSS Core -->
     <link rel="stylesheet" href="~/css/globals/variables.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
@@ -29,13 +29,13 @@
     <!-- Universidad NS Specific CSS -->
     <link rel="stylesheet" href="~/css/universidad/universidad-core.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/universidad/universidad-components.css" asp-append-version="true" />
-    
+
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    
+
     <!-- Favicon Universidad NS -->
     <link rel="icon" type="image/png" href="~/Imagenes/logo-universidad-ns.png" />
-    
+
     <!-- Meta tags adicionales -->
     <meta name="description" content="Universidad NS Group - Sistema de Capacitación y Certificación" />
     <meta name="author" content="NS Group" />
@@ -58,8 +58,8 @@
             <div class="navbar-brand-section">
                 <a href="/Universidad" class="universidad-brand">
                     <div class="brand-logo">
-                        <img src="~/Imagenes/logo-universidad-ns.png" 
-                             alt="Universidad NS" 
+                        <img src="~/Imagenes/logo-universidad-ns.png"
+                             alt="Universidad NS"
                              class="universidad-logo">
                     </div>
                     <div class="brand-text">
@@ -84,7 +84,7 @@
                         <i class="fas fa-certificate"></i>
                         <span>Certificados</span>
                     </a>
-                    
+
                     @if (puedeCrearCursos)
                     {
                         <a href="/Universidad/GestionCursos" class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "GestionCursos" ? "active" : "")">
@@ -92,7 +92,7 @@
                             <span>Gestionar</span>
                         </a>
                     }
-                    
+
                     @if (puedeAsignarCursos)
                     {
                         <a href="/Asignaciones/AsignacionMasiva" class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Asignaciones" ? "active" : "")">
@@ -100,7 +100,7 @@
                             <span>Asignar</span>
                         </a>
                     }
-                    
+
                     @if (puedeVerReportes)
                     {
                         <a href="/Universidad/Reportes" class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Reportes" ? "active" : "")">
@@ -135,8 +135,8 @@
                 <div class="user-menu">
                     <button class="user-toggle" id="userMenuToggle">
                         <div class="user-avatar">
-                            <img src="~/Imagenes/avatars/default-avatar.png" 
-                                 alt="@nombreUsuario" 
+                            <img src="~/Imagenes/avatars/default-avatar.png"
+                                 alt="@nombreUsuario"
                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                             <div class="avatar-fallback" style="display: none;">
                                 @(nombreUsuario.Substring(0, 1).ToUpper())
@@ -252,10 +252,10 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/universidad/universidad-layout.js" asp-append-version="true"></script>
-    
+
     <!-- Scripts específicos de la página -->
     @await RenderSectionAsync("Scripts", required: false)
-    
+
     <!-- Script de inicialización del layout -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -267,7 +267,7 @@
                     empresaId: @empresaId
                 });
             }
-            
+
             // Ocultar loading overlay
             setTimeout(() => {
                 const loadingOverlay = document.getElementById('loadingOverlay');
@@ -276,12 +276,12 @@
                     setTimeout(() => loadingOverlay.remove(), 300);
                 }
             }, 1000);
-            
+
             // Configurar tema según empresa
             document.documentElement.style.setProperty('--empresa-id', '@empresaId');
         });
     </script>
-    
+
 </body>
 </html>
 

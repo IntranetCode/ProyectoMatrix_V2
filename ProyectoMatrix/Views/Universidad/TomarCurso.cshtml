@@ -214,17 +214,17 @@
                                                     {
                                                         <i class="fas fa-eye me-1"></i>
                                                         <text>Revisar</text>
-                                                                                            }
+                                                    }
                                                     else if (isInProgress)
                                                     {
                                                         <i class="fas fa-play me-1"></i>
                                                         <text>Continuar</text>
-                                                                                }
+                                                    }
                                                     else
                                                     {
                                                         <i class="fas fa-play-circle me-1"></i>
                                                         <text>Comenzar</text>
-                                                                                }
+                                                    }
                                                 </a>
 
 
@@ -367,12 +367,12 @@
                                 {
                                     <i class="fas fa-play me-2"></i>
                                     <text>Continuar Módulo</text>
-                                                            }
+                                }
                                 else
                                 {
                                     <i class="fas fa-play-circle me-2"></i>
                                     <text>Comenzar Módulo</text>
-                                                        }
+                                }
                             </a>
 
                         </div>
@@ -664,21 +664,18 @@
 
     /* ===== RESPONSIVE ===== */
     @@media (max-width: 768px) {
-        .curso-title
+        .curso-title {
+            font-size: 1.7rem;
+        }
 
-    {
-        font-size: 1.7rem;
-    }
+        .subcurso-card {
+            flex-direction: column;
+            text-align: center;
+        }
 
-    .subcurso-card {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .subcurso-actions {
-        align-items: center;
-    }
-
+        .subcurso-actions {
+            align-items: center;
+        }
     }
 
     /* Animación dinámica del círculo */

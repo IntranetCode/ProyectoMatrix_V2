@@ -3,7 +3,7 @@
 @{
     ViewData["Title"] = $"{Model.NombreSubCurso} - Universidad NS";
     Layout = "_LayoutUniversidad";
-    
+
     var usuarioId = Context.Session.GetInt32("UsuarioID") ?? 0;
     var empresaId = Context.Session.GetInt32("EmpresaSeleccionada") ?? 0;
     var rolId = Context.Session.GetInt32("RolID") ?? 5;
@@ -29,7 +29,7 @@
                             <li class="breadcrumb-item active">@Model.NombreSubCurso</li>
                         </ol>
                     </nav>
-                    
+
                     <div class="video-title-section">
                         <h1 class="video-title">@Model.NombreSubCurso</h1>
                         <div class="video-meta">
@@ -55,8 +55,8 @@
                     <div class="video-actions">
                         @if (!string.IsNullOrEmpty(Model.ArchivoPDF))
                         {
-                            <a href="~/contenidos/pdfs/@Model.ArchivoPDF" 
-                               target="_blank" 
+                            <a href="~/contenidos/pdfs/@Model.ArchivoPDF"
+                               target="_blank"
                                class="btn btn-outline-primary me-2"
                                download>
                                 <i class="fas fa-file-pdf me-2"></i>Material PDF
@@ -82,16 +82,15 @@
                         <div class="video-container" id="videoContainer">
                             @if (!string.IsNullOrEmpty(Model.ArchivoVideo))
                             {
-                                <video 
-                                    id="videoPlayer"
-                                    class="video-player"
-                                    controls
-                                    preload="metadata"
+                                <video id="videoPlayer"
+                                       class="video-player"
+                                       controls
+                                       preload="metadata"
                                        poster="~/contenidos/thumbnails/@(System.IO.Path.GetFileNameWithoutExtension(Model.ArchivoVideo)).jpg">
                                     <source src="~/contenidos/videos/@Model.ArchivoVideo" type="video/mp4">
                                     <p>Su navegador no soporta la reproducción de video HTML5.</p>
                                 </video>
-                                
+
                                 <!-- Custom Video Controls Overlay -->
                                 <div class="video-controls-overlay" id="videoControlsOverlay">
                                     <div class="video-progress-container">
@@ -106,7 +105,7 @@
                                             <span id="totalTime">00:00</span>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="video-controls">
                                         <div class="controls-left">
                                             <button class="control-btn" id="playPauseBtn">
@@ -124,15 +123,15 @@
                                                 <button class="control-btn" id="volumeBtn">
                                                     <i class="fas fa-volume-up"></i>
                                                 </button>
-                                                <input type="range" 
-                                                       class="volume-slider" 
-                                                       id="volumeSlider" 
-                                                       min="0" 
-                                                       max="100" 
+                                                <input type="range"
+                                                       class="volume-slider"
+                                                       id="volumeSlider"
+                                                       min="0"
+                                                       max="100"
                                                        value="100">
                                             </div>
                                         </div>
-                                        
+
                                         <div class="controls-right">
                                             <div class="speed-control">
                                                 <select class="form-select form-select-sm" id="playbackSpeed">
@@ -150,13 +149,13 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Video Loading State -->
                                 <div class="video-loading" id="videoLoading">
                                     <div class="loading-spinner"></div>
                                     <p>Cargando video...</p>
                                 </div>
-                                
+
                                 <!-- Video Error State -->
                                 <div class="video-error" id="videoError" style="display: none;">
                                     <div class="error-content">
@@ -211,10 +210,10 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="progress-bar-container">
                                 <div class="progress progress-lg">
-                                    <div class="progress-bar bg-primary" 
+                                    <div class="progress-bar bg-primary"
                                          id="overallProgress"
                                          style="width: @Model.PorcentajeVisto%"
                                          role="progressbar">
@@ -243,21 +242,21 @@
                             }
                             @if (anteriorSubCurso > 0)
                             {
-                                <a href="/Universidad/VerSubCurso/@(Model.SubCursoID - 1)" 
+                                <a href="/Universidad/VerSubCurso/@(Model.SubCursoID - 1)"
                                    class="btn btn-outline-secondary w-100 mb-2">
                                     <i class="fas fa-chevron-left me-2"></i>Módulo Anterior
                                 </a>
                             }
-                            
+
                             <!-- Botón Siguiente -->
-                            <button class="btn btn-universidad w-100" 
+                            <button class="btn btn-universidad w-100"
                                     id="nextModuleBtn"
                                     disabled>
                                 <i class="fas fa-chevron-right me-2"></i>Siguiente Módulo
                             </button>
-                            
+
                             <!-- Volver al Curso -->
-                            <a href="/Universidad/TomarCurso/@Model.CursoID" 
+                            <a href="/Universidad/TomarCurso/@Model.CursoID"
                                class="btn btn-outline-primary w-100 mt-2">
                                 <i class="fas fa-arrow-left me-2"></i>Volver al Curso
                             </a>
@@ -281,13 +280,13 @@
                                         <p class="text-muted">Material complementario del módulo</p>
                                     </div>
                                     <div class="material-actions">
-                                        <a href="~/contenidos/pdfs/@Model.ArchivoPDF" 
-                                           target="_blank" 
+                                        <a href="~/contenidos/pdfs/@Model.ArchivoPDF"
+                                           target="_blank"
                                            class="btn btn-sm btn-outline-danger">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="~/contenidos/pdfs/@Model.ArchivoPDF" 
-                                           download 
+                                        <a href="~/contenidos/pdfs/@Model.ArchivoPDF"
+                                           download
                                            class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-download"></i>
                                         </a>
@@ -329,15 +328,15 @@
                                         </div>
                                     </div>
                                 }
-                                
+
                                 <div class="evaluation-requirements">
                                     <small class="text-muted">
                                         <i class="fas fa-info-circle me-1"></i>
                                         Puntaje mínimo requerido: @Model.PuntajeMinimo%
                                     </small>
                                 </div>
-                                
-                                <button class="btn btn-warning w-100 mt-3" 
+
+                                <button class="btn btn-warning w-100 mt-3"
                                         id="startEvaluationBtn"
                                         disabled>
                                     <i class="fas fa-play-circle me-2"></i>
@@ -360,9 +359,9 @@
                             <h6><i class="fas fa-sticky-note me-2"></i>Mis Notas</h6>
                         </div>
                         <div class="notes-content">
-                            <textarea class="form-control" 
-                                      id="videoNotes" 
-                                      rows="6" 
+                            <textarea class="form-control"
+                                      id="videoNotes"
+                                      rows="6"
                                       placeholder="Escribe tus notas sobre este módulo..."
                                       data-subcurso-id="@Model.SubCursoID"></textarea>
                             <button class="btn btn-sm btn-outline-primary mt-2" id="saveNotesBtn">
@@ -396,25 +395,25 @@
 
 <!-- JavaScript del Video Player -->
 <script>
-// Variables globales
-const videoData = {
-    subCursoId: @Model.SubCursoID,
-    usuarioId: @usuarioId,
-    empresaId: @empresaId,
-    duracionTotal: @(Model.DuracionVideo ?? 0),
-    progresoPrevio: @Model.PorcentajeVisto,
-    tiempoVistoPrevio: @Model.TiempoTotalVisto,
-    requiereEvaluacion: @Model.RequiereEvaluacion.ToString().ToLower(),
-    puntajeMinimo: @Model.PuntajeMinimo,
-    completado: @Model.Completado.ToString().ToLower()
-};
+    // Variables globales
+    const videoData = {
+        subCursoId: @Model.SubCursoID,
+        usuarioId: @usuarioId,
+        empresaId: @empresaId,
+        duracionTotal: @(Model.DuracionVideo ?? 0),
+        progresoPrevio: @Model.PorcentajeVisto,
+        tiempoVistoPrevio: @Model.TiempoTotalVisto,
+        requiereEvaluacion: @Model.RequiereEvaluacion.ToString().ToLower(),
+        puntajeMinimo: @Model.PuntajeMinimo,
+        completado: @Model.Completado.ToString().ToLower()
+    };
 
-// Inicializar cuando esté listo
-document.addEventListener('DOMContentLoaded', function() {
-    if (document.getElementById('videoPlayer')) {
-        initVideoPlayer();
-    }
-});
+    // Inicializar cuando esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('videoPlayer')) {
+            initVideoPlayer();
+        }
+    });
 </script>
 
 @section Scripts {
