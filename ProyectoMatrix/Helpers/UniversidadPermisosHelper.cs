@@ -17,7 +17,8 @@ namespace ProyectoMatrix.Helpers
             PropietarioContenido = 3,
             AutorEditor = 4,
             UsuarioFinal = 5,
-            Auditor = 6
+            Auditor = 6,
+            Test = 8
         }
 
         public static class Acciones
@@ -41,7 +42,7 @@ namespace ProyectoMatrix.Helpers
             public static bool EsAdministradorTI(int rolId) => rolId == (int)Rol.AdministradorTI;
             public static bool EsPropietarioContenido(int rolId) => rolId == (int)Rol.PropietarioContenido;
             public static bool EsAutorEditor(int rolId) => rolId == (int)Rol.AutorEditor;
-            public static bool EsUsuarioFinal(int rolId) => rolId == (int)Rol.UsuarioFinal;
+            public static bool EsUsuarioFinal(int rolId) => rolId == (int)Rol.UsuarioFinal || rolId == (int)Rol.Test;
             public static bool EsAuditor(int rolId) => rolId == (int)Rol.Auditor;
 
             // --- permisos generales
@@ -149,6 +150,8 @@ namespace ProyectoMatrix.Helpers
                 (int)Rol.PropietarioContenido => "Gestor de Contenidos",
                 (int)Rol.AutorEditor => "Creador de Contenidos",
                 (int)Rol.UsuarioFinal => "Usuario Estudiante",
+                (int)Rol.Test
+                => "Usuario Estudiante",
                 (int)Rol.Auditor => "Auditor de Solo Lectura",
                 _ => "Sin Acceso"
             };
