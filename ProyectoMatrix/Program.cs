@@ -1,4 +1,4 @@
-//Configuración y conexión a base de datos
+//Configuración y conexión a base de datos derarrollo y productivo
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
