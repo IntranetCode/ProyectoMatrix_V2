@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -91,7 +84,6 @@ namespace ProyectoMatrix.Controllers
             return View();
         }
 
-
         [HttpGet]
         [AllowAnonymous] // opcional
         public async Task<IActionResult> Lista()
@@ -105,17 +97,15 @@ namespace ProyectoMatrix.Controllers
                  _db.WebinarsEmpresas.Any(we => we.WebinarID == w.WebinarID && we.EmpresaID == empresaId.Value))
             );
 
-
-            //PARA HACER DESTACADO EL PROXIMO
+            // --- DESTACADO: próximo webinar ---
             var proximo = await baseQ
                 .Where(w => w.FechaInicio > ahora)
                 .OrderBy(w => w.FechaInicio)
-                .FirstOrDefaultAsync(); 
+                .FirstOrDefaultAsync();
 
-            WebinarListItemVm? destacadoVm = null;
-            if(proximo != null)
+            if (proximo != null)
             {
-                destacadoVm = new WebinarListItemVm
+                var destacadoVm = new WebinarListItemVm
                 {
                     WebinarID = proximo.WebinarID,
                     Titulo = proximo.Titulo,
@@ -133,20 +123,38 @@ namespace ProyectoMatrix.Controllers
                 ViewBag.Destacado = null;
             }
 
-                var lista = await baseQ
-                    .OrderBy(w => w.FechaInicio)
-                    .Select(w => new WebinarListItemVm
-                    {
-                        WebinarID = w.WebinarID,
-                        Titulo = w.Titulo,
-                        Descripcion = w.Descripcion,
-                        FechaInicio = w.FechaInicio,
-                        FechaFin = w.FechaFin,
-                        UrlTeams = w.UrlTeams,
-                        Imagen = w.Imagen,
-                        DirigidoA = w.EsPublico ? "Todas" : ""
-                    })
-                    .ToListAsync();
+            // --- VIDEO DESTACADO: solo si NO hay webinar destacado ---
+            if (ViewBag.Destacado == null)
+            {
+                ViewBag.FeaturedVideo = new FeaturedVideoVm
+                {
+                    Titulo = "Visión Estratégica para CEOs",
+                    Descripcion = "Cómo desarrollar una visión a largo plazo y comunicarla efectivamente.",
+                    VideoIdYoutube = "WRgDEFqrYl0",
+                    Thumbnail = "", // opcional
+                    Categoria = "Liderazgo Estratégico"
+                };
+            }
+            else
+            {
+                ViewBag.FeaturedVideo = null;
+            }
+
+            // --- Lista ---
+            var lista = await baseQ
+                .OrderBy(w => w.FechaInicio)
+                .Select(w => new WebinarListItemVm
+                {
+                    WebinarID = w.WebinarID,
+                    Titulo = w.Titulo,
+                    Descripcion = w.Descripcion,
+                    FechaInicio = w.FechaInicio,
+                    FechaFin = w.FechaFin,
+                    UrlTeams = w.UrlTeams,
+                    Imagen = w.Imagen,
+                    DirigidoA = w.EsPublico ? "Todas" : ""
+                })
+                .ToListAsync();
 
             var idsNoPublicos = lista.Where(x => x.DirigidoA == "").Select(x => x.WebinarID).ToList();
             if (idsNoPublicos.Count > 0)
@@ -163,6 +171,7 @@ namespace ProyectoMatrix.Controllers
 
             return View("~/Views/Lider/LiderLista.cshtml", lista);
         }
+
 
 
         [Authorize(Roles = "Autor/Editor de Contenido,Administrador de Intranet,Propietario de Contenido")]
