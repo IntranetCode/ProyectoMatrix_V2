@@ -33,6 +33,20 @@
         <input asp-for="FechaCreacion" class="form-control" type="date" />
     </div>
 
+
+    @*Se agrega el select de la categoria que tendra el comunicado*@
+
+    <div class="mb-3">
+        <label asp-for="Categoria" class="form-label">Categoría</label>
+        <select asp-for="Categoria" class="form-select"
+                asp-items="@(new SelectList(Model.CategoriasDisponibles ?? new List<string> { "Urgente", "General", "Evento" }))">
+            <option value="">-- Selecciona una categoría --</option>
+        </select>
+        <span asp-validation-for="Categoria" class="text-danger"></span>
+    </div>
+
+
+
         <div class="mb-3">
         <label class="form-label">Cambiar Imagen</label>
         <input asp-for="ImagenFile" class="form-control" type="file" />

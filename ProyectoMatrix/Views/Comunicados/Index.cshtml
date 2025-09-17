@@ -9,6 +9,16 @@
 
 <link href="~/css/stylesComunicadosIndex.css" rel="stylesheet" />
 
+@* //He agregado el helper de categorias  *@
+
+@functions {
+    (string Icono, string Clase) GetEstiloCategoria(string cat) => cat switch
+    {
+        "Urgente" => ("⚠️", "badge badge-urgente"),  //He agregado el helper de categorias
+        "Evento" => ("🎉", "badge badge-evento"),
+        _ => ("📢", "badge badge-general")
+    };
+} 
 <div class="container py-4">
  
     
@@ -28,10 +38,14 @@
 
         <h2 class="mb-3">Comunicados</h2>
 
+
+
+
         <div class="comunicados-grid" id="comGrid">
             @foreach (var c in Model.Take(3))
             {
-                <article class="com-card" tabindex="0">
+                //EN este article se va a recuperar el ID para marccar como leido y fuincione correctamente con el scrip
+                <article class="com-card" data-id="@c.ComunicadoID" tabindex="0">
                     @if (!string.IsNullOrEmpty(c.Imagen))
                     {
                         var ext = System.IO.Path.GetExtension(c.Imagen).ToLower();
@@ -59,6 +73,14 @@
 
                     <div class="com-card-body">
                         <h3 class="com-title">@c.NombreComunicado</h3>
+
+                        @{
+                            var estilo = GetEstiloCategoria(c.Categoria);
+                        }
+                        <span class="@estilo.Clase">@estilo.Icono @c.Categoria</span>
+
+
+
                         <p class="com-desc">@c.Descripcion</p>
                         <div class="com-meta">@c.FechaCreacion.ToString("dd/MM/yyyy")</div>
                     </div>
@@ -71,12 +93,35 @@
         else
         {
 
+        //Se agrego este fragmento de codigo solo para la vista de usuarios finales , podrnn ver 
+        //los comunicados leidos y no leidos
         <h2 class="mb-3">Comunicados recientes</h2>
+
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <a href="@Url.Action("Index", new { estado = "NoLeidos" })" class="cont-card">
+                    <div class="cont-card-body">
+                        <div class="cont-card-title">Pendientes</div>
+                        <div class="cont-card-num">@ViewBag.NoLeidos</div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-6 col-md-3">
+                <a href="@Url.Action("Index", new { estado = "Leidos" })" class="cont-card">
+                    <div class="cont-card-body">
+                        <div class="cont-card-title">Leídos</div>
+                        <div class="cont-card-num">@ViewBag.Leidos</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
 
         <div class="comunicados-grid" id="comGrid">
             @foreach (var c in Model.Take(3))
             {
-                <article class="com-card" tabindex="0">
+                //EN este article se va a recuperar el ID para marccar como leido y fuincione correctamente con el scrip
+                <article class="com-card" data-id="@c.ComunicadoID" tabindex="0">
                     @if (!string.IsNullOrEmpty(c.Imagen))
                     {
                         var ext = System.IO.Path.GetExtension(c.Imagen).ToLower();
@@ -104,11 +149,21 @@
 
                     <div class="com-card-body">
                         <h3 class="com-title">@c.NombreComunicado</h3>
+
+                        @{
+                            var estilo = GetEstiloCategoria(c.Categoria);
+                        }
+                        <span class="@estilo.Clase">@estilo.Icono @c.Categoria</span>
+
+
                         <p class="com-desc">@c.Descripcion</p>
                         <div class="com-meta">@c.FechaCreacion.ToString("dd/MM/yyyy")</div>
                     </div>
                 </article>
             }
+
+
+
         </div>
 
         <div class="text-center mt-3">
@@ -269,4 +324,60 @@
 
     </script>
 
+    @*sE agrega un scrip para marcar como leidos los comunicados que se encuyentran en index*@
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            document.querySelectorAll(".com-card").forEach(card => {
+                const id = card.getAttribute("data-id");
+                if(id){
+                    fetch("@Url.Action("MarcarLeido", "Comunicados")", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: "id=" + encodeURIComponent(id)
+                    });
+                }
+            });
+        });
+    </script>
+    @*Este scrip se agrego para que al momento que el usuario de clic sobre los comunicados pendientes*@
+    @if ((string?)ViewBag.Estado == "NoLeidos")
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", () => {
+              const cards = document.querySelectorAll(".com-card[data-id]");
+              const seen = new Set();
+
+              const mark = (id) => {
+                if (seen.has(id)) return;
+                seen.add(id);
+                fetch("@Url.Action("MarcarLeido","Comunicados")", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                  body: "id=" + encodeURIComponent(id)
+                });
+              };
+
+              const timers = new Map();
+              const io = new IntersectionObserver((entries) => {
+                entries.forEach(e => {
+                  const card = e.target;
+                  const id = card.getAttribute("data-id");
+                  if (!id) return;
+
+                  if (e.isIntersecting) {
+                   @*visible: espera 2.5s antes de marcar leído*@
+                    const t = setTimeout(() => mark(id), 2500);
+                    timers.set(card, t);
+                  } else {
+                    // salió de vista: cancela si no se marcó
+                    const t = timers.get(card);
+                    if (t) { clearTimeout(t); timers.delete(card); }
+                  }
+                });
+              }, { root: null, threshold: 0.5 });
+
+              cards.forEach(c => io.observe(c));
+            });
+        </script>
+        }
 }

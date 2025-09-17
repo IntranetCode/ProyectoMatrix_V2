@@ -1,10 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
-using Microsoft.AspNetCore.Mvc.Filters;
+using System.Linq;
+using System.Security.Claims;
+
 
 
 
@@ -17,7 +20,7 @@ namespace ProyectoMatrix.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly ServicioNotificaciones _notif;
         private readonly BitacoraService _bitacora;
-        
+
 
         public ComunicadosController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif, BitacoraService bitacora)
         {
@@ -27,9 +30,16 @@ namespace ProyectoMatrix.Controllers
             _bitacora = bitacora;
         }
 
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index( string? categoria = null, string? estado = null )
         {
             var puedeGestionar = EsGestor(User);
+
+            // Ids desde claims (ajusta si usas otros)
+            int? idUsuario = null;
+            if (int.TryParse(User.FindFirst("UsuarioID")?.Value, out var uid)) idUsuario = uid;
+
+            else if (int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out uid)) idUsuario = uid;
+            else idUsuario = HttpContext.Session.GetInt32("UsuarioID"); 
 
             int? empresaId = null;
             if (!puedeGestionar && int.TryParse(User.FindFirst("EmpresaID")?.Value, out var eid))
@@ -38,6 +48,9 @@ namespace ProyectoMatrix.Controllers
             var query = _db.Comunicados
                 .Include(c => c.ComunicadosEmpresas).ThenInclude(ce => ce.Empresa)
                 .AsQueryable();
+           
+
+            //Este apartado es para el alcance por empresa/p{ublico
 
             if (!puedeGestionar)
             {
@@ -47,21 +60,126 @@ namespace ProyectoMatrix.Controllers
                     query = query.Where(c => c.EsPublico);
             }
 
-            var vm = await query
-                .OrderByDescending(c => c.FechaCreacion)
-                .ThenByDescending(c => c.ComunicadoID)
-                .Select(c => new ComunicadoListItemVM
+
+            //Se ha agregado el filtro por categoria
+            if (!string.IsNullOrWhiteSpace(categoria))
+              query   = query.Where(c => c.Categoria == categoria);
+
+            //Se agregara un nuevo filtro (manejo de estado) para filtrar comunicados pendientes y leidos 
+
+            if (!string.IsNullOrWhiteSpace(estado) && idUsuario.HasValue)
+            {
+                using var conn = new SqlConnection(_db.Database.GetConnectionString());
+                await conn.OpenAsync();
+
+                var ids = new List<int>();
+
+                if (estado == "NoLeidos")
                 {
-                    ComunicadoID = c.ComunicadoID,
-                    NombreComunicado = c.NombreComunicado,
-                    Descripcion = c.Descripcion,
-                    FechaCreacion = c.FechaCreacion,
-                    DirigidoA = c.EsPublico
-                        ? "Todos"
-                        : string.Join(", ", c.ComunicadosEmpresas.Select(ce => ce.Empresa.Nombre)),
-                    Imagen = c.Imagen
-                })
-                .ToListAsync();
+                    // IDs pendientes (visibles al usuario) = NOT IN lecturas
+                    using var cmd = new SqlCommand(@"
+            SELECT c.ComunicadoID
+            FROM dbo.Comunicados c
+            LEFT JOIN dbo.ComunicadosEmpresas ce ON ce.ComunicadoID = c.ComunicadoID
+            LEFT JOIN dbo.UsuariosEmpresas ue ON ue.EmpresaID = ce.EmpresaID AND ue.UsuarioID = @UsuarioID
+            WHERE (c.EsPublico = 1 OR ue.UsuarioID IS NOT NULL)
+            AND NOT EXISTS (
+                SELECT 1 FROM dbo.ComunicadoLecturas cl 
+                WHERE cl.ComunicadoID = c.ComunicadoID AND cl.UsuarioID = @UsuarioID
+            )
+        ", conn);
+                    cmd.Parameters.AddWithValue("@UsuarioID", idUsuario.Value);
+                    using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync()) ids.Add(r.GetInt32(0));
+                }
+                else if (estado == "Leidos")
+                {
+                    using var cmd = new SqlCommand(@"
+            SELECT cl.ComunicadoID
+            FROM dbo.ComunicadoLecturas cl
+            WHERE cl.UsuarioID = @UsuarioID
+        ", conn);
+                    cmd.Parameters.AddWithValue("@UsuarioID", idUsuario.Value);
+                    using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync()) ids.Add(r.GetInt32(0));
+                }
+
+                // filtra la query principal por los IDs obtenidos
+                query = query.Where(c => ids.Contains(c.ComunicadoID));
+            }
+
+            ViewBag.Estado = estado; // para que el JS sepa si está en modo "Pendientes"
+
+
+            bool esHome = string.IsNullOrEmpty(estado) && string.IsNullOrEmpty(categoria);
+            ViewBag.EsHome = esHome;
+
+            IQueryable<Comunicado> qOrdered = query
+                .OrderByDescending(c => c.FechaCreacion)
+                .ThenByDescending(c => c.ComunicadoID);
+
+            if (esHome)
+                qOrdered = qOrdered.Take(3);
+
+            var vm = await qOrdered
+    .Select(c => new ComunicadoListItemVM
+    {
+        ComunicadoID = c.ComunicadoID,
+        NombreComunicado = c.NombreComunicado,
+        Descripcion = c.Descripcion,
+        FechaCreacion = c.FechaCreacion,
+        Categoria = c.Categoria,
+        DirigidoA = c.EsPublico
+            ? "Todos"
+            : string.Join(", ", c.ComunicadosEmpresas.Select(ce => ce.Empresa.Nombre)),
+        Imagen = c.Imagen
+    })
+    .ToListAsync();
+
+
+            //AGREGANDO bloque para obtener contadores
+
+            if (idUsuario.HasValue)
+            {
+                using (var conn = new SqlConnection(_db.Database.GetConnectionString()))
+                {
+                    await conn.OpenAsync();
+
+                    //Recuperar kis leídos
+                    var sqlLeidos = "SELECT COUNT (*) FROM ComunicadoLecturas WHERE UsuarioID=@UsuarioID";
+                    using (var cmd = new SqlCommand(sqlLeidos, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@UsuarioID", idUsuario.Value);
+                        ViewBag.Leidos = (int)await cmd.ExecuteScalarAsync();
+                    }
+
+                    //Recuperar comunicados no leidos 
+                    var sqlNoLeidos = @"
+                     SELECT COUNT (*)
+                     FROM Comunicados c
+                      WHERE (c.EsPublico = 1 OR EXISTS (
+                       SELECT 1 FROM ComunicadosEmpresas ce 
+                       JOIN UsuariosEmpresas ue ON ce.EmpresaID = ue.EmpresaID
+                       WHERE ce.ComunicadoID = c.ComunicadoID AND ue.UsuarioID = @UsuarioID
+                      ))
+                      AND NOT EXISTS (
+                      SELECT 1 FROM ComunicadoLecturas cl
+                     WHERE cl.ComunicadoID=c.ComunicadoID AND cl.UsuarioID= @UsuarioID
+                         );";
+
+                    using (var cmd = new SqlCommand (sqlNoLeidos, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@UsuarioID", idUsuario.Value);
+                        ViewBag.NoLeidos = (int)await cmd.ExecuteScalarAsync();
+                    }
+                }
+            }
+            else
+            {
+                ViewBag.Leidos = 0;
+                ViewBag.NoLeidos = 0;
+            }
+
 
             return View(vm);
         }
@@ -99,6 +217,7 @@ namespace ProyectoMatrix.Controllers
                     NombreComunicado = c.NombreComunicado,
                     Descripcion = c.Descripcion,
                     FechaCreacion = c.FechaCreacion,
+                    Categoria = c.Categoria,
                     DirigidoA = c.EsPublico
                         ? "Todos"
                         : string.Join(", ", c.ComunicadosEmpresas.Select(ce => ce.Empresa.Nombre)),
@@ -108,6 +227,9 @@ namespace ProyectoMatrix.Controllers
 
             return View(vm);
         }
+
+
+
 
         [Authorize(Policy = "GestionComunicados")]
         [HttpGet]
@@ -125,19 +247,19 @@ namespace ProyectoMatrix.Controllers
 
 
 
-       
 
-    [Authorize(Policy = "GestionComunicados")]
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Crear(ComunicadoCreateVM vm, [FromServices] BitacoraService bitacora)
-    {
+
+        [Authorize(Policy = "GestionComunicados")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Crear(ComunicadoCreateVM vm, [FromServices] BitacoraService bitacora)
+        {
             // Ids desde claims (ajusta si usas otros)
             int? idUsuario = null;
             if (int.TryParse(User.FindFirst("UsuarioID")?.Value, out var uid)) idUsuario = uid;
-    
+
             else if (int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out uid)) idUsuario = uid;
-            else idUsuario = HttpContext.Session.GetInt32("UsuarioID"); // último recurso
+            else idUsuario = HttpContext.Session.GetInt32("UsuarioID"); 
 
 
             int? idEmpresaContexto = int.TryParse(User.FindFirstValue("EmpresaID"), out var eid)
@@ -149,96 +271,97 @@ namespace ProyectoMatrix.Controllers
 
 
             if (!ModelState.IsValid)
-        {
-            vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
-            return View(vm);
-        }
-
-        try
-        {
-            var comunicado = new Comunicado
             {
-                NombreComunicado = vm.NombreComunicado,
-                Descripcion = vm.Descripcion,
-                FechaCreacion = vm.FechaCreacion,
-                EsPublico = vm.EsPublico,
-                UsuarioCreadorID = idUsuario
-            };
+                vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
+                return View(vm);
+            }
 
-            // Media opcional
-            if (vm.ImagenFile != null && vm.ImagenFile.Length > 0)
+            try
             {
-                var ext = Path.GetExtension(vm.ImagenFile.FileName).ToLowerInvariant();
-                var permitidos = new[] { ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".pdf" };
-                if (!permitidos.Contains(ext))
+                var comunicado = new Comunicado
                 {
-                    ModelState.AddModelError("MediaFile", "Formato no soportado");
-                    vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
-                    return View(vm);
+                    NombreComunicado = vm.NombreComunicado,
+                    Descripcion = vm.Descripcion,
+                    FechaCreacion = vm.FechaCreacion,
+                    Categoria = vm.Categoria,
+                    EsPublico = vm.EsPublico,
+                    UsuarioCreadorID = idUsuario
+                };
+
+                // Media opcional
+                if (vm.ImagenFile != null && vm.ImagenFile.Length > 0)
+                {
+                    var ext = Path.GetExtension(vm.ImagenFile.FileName).ToLowerInvariant();
+                    var permitidos = new[] { ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".pdf" };
+                    if (!permitidos.Contains(ext))
+                    {
+                        ModelState.AddModelError("MediaFile", "Formato no soportado");
+                        vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
+                        return View(vm);
+                    }
+
+                    var uploads = Path.Combine(_env.WebRootPath, "uploads");
+                    Directory.CreateDirectory(uploads);
+                    var fileName = $"{Guid.NewGuid()}{ext}";
+                    var path = Path.Combine(uploads, fileName);
+                    using var fs = new FileStream(path, FileMode.Create);
+                    await vm.ImagenFile.CopyToAsync(fs);
+                    comunicado.Imagen = $"/uploads/{fileName}";
                 }
 
-                var uploads = Path.Combine(_env.WebRootPath, "uploads");
-                Directory.CreateDirectory(uploads);
-                var fileName = $"{Guid.NewGuid()}{ext}";
-                var path = Path.Combine(uploads, fileName);
-                using var fs = new FileStream(path, FileMode.Create);
-                await vm.ImagenFile.CopyToAsync(fs);
-                comunicado.Imagen = $"/uploads/{fileName}";
-            }
+                // Empresas destino
+                if (!vm.EsPublico && vm.EmpresasSeleccionadas.Any())
+                {
+                    foreach (var empId in vm.EmpresasSeleccionadas.Distinct())
+                        comunicado.ComunicadosEmpresas.Add(new ComunicadoEmpresa { EmpresaID = empId });
+                }
 
-            // Empresas destino
-            if (!vm.EsPublico && vm.EmpresasSeleccionadas.Any())
+                // Guardado
+                _db.Comunicados.Add(comunicado);
+                await _db.SaveChangesAsync();
+
+
+                if (vm.EsPublico)
+                {
+                    await _notif.EmitirGlobal(
+                        "Comunicado_Nuevo",
+                        comunicado.NombreComunicado,
+                        comunicado.Descripcion,
+                        comunicado.ComunicadoID,
+                        "Comunicados");
+                }
+                else if (vm.EmpresasSeleccionadas.Any())
+                {
+                    await _notif.EmitirParaEmpresas(
+                        "Comunicado_Nuevo",
+                        comunicado.NombreComunicado,
+                        comunicado.Descripcion,
+                        comunicado.ComunicadoID,
+                        "Comunicados",
+                        vm.EmpresasSeleccionadas);
+                }
+
+                await bitacora.RegistrarAsync(
+                    idUsuario: idUsuario,
+                    idEmpresa: idEmpresaContexto,   // o null si no aplica
+                    accion: "COMUNICADO_CREAR",
+                    mensaje: vm.EsPublico
+                        ? "Comunicado público creado"
+                        : $"Comunicado privado creado para {vm.EmpresasSeleccionadas.Distinct().Count()} empresas",
+                 modulo: "COMUNICADOS",
+        entidad: "Comunicado",
+        entidadId: comunicado.ComunicadoID.ToString(),
+        resultado: "OK",
+        severidad: 4,               // sugerencia: 4 = auditoría
+        solicitudId: solicitudId,
+        ip: direccionIp,
+        AgenteUsuario: agenteUsuario
+                );
+
+                return RedirectToAction(nameof(Gestionar));
+            }
+            catch (Exception ex)
             {
-                foreach (var empId in vm.EmpresasSeleccionadas.Distinct())
-                    comunicado.ComunicadosEmpresas.Add(new ComunicadoEmpresa { EmpresaID = empId });
-            }
-
-            // Guardado
-            _db.Comunicados.Add(comunicado);
-            await _db.SaveChangesAsync();
-
-           
-            if (vm.EsPublico)
-            {
-                await _notif.EmitirGlobal(
-                    "Comunicado_Nuevo",
-                    comunicado.NombreComunicado,
-                    comunicado.Descripcion,
-                    comunicado.ComunicadoID,
-                    "Comunicados");
-            }
-            else if (vm.EmpresasSeleccionadas.Any())
-            {
-                await _notif.EmitirParaEmpresas(
-                    "Comunicado_Nuevo",
-                    comunicado.NombreComunicado,
-                    comunicado.Descripcion,
-                    comunicado.ComunicadoID,
-                    "Comunicados",
-                    vm.EmpresasSeleccionadas);
-            }
-
-            await bitacora.RegistrarAsync(
-                idUsuario: idUsuario,
-                idEmpresa: idEmpresaContexto,   // o null si no aplica
-                accion: "COMUNICADO_CREAR",
-                mensaje: vm.EsPublico
-                    ? "Comunicado público creado"
-                    : $"Comunicado privado creado para {vm.EmpresasSeleccionadas.Distinct().Count()} empresas",
-             modulo: "COMUNICADOS",
-    entidad: "Comunicado",
-    entidadId: comunicado.ComunicadoID.ToString(),
-    resultado: "OK",
-    severidad: 4,               // sugerencia: 4 = auditoría
-    solicitudId: solicitudId,
-    ip: direccionIp,
-    AgenteUsuario: agenteUsuario
-            );
-
-            return RedirectToAction(nameof(Gestionar));
-        }
-        catch (Exception ex)
-        {
                 // 📝 Bitácora: error
                 await bitacora.RegistrarAsync(
          idUsuario: idUsuario,
@@ -257,17 +380,17 @@ namespace ProyectoMatrix.Controllers
 
                 // UI
                 ModelState.AddModelError(string.Empty, "No se pudo crear el comunicado.");
-            vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
-            return View(vm);
+                vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
+                return View(vm);
+            }
         }
-    }
 
 
 
 
 
 
-    [Authorize(Policy = "GestionComunicados")]
+        [Authorize(Policy = "GestionComunicados")]
         [HttpGet]
         public async Task<IActionResult> Gestionar(string? q = null)
         {
@@ -287,6 +410,7 @@ namespace ProyectoMatrix.Controllers
                     NombreComunicado = c.NombreComunicado,
                     Descripcion = c.Descripcion,
                     FechaCreacion = c.FechaCreacion,
+                    Categoria = c.Categoria,
                     DirigidoA = c.EsPublico ? "Todos" : string.Join(", ", c.ComunicadosEmpresas.Select(ce => ce.Empresa.Nombre)),
                     Imagen = c.Imagen
                 })
@@ -347,7 +471,7 @@ namespace ProyectoMatrix.Controllers
 
 
 
-        [RequestSizeLimit(104_857_600)]
+     
         [Authorize(Policy = "GestionComunicados")]
         [HttpGet]
         public async Task<IActionResult> Editar(int id)
@@ -364,6 +488,7 @@ namespace ProyectoMatrix.Controllers
                 NombreComunicado = comunicado.NombreComunicado,
                 Descripcion = comunicado.Descripcion,
                 FechaCreacion = comunicado.FechaCreacion,
+                Categoria = comunicado.Categoria,
                 EsPublico = comunicado.EsPublico,
                 EmpresasSeleccionadas = comunicado.ComunicadosEmpresas.Select(ce => ce.EmpresaID).ToArray(),
                 Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync()
@@ -374,7 +499,7 @@ namespace ProyectoMatrix.Controllers
             return View(vm);
         }
 
-        
+
         [Authorize(Policy = "GestionComunicados")]
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -399,6 +524,7 @@ namespace ProyectoMatrix.Controllers
             comunicado.NombreComunicado = vm.NombreComunicado;
             comunicado.Descripcion = vm.Descripcion;
             comunicado.FechaCreacion = vm.FechaCreacion;
+            comunicado.Categoria = vm.Categoria;
             comunicado.EsPublico = vm.EsPublico;
 
             if (vm.ImagenFile != null && vm.ImagenFile.Length > 0)
@@ -463,7 +589,7 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-
+        
         private static bool EsGestor(ClaimsPrincipal user)
         {
             var nombreRol = user.FindFirst(ClaimTypes.Role)?.Value;
@@ -476,7 +602,7 @@ namespace ProyectoMatrix.Controllers
             return rolId == "1" || rolId == "3" || rolId == "4";
         }
 
-        [RequestSizeLimit(104_857_600)]
+  
         private void DeleteOldImage(string? imagePath)
         {
             try
@@ -489,5 +615,43 @@ namespace ProyectoMatrix.Controllers
             }
             catch { /* log opcional */ }
         }
+
+        //SE ESTA AÑADIENDO UN CONTROLADOR PARA MARCAR LEIDO UN COMUNICADO,
+        //HACIENDO CONSULRAS CON SQL
+
+        [Authorize]
+        [HttpPost]
+        public async Task<IActionResult> MarcarLeido(int id)
+        {
+            int? usuarioId = null;
+            if (int.TryParse(User.FindFirst("UsuarioID")?.Value, out var uid)) usuarioId = uid;
+            else if (int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out uid)) usuarioId = uid;
+            else usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+
+            if (!usuarioId.HasValue)
+                return Unauthorized();
+
+            using (var conn = new SqlConnection(_db.Database.GetConnectionString()))
+            {
+                await conn.OpenAsync();
+                var sql = @"
+            MERGE dbo.ComunicadoLecturas AS t
+            USING (SELECT @ComunicadoID AS ComunicadoID, @UsuarioID AS UsuarioID) AS s
+            ON (t.ComunicadoID = s.ComunicadoID AND t.UsuarioID = s.UsuarioID)
+            WHEN NOT MATCHED THEN
+              INSERT (ComunicadoID, UsuarioID) VALUES (s.ComunicadoID, s.UsuarioID);";
+
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@ComunicadoID", id);
+                    cmd.Parameters.AddWithValue("@UsuarioID", usuarioId.Value);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+
+            return Json(new { ok = true });
+        }
+ 
+
     }
 }
