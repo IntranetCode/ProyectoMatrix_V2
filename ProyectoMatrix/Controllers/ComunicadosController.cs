@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Azure;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
+using QuestPDF.Helpers;
 using System.Linq;
 using System.Security.Claims;
 
@@ -392,8 +394,17 @@ namespace ProyectoMatrix.Controllers
 
         [Authorize(Policy = "GestionComunicados")]
         [HttpGet]
-        public async Task<IActionResult> Gestionar(string? q = null)
+        public async Task<IActionResult> Gestionar(string? q = null, int page=1,int pageSize = 15 )
         {
+            //Si el numero de la pagina es menor que uno lo ponemos en 1 
+            //asi nuna hacemos skip con valores negativos
+            if (page < 1) page = 1;
+
+            //Si el tamaño de la pagina es muy chico o muy grande lo coloca en 15 por defecto
+            //de esta manera la lista de comunicados al momento de gestionar no es muy larga 
+            if (pageSize < 5 || pageSize > 100) pageSize = 15;
+
+
             var query = _db.Comunicados
                 .Include(c => c.ComunicadosEmpresas).ThenInclude(ce => ce.Empresa)
                 .AsQueryable();
@@ -401,11 +412,18 @@ namespace ProyectoMatrix.Controllers
             if (!string.IsNullOrWhiteSpace(q))
                 query = query.Where(c => c.NombreComunicado.Contains(q));
 
-            var lista = await query
-                .OrderByDescending(c => c.FechaCreacion)
-                .ThenByDescending(c => c.ComunicadoID)
-                .Select(c => new ComunicadoListItemVM
-                {
+            var total = await query.CountAsync();
+
+
+
+
+            var pageItems = await query
+      .OrderByDescending(c => c.FechaCreacion)
+      .ThenByDescending(c => c.ComunicadoID)
+      .Skip((page - 1) * pageSize)
+      .Take(pageSize)
+      .Select(c => new ComunicadoListItemVM
+      {
                     ComunicadoID = c.ComunicadoID,
                     NombreComunicado = c.NombreComunicado,
                     Descripcion = c.Descripcion,
@@ -416,8 +434,45 @@ namespace ProyectoMatrix.Controllers
                 })
                 .ToListAsync();
 
-            return View(lista);
+            // 🔹 Lectores por comunicado (para estas filas) con ADO.NET, una sola query IN (...)
+            var ids = pageItems.Select(x => x.ComunicadoID).ToArray();
+            var lectores = new Dictionary<int, int>();
+            if (ids.Length > 0)
+            {
+                using var conn = new Microsoft.Data.SqlClient.SqlConnection(_db.Database.GetConnectionString());
+                await conn.OpenAsync();
+                // construimos un IN @p0,@p1,...
+                var pars = string.Join(",", ids.Select((_, i) => $"@p{i}"));
+                var sql = $@"
+            SELECT cl.ComunicadoID, COUNT(DISTINCT cl.UsuarioID) AS Lectores
+            FROM dbo.ComunicadoLecturas cl
+            WHERE cl.ComunicadoID IN ({pars})
+            GROUP BY cl.ComunicadoID;";
+                using var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, conn);
+                for (int i = 0; i < ids.Length; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", ids[i]);
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                    lectores[rd.GetInt32(0)] = rd.GetInt32(1);
+            }
+
+            // adjunta lectores al VM (si tu VM no lo tiene, agrega una prop int Lectores)
+            foreach (var item in pageItems)
+                item.Lectores = lectores.TryGetValue(item.ComunicadoID, out var n) ? n : 0;
+
+            ViewBag.Page = page;
+            ViewBag.PageSize = pageSize;
+            ViewBag.Total = total;
+            ViewBag.TotalPages = (int)Math.Ceiling(total / (double)pageSize);
+            ViewBag.Query = q;
+
+
+            return View(pageItems);
         }
+
+
+
+
 
         [Authorize(Policy = "GestionComunicados")]
         [HttpPost]

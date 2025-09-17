@@ -376,20 +376,23 @@ h2 {
 
 .badge-urgente {
     background: #fee2e2;
-    color: #991b1b;
+    color: #991b1b !important;
 }
 
 .badge-evento {
     background: #ede9fe;
-    color: #5b21b6;
+    color: #5b21b6 !important;
 }
 
 .badge-general {
     background: #dbeafe;
-    color: #1e40af;
+    color: #1e40af !important;
 }
 
-/*Estilos a los botones de leidos , no leidos y pendientes*/
+/*Estilos a los botones de leidos  y pendientes*/
+:root {
+    --header-h: 72px;
+}
 
 .cont-card {
     text-decoration: none;
@@ -399,26 +402,101 @@ h2 {
 
 .cont-card-body {
     background: #fff;
-    border-radius: 16px;
-    padding: 1.2rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    border-radius: 12px;
+    padding: .4rem;
+    box-shadow: 0 3px 8px rgba(0,0,0,.08);
     text-align: center;
+    min-width: 100px;
 }
 
 .cont-card:hover .cont-card-body {
     transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0,0,0,.12);
+    box-shadow: 0 6px 14px rgba(0,0,0,.12);
+}
+
+.cont-card-icon {
+    font-size: 1.6rem;
+    margin-bottom: .3rem;
+    display: inline-block;
 }
 
 .cont-card-title {
-    font-size: .9rem;
+    font-size: .8rem;
     font-weight: 600;
-    color: #475569;
-    margin-bottom: .3rem;
+    color: #475569 !important;
+    margin-bottom: .2rem;
+    text-transform: uppercase;
 }
 
 .cont-card-num {
-    font-size: 2rem;
-    font-weight: 800;
-    color: #0f172a;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #0f172a !important;
+}
+
+
+/* Variantes */
+.cont-card.pendientes .cont-card-icon {
+    color: #dc2626 !important;
+}
+
+.cont-card.leidos .cont-card-icon {
+    color: #16a34a !important;
+}
+
+/*Sidebar para los botones */
+/* Sidebar fija a la derecha */
+.page-with-sidebar {
+    padding-right: 180px;
+}
+/* evita que el contenido quede debajo */
+.cont-sidebar {
+    position: fixed;
+    top: calc(var(--header-h) + 16px); /* no tapa la barra */
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 900; /* menor que navbar/dropdowns */
+}
+/* asegúrate que navbar quede por encima si se superponen */
+.navbar, .dropdown-menu, .navbar * {
+    z-index: 1050;
+}
+
+/* ====== Responsive: D O C K (MÓVIL / TABLET) ====== */
+@media (max-width: 991px) {
+    .page-with-sidebar {
+        padding-right: 0;
+        padding-bottom: 92px;
+    }
+    /* deja espacio al dock */
+    .cont-sidebar {
+        position: fixed;
+        bottom: 12px;
+        left: 12px;
+        right: 12px;
+        top: auto;
+        flex-direction: row;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .cont-card-body {
+        min-width: 110px;
+        padding: .5rem .6rem;
+    }
+
+    .cont-card-icon {
+        font-size: 1.3rem;
+        margin-bottom: .2rem;
+    }
+
+    .cont-card-title {
+        font-size: .7rem;
+    }
+
+    .cont-card-num {
+        font-size: 1.2rem;
+    }
 }

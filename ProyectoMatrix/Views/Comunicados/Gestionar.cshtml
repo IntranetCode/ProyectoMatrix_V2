@@ -34,6 +34,9 @@ else
                 <th style="width: 120px;">Imagen</th>
                 <th>Dirigido a:</th>
                 <th style="width: 200px;">Acciones</th>
+
+                @*Se agregara la columna metricas en latabla de gestionar *@
+                <th>Métricas</th>
             </tr>
         </thead>
         <tbody>
@@ -68,6 +71,16 @@ else
                                 Eliminar
                             </button>
                         </form>
+                    </td>
+                    @*aGREgué la nueva columna de metricas *@
+                    <td >
+                        <span class="chip-metric">
+                                🧑💻 @c.Lectores
+                        </span>
+                            <a asp-action="Estadisticas" asp-route-id="@c.ComunicadoID"
+                               class="btn btn-sm btn-outline-secondary ms-2">
+                                Ver
+                            </a>
                     </td>
                 </tr>
             }

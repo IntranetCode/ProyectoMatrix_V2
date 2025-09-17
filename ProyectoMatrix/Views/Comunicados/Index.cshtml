@@ -93,32 +93,32 @@
         else
         {
 
+
+
+
+        <h2 class="mb-3">Comunicados</h2>
+
+
         //Se agrego este fragmento de codigo solo para la vista de usuarios finales , podrnn ver 
         //los comunicados leidos y no leidos
-        <h2 class="mb-3">Comunicados recientes</h2>
-
-        <div class="row g-3 mb-4">
-            <div class="col-6 col-md-3">
-                <a href="@Url.Action("Index", new { estado = "NoLeidos" })" class="cont-card">
-                    <div class="cont-card-body">
-                        <div class="cont-card-title">Pendientes</div>
-                        <div class="cont-card-num">@ViewBag.NoLeidos</div>
-                    </div>
-                </a>
-            </div>
-            <div class="col-6 col-md-3">
-                <a href="@Url.Action("Index", new { estado = "Leidos" })" class="cont-card">
-                    <div class="cont-card-body">
-                        <div class="cont-card-title">Leídos</div>
-                        <div class="cont-card-num">@ViewBag.Leidos</div>
-                    </div>
-                </a>
-            </div>
+        <div class="cont-sidebar">
+            <a href="@Url.Action("Index", new { estado = "NoLeidos" })" class="cont-card pendientes">
+                <div class="cont-card-body">
+                    <div class="cont-card-icon">📩</div>
+                    <div class="cont-card-title">Pendientes</div>
+                    <div class="cont-card-num">@ViewBag.NoLeidos</div>
+                </div>
+            </a>
+            <a href="@Url.Action("Index", new { estado = "Leidos" })" class="cont-card leidos">
+                <div class="cont-card-body">
+                    <div class="cont-card-icon">✅</div>
+                    <div class="cont-card-title">Leídos</div>
+                    <div class="cont-card-num">@ViewBag.Leidos</div>
+                </div>
+            </a>
         </div>
-
-
         <div class="comunicados-grid" id="comGrid">
-            @foreach (var c in Model.Take(3))
+            @foreach (var c in Model)
             {
                 //EN este article se va a recuperar el ID para marccar como leido y fuincione correctamente con el scrip
                 <article class="com-card" data-id="@c.ComunicadoID" tabindex="0">
@@ -166,9 +166,14 @@
 
         </div>
 
-        <div class="text-center mt-3">
-            <a asp-controller="Comunicados" asp-action="Lista" class="btn btn-primary">Ver comunicados anteriores</a>
-        </div>
+        @if (ViewBag.EsHome == true)
+        {
+            <div class="text-center mt-3">
+                <a asp-controller="Comunicados" asp-action="Lista" class="btn btn-primary">
+                    Ver comunicados anteriores
+                </a>
+            </div>
+        }
 
         <div id="comModalBackdrop" class="com-modal-backdrop" aria-hidden="true">
             <div id="comModal" class="com-modal" role="dialog" aria-modal="true" aria-labelledby="comModalTitle">

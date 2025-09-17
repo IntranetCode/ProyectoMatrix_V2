@@ -17,5 +17,8 @@ namespace ProyectoMatrix.Models
         [Required]
         public string Categoria { get; set; }
         public List<string> CategoriasDisponibles { get; set; } = new() { "Urgente", "General", "Evento" };
+
+        //Agregamos la propiedad Lectores 
+        public int Lectores { get;  set; }
     }
 }
