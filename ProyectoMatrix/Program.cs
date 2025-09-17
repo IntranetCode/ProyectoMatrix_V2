@@ -145,6 +145,8 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseMiddleware<MiddlewareContextoSolicitud>();
+
 app.MapControllers();
 
 // ? MAPEAR Controllers ANTES de RazorPages

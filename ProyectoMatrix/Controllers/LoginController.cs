@@ -9,14 +9,20 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Microsoft.AspNetCore.Http;
+using ProyectoMatrix.Servicios;
 
 public class LoginController : Controller
 {
-    private readonly string _connectionString;
 
-    public LoginController(IConfiguration configuration)
+    private readonly string _connectionString;
+    private readonly BitacoraService _bitacoraService;
+
+    public LoginController(IConfiguration configuration, BitacoraService bitacora)
     {
         _connectionString = configuration.GetConnectionString("DefaultConnection");
+        _bitacoraService = bitacora;
+
+
     }
 
     // ---------- LOGIN GET ----------
@@ -43,11 +49,35 @@ public class LoginController : Controller
 
         var usuario = await ObtenerUsuarioActivoAsync(model.Username, _connectionString);
 
- 
-       
+ var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+        var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+       var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
 
         if (usuario == null || usuario.Password != model.Password)
         {
+
+            //COLOQUE EL SERVICIO DE LOGS EN LOS TRES CASOS POSIBLES
+            try
+            {
+                await _bitacoraService.RegistrarAsync(
+                    idUsuario: null,
+                    idEmpresa: null,
+                    accion: "LOGIN_FALLIDO",
+                    mensaje: $"Intento fallido con usuario {model.Username}",
+                    modulo: "SEGURIDA",
+                    entidad: "Login",
+                    entidadId: null,
+                    resultado: "ERROR",
+                    severidad: 3,
+                    solicitudId: solicitudId,
+                    ip: direccionIp,
+                    AgenteUsuario: agenteUsuario
+                    );
+            }
+            catch { }
+
+
+
             ModelState.AddModelError("", "Usuario o contraseña incorrectos");
             return View(model);
 
@@ -58,16 +88,59 @@ public class LoginController : Controller
 
         if (empresas.Count > 1)
         {
+           
+
+            try
+            {
+                await _bitacoraService.RegistrarAsync(
+                    idUsuario: model.UsuarioID,
+                    idEmpresa: null,
+                    accion: "LOGIN_EMPRESAS_ENCONTRADAS",
+                    mensaje: $"Usuario {usuario.UsuarioID} tiene {empresas.Count} empresas para elegir",
+                    modulo: "SEGURIDAD",
+                    entidad: "Login",
+                    entidadId: usuario.UsuarioID.ToString(),
+                    resultado: "OK",
+                    severidad: 1,
+                    solicitudId: solicitudId,
+                    ip: direccionIp,
+                    AgenteUsuario: agenteUsuario
+                    );
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
             // Varios empresas → mostrar selección
             model.Empresas = empresas;
             model.UsuarioID = usuario.UsuarioID;
             model.Username = "";
             model.Password = "";
+
             return View(model);
         }
         else if (empresas.Count == 1)
         {
-
+            try
+            {
+                await _bitacoraService.RegistrarAsync(
+                    idUsuario: usuario.UsuarioID,
+                    idEmpresa: empresas[0].EmpresaID,
+                    accion: "LOGIN_EXITOSO",
+                    mensaje: $"Usuario{usuario.UsuarioID} inició sesión en empresa {empresas[0].EmpresaID} ",
+                    modulo: "SEGURIDAD",
+                    entidad: "Login",
+                    entidadId: usuario.UsuarioID.ToString(),
+                    resultado: "OK",
+                    severidad: 4,
+                    solicitudId: solicitudId,
+                    ip: direccionIp,
+                    AgenteUsuario: agenteUsuario
+                    );
+            }
+            catch (Exception) { throw; }
 
             // Una empresa → continuar login
             return await CompletarLogin(usuario, empresas[0]);
@@ -135,13 +208,21 @@ public class LoginController : Controller
 
         // Autenticación por cookies
         var claims = new List<Claim>
-{
-    new Claim(ClaimTypes.NameIdentifier, usuario.UsuarioID.ToString()),
-    new Claim(ClaimTypes.Name, usuario.Username),
-    new Claim("EmpresaID", empresa.EmpresaID.ToString()),
-    new Claim(ClaimTypes.Role, usuario.Rol),
-    new Claim("RolID", rolId.ToString())
-};
+    {
+        // Identidad humana
+        new Claim(ClaimTypes.Name, usuario.Username ?? $"user:{usuario.UsuarioID}"),
+
+        // 👇 MUY IMPORTANTE: estos dos como numéricos
+        new Claim("UsuarioID", usuario.UsuarioID.ToString()),
+        new Claim(ClaimTypes.NameIdentifier, usuario.UsuarioID.ToString()),
+
+        // Contexto empresa actual
+        new Claim("EmpresaID", empresa.EmpresaID.ToString()),
+
+        // Rol
+        new Claim(ClaimTypes.Role, usuario.Rol ?? "Usuario"),
+        new Claim("RolID", rolId.ToString())
+    };
 
 
         TempData["MostrarBienvenida"] = "true";
@@ -309,10 +390,50 @@ public class LoginController : Controller
     [HttpGet]
     public async Task<IActionResult> Logout()
     {
+        // Datos del middleware
+        var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+        var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+        var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
+
+        // Usuario actual
+        int? idUsuario = null;
+        if (int.TryParse(User.FindFirst("UsuarioID")?.Value, out var uid)) idUsuario = uid;
+        else if (int.TryParse(User.FindFirst("UserID")?.Value, out uid)) idUsuario = uid;
+        else if (int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out uid)) idUsuario = uid;
+        else idUsuario = HttpContext.Session.GetInt32("UsuarioID"); // último recurso
+
+        int? idEmpresa = int.TryParse(User.FindFirst("EmpresaID")?.Value, out var eid) ? eid : null;
+
+        try
+        {
+            await _bitacoraService.RegistrarAsync(
+                idUsuario: idUsuario,
+                idEmpresa: idEmpresa,
+
+                accion: "LOGOUT",
+                mensaje: $"Usuario {idUsuario} cerró sesión",
+                modulo: "SEGURIDAD",
+                entidad: "Login",
+                entidadId: idUsuario?.ToString(),
+                resultado: "OK",
+                severidad: 4,              // Auditoría
+                solicitudId: solicitudId,
+                ip: direccionIp,
+                AgenteUsuario: agenteUsuario
+            );
+        }
+        catch
+        {
+            // nunca romper el flujo de logout por bitácora
+        }
+
+        // Cerrar sesión
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         HttpContext.Session.Clear();
+
         return RedirectToAction("Login");
     }
+
 
     // ✅ AGREGAR ESTE MÉTODO NUEVO al final de tu LoginController
     private async Task<int> ObtenerRolIdPorUsuarioAsync(int usuarioId)

@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
+using System.Threading;
 
 public sealed class BitacoraService
 {
@@ -18,7 +19,16 @@ public sealed class BitacoraService
         string accion,
         string mensaje = null,
         string resultado = null,   // NULL = usa default 'OK'
-        byte? severidad = null     // NULL = usa default 1
+        byte? severidad = null ,    // NULL = usa default 1
+        string?  modulo = null,
+        string? entidad = null,
+        string? entidadId = null,
+        string? solicitudId = null,
+        string?  ip = null,
+        string? AgenteUsuario = null,
+        CancellationToken ct = default
+
+
     )
     {
         using var cn = new SqlConnection(_cadenaConexion);
@@ -31,6 +41,12 @@ public sealed class BitacoraService
         cmd.Parameters.AddWithValue("@Mensaje", (object?)mensaje ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@Resultado", (object?)resultado ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@Severidad", (object?)severidad ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Modulo", (object?) modulo ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Entidad", (object?) entidad ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@EntidadId", (object?) entidadId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@SolicitudId", (object?) solicitudId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Ip", (object?) ip ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@AgenteUsuario", (object?) AgenteUsuario ?? DBNull.Value);
 
         await cn.OpenAsync();
         await cmd.ExecuteNonQueryAsync();

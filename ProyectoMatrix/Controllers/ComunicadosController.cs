@@ -4,11 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 
 
 namespace ProyectoMatrix.Controllers
 {
+    [AuditarAccion(Modulo = "COMUNICADOS", Entidad = "Comunicado", OmitirListas = true)]
     public class ComunicadosController : Controller
     {
         private readonly ApplicationDbContext _db;
@@ -124,19 +126,29 @@ namespace ProyectoMatrix.Controllers
 
 
        
-[RequestSizeLimit(104_857_600)]
+
     [Authorize(Policy = "GestionComunicados")]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Crear(ComunicadoCreateVM vm, [FromServices] BitacoraService bitacora)
     {
-        // Ids desde claims (ajusta si usas otros)
-        int? idUsuario = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid)
-            ? uid : (int?)null;
-        int? idEmpresaContexto = int.TryParse(User.FindFirstValue("IdEmpresa"), out var eid)
+            // Ids desde claims (ajusta si usas otros)
+            int? idUsuario = null;
+            if (int.TryParse(User.FindFirst("UsuarioID")?.Value, out var uid)) idUsuario = uid;
+    
+            else if (int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out uid)) idUsuario = uid;
+            else idUsuario = HttpContext.Session.GetInt32("UsuarioID"); // último recurso
+
+
+            int? idEmpresaContexto = int.TryParse(User.FindFirstValue("EmpresaID"), out var eid)
             ? eid : (int?)null;
 
-        if (!ModelState.IsValid)
+            var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+            var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+            var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
+
+
+            if (!ModelState.IsValid)
         {
             vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
             return View(vm);
@@ -212,26 +224,39 @@ namespace ProyectoMatrix.Controllers
                 accion: "COMUNICADO_CREAR",
                 mensaje: vm.EsPublico
                     ? "Comunicado público creado"
-                    : $"Comunicado privado creado para {vm.EmpresasSeleccionadas.Distinct().Count()} empresas"
-            // resultado=null, severidad=null -> usan DEFAULT: 'OK' y 1
+                    : $"Comunicado privado creado para {vm.EmpresasSeleccionadas.Distinct().Count()} empresas",
+             modulo: "COMUNICADOS",
+    entidad: "Comunicado",
+    entidadId: comunicado.ComunicadoID.ToString(),
+    resultado: "OK",
+    severidad: 4,               // sugerencia: 4 = auditoría
+    solicitudId: solicitudId,
+    ip: direccionIp,
+    AgenteUsuario: agenteUsuario
             );
 
             return RedirectToAction(nameof(Gestionar));
         }
         catch (Exception ex)
         {
-            // 📝 Bitácora: error
-            await bitacora.RegistrarAsync(
-                idUsuario: idUsuario,
-                idEmpresa: idEmpresaContexto,
-                accion: "COMUNICADO_CREAR",
-                mensaje: ex.Message,
-                resultado: "ERROR",
-                severidad: 3
-            );
+                // 📝 Bitácora: error
+                await bitacora.RegistrarAsync(
+         idUsuario: idUsuario,
+         idEmpresa: idEmpresaContexto,
+         accion: "CREAR",
+         mensaje: ex.Message,
+         modulo: "COMUNICADOS",
+         entidad: "Comunicado",
+         entidadId: null,            // si falló antes de tener ID
+         resultado: "ERROR",
+         severidad: 3,               // 3 = error
+         solicitudId: solicitudId,
+         ip: direccionIp,
+         AgenteUsuario: agenteUsuario
+     );
 
-            // UI
-            ModelState.AddModelError(string.Empty, "No se pudo crear el comunicado.");
+                // UI
+                ModelState.AddModelError(string.Empty, "No se pudo crear el comunicado.");
             vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
             return View(vm);
         }
@@ -288,8 +313,40 @@ namespace ProyectoMatrix.Controllers
 
             _db.Comunicados.Remove(comunicado);
             await _db.SaveChangesAsync();
+
+            //SERVICO DE LOGS
+
+            try
+            {
+
+                var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+                var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+                var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
+
+
+                await _bitacora.RegistrarAsync(
+                    idUsuario: int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null,
+                    idEmpresa: int.TryParse(User.FindFirstValue("EmpresaID"), out var eid) ? eid : (int?)null,
+                    accion: "ELIMINAR",
+                    mensaje: $"Comunicado eliminado: {comunicado.NombreComunicado}",
+                    modulo: "COMUNICADOS",
+                    entidad: "Comunicado",
+                    entidadId: id.ToString(),
+                    resultado: "OK",
+                    severidad: 4,
+                    solicitudId: solicitudId,
+        ip: direccionIp,
+        AgenteUsuario: agenteUsuario
+                );
+            }
+            catch { /*  */ }
+
+
             return RedirectToAction(nameof(Gestionar));
         }
+
+
+
         [RequestSizeLimit(104_857_600)]
         [Authorize(Policy = "GestionComunicados")]
         [HttpGet]
@@ -317,7 +374,7 @@ namespace ProyectoMatrix.Controllers
             return View(vm);
         }
 
-        [RequestSizeLimit(104_857_600)]
+        
         [Authorize(Policy = "GestionComunicados")]
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -326,6 +383,8 @@ namespace ProyectoMatrix.Controllers
             var comunicado = await _db.Comunicados
                 .Include(c => c.ComunicadosEmpresas)
                 .FirstOrDefaultAsync(c => c.ComunicadoID == id);
+
+
 
             if (comunicado == null) return NotFound();
 
@@ -372,8 +431,38 @@ namespace ProyectoMatrix.Controllers
             }
 
             await _db.SaveChangesAsync();
+
+            try
+            {
+
+                var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+                var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+                var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
+
+                await _bitacora.RegistrarAsync(
+                    idUsuario: int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null,
+                    idEmpresa: int.TryParse(User.FindFirstValue("IDEmpresa"), out var eid) ? eid : (int?)null,
+                    accion: "EDITAR",
+                    mensaje: $"Comunicado editado: {comunicado.NombreComunicado}",
+                    modulo: "COMUNICADOS",
+                    entidad: "Comunicado",
+                    entidadId: id.ToString(),
+                    resultado: "OK",
+                    severidad: 4,
+                     solicitudId: solicitudId,
+         ip: direccionIp,
+         AgenteUsuario: agenteUsuario
+                );
+            }
+            catch { }
+
+
+
+
             return RedirectToAction(nameof(Gestionar));
         }
+
+
 
         private static bool EsGestor(ClaimsPrincipal user)
         {

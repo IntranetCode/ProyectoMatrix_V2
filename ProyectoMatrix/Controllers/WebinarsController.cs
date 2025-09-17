@@ -8,18 +8,20 @@ using ProyectoMatrix.Servicios;
 
 namespace ProyectoMatrix.Controllers
 {
-    [Authorize]
+    [AuditarAccion(Modulo = "LIDER", Entidad = "Webinars", OmitirListas = true)]
     public class WebinarsController : Controller
     {
         private readonly ApplicationDbContext _db;
         private readonly IWebHostEnvironment _env;
         private readonly ServicioNotificaciones _notif;
+        private readonly BitacoraService _bitacoraService;
 
-        public WebinarsController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif)
+        public WebinarsController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif, BitacoraService bitacoraService)
         {
             _db = db;
             _env = env;
             _notif = notif;
+            _bitacoraService = bitacoraService;
         }
 
 
@@ -301,6 +303,41 @@ namespace ProyectoMatrix.Controllers
                 );
             }
 
+            try
+            {
+                var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+                var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+                var agenteUsuario =  HttpContext.Items["AgenteUsuario"]?.ToString();
+
+                int? idUsuario = GetUsuarioId();
+                int? idEmpresa = GetEmpresaId();
+
+                await _bitacoraService.RegistrarAsync(
+
+                       idUsuario: idUsuario,
+                idEmpresa: idEmpresa,   
+                accion: "WEBINAR_CREAR",
+                mensaje: model.EsPublico  
+                 ? "Webinar público creado"
+                 : $"Webinar privado creado para {(empresasSeleccionadas?.Distinct().Count() ?? 0)} empresas",
+             modulo: "WEBINARS",
+    entidad: "Webinar",
+    entidadId: model.WebinarID.ToString(),
+    resultado: "OK",
+    severidad: 4,               // sugerencia: 4 = auditoría
+    solicitudId: solicitudId,
+    ip: direccionIp,
+    AgenteUsuario: agenteUsuario
+
+                    );
+            }
+            catch
+            {
+
+            }
+
+
+
             return RedirectToAction(nameof(MisWebinars));
         }
 
@@ -388,6 +425,40 @@ namespace ProyectoMatrix.Controllers
             }
             await _db.SaveChangesAsync();
 
+
+            try
+            {
+                var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+                var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+                var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
+
+                int? idUsuario = GetUsuarioId();
+                int? idEmpresa = GetEmpresaId();
+
+                await _bitacoraService.RegistrarAsync(
+
+                       idUsuario: idUsuario,
+                idEmpresa: idEmpresa,
+                accion: "WEBINAR_EDITADO",
+                mensaje: model.EsPublico
+                 ? "Webinar público editado"
+                 : $"Webinar privado editado para {(empresasSeleccionadas?.Distinct().Count() ?? 0)} empresas",
+             modulo: "WEBINARS",
+    entidad: "Webinar",
+    entidadId: model.WebinarID.ToString(),
+    resultado: "OK",
+    severidad: 4,               // sugerencia: 4 = auditoría
+    solicitudId: solicitudId,
+    ip: direccionIp,
+    AgenteUsuario: agenteUsuario
+
+                    );
+            }
+            catch
+            {
+
+            }
+
             return Redirect(returnUrl ?? Url.Action("GestionarWebinar", "Webinars")!);
         }
 
@@ -472,6 +543,44 @@ namespace ProyectoMatrix.Controllers
 
             _db.Webinars.Remove(w);
             await _db.SaveChangesAsync();
+
+
+
+            try
+            {
+                var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+                var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+                var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
+
+                int? idUsuario = GetUsuarioId();
+                int? idEmpresa = GetEmpresaId();
+
+                await _bitacoraService.RegistrarAsync(
+
+                       idUsuario: idUsuario,
+                idEmpresa: idEmpresa,
+                accion: "WEBINAR_ELIMINADO",
+                mensaje: w.EsPublico
+                 ? "Webinar eliminado"
+                 : $"Webinar privado eliminado para {w.Titulo} empresas",
+             modulo: "WEBINARS",
+    entidad: "Webinar",
+    entidadId: w.WebinarID.ToString(),
+    resultado: "OK",
+    severidad: 4,               // sugerencia: 4 = auditoría
+    solicitudId: solicitudId,
+    ip: direccionIp,
+    AgenteUsuario: agenteUsuario
+
+                    );
+            }
+            catch
+            {
+
+            }
+
+
+
             return Redirect (returnUrl ?? Url.Action("GestionarWebinar", "Webinars")!);
         }
     }

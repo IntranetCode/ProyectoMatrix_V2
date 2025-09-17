@@ -7,13 +7,16 @@ public class EvaluacionController : Controller
 {
     private readonly UniversidadServices _universidadServices;
     private readonly ILogger<EvaluacionController> _logger;
+    private readonly BitacoraService _bitacoraService;
 
     public EvaluacionController(
         UniversidadServices universidadServices,
-        ILogger<EvaluacionController> logger)
+        ILogger<EvaluacionController> logger,
+        BitacoraService bitacoraService)
     {
         _universidadServices = universidadServices;
         _logger = logger;
+        _bitacoraService = bitacoraService;
     }
 
     // =====================================================
@@ -80,22 +83,80 @@ public class EvaluacionController : Controller
 
             if (resultado)
             {
+                try
+                {
+                    var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+                    var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+                    var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
+
+                    int? idEmpresa = HttpContext.Session.GetInt32("EmpresaSeleccionada")
+                        ?? HttpContext.Session.GetInt32("EmpresaID");
+
+                    await _bitacoraService.RegistrarAsync(
+                        idUsuario: usuarioId,
+                        idEmpresa: idEmpresa,
+                        accion: "CREAR EVALUACION",
+                        mensaje: $"Evaluacion creada en Subcurso {request.SubCursoID} con {request.Preguntas.Count} preguntas ",
+                        modulo: "UNIVERSIDAD",
+                        entidad: "Evaluación",
+                        entidadId: request.SubCursoID.ToString(),
+                        resultado: "OK",
+                        severidad: 4,
+                        solicitudId: solicitudId,
+                        ip: direccionIp,
+                        AgenteUsuario: agenteUsuario
+                        );
+                }
+                
+                catch { }
+
+
+
                 TempData["Success"] = "Evaluación creada exitosamente.";
                 return RedirectToAction("CrearEvaluacion", new { subCursoId = request.SubCursoID });
             }
             else
             {
                 TempData["Error"] = "Error al crear la evaluación.";
-                var viewModel = await _universidadServices.GetEvaluacionViewModelAsync(request.SubCursoID);
-                return View(viewModel);
+                var vm = await _universidadServices.GetEvaluacionViewModelAsync(request.SubCursoID);
+                return View(vm);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error al crear evaluación");
+
+            // 📝 Bitácora: ERROR
+            try
+            {
+                var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+                var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+                var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
+
+                int? idUsuario = HttpContext.Session.GetInt32("UsuarioID");
+                int? idEmpresa = HttpContext.Session.GetInt32("EmpresaSeleccionada")
+                                 ?? HttpContext.Session.GetInt32("EmpresaID");
+
+                await _bitacoraService.RegistrarAsync(
+                    idUsuario: idUsuario,
+                    idEmpresa: idEmpresa,
+                    accion: "CREAR",
+                    mensaje: ex.Message,
+                    modulo: "UNIVERSIDAD",
+                    entidad: "Evaluación",
+                    entidadId: request.SubCursoID.ToString(),
+                    resultado: "ERROR",
+                    severidad: 3,
+                    solicitudId: solicitudId,
+                    ip: direccionIp,
+                    AgenteUsuario: agenteUsuario
+                );
+            }
+            catch { }
+
+            var vm = await _universidadServices.GetEvaluacionViewModelAsync(request.SubCursoID);
             TempData["Error"] = "Error al crear la evaluación.";
-            var viewModel = await _universidadServices.GetEvaluacionViewModelAsync(request.SubCursoID);
-            return View(viewModel);
+            return View(vm);
         }
     }
 
@@ -122,6 +183,31 @@ public class EvaluacionController : Controller
                 TempData["Error"] = "Evaluación no disponible.";
                 return RedirectToAction("MisCursos", "Universidad");
             }
+
+            try
+            {
+                var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+                var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+                var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
+
+                await _bitacoraService.RegistrarAsync(
+                    idUsuario: usuarioId,
+                    idEmpresa: empresaId,
+                    accion: "TOMAR",           // o "VER_DETALLE"
+                    mensaje: $"Alumno inició evaluación del SubCurso {subCursoId}",
+                    modulo: "UNIVERSIDAD",
+                    entidad: "Evaluación",
+                    entidadId: subCursoId.ToString(),
+                    resultado: "OK",
+                    severidad: 1,                  // info
+                    solicitudId: solicitudId,
+                    ip: direccionIp,
+                    AgenteUsuario: agenteUsuario
+                );
+            }
+            catch { }
+
+
 
             return View(viewModel);
         }
