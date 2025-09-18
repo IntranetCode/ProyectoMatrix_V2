@@ -32,7 +32,7 @@ namespace ProyectoMatrix.Controllers
             _bitacora = bitacora;
         }
 
-        public async Task<IActionResult> Index( string? categoria = null, string? estado = null )
+        public async Task<IActionResult> Index(string? categoria = null, string? estado = null)
         {
             var puedeGestionar = EsGestor(User);
 
@@ -41,7 +41,7 @@ namespace ProyectoMatrix.Controllers
             if (int.TryParse(User.FindFirst("UsuarioID")?.Value, out var uid)) idUsuario = uid;
 
             else if (int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out uid)) idUsuario = uid;
-            else idUsuario = HttpContext.Session.GetInt32("UsuarioID"); 
+            else idUsuario = HttpContext.Session.GetInt32("UsuarioID");
 
             int? empresaId = null;
             if (!puedeGestionar && int.TryParse(User.FindFirst("EmpresaID")?.Value, out var eid))
@@ -50,7 +50,7 @@ namespace ProyectoMatrix.Controllers
             var query = _db.Comunicados
                 .Include(c => c.ComunicadosEmpresas).ThenInclude(ce => ce.Empresa)
                 .AsQueryable();
-           
+
 
             //Este apartado es para el alcance por empresa/p{ublico
 
@@ -65,7 +65,7 @@ namespace ProyectoMatrix.Controllers
 
             //Se ha agregado el filtro por categoria
             if (!string.IsNullOrWhiteSpace(categoria))
-              query   = query.Where(c => c.Categoria == categoria);
+                query = query.Where(c => c.Categoria == categoria);
 
             //Se agregara un nuevo filtro (manejo de estado) para filtrar comunicados pendientes y leidos 
 
@@ -169,7 +169,7 @@ namespace ProyectoMatrix.Controllers
                      WHERE cl.ComunicadoID=c.ComunicadoID AND cl.UsuarioID= @UsuarioID
                          );";
 
-                    using (var cmd = new SqlCommand (sqlNoLeidos, conn))
+                    using (var cmd = new SqlCommand(sqlNoLeidos, conn))
                     {
                         cmd.Parameters.AddWithValue("@UsuarioID", idUsuario.Value);
                         ViewBag.NoLeidos = (int)await cmd.ExecuteScalarAsync();
@@ -261,7 +261,7 @@ namespace ProyectoMatrix.Controllers
             if (int.TryParse(User.FindFirst("UsuarioID")?.Value, out var uid)) idUsuario = uid;
 
             else if (int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out uid)) idUsuario = uid;
-            else idUsuario = HttpContext.Session.GetInt32("UsuarioID"); 
+            else idUsuario = HttpContext.Session.GetInt32("UsuarioID");
 
 
             int? idEmpresaContexto = int.TryParse(User.FindFirstValue("EmpresaID"), out var eid)
@@ -394,7 +394,7 @@ namespace ProyectoMatrix.Controllers
 
         [Authorize(Policy = "GestionComunicados")]
         [HttpGet]
-        public async Task<IActionResult> Gestionar(string? q = null, int page=1,int pageSize = 15 )
+        public async Task<IActionResult> Gestionar(string? q = null, int page = 1, int pageSize = 15)
         {
             //Si el numero de la pagina es menor que uno lo ponemos en 1 
             //asi nuna hacemos skip con valores negativos
@@ -424,14 +424,14 @@ namespace ProyectoMatrix.Controllers
       .Take(pageSize)
       .Select(c => new ComunicadoListItemVM
       {
-                    ComunicadoID = c.ComunicadoID,
-                    NombreComunicado = c.NombreComunicado,
-                    Descripcion = c.Descripcion,
-                    FechaCreacion = c.FechaCreacion,
-                    Categoria = c.Categoria,
-                    DirigidoA = c.EsPublico ? "Todos" : string.Join(", ", c.ComunicadosEmpresas.Select(ce => ce.Empresa.Nombre)),
-                    Imagen = c.Imagen
-                })
+          ComunicadoID = c.ComunicadoID,
+          NombreComunicado = c.NombreComunicado,
+          Descripcion = c.Descripcion,
+          FechaCreacion = c.FechaCreacion,
+          Categoria = c.Categoria,
+          DirigidoA = c.EsPublico ? "Todos" : string.Join(", ", c.ComunicadosEmpresas.Select(ce => ce.Empresa.Nombre)),
+          Imagen = c.Imagen
+      })
                 .ToListAsync();
 
             // 🔹 Lectores por comunicado (para estas filas) con ADO.NET, una sola query IN (...)
@@ -526,7 +526,7 @@ namespace ProyectoMatrix.Controllers
 
 
 
-     
+
         [Authorize(Policy = "GestionComunicados")]
         [HttpGet]
         public async Task<IActionResult> Editar(int id)
@@ -644,7 +644,7 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        
+
         private static bool EsGestor(ClaimsPrincipal user)
         {
             var nombreRol = user.FindFirst(ClaimTypes.Role)?.Value;
@@ -657,7 +657,7 @@ namespace ProyectoMatrix.Controllers
             return rolId == "1" || rolId == "3" || rolId == "4";
         }
 
-  
+
         private void DeleteOldImage(string? imagePath)
         {
             try
@@ -706,7 +706,66 @@ namespace ProyectoMatrix.Controllers
 
             return Json(new { ok = true });
         }
- 
+
+        //Agregare un controlador para ver estadisticas para la vista gestor 
+
+        [HttpGet]
+        public async Task<IActionResult> Estadisticas(int id)
+        {
+            using var conn = new SqlConnection(_db.Database.GetConnectionString());
+            await conn.OpenAsync();
+
+            // Lectores únicos
+            int lectores;
+            using (var cmd = new SqlCommand(@"
+        SELECT COUNT(DISTINCT UsuarioID)
+        FROM dbo.ComunicadoLecturas
+        WHERE ComunicadoID = @id;", conn))
+            {
+                cmd.Parameters.AddWithValue("@id", id);
+                lectores = Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
+            }
+
+            // Destinatarios: público vs empresas 
+            int destinatarios;
+            using (var cmd = new SqlCommand(@"
+        SELECT CASE 
+            WHEN c.EsPublico = 1 THEN
+                -- si usas Activo, cuenta activos; si no, quita el WHERE
+                (SELECT COUNT(*) FROM dbo.Usuarios WHERE Activo = 1)
+            ELSE
+                (SELECT COUNT(DISTINCT ue.UsuarioID)
+                 FROM dbo.ComunicadosEmpresas ce
+                 JOIN dbo.UsuariosEmpresas ue ON ue.EmpresaID = ce.EmpresaID
+                 WHERE ce.ComunicadoID = c.ComunicadoID)
+        END AS Destinatarios
+        FROM dbo.Comunicados c
+        WHERE c.ComunicadoID = @id;", conn))
+            {
+                cmd.Parameters.AddWithValue("@id", id);
+                destinatarios = Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
+            }
+
+            // Si la tabla usuarios no maneja activo delvera 0
+            if (destinatarios == 0)
+            {
+                // solo aplica si el comunicado es público y no se maneja activo
+                using var cmd = new SqlCommand(@"
+            SELECT CASE WHEN EsPublico = 1 
+                        THEN (SELECT COUNT(*) FROM dbo.Usuarios)
+                        ELSE 0 END
+            FROM dbo.Comunicados WHERE ComunicadoID = @id;", conn);
+                cmd.Parameters.AddWithValue("@id", id);
+                destinatarios = Math.Max(destinatarios, Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0));
+            }
+
+            var sinDestinatarios = destinatarios == 0;
+            var porcentaje = sinDestinatarios ? 0.0 : (lectores * 100.0 / destinatarios);
+
+            return Json(new { lectores, destinatarios, porcentaje, sinDestinatarios });
+        }
+
+
 
     }
 }
