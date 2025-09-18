@@ -111,7 +111,9 @@ builder.Services.AddScoped<BitacoraService>();
 
 builder.Services.AddDistributedMemoryCache();
 
+//Registrando el nuevo servicio creado que es sobre acceso
 
+builder.Services.AddScoped<IServicioAcceso, ServicioAcceso>();
 
 var app = builder.Build();
 

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using System.IO;
+using ProyectoMatrix.Seguridad;
 
 
 
@@ -21,7 +22,19 @@ public class ProyectosController : Controller
         _proyectosBD = new ProyectosBD(connectionString);
     }
 
+    public static class PermisosProyectos
+    {
+        public const string SubMenu = "Proyectos";
+        public const string Ver = "Ver";
+        public const string Crear = "Crear";
+        public const string Editar = "Editar";
+        public const string Eliminar = "Eliminar";
+    }
+
+
+
     [HttpGet]
+    [AutorizarAccion(PermisosProyectos.SubMenu, PermisosProyectos.Ver)]
     public async Task<IActionResult> Index(EstadoProyecto? estado = null, PrioridadProyecto? prioridad = null, string busqueda = null)
     {
         // Configurar navbar dinámico
@@ -105,7 +118,10 @@ public class ProyectosController : Controller
         return View(proyecto);
     }
 
+
     [HttpGet]
+
+    [AutorizarAccion(PermisosProyectos.SubMenu, PermisosProyectos.Crear)]
     public IActionResult Crear()
     {
         ViewBag.TituloNavbar = "Crear Nuevo Proyecto";
@@ -127,8 +143,9 @@ public class ProyectosController : Controller
 
         return View(proyecto);
     }
-
     [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AutorizarAccion(PermisosProyectos.SubMenu, PermisosProyectos.Crear)]
     public async Task<IActionResult> Crear(Proyecto proyecto, IFormFile archivo)
     {
         ViewBag.TituloNavbar = "Crear Nuevo Proyecto";
@@ -140,8 +157,7 @@ public class ProyectosController : Controller
         if (empresaId == null || string.IsNullOrEmpty(username))
             return RedirectToAction("Login", "Login");
 
-        if (!ModelState.IsValid)
-            return View(proyecto);
+        
 
         try
         {
@@ -167,9 +183,26 @@ public class ProyectosController : Controller
                 proyecto.ArchivoRuta = $"/proyectos/documentos/{uniqueFileName}";
                 proyecto.TamanoArchivo = archivo.Length;
                 proyecto.Extension = Path.GetExtension(archivo.FileName);
+                proyecto.EsActivo = true;
             }
 
+            ModelState.Clear();                    
+            TryValidateModel(proyecto);
+
+            if (!ModelState.IsValid)
+            {
+                // (Opcional) Para depurar, muestra los errores reales:
+                ViewBag.ModelErrors = ModelState
+                    .Where(kv => kv.Value.Errors.Count > 0)
+                    .Select(kv => $"{kv.Key}: {string.Join(" | ", kv.Value.Errors.Select(e => e.ErrorMessage))}")
+                    .ToList();
+
+                return View(proyecto); // el file input se vacía por seguridad del navegador
+            }
+
+            // 3) Guardar
             await _proyectosBD.CrearProyectoAsync(proyecto);
+
             TempData["Exito"] = "Proyecto creado exitosamente.";
             return RedirectToAction("Index");
         }
@@ -181,6 +214,7 @@ public class ProyectosController : Controller
     }
 
     [HttpGet]
+    [AutorizarAccion(PermisosProyectos.SubMenu, PermisosProyectos.Editar)]
     public async Task<IActionResult> Editar(int id)
     {
         ViewBag.TituloNavbar = "Editar Proyecto";
@@ -198,6 +232,7 @@ public class ProyectosController : Controller
     }
 
     [HttpPost]
+    [AutorizarAccion(PermisosProyectos.SubMenu, PermisosProyectos.Editar)]
     public async Task<IActionResult> Editar(Proyecto proyecto, IFormFile archivo)
     {
         ViewBag.TituloNavbar = "Editar Proyecto";
@@ -309,7 +344,9 @@ public class ProyectosController : Controller
         }
     }
 
+
     [HttpPost]
+    [AutorizarAccion(PermisosProyectos.SubMenu, PermisosProyectos.Editar)]
     public async Task<IActionResult> CambiarEstado([FromBody] CambiarEstadoModel model)
     {
         try

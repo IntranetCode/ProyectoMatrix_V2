@@ -1,6 +1,6 @@
 ﻿@using ProyectoMatrix.Models
 @model Proyecto
-@{
+@{ 
     
     var rol = Context.Session.GetString("Rol") ?? "Colaborador";
     Layout = rol == "Administrador" ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_LayoutComunicados.cshtml";

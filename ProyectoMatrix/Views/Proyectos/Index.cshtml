@@ -1,10 +1,23 @@
-﻿@using ProyectoMatrix.Models
+﻿@using ProyectoMatrix.Servicios
+
+@using ProyectoMatrix.Models
+
 @model ProyectosViewModel
 @{
     ViewData["Title"] = "Gestión de Proyectos";
     var rol = Context.Session.GetString("Rol") ?? "Colaborador";
     Layout = rol == "Administrador" ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_Colaborador.cshtml";
 }
+
+@*Mandar a llamar al servicio de acceso para ocultar o mostrar los botones correspondientes *@
+@inject IServicioAcceso Acceso
+@{
+    var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
+    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Crear");
+    var puedeEditar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Editar");
+    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Eliminar");
+}
+
 
 <link href="~/css/stylesProyectosIndex.css" rel="stylesheet" />
 
@@ -16,9 +29,12 @@
             <p class="text-muted">Administra y da seguimiento a todos los proyectos de la empresa</p>
         </div>
         <div>
-            <a href="@Url.Action("Crear")" class="btn-proyectos-principal">
-                <i class="fas fa-plus me-1"></i>Nuevo Proyecto
-            </a>
+            @if (puedeCrear)
+            {
+                <a href="@Url.Action("Crear")" class="btn-proyectos-principal">
+                    <i class="fas fa-plus me-1"></i>Nuevo Proyecto
+            </a> 
+            }
         </div>
     </div>
 
@@ -229,15 +245,18 @@
                                 </small>
                             </div>
                             <div>
+                                
                                 <a href="@Url.Action("Detalle", new { id = proyecto.ProyectoID })"
                                    class="btn btn-sm btn-proyectos-principal me-1">
                                     <i class="fas fa-eye me-1"></i>Ver
                                 </a>
-
-                                <a href="@Url.Action("Editar", new { id = proyecto.ProyectoID })"
-                                   class="btn btn-sm btn-proyectos-outline-secundario">
-                                    <i class="fas fa-edit me-1"></i>Editar
-                                </a>
+                                @if (puedeEditar)
+                                {
+                                    <a href="@Url.Action("Editar", new { id = proyecto.ProyectoID })"
+                                    class="btn btn-sm btn-proyectos-outline-secundario">
+                                        <i class="fas fa-edit me-1"></i>Editar
+                                    </a>
+                                }
                             </div>
                         </div>
                     </div>
@@ -257,12 +276,19 @@
                 }
                 else
                 {
-                    <text>Comienza creando tu primer proyecto.</text>
+                    @if (puedeCrear)
+                    {
+                        <text>Comienza creando tu primer proyecto.</text>
+                    }
+                   
                 }
             </p>
-            <a href="@Url.Action("Crear")" class="btn-proyectos-crear">
-                <i class="fas fa-plus me-1"></i>Crear Nuevo Proyecto
+            @if (puedeCrear)
+            {
+                <a href="@Url.Action("Crear")" class="btn-proyectos-crear">
+                    <i class="fas fa-plus me-1"></i>Crear Nuevo Proyecto
             </a>
+            }
         </div>
     }
 </div>
