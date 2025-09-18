@@ -254,8 +254,7 @@
                             {
                                 <label class="form-label">Actualizar Progreso:</label>
                             }
-                            <label class="form-label">Progreso:</label>
-                    
+
                             <div class="input-group">
 
                                 <input type="range" class="form-range me-2" min="0" max="100"
@@ -276,8 +275,7 @@
 
                         <!-- Control de estado -->
 
-                        @if (puedeEditar)
-                        {
+                        
                             <div class="mt-3">
                                 <label class="form-label">Cambiar Estado:</label>
                                 <div class="input-group">
@@ -289,24 +287,18 @@
                                             </option>
                                         }
                                     </select>
+                               @if (puedeEditar)
+                                {
                                     <button type="button" class="btn btn-outline-primary"
-                                            onclick="cambiarEstado(@Model.ProyectoID)">
+                                    onclick="cambiarEstado(@Model.ProyectoID)">
                                         Cambiar
                                     </button>
-                                </div>
-                            </div>
-                        }
-                        <div class="input-group">
-                            <select class="form-select" id="nuevoEstado">
-                                @foreach (EstadoProyecto estado in Enum.GetValues<EstadoProyecto>())
-                                {
-                                    <option value="@((int)estado)" selected="@(Model.Estado == estado)">
-                                        @estado.ObtenerNombreEstado()
-                                    </option>
                                 }
-                            </select>
-
+                            </div>
+                            </div>
                        
+                      
+
                     </div>
                 </div>
             </div>
