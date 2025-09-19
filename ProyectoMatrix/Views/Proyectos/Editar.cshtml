@@ -1,0 +1,245 @@
+﻿@*NUEVO ARCHIVO DE EDITAR UN PROYECTO*@
+@using ProyectoMatrix.Models
+@model Proyecto
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Editar Proyecto";
+}
+<h2>Editar Proyecto</h2>
+
+@if (!string.IsNullOrEmpty(Model.ArchivoRuta))
+{
+    var ext = System.IO.Path.GetExtension(Model.ArchivoRuta)?.ToLower();
+    if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" || ext == ".webp")
+    {
+        <div class="mb-3">
+            <label class="form-label">Archivo actual</label><br />
+            <img src="@Model.ArchivoRuta" alt="Archivo actual" style="max-height:120px;" />
+        </div>
+    }
+    else
+    {
+        <div class="mb-3">
+            <label class="form-label">Archivo actual</label><br />
+            <a href="@Model.ArchivoRuta" target="_blank">Ver/Descargar archivo actual</a>
+        </div>
+    }
+}
+
+
+ <form asp-action="Editar" asp-route-id =" @Model.ProyectoID" method="post" enctype="multipart/form-data">
+@Html.AntiForgeryToken()
+
+    <!-- Sección: Información Básica -->
+    <div class="form-section">
+        <h5><i class="fas fa-info-circle me-2"></i>Información Básica</h5>
+        <div class="row">
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label asp-for="NombreProyecto" class="form-label">
+                        <i class="fas fa-project-diagram me-1"></i>Nombre del Proyecto *
+                    </label>
+                    <input asp-for="NombreProyecto" class="form-control form-control-lg"
+                           placeholder="Ingrese el nombre del proyecto" required />
+                    <span asp-validation-for="NombreProyecto" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label asp-for="CodigoProyecto" class="form-label">
+                        <i class="fas fa-hashtag me-1"></i>Código del Proyecto
+                    </label>
+                    <input asp-for="CodigoProyecto" class="form-control"
+                           placeholder="PRY-2025-001" />
+                    <span asp-validation-for="CodigoProyecto" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Descripcion" class="form-label">
+                <i class="fas fa-align-left me-1"></i>Descripción
+            </label>
+            <textarea asp-for="Descripcion" class="form-control" rows="3"
+                      placeholder="Describe brevemente el proyecto, sus objetivos y alcance"></textarea>
+            <span asp-validation-for="Descripcion" class="text-danger"></span>
+        </div>
+    </div>
+
+    <!-- Sección: Estado y Prioridad -->
+    <div class="form-section">
+        <h5><i class="fas fa-cogs me-2"></i>Estado y Prioridad</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label asp-for="Estado" class="form-label">
+                        <i class="fas fa-tasks me-1"></i>Estado
+                    </label>
+                    <select asp-for="Estado" asp-items="Html.GetEnumSelectList<EstadoProyecto>()" class="form-select"></select>
+                    <span asp-validation-for="Estado" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label asp-for="Prioridad" class="form-label">
+                        <i class="fas fa-flag me-1"></i>Prioridad
+                    </label>
+                    <select asp-for="Prioridad" asp-items="Html.GetEnumSelectList<PrioridadProyecto>()" class="form-select"></select>
+                    <span asp-validation-for="Prioridad" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label asp-for="Progreso" class="form-label">
+                        <i class="fas fa-chart-line me-1"></i>Progreso Inicial (%)
+                    </label>
+                    <input asp-for="Progreso" type="range" class="form-range" min="0" max="100"
+                           id="progresoSlider" oninput="updateProgressValue(this.value)" />
+                    <div class="d-flex justify-content-between">
+                        <small class="text-muted">0%</small>
+                        <span id="progresoValue" class="badge bg-primary">@Model.Progreso%</span>
+                        <small class="text-muted">100%</small>
+                    </div>
+                    <span asp-validation-for="Progreso" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección: Fechas y Responsables -->
+    <div class="form-section">
+        <h5><i class="fas fa-calendar-alt me-2"></i>Fechas y Responsables</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label asp-for="FechaInicio" class="form-label">
+                        <i class="fas fa-play-circle me-1"></i>Fecha de Inicio
+                    </label>
+                    <input asp-for="FechaInicio" type="date" class="form-control" />
+                    <span asp-validation-for="FechaInicio" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label asp-for="FechaFinPrevista" class="form-label">
+                        <i class="fas fa-flag-checkered me-1"></i>Fecha de Entrega Prevista
+                    </label>
+                    <input asp-for="FechaFinPrevista" type="date" class="form-control" />
+                    <span asp-validation-for="FechaFinPrevista" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label asp-for="ResponsableProyecto" class="form-label">
+                        <i class="fas fa-user-tie me-1"></i>Responsable del Proyecto
+                    </label>
+                    <input asp-for="ResponsableProyecto" class="form-control"
+                           placeholder="Nombre del responsable" />
+                    <span asp-validation-for="ResponsableProyecto" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label asp-for="Presupuesto" class="form-label">
+                        <i class="fas fa-dollar-sign me-1"></i>Presupuesto
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input asp-for="Presupuesto" type="number" class="form-control"
+                               placeholder="0.00" step="0.01" />
+                    </div>
+                    <span asp-validation-for="Presupuesto" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label asp-for="Tags" class="form-label">
+                        <i class="fas fa-tags me-1"></i>Tags/Etiquetas
+                    </label>
+                    <input asp-for="Tags" class="form-control"
+                           placeholder="desarrollo,web,cliente-x" />
+                    <small class="form-text text-muted">Separar por comas</small>
+                    <span asp-validation-for="Tags" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección: Archivo Adjunto -->
+    <div class="form-section">
+        <h5><i class="fas fa-paperclip me-2"></i>Documento del Proyecto</h5>
+        <div class="file-upload-container" id="fileUploadContainer">
+            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Arrastra el archivo aquí o haz clic para seleccionar</h5>
+            <p class="text-muted mb-3">Formatos soportados: PDF, DOC, DOCX, XLS, XLSX (máximo 10MB)</p>
+            <input type="file" name="archivo" id="archivo" class="d-none"
+                   accept=".pdf,.doc,.docx,.xls,.xlsx" />
+            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('archivo').click();">
+                <i class="fas fa-folder-open me-1"></i>Seleccionar Archivo
+            </button>
+        </div>
+        <div id="fileInfo" class="mt-3" style="display: none;">
+            <div class="alert alert-info d-flex align-items-center">
+                <i class="fas fa-file-alt fa-2x me-3"></i>
+                <div>
+                    <strong id="fileName"></strong><br>
+                    <small id="fileSize" class="text-muted"></small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-auto" onclick="clearFile()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección: Observaciones -->
+    <div class="form-section">
+        <h5><i class="fas fa-sticky-note me-2"></i>Observaciones Adicionales</h5>
+        <textarea asp-for="Observaciones" class="form-control" rows="4"
+                  placeholder="Agrega cualquier información adicional, notas especiales o comentarios sobre el proyecto"></textarea>
+        <span asp-validation-for="Observaciones" class="text-danger"></span>
+    </div>
+
+    <!-- Botones de Acción -->
+    <div class="text-center pt-3 border-top">
+        <button type="submit" class="btn-crear-proyecto">
+            <i class="fas fa-save me-1"></i>Guardar cambios
+        </button>
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary btn-action">
+            <i class="fas fa-times me-1"></i>Cancelar
+        </a>
+    </div>
+</form>
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function updateProgressValue(v){
+          const el = document.getElementById('progresoValue');
+          if (el) el.textContent = v + '%';
+        }
+
+        // preview simple del archivo
+        const input = document.getElementById('archivo');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        function clearFile(){ if(input){ input.value=''; fileInfo.style.display='none'; } }
+        if (input){
+          input.addEventListener('change', () => {
+            if (input.files && input.files.length){
+              const f = input.files[0];
+              fileName.textContent = f.name;
+              fileSize.textContent = (f.size/1024).toFixed(1) + ' KB';
+              fileInfo.style.display = 'block';
+            } else {
+              fileInfo.style.display = 'none';
+            }
+          });
+        }
+    </script>
+}
