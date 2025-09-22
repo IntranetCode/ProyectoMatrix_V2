@@ -194,6 +194,7 @@ namespace ProyectoMatrix.Controllers
 
 
         [HttpGet]
+        [AutorizarAccion("Ver Comunicados|Gestionar Comunicados", "Ver")]
         public async Task<IActionResult> Lista()
         {
 

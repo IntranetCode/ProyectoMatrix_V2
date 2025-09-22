@@ -128,9 +128,10 @@ app.UseRouting();
 // ? Session DEBE ir antes de Authentication
 app.UseSession();
 app.UseAuthentication();
+app.UseMiddleware<MiddlewareContextoSolicitud>();
+
 app.UseAuthorization();
 
-app.UseMiddleware<MiddlewareContextoSolicitud>();
 
 app.MapControllers();
 
