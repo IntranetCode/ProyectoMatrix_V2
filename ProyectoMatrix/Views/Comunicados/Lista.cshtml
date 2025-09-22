@@ -2,9 +2,6 @@
 @{
     Layout = "_LayoutComunicados";
     ViewData["Title"] = "Comunicados";
-    var esGestor = User.IsInRole("Autor/Editor de Contenido")
-                  || User.IsInRole("Administrador de Intranet")
-                  || User.IsInRole("Propietario de Contenido");
 
 }
 <link href="~/css/stylesComunicadosLista.css" rel="stylesheet" />

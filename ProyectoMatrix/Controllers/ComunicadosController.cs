@@ -1,15 +1,11 @@
-﻿using Azure;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
-using QuestPDF.Helpers;
-using System.Linq;
 using System.Security.Claims;
-
+using ProyectoMatrix.Seguridad;
 
 
 
@@ -22,19 +18,28 @@ namespace ProyectoMatrix.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly ServicioNotificaciones _notif;
         private readonly BitacoraService _bitacora;
+        private readonly IServicioAcceso _acceso;
 
 
-        public ComunicadosController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif, BitacoraService bitacora)
+        public ComunicadosController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif, BitacoraService bitacora, IServicioAcceso acceso)
         {
             _db = db;
             _env = env;
             _notif = notif;
             _bitacora = bitacora;
+            _acceso = acceso;
         }
 
+
+        [AutorizarAccion("Ver Comunicados|Gestionar Comunicados", "Ver")]
         public async Task<IActionResult> Index(string? categoria = null, string? estado = null)
         {
-            var puedeGestionar = EsGestor(User);
+            var userId = int.Parse(User.FindFirst("UsuarioID").Value);
+            var puedeGestionar =
+                   await _acceso.TienePermisoAsync(userId, "Comunicados", "Crear")
+                || await _acceso.TienePermisoAsync(userId, "Comunicados", "Editar")
+                || await _acceso.TienePermisoAsync(userId, "Comunicados", "Eliminar");
+
 
             // Ids desde claims (ajusta si usas otros)
             int? idUsuario = null;
@@ -191,50 +196,78 @@ namespace ProyectoMatrix.Controllers
         [HttpGet]
         public async Task<IActionResult> Lista()
         {
-            // Usa la MISMA lógica de la policy para saber si puede gestionar
-            var puedeGestionar = EsGestor(User);
 
-            int? empresaId = null;
-            if (!puedeGestionar && int.TryParse(User.FindFirst("EmpresaID")?.Value, out var eid))
+
+            // userId desde el claim (es lo que usa AutorizarAccion)
+            var userIdStr = User.FindFirst("UsuarioID")?.Value;
+            if (!int.TryParse(userIdStr, out var userId))
+                return RedirectToAction("Login", "Login");
+
+            // Empresa del usuario (sesión o claim como respaldo)
+            int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
+            if (!empresaId.HasValue && int.TryParse(User.FindFirst("EmpresaID")?.Value, out var eid))
                 empresaId = eid;
 
-            var query = _db.Comunicados
+            // ¿Puede gestionar? (si tiene Crear o Editar o Eliminar sobre "Comunicados")
+            var puedeGestionar =
+                   await _acceso.TienePermisoAsync(userId, "Comunicados", "Crear")
+                || await _acceso.TienePermisoAsync(userId, "Comunicados", "Editar")
+                || await _acceso.TienePermisoAsync(userId, "Comunicados", "Eliminar");
+
+            // Query base (solo lectura)
+            var q = _db.Comunicados
                 .Include(c => c.ComunicadosEmpresas).ThenInclude(ce => ce.Empresa)
+                .AsNoTracking()
                 .AsQueryable();
 
+            // Si NO puede gestionar, filtra por públicos o asignados a su empresa
             if (!puedeGestionar)
             {
                 if (empresaId.HasValue)
-                    query = query.Where(c => c.EsPublico || c.ComunicadosEmpresas.Any(ce => ce.EmpresaID == empresaId.Value));
+                    q = q.Where(c => c.EsPublico || c.ComunicadosEmpresas.Any(ce => ce.EmpresaID == empresaId.Value));
                 else
-                    query = query.Where(c => c.EsPublico);
+                    q = q.Where(c => c.EsPublico);
             }
 
-            var vm = await query
+            // Proyecta primero (EF-friendly) y arma DirigidoA en memoria
+            var datos = await q
                 .OrderByDescending(c => c.FechaCreacion)
                 .ThenByDescending(c => c.ComunicadoID)
-                .Select(c => new ComunicadoListItemVM
-                {
-                    ComunicadoID = c.ComunicadoID,
-                    NombreComunicado = c.NombreComunicado,
-                    Descripcion = c.Descripcion,
-                    FechaCreacion = c.FechaCreacion,
-                    Categoria = c.Categoria,
-                    DirigidoA = c.EsPublico
-                        ? "Todos"
-                        : string.Join(", ", c.ComunicadosEmpresas.Select(ce => ce.Empresa.Nombre)),
-                    Imagen = c.Imagen
+                .Select(c => new {
+                    c.ComunicadoID,
+                    c.NombreComunicado,
+                    c.Descripcion,
+                    c.FechaCreacion,
+                    c.Categoria,
+                    c.EsPublico,
+                    Empresas = c.ComunicadosEmpresas.Select(ce => ce.Empresa.Nombre).ToList(),
+                    c.Imagen
                 })
                 .ToListAsync();
+
+            var vm = datos.Select(c => new ComunicadoListItemVM
+            {
+                ComunicadoID = c.ComunicadoID,
+                NombreComunicado = c.NombreComunicado,
+                Descripcion = c.Descripcion,
+                FechaCreacion = c.FechaCreacion,
+                Categoria = c.Categoria,
+                DirigidoA = c.EsPublico ? "Todos" : string.Join(", ", c.Empresas),
+                Imagen = c.Imagen
+            }).ToList();
+
+            // (Opcional) para botones en la vista
+            ViewBag.PuedeGestionar = puedeGestionar;
 
             return View(vm);
         }
 
 
 
-
-        [Authorize(Policy = "GestionComunicados")]
+       
+       
         [HttpGet]
+        [AutorizarAccion("Gestionar Comunicados", "Crear")]
         public async Task<IActionResult> Crear()
         {
             var vm = new ComunicadoCreateVM
@@ -251,9 +284,10 @@ namespace ProyectoMatrix.Controllers
 
 
 
-        [Authorize(Policy = "GestionComunicados")]
+  
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AutorizarAccion("Gestionar Comunicados", "Crear")]
         public async Task<IActionResult> Crear(ComunicadoCreateVM vm, [FromServices] BitacoraService bitacora)
         {
             // Ids desde claims (ajusta si usas otros)
@@ -392,8 +426,9 @@ namespace ProyectoMatrix.Controllers
 
 
 
-        [Authorize(Policy = "GestionComunicados")]
+        
         [HttpGet]
+        [AutorizarAccion("Gestionar Comunicados", "Crear")]
         public async Task<IActionResult> Gestionar(string? q = null, int page = 1, int pageSize = 15)
         {
             //Si el numero de la pagina es menor que uno lo ponemos en 1 
@@ -473,10 +508,9 @@ namespace ProyectoMatrix.Controllers
 
 
 
-
-        [Authorize(Policy = "GestionComunicados")]
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AutorizarAccion("Gestionar Comunicados", "Eliminar")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var comunicado = await _db.Comunicados
@@ -527,8 +561,9 @@ namespace ProyectoMatrix.Controllers
 
 
 
-        [Authorize(Policy = "GestionComunicados")]
+     
         [HttpGet]
+        [AutorizarAccion("Gestionar Comunicados", "Editar")]
         public async Task<IActionResult> Editar(int id)
         {
             var comunicado = await _db.Comunicados
@@ -555,9 +590,9 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        [Authorize(Policy = "GestionComunicados")]
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AutorizarAccion("Gestionar Comunicados", "Editar")]
         public async Task<IActionResult> Editar(int id, ComunicadoCreateVM vm)
         {
             var comunicado = await _db.Comunicados
@@ -644,18 +679,6 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-
-        private static bool EsGestor(ClaimsPrincipal user)
-        {
-            var nombreRol = user.FindFirst(ClaimTypes.Role)?.Value;
-            if (nombreRol == "Administrador de Intranet" ||
-                nombreRol == "Propietario de Contenido" ||
-                nombreRol == "Autor/Editor de Contenido")
-                return true;
-
-            var rolId = user.FindFirst("RolID")?.Value;
-            return rolId == "1" || rolId == "3" || rolId == "4";
-        }
 
 
         private void DeleteOldImage(string? imagePath)

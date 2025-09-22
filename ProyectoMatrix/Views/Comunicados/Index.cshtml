@@ -1,10 +1,12 @@
-﻿@model IEnumerable<ProyectoMatrix.Models.ComunicadoListItemVM>
+﻿@using ProyectoMatrix.Servicios
+
+@using ProyectoMatrix.Models
+
+@model IEnumerable<ProyectoMatrix.Models.ComunicadoListItemVM>
 @{
     Layout = "_LayoutComunicados";
     ViewData["Title"] = "Comunicados";
-    var esGestor = User.IsInRole("Autor/Editor de Contenido")
-                   || User.IsInRole("Administrador de Intranet")
-                   || User.IsInRole("Propietario de Contenido");
+  
 }
 
 <link href="~/css/stylesComunicadosIndex.css" rel="stylesheet" />
@@ -19,12 +21,24 @@
         _ => ("📢", "badge badge-general")
     };
 } 
+
+@*Mandar a llamar al servicio de acceso para ocultar o mostrar los botones correspondientes *@
+@inject IServicioAcceso Acceso
+@{
+    var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
+    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Gestionar Comunicados", "Crear");
+    var puedeVer = await Acceso.TienePermisoAsync(usuarioId, "Ver Comunicados", "Ver");
+    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Gestionar Comunicados", "Eliminar");
+
+}
+
 <div class="container py-4">
- 
+    <h2 class="mb-3">Comunicados</h2>
+     @if (puedeCrear)
+    {
+        
     
 
-        @if (esGestor)
-        {
         <p class="text-muted mb-4">Elige una opción:</p>
 
         <div class="comunicados-container">
@@ -35,72 +49,16 @@
             </div>
         </div>
 
+       
 
-        <h2 class="mb-3">Comunicados</h2>
+    }
 
-
-
-
-        <div class="comunicados-grid" id="comGrid">
-            @foreach (var c in Model.Take(3))
-            {
-                //EN este article se va a recuperar el ID para marccar como leido y fuincione correctamente con el scrip
-                <article class="com-card" data-id="@c.ComunicadoID" tabindex="0">
-                    @if (!string.IsNullOrEmpty(c.Imagen))
-                    {
-                        var ext = System.IO.Path.GetExtension(c.Imagen).ToLower();
-
-                        if (ext == ".mp4")
-                        {
-                            <video class="com-media" controls playsinline preload="metadata">
-                                <source src="@c.Imagen" type="video/mp4" />
-                                Tu navegador no soporta el elemento de video.
-                            </video>
-                        }
-                        else if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif")
-                        {
-                            <img class="com-media" src="@c.Imagen" alt="Imagen comunicado" />
-                        }
-                        else if (ext == ".pdf")
-                        {
-                            <div class="com-media-pdf">
-                                <a href="@c.Imagen" target="_blank" class="com-pdf-link" aria-label="Abrir PDF del comunicado">
-                                    <img src="~/Imagenes/pdf.png" alt="Icono PDF" />
-                                </a>
-                            </div>
-                        }
-                    }
-
-                    <div class="com-card-body">
-                        <h3 class="com-title">@c.NombreComunicado</h3>
-
-                        @{
-                            var estilo = GetEstiloCategoria(c.Categoria);
-                        }
-                        <span class="@estilo.Clase">@estilo.Icono @c.Categoria</span>
+    @if (puedeVer)
+    {
 
 
-
-                        <p class="com-desc">@c.Descripcion</p>
-                        <div class="com-meta">@c.FechaCreacion.ToString("dd/MM/yyyy")</div>
-                    </div>
-                </article>
-            }
-        </div>
-
-     
-        }
-        else
-        {
-
-
-
-
-        <h2 class="mb-3">Comunicados</h2>
-
-
-        //Se agrego este fragmento de codigo solo para la vista de usuarios finales , podrnn ver 
-        //los comunicados leidos y no leidos
+        @*Se agrego este fragmento de codigo solo para la vista de usuarios finales , podrnn ver 
+        //los comunicados leidos y no leidos*@
         <div class="cont-sidebar">
             <a href="@Url.Action("Index", new { estado = "NoLeidos" })" class="cont-card pendientes">
                 <div class="cont-card-body">
@@ -117,6 +75,7 @@
                 </div>
             </a>
         </div>
+        }
         <div class="comunicados-grid" id="comGrid">
             @foreach (var c in Model)
             {
@@ -196,7 +155,7 @@
                 </div>
             </div>
         </div>
-        }
+        
     </div>
     
 @section Scripts {

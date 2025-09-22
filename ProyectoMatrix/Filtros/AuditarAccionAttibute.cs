@@ -6,8 +6,15 @@ public sealed class AuditarAccionAttribute : Attribute, IAsyncActionFilter
 {
     public string Modulo { get; init; } = "";
     public string Entidad { get; init; } = "";
-  
+
+    /// <summary>Si es true, NO registra Index/Lista/Gestionar (reduce ruido)</summary>
     public bool OmitirListas { get; init; } = true;
+
+    /// <summary>Forzar operación: "CREAR" | "EDITAR" | "ELIMINAR" | "VER" | "VER_LISTA" | "VER_DETALLE"</summary>
+    public string? Operacion { get; init; }
+
+    /// <summary>No registrar si el usuario NO está autenticado</summary>
+    public bool OmitirSiAnonimo { get; init; } = true;
 
     private static readonly HashSet<string> AccionesDeLista = new(StringComparer.OrdinalIgnoreCase)
     { "Index", "Lista", "Gestionar" };
@@ -15,24 +22,41 @@ public sealed class AuditarAccionAttribute : Attribute, IAsyncActionFilter
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         var http = context.HttpContext;
+
+        // Evitar duplicado si otro filtro del mismo request ya registró
+        if (http.Items.ContainsKey("Bitacora_AccionRegistrada"))
+        {
+            await next();
+            return;
+        }
+
+        // Si está configurado, no registres anónimos (por ejemplo, páginas públicas)
+        if (OmitirSiAnonimo && (http.User?.Identity?.IsAuthenticated != true))
+        {
+            await next();
+            return;
+        }
+
         var metodo = http.Request.Method.ToUpperInvariant();
         var nombreAccion = context.ActionDescriptor.RouteValues.TryGetValue("action", out var act) ? act ?? "" : "";
-
-       
         var nombre = nombreAccion.ToLowerInvariant();
 
-        string accion = metodo switch
-        {
-            "DELETE" => "ELIMINAR",
-            "PUT" or "PATCH" => "EDITAR",
-            "POST" => nombre.Contains("elimin") || nombre.Contains("borr") || nombre.Contains("remov")
-                            ? "ELIMINAR"
-                            : nombre.Contains("edit") || nombre.Contains("actualiz")
-                                ? "EDITAR"
-                                : "CREAR",
-            _ => "VER"
-        };
-        // Detectar si es lista o detalle (solo en GET)
+        // 1) Si te pasaron Operacion explícita, úsala tal cual
+        string accion = !string.IsNullOrWhiteSpace(Operacion)
+            ? Operacion!.ToUpperInvariant()
+            : metodo switch
+            {
+                "DELETE" => "ELIMINAR",
+                "PUT" or "PATCH" => "EDITAR",
+                "POST" => nombre.Contains("elimin") || nombre.Contains("borr") || nombre.Contains("remov")
+                                ? "ELIMINAR"
+                                : nombre.Contains("edit") || nombre.Contains("actualiz")
+                                    ? "EDITAR"
+                                    : "CREAR",
+                _ => "VER"
+            };
+
+        // Detectar si es lista o detalle (solo en GET/VER)
         bool esLista = accion == "VER" && AccionesDeLista.Contains(nombreAccion);
 
         // IdEntidad si viene en parámetros
@@ -41,15 +65,15 @@ public sealed class AuditarAccionAttribute : Attribute, IAsyncActionFilter
             .Select(kv => kv.Value?.ToString())
             .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
 
-        // Si es lista y se decidió omitir, solo ejecutar la acción y salir
-        if (esLista && OmitirListas)
+        // Si es lista y se decidió omitir, ejecutar y salir
+        if (esLista && OmitirListas && string.IsNullOrWhiteSpace(Operacion))
         {
             await next();
             return;
         }
 
-        // Ajustar nombres cuando es VER
-        if (accion == "VER")
+        // Ajustar nombres cuando es VER si no venía Operacion forzada
+        if (accion == "VER" && string.IsNullOrWhiteSpace(Operacion))
             accion = esLista ? "VER_LISTA" : (idEntidad is null ? "VER" : "VER_DETALLE");
 
         var ejecutado = await next();
@@ -64,17 +88,21 @@ public sealed class AuditarAccionAttribute : Attribute, IAsyncActionFilter
 
         // === Datos de contexto para auditoría ===
         var solicitudId = http.Items["SolicitudId"]?.ToString();
-        var ip = (http.Items["DireccionIp"]?.ToString())
-                            ?? http.Connection.RemoteIpAddress?.ToString();
+        var ip = (http.Items["DireccionIp"]?.ToString()) ?? http.Connection.RemoteIpAddress?.ToString();
         var agenteUsuario = http.Items["AgenteUsuario"]?.ToString();
+
+        // Ids de usuario/empresa (claims primero, sesión como respaldo)
+        int? idUsuario = null;
+        if (int.TryParse(http.User.FindFirstValue("UsuarioID"), out var uid)) idUsuario = uid;
+        else idUsuario = http.Session?.GetInt32("UsuarioID");
+
+        int? idEmpresa = null;
+        if (int.TryParse(http.User.FindFirstValue("EmpresaID"), out var eid)) idEmpresa = eid;
+        else idEmpresa = http.Session?.GetInt32("EmpresaSeleccionada") ?? http.Session?.GetInt32("EmpresaID");
 
         try
         {
             var bitacora = http.RequestServices.GetRequiredService<BitacoraService>();
-
-            // Ids de usuario/empresa (claims; si no existen, quedan en null)
-            int? idUsuario = int.TryParse(http.User.FindFirst("UsuarioID")?.Value, out var uid) ? uid : null;
-            int? idEmpresa = int.TryParse(http.User.FindFirst("EmpresaID")?.Value, out var eid) ? eid : null;
 
             await bitacora.RegistrarAsync(
                 idUsuario: idUsuario,
@@ -82,16 +110,19 @@ public sealed class AuditarAccionAttribute : Attribute, IAsyncActionFilter
                 accion: accion,
                 mensaje: mensaje,
                 modulo: string.IsNullOrWhiteSpace(Modulo)
-                            ? (context.RouteData.Values["controller"]?.ToString()?.ToUpperInvariant() ?? "")
-                            : Modulo,
+                        ? (context.RouteData.Values["controller"]?.ToString()?.ToUpperInvariant() ?? "")
+                        : Modulo,
                 entidad: string.IsNullOrWhiteSpace(Entidad) ? "Entidad" : Entidad,
-                entidadId: esLista ? null : idEntidad,   // en listas no guardamos Id específico
+                entidadId: esLista ? null : idEntidad,
                 resultado: resultado,
                 severidad: severidad,
                 solicitudId: solicitudId,
                 ip: ip,
-               AgenteUsuario: agenteUsuario
+                AgenteUsuario: agenteUsuario
             );
+
+            // Marca para evitar doble log en el mismo request
+            http.Items["Bitacora_AccionRegistrada"] = true;
         }
         catch
         {

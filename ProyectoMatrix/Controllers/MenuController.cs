@@ -107,24 +107,6 @@ namespace ProyectoMatrix.Controllers
 
             HttpContext.Session.SetString("MenuItems", JsonSerializer.Serialize(menuRaiz));
 
-            if (rol != "Administrador")
-            {
-                bool esGestor = User.IsInRole("Autor/Editor de Contenido")
-             || User.IsInRole("Administrador de Intranet")
-             || User.IsInRole("Propietario de Contenido");
-
-                foreach (var m in menuRaiz)
-                {
-                    var nombre = (m.Nombre ?? "").ToLowerInvariant();
-                    if (nombre.Contains("líder") || nombre.Contains("lider"))
-                    {
-                        m.Url = esGestor ? Url.Action("Index", "Lider")
-                                         : Url.Action("Lista", "Webinars");
-                    }
-                }
-                return View("Index", menuRaiz);
-            }
-
 
             return View(menuRaiz);
         }
