@@ -5,7 +5,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
 
-public class ProyectosBD
+public class ProyectosBD 
 {
     private readonly string _connectionString;
 

@@ -17,9 +17,14 @@ namespace ProyectoMatrix.Models
 
         public bool EsPublico { get; set; } = true;
 
+
+        //AGREUGUE LA COLUMNA Categoria 
+
+        public string Categoria { get; set; }
+
         public ICollection<ComunicadoEmpresa> ComunicadosEmpresas { get; set; } = new List<ComunicadoEmpresa>();
     }
 
-  
+
 
 }

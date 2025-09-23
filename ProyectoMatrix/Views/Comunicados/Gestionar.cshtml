@@ -34,6 +34,9 @@ else
                 <th style="width: 120px;">Imagen</th>
                 <th>Dirigido a:</th>
                 <th style="width: 200px;">Acciones</th>
+
+                @*Se agregara la columna metricas en latabla de gestionar *@
+                <th>Métricas</th>
             </tr>
         </thead>
         <tbody>
@@ -69,9 +72,100 @@ else
                             </button>
                         </form>
                     </td>
+                    @*aGREgué la nueva columna de metricas *@
+                    <td >
+                        <span class="chip-metric">
+                                🧑💻 @c.Lectores
+                        </span>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary ms-2"
+                                    onclick="abrirStats(@c.ComunicadoID)"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#statsModal">
+                                Ver
+                            </button>
+                        </td>
                 </tr>
             }
         </tbody>
     </table>
+
+    @*Se agrego un modal que muestra los graficos*@
+
+        <div class="modal fade" id="statsModal" tabindex="-1" aria-labelledby="statsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-md modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="statsModalLabel">Estadísticas del comunicado</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="statsLoading" class="text-center py-3" style="display:none;">Cargando…</div>
+
+                        <div id="statsError" class="alert alert-danger d-none">No se pudieron cargar las estadísticas.</div>
+
+                        <div id="statsContent" class="d-none">
+                            <div class="kpi-row">
+                                <div class="kpi">
+                                    <div class="kpi-label">Lectores</div>
+                                    <div class="kpi-value" id="mLectores">—</div>
+                                </div>
+                                <div class="kpi">
+                                    <div class="kpi-label">Destinatarios</div>
+                                    <div class="kpi-value" id="mDestinatarios">—</div>
+                                </div>
+                                <div class="kpi">
+                                    <div class="kpi-label">% leído</div>
+                                    <div class="kpi-value" id="mPorcentaje">—</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <small class="text-muted">Estas métricas se calculan en tiempo real.</small>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
     </div>
+}
+
+@*Se agregó un Scrip para traer y pintarmetricas*@
+@section Scripts {
+    <script>
+        function abrirStats(id){
+          // estados UI
+          const loading = document.getElementById('statsLoading');
+          const content  = document.getElementById('statsContent');
+          const errorBox = document.getElementById('statsError');
+
+          loading.style.display = '';
+          content.classList.add('d-none');
+          errorBox.classList.add('d-none');
+          document.getElementById('mLectores').textContent = '—';
+          document.getElementById('mDestinatarios').textContent = '—';
+          document.getElementById('mPorcentaje').textContent = '—';
+
+          fetch('@Url.Action("Estadisticas", "Comunicados")?id=' + encodeURIComponent(id))
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(data => {
+              // pinta los KPIs
+              document.getElementById('mLectores').textContent      = (data.lectores ?? 0);
+              document.getElementById('mDestinatarios').textContent = (data.destinatarios ?? 0);
+              const pct = data.porcentaje ? Number(data.porcentaje).toFixed(1) : '0.0';
+              document.getElementById('mPorcentaje').textContent = pct + '%';
+
+              // muestra contenido
+              loading.style.display = 'none';
+              content.classList.remove('d-none');
+            })
+            .catch(() => {
+              loading.style.display = 'none';
+              errorBox.classList.remove('d-none');
+            });
+        }
+    </script>
 }

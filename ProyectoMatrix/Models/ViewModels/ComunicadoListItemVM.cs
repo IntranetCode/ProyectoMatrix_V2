@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
 namespace ProyectoMatrix.Models
 {
     public class ComunicadoListItemVM
@@ -10,5 +11,14 @@ namespace ProyectoMatrix.Models
         public string DirigidoA { get; set; } = "-"; // Nombres de empresas separadas por comas
 
         public string? Imagen { get; set; } // Nombre del archivo de imagen si existe
+
+        // Mostrar la categoria del comunicado en la lista
+
+        [Required]
+        public string Categoria { get; set; }
+        public List<string> CategoriasDisponibles { get; set; } = new() { "Urgente", "General", "Evento" };
+
+        //Agregamos la propiedad Lectores 
+        public int Lectores { get;  set; }
     }
 }

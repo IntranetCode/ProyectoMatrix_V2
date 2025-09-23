@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
+using ProyectoMatrix.Seguridad;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -52,6 +53,7 @@ namespace ProyectoMatrix.Controllers
         // DASHBOARD / INDEX
         // =====================================================
 
+        [AutorizarAccion("Cursos y Contenidos", "Ver")]
         public async Task<IActionResult> Index()
         {
             try
@@ -721,6 +723,7 @@ namespace ProyectoMatrix.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AutorizarAccion("Cursos y Contenidos", "Crear")]
         public async Task<IActionResult> CrearCurso(CrearCursoRequest request)
         {
             try
@@ -920,7 +923,7 @@ namespace ProyectoMatrix.Controllers
         // =====================================================
         // EDITAR CURSO
         // =====================================================
-
+        [AutorizarAccion("Cursos y Contenidos", "Editar")]
         public async Task<IActionResult> EditarCurso(int id)
         {
             try
@@ -991,7 +994,7 @@ namespace ProyectoMatrix.Controllers
         // =====================================================
         // CREAR SUBCURSO
         // =====================================================
-
+        [AutorizarAccion("Cursos y Contenidos", "Crear")]
         public async Task<IActionResult> CrearSubCurso(int cursoId)
         {
             try
@@ -1035,6 +1038,7 @@ namespace ProyectoMatrix.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AutorizarAccion("Cursos y Contenidos", "Crear")]
         public async Task<IActionResult> CrearSubCurso(CrearSubCursoRequest request, IFormFile archivoVideo, IFormFile archivoPDF)
         {
             try
@@ -1111,7 +1115,7 @@ namespace ProyectoMatrix.Controllers
         // =====================================================
         // EDITAR SUBCURSO
         // =====================================================
-
+        [AutorizarAccion("Cursos y Contenidos", "Editar")]
         public async Task<IActionResult> EditarSubCurso(int id)
         {
             try
@@ -1185,6 +1189,7 @@ namespace ProyectoMatrix.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AutorizarAccion("Cursos y Contenidos", "Editar")]
         public async Task<IActionResult> EditarSubCurso(int id, CrearSubCursoRequest request, IFormFile archivoVideo, IFormFile archivoPDF)
         {
             try
@@ -1271,7 +1276,7 @@ namespace ProyectoMatrix.Controllers
         // =====================================================
         // EVALUACIONES
         // =====================================================
-
+        [AutorizarAccion("Cursos y Contenidos", "Crear")]
         public async Task<IActionResult> CrearEvaluacion(int subCursoId)
         {
             try
@@ -1332,6 +1337,7 @@ namespace ProyectoMatrix.Controllers
         }
 
         [HttpPost]
+        [AutorizarAccion("Cursos y Contenidos", "Crear")]
         public async Task<IActionResult> CrearEvaluacion([FromBody] CrearEvaluacionRequest request)
         {
             try
@@ -1795,6 +1801,7 @@ namespace ProyectoMatrix.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AutorizarAccion("Cursos y Contenidos", "Eliminar")]
         public async Task<IActionResult> EliminarSubCurso(int id)
         {
             try

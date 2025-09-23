@@ -205,3 +205,44 @@ td.text-nowrap .btn-outline-danger {
 .fw-semibold {
     font-weight: 700;
 }
+
+.chip-metric {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .25rem .55rem;
+    border-radius: 999px;
+    font-size: .8rem;
+    background: #f1f5f9;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+}
+
+.kpi-row {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.kpi {
+    flex: 1;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: .7rem;
+    text-align: center;
+}
+
+.kpi-label {
+    font-size: .75rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: .2rem;
+}
+
+.kpi-value {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #0f172a;
+}

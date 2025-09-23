@@ -1,4 +1,6 @@
-﻿@using ProyectoMatrix.Models
+﻿@using ProyectoMatrix.Servicios
+
+@using ProyectoMatrix.Models
 @model Proyecto
 @{
     ViewData["Title"] = "Detalle del Proyecto";
@@ -24,7 +26,7 @@
             margin-bottom: 1.5rem;
             height: 100%;
         }
-
+         
             .info-card h6 {
                 color: var(--bs-primary);
                 font-weight: 600;
@@ -135,6 +137,16 @@
     </style>
 }
 
+@*Mandar a llamar al servicio de acceso para ocultar o mostrar los botones correspondientes *@
+@inject IServicioAcceso Acceso
+@{
+    var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
+    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Crear");
+    var puedeEditar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Editar");
+    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Eliminar");
+}
+
+
 <div class="container-fluid">
     <!-- Header del Proyecto -->
     <div class="proyecto-header">
@@ -160,9 +172,12 @@
             </div>
 
             <div class="action-buttons">
-                <a href="@Url.Action("Editar", new { id = Model.ProyectoID })" class="btn btn-light me-2">
-                    <i class="fas fa-edit me-1"></i>Editar
-                </a>
+                @if (puedeEditar)
+                {
+                    <a href="@Url.Action("Editar", new { id = Model.ProyectoID })" class="btn btn-light me-2">
+                        <i class="fas fa-edit me-1"></i>Editar
+                    </a>
+                }
                 <a href="@Url.Action("Index")" class="btn btn-outline-light">
                     <i class="fas fa-arrow-left me-1"></i>Volver
                 </a>
@@ -186,11 +201,15 @@
                     <strong class="d-block">@Model.ResponsableProyecto</strong>
                 </div>
             }
-            <div class="col-auto">
-                <small class="text-white-75">Visualizaciones:</small>
+            @if (puedeCrear)
+            {
+                <div class="col-auto">
+                    <small class="text-white-75">Visualizaciones:</small>
                 <strong class="d-block"><i class="fas fa-eye me-1"></i>@Model.Visualizaciones</strong>
             </div>
+            }
         </div>
+
     </div>
 
     <div class="row">
@@ -230,37 +249,56 @@
 
                         <!-- Controles de progreso -->
                         <div class="mt-3">
-                            <label class="form-label">Actualizar Progreso:</label>
+
+                            @if (puedeCrear)
+                            {
+                                <label class="form-label">Actualizar Progreso:</label>
+                            }
+
                             <div class="input-group">
+
                                 <input type="range" class="form-range me-2" min="0" max="100"
                                        value="@Model.Progreso" id="progresoSlider"
                                        oninput="updateProgressDisplay(this.value)" />
+
                                 <span class="input-group-text" id="progresoValue">@Model.Progreso%</span>
-                                <button type="button" class="btn btn-primary"
-                                        onclick="actualizarProgreso(@Model.ProyectoID)">
-                                    Actualizar
-                                </button>
+                                @if (puedeEditar)
+                                {
+                                    <button type="button" class="btn btn-primary"
+                                            onclick="actualizarProgreso(@Model.ProyectoID)">
+                                        Actualizar
+                                    </button>
+                                }
+                               
                             </div>
                         </div>
 
                         <!-- Control de estado -->
-                        <div class="mt-3">
-                            <label class="form-label">Cambiar Estado:</label>
-                            <div class="input-group">
-                                <select class="form-select" id="nuevoEstado">
-                                    @foreach (EstadoProyecto estado in Enum.GetValues<EstadoProyecto>())
-                                    {
-                                        <option value="@((int)estado)" selected="@(Model.Estado == estado)">
-                                            @estado.ObtenerNombreEstado()
-                                        </option>
-                                    }
-                                </select>
-                                <button type="button" class="btn btn-outline-primary"
-                                        onclick="cambiarEstado(@Model.ProyectoID)">
-                                    Cambiar
-                                </button>
+
+                        
+                            <div class="mt-3">
+                                <label class="form-label">Cambiar Estado:</label>
+                                <div class="input-group">
+                                    <select class="form-select" id="nuevoEstado">
+                                        @foreach (EstadoProyecto estado in Enum.GetValues<EstadoProyecto>())
+                                        {
+                                            <option value="@((int)estado)" selected="@(Model.Estado == estado)">
+                                                @estado.ObtenerNombreEstado()
+                                            </option>
+                                        }
+                                    </select>
+                               @if (puedeEditar)
+                                {
+                                    <button type="button" class="btn btn-outline-primary"
+                                    onclick="cambiarEstado(@Model.ProyectoID)">
+                                        Cambiar
+                                    </button>
+                                }
                             </div>
-                        </div>
+                            </div>
+                       
+                      
+
                     </div>
                 </div>
             </div>
@@ -330,7 +368,7 @@
                         <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
                         <h6>Documento Adjunto</h6>
                         <p class="text-muted mb-3">
-                            Tamaño: @@Model.TamanoArchivo.FormatearTamano()<br>
+                            Tamaño: @Model.TamanoArchivo.FormatearTamanoArchivo()<br>
                             Formato: @(Model.Extension?.ToUpper() ?? "PDF")
                         </p>
                         <div class="d-grid gap-2">

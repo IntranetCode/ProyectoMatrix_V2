@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using System.IO;
+using ProyectoMatrix.Seguridad;
 
 
 
@@ -13,15 +14,19 @@ public class ProyectosController : Controller
 {
     private readonly ProyectosBD _proyectosBD;
     private readonly IConfiguration _config;
+    private readonly IWebHostEnvironment _env;
 
-    public ProyectosController(IConfiguration config)
+    public ProyectosController(IConfiguration config, IWebHostEnvironment env)
     {
         _config = config;
         var connectionString = config.GetConnectionString("DefaultConnection");
         _proyectosBD = new ProyectosBD(connectionString);
+        _env = env;
     }
 
+
     [HttpGet]
+    [AutorizarAccion ("Proyectos", "Ver")]
     public async Task<IActionResult> Index(EstadoProyecto? estado = null, PrioridadProyecto? prioridad = null, string busqueda = null)
     {
         // Configurar navbar dinámico
@@ -105,7 +110,10 @@ public class ProyectosController : Controller
         return View(proyecto);
     }
 
+
     [HttpGet]
+
+    [AutorizarAccion("Proyectos", "Crear")]
     public IActionResult Crear()
     {
         ViewBag.TituloNavbar = "Crear Nuevo Proyecto";
@@ -127,8 +135,9 @@ public class ProyectosController : Controller
 
         return View(proyecto);
     }
-
     [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AutorizarAccion("Proyectos", "Crear")]
     public async Task<IActionResult> Crear(Proyecto proyecto, IFormFile archivo)
     {
         ViewBag.TituloNavbar = "Crear Nuevo Proyecto";
@@ -140,8 +149,7 @@ public class ProyectosController : Controller
         if (empresaId == null || string.IsNullOrEmpty(username))
             return RedirectToAction("Login", "Login");
 
-        if (!ModelState.IsValid)
-            return View(proyecto);
+        
 
         try
         {
@@ -167,9 +175,26 @@ public class ProyectosController : Controller
                 proyecto.ArchivoRuta = $"/proyectos/documentos/{uniqueFileName}";
                 proyecto.TamanoArchivo = archivo.Length;
                 proyecto.Extension = Path.GetExtension(archivo.FileName);
+                proyecto.EsActivo = true;
             }
 
+            ModelState.Clear();                    
+            TryValidateModel(proyecto);
+
+            if (!ModelState.IsValid)
+            {
+                // (Opcional) Para depurar, muestra los errores reales:
+                ViewBag.ModelErrors = ModelState
+                    .Where(kv => kv.Value.Errors.Count > 0)
+                    .Select(kv => $"{kv.Key}: {string.Join(" | ", kv.Value.Errors.Select(e => e.ErrorMessage))}")
+                    .ToList();
+
+                return View(proyecto); // el file input se vacía por seguridad del navegador
+            }
+
+            // 3) Guardar
             await _proyectosBD.CrearProyectoAsync(proyecto);
+
             TempData["Exito"] = "Proyecto creado exitosamente.";
             return RedirectToAction("Index");
         }
@@ -181,6 +206,7 @@ public class ProyectosController : Controller
     }
 
     [HttpGet]
+    [AutorizarAccion("Proyectos", "Editar")]
     public async Task<IActionResult> Editar(int id)
     {
         ViewBag.TituloNavbar = "Editar Proyecto";
@@ -197,48 +223,75 @@ public class ProyectosController : Controller
         return View(proyecto);
     }
 
+
+    //Se modificara este controlador para que los cambios al editar un proyecto se guarde correctamente
+
     [HttpPost]
-    public async Task<IActionResult> Editar(Proyecto proyecto, IFormFile archivo)
+    [AutorizarAccion("Proyectos", "Editar")]
+    public async Task<IActionResult> Editar(int id,Proyecto proyecto, IFormFile archivo)
     {
         ViewBag.TituloNavbar = "Editar Proyecto";
         ViewBag.LogoNavbar = "logo-proyectos.png";
 
-        if (!ModelState.IsValid)
-            return View(proyecto);
+        //Verifica que usuario es el que esta iniciando sesion
 
-        try
+        int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
+        string username = HttpContext.Session.GetString("Username");
+        if (empresaId == null || string.IsNullOrEmpty(username))
+            return RedirectToAction("Login", "Login");
+
+        // Manda a traer el proyecto que le corresponde al usuario mediante su id y emoresaid (con los datos antes de editar)
+        var actual = await _proyectosBD.ObtenerProyectoPorIdAsync(id, empresaId.Value);
+        if (actual == null) return NotFound();
+
+        // Campos posibles a editar en proyecto
+        actual.NombreProyecto = proyecto.NombreProyecto;
+        actual.CodigoProyecto = proyecto.CodigoProyecto;
+        actual.Descripcion = proyecto.Descripcion;
+        actual.Estado = proyecto.Estado;
+        actual.Prioridad = proyecto.Prioridad;
+        actual.Progreso = proyecto.Progreso;
+        actual.FechaInicio = proyecto.FechaInicio;
+        actual.FechaFinPrevista = proyecto.FechaFinPrevista;
+        actual.ResponsableProyecto = proyecto.ResponsableProyecto;
+        actual.Presupuesto = proyecto.Presupuesto;
+        actual.Tags = proyecto.Tags;
+        actual.Observaciones = proyecto.Observaciones;
+
+        //Si se sube un archivo se guarda ese, de lo contrario se conserva el que ya estaba
+        if (archivo != null && archivo.Length > 0)
         {
-            // Manejar nuevo archivo si se subió uno
-            if (archivo != null && archivo.Length > 0)
-            {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "proyectos", "documentos");
-                if (!Directory.Exists(uploadsFolder))
-                    Directory.CreateDirectory(uploadsFolder);
+            var uploads = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "proyectos", "documentos");
+            if (!Directory.Exists(uploads)) Directory.CreateDirectory(uploads);
 
-                var uniqueFileName = $"{Guid.NewGuid()}_{archivo.FileName}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+            var unique = $"{Guid.NewGuid()}_{archivo.FileName}";
+            var path = Path.Combine(uploads, unique);
+            using (var fs = new FileStream(path, FileMode.Create))
+                await archivo.CopyToAsync(fs);
 
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    await archivo.CopyToAsync(fileStream);
-                }
-
-                proyecto.ArchivoRuta = $"/proyectos/documentos/{uniqueFileName}";
-                proyecto.TamanoArchivo = archivo.Length;
-                proyecto.Extension = Path.GetExtension(archivo.FileName);
-            }
-
-            await _proyectosBD.ActualizarProyectoAsync(proyecto);
-            TempData["Exito"] = "Proyecto actualizado exitosamente.";
-            return RedirectToAction("Detalle", new { id = proyecto.ProyectoID });
+            actual.ArchivoRuta = $"/proyectos/documentos/{unique}";
+            actual.TamanoArchivo = archivo.Length;
+            actual.Extension = Path.GetExtension(archivo.FileName);
         }
-        catch (Exception ex)
-        {
-            ModelState.AddModelError("", $"Error al actualizar el proyecto: {ex.Message}");
-            return View(proyecto);
-        }
+        // Si no hay archivo se consrva
+
+        //  Aseguramos a que empresa pertenece
+        actual.EmpresaID = empresaId.Value;   
+       
+
+        //  Validar despues de completar el modelo
+        ModelState.Clear();
+        TryValidateModel(actual);
+        if (!ModelState.IsValid) return View(actual);
+
+        // Guardar cambbios
+        await _proyectosBD.ActualizarProyectoAsync(actual);
+        TempData["Exito"] = "Proyecto actualizado exitosamente.";
+        return RedirectToAction("Detalle", new { id = actual.ProyectoID });
     }
 
+    [HttpGet]
+    [AutorizarAccion("Proyectos", "Ver")]
     public async Task<IActionResult> VerArchivo(int id)
     {
         int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
@@ -249,26 +302,23 @@ public class ProyectosController : Controller
         if (proyecto == null || string.IsNullOrEmpty(proyecto.ArchivoRuta))
             return NotFound();
 
-        var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", proyecto.ArchivoRuta.Replace("/", Path.DirectorySeparatorChar.ToString()));
+        // 1) Normaliza ruta
+        var rel = proyecto.ArchivoRuta.Replace("~/", "").TrimStart('/', '\\');
+        var root = _env.WebRootPath; // ...\wwwroot
+        var full = Path.GetFullPath(Path.Combine(root, rel));
 
-        if (!System.IO.File.Exists(filePath))
-            return NotFound("Archivo no encontrado en el servidor.");
+        // 2) Seguridad: la ruta debe permanecer dentro de wwwroot
+        if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            return BadRequest("Ruta inválida.");
+  
 
-        var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
-        var extension = Path.GetExtension(proyecto.ArchivoRuta).ToLower();
 
-        var contentType = extension switch
-        {
-            ".pdf" => "application/pdf",
-            ".doc" => "application/msword",
-            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ".xls" => "application/vnd.ms-excel",
-            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            _ => "application/octet-stream"
-        };
+        if (!System.IO.File.Exists(full)) return NotFound("Archivo no encontrado en el servidor.");
 
-        return File(fileBytes, contentType);
+        var contentType = GetContentType(full);
+        return PhysicalFile(full, contentType, enableRangeProcessing: true); // permite rango para PDFs
     }
+
 
     public async Task<IActionResult> DescargarArchivo(int id)
     {
@@ -280,15 +330,21 @@ public class ProyectosController : Controller
         if (proyecto == null || string.IsNullOrEmpty(proyecto.ArchivoRuta))
             return NotFound();
 
-        var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", proyecto.ArchivoRuta.Replace("/", Path.DirectorySeparatorChar.ToString()));
+        var p = await _proyectosBD.ObtenerProyectoPorIdAsync(id, empresaId.Value);
+        if (p == null || string.IsNullOrEmpty(p.ArchivoRuta)) return NotFound();
 
-        if (!System.IO.File.Exists(filePath))
-            return NotFound("Archivo no encontrado en el servidor.");
 
-        var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
-        var fileName = Path.GetFileName(proyecto.ArchivoRuta);
 
-        return File(fileBytes, "application/octet-stream", fileName);
+        //Normalizar la ruta antes de combinar
+        var rel = p.ArchivoRuta.Replace("~/", "").TrimStart('/', '\\');
+        var root = _env.WebRootPath;
+        var full = Path.GetFullPath(Path.Combine(root, rel));
+        if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return BadRequest("Ruta inválida.");
+        if (!System.IO.File.Exists(full)) return NotFound("Archivo no encontrado en el servidor.");
+
+        var contentType = GetContentType(full);
+        var downloadName = Path.GetFileName(full); 
+        return PhysicalFile(full, contentType, fileDownloadName: downloadName);
     }
 
     [HttpPost]
@@ -309,7 +365,9 @@ public class ProyectosController : Controller
         }
     }
 
+
     [HttpPost]
+    [AutorizarAccion("Proyectos", "Editar")]
     public async Task<IActionResult> CambiarEstado([FromBody] CambiarEstadoModel model)
     {
         try
@@ -338,5 +396,22 @@ public class ProyectosController : Controller
     {
         public int ProyectoId { get; set; }
         public EstadoProyecto Estado { get; set; }
+
     }
+
+    //Se separa el metodo para poderlo reutilizar en descargar y en ver acrchivo
+
+    private static string GetContentType(string path)
+    {
+        switch (Path.GetExtension(path).ToLowerInvariant())
+        {
+            case ".pdf": return "application/pdf";
+            case ".doc": return "application/msword";
+            case ".docx": return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case ".xls": return "application/vnd.ms-excel";
+            case ".xlsx": return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            default: return "application/octet-stream";
+        }
+    }
+
 }

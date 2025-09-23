@@ -1,6 +1,7 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
-using Microsoft.AspNetCore.Http;
+using System.ComponentModel.DataAnnotations;
 
 namespace ProyectoMatrix.Models
 {
@@ -19,5 +20,13 @@ namespace ProyectoMatrix.Models
         public int[] EmpresasSeleccionadas { get; set; } = Array.Empty<int>();
 
         public IEnumerable<Empresa> Empresas { get; set; } = new List<Empresa>();
+
+
+
+        //AE AGREGARA UNA ETIQUETA DE CATEGORIA PARA CLASIFICAR LOS COMUNICADOS EN URGENTE,GENERAL O EVENTO
+
+        [Required]
+        public string Categoria { get; set; }
+        public List<string> CategoriasDisponibles { get; set; } = new() { "Urgente", "General", "Evento" };
     }
 }

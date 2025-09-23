@@ -2,17 +2,27 @@
 @{
     Layout = "_LayoutComunicados";
     ViewData["Title"] = "Comunicados";
-    var esGestor = User.IsInRole("Autor/Editor de Contenido")
-                  || User.IsInRole("Administrador de Intranet")
-                  || User.IsInRole("Propietario de Contenido");
 
 }
 <link href="~/css/stylesComunicadosLista.css" rel="stylesheet" />
+
+@* //He agregado el helper de categorias  *@
+
+@functions {
+    (string Icono, string Clase) GetEstiloCategoria(string cat) => cat switch
+    {
+        "Urgente" => ("⚠️", "badge badge-urgente"),  //He agregado el helper de categorias
+        "Evento" => ("🎉", "badge badge-evento"),
+        _ => ("📢", "badge badge-general")
+    };
+}
+
 <h2 class="mb-3">Comunicados</h2>
 <div class=" comunicados-grid" id="comGrid">
     @foreach (var c in Model)
     {
-        <div class="com-card" tabindex="0">
+        @*Se agrega el data id para recuperar el id del comunicado*@
+        <div class="com-card" data-id="@c.ComunicadoID" tabindex="0">
 
             @if (!string.IsNullOrEmpty(c.Imagen))
             {
@@ -44,6 +54,14 @@
 
             <div class="com-body">
                 <h5 class="com-title">@c.NombreComunicado</h5>
+
+
+                @{
+                    var estilo = GetEstiloCategoria(c.Categoria);
+                }
+                <span class="@estilo.Clase">@estilo.Icono @c.Categoria</span>
+
+
                 <div div class="com-desc">@c.Descripcion</div>
                 <div class="com-meta"> @c.FechaCreacion.ToString("dd/MM/yyyy")</div>
             </div>
@@ -164,6 +182,18 @@
                 }
 
                 backdrop.classList.add('show');
+                      // Marcar como leído el comunicado obteniendo el IDcomunicado  comunicado y 
+                      // se obtiene meduandiante el data-id  (AJAX)  
+        const id = card.getAttribute('data-id');
+        if (id) {
+          fetch("@Url.Action("MarcarLeido", "Comunicados")", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "id=" + encodeURIComponent(id)
+          });
+        }
+
+
                 requestAnimationFrame(() => modal.classList.add('show'));
                 document.body.style.overflow = 'hidden';
             }
@@ -202,5 +232,7 @@
         })();
 
     </script>
+
+
 
 }
