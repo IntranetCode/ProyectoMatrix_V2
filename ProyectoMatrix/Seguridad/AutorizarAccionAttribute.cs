@@ -1,10 +1,12 @@
 ﻿// Servicios/AutorizarAccionAttribute.cs bloquea o deja pasar al usuario
+
+//PRUEBA
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using System.Security.Claims;
 using ProyectoMatrix.Servicios;
 
-namespace ProyectoMatrix.Seguridad
+namespace ProyectoMatrix.Seguridad  
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public class AutorizarAccionAttribute : Attribute, IAsyncAuthorizationFilter
