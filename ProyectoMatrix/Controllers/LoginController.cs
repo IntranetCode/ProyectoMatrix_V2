@@ -42,6 +42,7 @@ public class LoginController : Controller
 
     // ---------- LOGIN POST ----------
     [HttpPost]
+    [AuditarAccion(Modulo = "SEGURIDAD", Entidad = "Login", Operacion = "LOGIN", OmitirListas = false)]
     public async Task<IActionResult> Login(UsuarioModel model, EmpresaModel empresa)
     {
         if (!ModelState.IsValid)
@@ -388,6 +389,8 @@ public class LoginController : Controller
 
     // ---------- LOGOUT ----------
     [HttpGet]
+    [AuditarAccion(Modulo = "SEGURIDAD", Entidad = "Login", Operacion = "LOGOUT", OmitirListas = false)]
+  
     public async Task<IActionResult> Logout()
     {
         // Datos del middleware
