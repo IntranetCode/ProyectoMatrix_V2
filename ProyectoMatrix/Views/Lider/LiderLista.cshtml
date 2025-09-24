@@ -11,13 +11,11 @@
 }
 
 <link href="~/css/stylesLiderLista.css" rel="stylesheet" />
-
 @if (videoDestacado != null)
 {
-    <div class="lider-hero-container">
+    <div class="lider-hero-container full-bleed">
         <section class="lider-hero">
             <div class="card border-0 shadow-sm">
-
                 <div id="heroVideoWrap"
                      class="hero-video-wrap"
                      data-video-id="@videoDestacado.VideoIdYoutube">
@@ -26,25 +24,17 @@
                 </div>
 
                 <div class="card-body hero-content">
-                    
                     @if (!string.IsNullOrWhiteSpace(videoDestacado.Descripcion))
                     {
-                        <p class="text-muted mb-3">@videoDestacado.Descripcion</p>
+                        <p class="mb-3 text-light">@videoDestacado.Descripcion</p>
                     }
                     <div>
-                        <button type="button" class="btn btn-primary"
-                                onclick="reproducirVideo('@videoDestacado.VideoIdYoutube', '@videoDestacado.Titulo')">
-                            Ver ahora
-                        </button>
-                        <span class="badge bg-info ms-2">@videoDestacado.Categoria</span>
                     </div>
                 </div>
             </div>
         </section>
     </div>
 }
-
-
 else if (destacado != null)
 {
     // --- C# primero ---
@@ -60,15 +50,18 @@ else if (destacado != null)
         ? (ahora > fin.Value)
         : (ahora.Date > inicio.Date);
 
-    // --- después HTML/razor ---
-    <div class="lider-hero-container">
+    // --- después HTML/Razor ---
+    <div class="lider-hero-container full-bleed">
         <section class="lider-hero">
             <div class="card border-0 shadow-sm">
                 @if (!string.IsNullOrWhiteSpace(destacado.Imagen))
                 {
-                    <img class="card-img-top hero-img" src="@destacado.Imagen" alt="Imagen del webinar destacado" />
+                    <img class="card-img-top hero-img"
+                         src="@destacado.Imagen"
+                         alt="Imagen del webinar destacado" />
                     <div class="hero-overlay"></div>
                 }
+
                 <div class="card-body hero-content">
                     <h3 class="card-title mb-2">@destacado.Titulo</h3>
 
@@ -76,7 +69,8 @@ else if (destacado != null)
                         <b>Inicio:</b> @destacado.FechaInicio.ToString("dd 'de' MMMM 'de' yyyy HH:mm") <br />
                         <b>Fin:</b> @destacado.FechaFin.ToString("dd 'de' MMMM 'de' yyyy HH:mm")
                     </p>
-                    <p class="text-muted mb-3">
+
+                    <p class="mb-3">
                         <b>Dirigido a:</b> @destacado.DirigidoA
                     </p>
 
@@ -87,8 +81,12 @@ else if (destacado != null)
                         }
                         else if (yaPaso && !string.IsNullOrWhiteSpace(destacado.UrlTeams))
                         {
-                            <a href="@destacado.UrlTeams" target="_blank" class="btn btn-outline-secondary">Volver a ver</a>
+                            <button type="button" class="btn btn-outline-secondary"
+                                    onclick="abrirGrabacion('@destacado.UrlTeams')">
+                                Volver a ver
+                            </button>
                         }
+
                         else if (yaPaso)
                         {
                             <span class="badge bg-light text-muted">Evento finalizado</span>
@@ -103,6 +101,7 @@ else if (destacado != null)
         </section>
     </div>
 }
+
 
 
 <div class="lider-container">
@@ -161,8 +160,12 @@ else if (destacado != null)
                                 }
                                 else if (yaPaso && tieneUrl)
                                 {
-                                    <a href="@w.UrlTeams" target="_blank" class="btn btn-outline-secondary w-100">Volver a ver</a>
+                                    <button type="button" class="btn btn-outline-secondary w-100"
+                                            onclick="abrirGrabacion('@w.UrlTeams')">
+                                        Volver a ver
+                                    </button>
                                 }
+
                                 else if (yaPaso)
                                 {
                                     <span class="badge bg-light text-muted w-100 text-center">Evento finalizado</span>
@@ -180,6 +183,24 @@ else if (destacado != null)
     }
 </div>
 
+@*MODAL PARA VISUALIZAR LAS GRABACIONES DENTRO DE INTRANET*@
+
+<div class="video-modal" id="teamsEmbedModal">
+    <div class="video-modal-content">
+        <button class="video-modal-close" onclick="cerrarTeamsModal()">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="video-player-container">
+            <iframe id="teamsEmbedFrame" src="" frameborder="0"
+                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                    allowfullscreen></iframe>
+        </div>
+    </div>
+</div>
+
+
+
+
 <div class="videoteca mt-5">
     <link href="~/css/stylesLiderIndex.css" rel="stylesheet" />
     <div class="lider-container">
@@ -188,13 +209,16 @@ else if (destacado != null)
         </p>
     </div>
 
+
+
+
     <!-- Filtros y Búsqueda (solo 2 categorías) -->
     <div class="filters-section">
         <div class="filters-container">
             <div class="filter-tags">
-                <button class="filter-tag active" onclick="filtrarPor('todos')">Todos</button>
-                <button class="filter-tag" onclick="filtrarPor('estrategico')">Liderazgo Estratégico</button>
-                <button class="filter-tag" onclick="filtrarPor('equipos')">Gestión de Equipos</button>
+                <button class="filter-tag active" onclick="filtrarPor(event,'todos')">Todos</button>
+                <button class="filter-tag" onclick="filtrarPor(event,'estrategico')">Liderazgo Estratégico</button>
+                <button class="filter-tag" onclick="filtrarPor(event,'equipos')">Gestión de Equipos</button>
             </div>
             <div class="search-container">
                 <input type="text" class="search-input" placeholder="Buscar videos, speakers, temas..."
@@ -327,11 +351,9 @@ else if (destacado != null)
             </div>
         `;
     }
-
-    function filtrarPor(categoria) {
-        // Actualizar botones activos
-        document.querySelectorAll('.filter-tag').forEach(btn => btn.classList.remove('active'));
-        event.target.classList.add('active');
+    function filtrarPor(e, categoria) {
+      document.querySelectorAll('.filter-tag').forEach(btn => btn.classList.remove('active'));
+      if (e && e.target) e.target.classList.add('active');
 
         filtroActual = categoria;
 
@@ -540,6 +562,72 @@ else if (destacado != null)
         document.getElementById('heroPlayer').appendChild(iframe);
       }
     }, 2500);
+</script>
+
+<script>
+    // Detecta si un URL es embeeble (Stream en SharePoint/OneDrive)
+    function esUrlStream(u){
+      try {
+        const url = new URL(u);
+        const host = url.host.toLowerCase();
+        const path = url.pathname.toLowerCase();
+        const hasEmbedParam = [...url.searchParams.keys()].some(k => k.includes('embed'));
+        return (
+          host.includes('.sharepoint.com') ||
+          host.includes('1drv.ms') ||
+          path.includes('videoembedhost.aspx') || // Stream "clásico" en M365
+          hasEmbedParam
+        );
+      } catch { return false; }
+    }
+
+    // Intenta convertir un link de archivo/video a uno embeeble
+    function normalizarStreamEmbed(u){
+      try {
+        const url = new URL(u);
+
+        // Caso Stream "VideoEmbedHost.aspx": ya es embeeble
+        if (url.pathname.toLowerCase().includes('videoembedhost.aspx')) {
+          return url.toString();
+        }
+
+        // SharePoint/OneDrive: fuerza vista web y modo embed
+        if (!url.searchParams.has('web'))   url.searchParams.set('web','1');
+        if (!url.searchParams.has('embed')) url.searchParams.set('embed','1');
+
+        // Algunos tenants usan param "e" o "em" para togglear embed; no es obligatorio
+        return url.toString();
+      } catch { return u; }
+    }
+
+    // Abrir grabación en modal si es embeeble; si no, abrir en la misma pestaña
+    function abrirGrabacion(url){
+      if (esUrlStream(url)) {
+        const embed = normalizarStreamEmbed(url);
+        const modal = document.getElementById('teamsEmbedModal');
+        const frame = document.getElementById('teamsEmbedFrame');
+        frame.src = embed;
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+      } else {
+        // No es embeeble (p.ej. link directo de Teams Live o enlace sin permisos embed)
+        window.open(url, '_self'); // misma pestaña
+      }
+    }
+
+    function cerrarTeamsModal(){
+      const modal = document.getElementById('teamsEmbedModal');
+      const frame = document.getElementById('teamsEmbedFrame');
+      frame.src = '';
+      modal.classList.remove('show');
+      document.body.style.overflow = 'auto';
+    }
+
+    // Cerrar con ESC y clic fuera
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarTeamsModal(); });
+    document.getElementById('teamsEmbedModal')?.addEventListener('click', function (e) {
+      if (e.target === this) cerrarTeamsModal();
+    });
 </script>
 
 
