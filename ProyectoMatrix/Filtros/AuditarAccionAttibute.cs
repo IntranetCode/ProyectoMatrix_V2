@@ -112,7 +112,10 @@ public sealed class AuditarAccionAttribute : Attribute, IAsyncActionFilter
                 modulo: string.IsNullOrWhiteSpace(Modulo)
                         ? (context.RouteData.Values["controller"]?.ToString()?.ToUpperInvariant() ?? "")
                         : Modulo,
-                entidad: string.IsNullOrWhiteSpace(Entidad) ? "Entidad" : Entidad,
+               entidad: string.IsNullOrWhiteSpace(Entidad)
+           ? (context.RouteData.Values["controller"]?.ToString()?.TrimEnd('s') ?? "")
+           : Entidad,
+
                 entidadId: esLista ? null : idEntidad,
                 resultado: resultado,
                 severidad: severidad,

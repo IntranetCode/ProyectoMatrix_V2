@@ -241,3 +241,56 @@ h2.mb-3 {
     pointer-events: none;
     background: linear-gradient( 180deg, rgba(10,18,40,0.40) 0%, rgba(10,18,40,0.55) 60%, rgba(10,18,40,0.75) 100% );
 }
+
+/* Hace que el hero se salga del padding del layout y ocupe 100vw */
+.full-bleed {
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    width: 100vw;
+}
+
+/* Base hero: que la card ocupe todo */
+.lider-hero-container {
+    width: 100%;
+}
+
+.lider-hero .card {
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    border: none;
+}
+
+/* Misma altura para video o imagen */
+.hero-video-wrap,
+.hero-img {
+    width: 100%;
+    height: min(70vh, 700px); /* ajusta a tu gusto */
+    display: block;
+    object-fit: cover; /* para la imagen */
+}
+
+/* Overlay y contenido sobre el hero */
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,.6));
+    pointer-events: none;
+}
+
+.hero-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: clamp(16px, 4vw, 56px);
+    color: #fff;
+}
+
+    .hero-content .btn {
+        box-shadow: 0 6px 18px rgba(0,0,0,.25);
+    }

@@ -1,10 +1,14 @@
 ﻿// Servicios/AutorizarAccionAttribute.cs bloquea o deja pasar al usuario
+
+//PRUEBA
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.WebUtilities;
 using ProyectoMatrix.Servicios;
+using System.Security.Claims;
 
-namespace ProyectoMatrix.Seguridad
+namespace ProyectoMatrix.Seguridad  
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public class AutorizarAccionAttribute : Attribute, IAsyncAuthorizationFilter
@@ -25,30 +29,47 @@ namespace ProyectoMatrix.Seguridad
 
         public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
         {
-            var user = context.HttpContext.User;
+            var http = context.HttpContext;
+            var user = http.User;
+
+            // No autenticado → login
             if (!(user?.Identity?.IsAuthenticated ?? false))
-            {
-                context.Result = new ChallengeResult(); // a Login
-                return;
-            }
+            { context.Result = new ChallengeResult(); return; }
 
-            var usuarioIdStr = user.FindFirstValue("UsuarioID");
-            if (!int.TryParse(usuarioIdStr, out var usuarioId))
-            {
-                context.Result = new ChallengeResult();
-                return;
-            }
+            // UsuarioID
+            if (!int.TryParse(user.FindFirstValue("UsuarioID"), out var usuarioId))
+            { context.Result = new ChallengeResult(); return; }
 
-            var acceso = context.HttpContext.RequestServices.GetRequiredService<IServicioAcceso>();
-
-            // Autoriza si CUALQUIER submenú concede la acción (OR)
+            // ¿Tiene permiso en alguno de los submenús?
+            var acceso = http.RequestServices.GetRequiredService<IServicioAcceso>();
             foreach (var sm in _subMenus)
-            {
                 if (await acceso.TienePermisoAsync(usuarioId, sm, _accion))
-                    return; // permitido
+                    return; // OK
+                            // ----- SIN PERMISO -----
+            bool isAjax =
+                string.Equals(http.Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
+                http.Request.Headers["Accept"].Any(a => a?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true);
+
+            if (isAjax)
+            {
+                // Para llamadas AJAX: 403 con JSON (el front muestra el toast)
+                context.Result = new JsonResult(new { ok = false, message = "No tienes permiso para realizar esta acción." })
+                { StatusCode = StatusCodes.Status403Forbidden };
+                return;
             }
 
-            context.Result = new ForbidResult(); // logueado pero sin permiso → 403 / AccessDenied
+            // mini HTML con alert y regreso en caso de que el usuario no tenga permisos de esa accion solo
+            //muestre la alerta
+            var html = @"<!DOCTYPE html>
+<html><head><meta charset='utf-8'></head>
+<body>
+<script>
+  alert('No tienes permiso para realizar esta acción.');
+  if (document.referrer) { window.location = document.referrer; } else { window.location = '/'; }
+</script>
+</body></html>";
+
+            context.Result = new ContentResult { Content = html, ContentType = "text/html" };
         }
     }
 }

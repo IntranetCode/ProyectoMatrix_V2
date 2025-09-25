@@ -21,11 +21,6 @@ builder.Services.Configure<FormOptions>(options =>
 });
 
 
-builder.Services.Configure<IISServerOptions>(options =>
-{
-    options.MaxRequestBodySize = 268435456; // 256 MB
-});
-
 // ? AGREGAR CONFIGURACIÓN DEL SERVIDOR
 builder.WebHost.ConfigureKestrel(options =>
 {

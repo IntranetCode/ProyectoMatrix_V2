@@ -22,6 +22,9 @@ namespace ProyectoMatrix.Models
 
         public string Categoria { get; set; }
 
+        //agregando la columna activo
+        public bool Activo { get; set; } = true;
+
         public ICollection<ComunicadoEmpresa> ComunicadosEmpresas { get; set; } = new List<ComunicadoEmpresa>();
     }
 
