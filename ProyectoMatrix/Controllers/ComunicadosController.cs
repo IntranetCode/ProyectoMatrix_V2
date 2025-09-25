@@ -54,6 +54,7 @@ namespace ProyectoMatrix.Controllers
 
             var query = _db.Comunicados
                 .Include(c => c.ComunicadosEmpresas).ThenInclude(ce => ce.Empresa)
+                .Where (c => c.Activo)
                 .AsQueryable();
 
 
@@ -219,6 +220,7 @@ namespace ProyectoMatrix.Controllers
             var q = _db.Comunicados
                 .Include(c => c.ComunicadosEmpresas).ThenInclude(ce => ce.Empresa)
                 .AsNoTracking()
+                .Where (c => c.Activo)
                 .AsQueryable();
 
             // Si NO puede gestionar, filtra por públicos o asignados a su empresa
@@ -443,6 +445,7 @@ namespace ProyectoMatrix.Controllers
 
             var query = _db.Comunicados
                 .Include(c => c.ComunicadosEmpresas).ThenInclude(ce => ce.Empresa)
+                .Where (c => c.Activo)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(q))
@@ -515,18 +518,29 @@ namespace ProyectoMatrix.Controllers
         public async Task<IActionResult> Eliminar(int id)
         {
             var comunicado = await _db.Comunicados
-                .Include(c => c.ComunicadosEmpresas)
                 .FirstOrDefaultAsync(c => c.ComunicadoID == id);
 
             if (comunicado == null) return NotFound();
 
-            DeleteOldImage(comunicado.Imagen);
 
-            if (comunicado.ComunicadosEmpresas.Any())
-                _db.ComunicadoEmpresas.RemoveRange(comunicado.ComunicadosEmpresas); // Asegúrate que tu DbSet se llama así
 
-            _db.Comunicados.Remove(comunicado);
+            if (comunicado == null) return NotFound();
+            if (!comunicado.Activo)
+            {
+                TempData["Warn"] = "El comunicado ya estaba eliminado.";
+                return RedirectToAction(nameof(Gestionar));
+            }
+
+
+            //Agregadno soft delete para los comunicados
+
+            var usuarioId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null;
+
+            comunicado.Activo = false;
+            
+
             await _db.SaveChangesAsync();
+
 
             //SERVICO DE LOGS
 
@@ -539,7 +553,7 @@ namespace ProyectoMatrix.Controllers
 
 
                 await _bitacora.RegistrarAsync(
-                    idUsuario: int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null,
+                    idUsuario: usuarioId,
                     idEmpresa: int.TryParse(User.FindFirstValue("EmpresaID"), out var eid) ? eid : (int?)null,
                     accion: "ELIMINAR",
                     mensaje: $"Comunicado eliminado: {comunicado.NombreComunicado}",

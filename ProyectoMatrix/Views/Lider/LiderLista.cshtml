@@ -70,15 +70,17 @@ else if (destacado != null)
                         <b>Fin:</b> @destacado.FechaFin.ToString("dd 'de' MMMM 'de' yyyy HH:mm")
                     </p>
 
-                    <p class="mb-3">
-                        <b>Dirigido a:</b> @destacado.DirigidoA
-                    </p>
+                  
 
                     <div>
                         @if (enCurso && !string.IsNullOrWhiteSpace(destacado.UrlTeams))
                         {
-                            <a href="@destacado.UrlTeams" target="_blank" class="btn btn-primary">Unirse por Teams</a>
+                            <button type="button" class="btn btn-primary"
+                                    onclick="abrirTeamsTopLevel('@destacado.UrlTeams')">
+                                 Unirse por Teams
+                            </button>
                         }
+
                         else if (yaPaso && !string.IsNullOrWhiteSpace(destacado.UrlTeams))
                         {
                             <button type="button" class="btn btn-outline-secondary"
@@ -149,9 +151,6 @@ else if (destacado != null)
                                 <p class="card-text text-muted">@w.Descripcion</p>
                             }
 
-                            <p class="mb-2">
-                                <small><b>Dirigido a:</b> @w.DirigidoA</small>
-                            </p>
 
                             <div class="mt-auto">
                                 @if (enCurso && tieneUrl)
@@ -628,6 +627,16 @@ else if (destacado != null)
     document.getElementById('teamsEmbedModal')?.addEventListener('click', function (e) {
       if (e.target === this) cerrarTeamsModal();
     });
+</script>
+
+
+<script>
+    function abrirTeamsTopLevel(url){
+      // Muestra un overlay/spinner si se quiere feedback de carga
+      document.body.classList.add('navegando-a-teams');
+      // Navega en la misma pestaña (requerido para kiosko)
+      window.location.href = url;
+    }
 </script>
 
 
