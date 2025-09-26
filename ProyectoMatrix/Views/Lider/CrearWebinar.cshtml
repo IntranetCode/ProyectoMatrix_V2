@@ -62,6 +62,8 @@
                 <small class="text-muted d-block mt-1">Mantén presionada la tecla Ctrl/⌘ para seleccionar varias.</small>
             </div>
 
+            
+
             <div class="mb-3">
                 <label asp-for="UrlTeams" class="form-label">URL de Teams</label>
                 <input asp-for="UrlTeams" class="form-control" placeholder="https://teams.microsoft.com/l/meetup-join/..." />
@@ -74,7 +76,7 @@
                     <input type="file" name="imagenFile" class="form-control" accept="image/*" id="imagenFileInput" />
                     <small class="text-muted d-block mt-1">Se guardará en /uploads/webinars/</small>
 
-
+                    @* Si viniera con imagen (por ejemplo al reintentar por validación) *@
                     @if (!string.IsNullOrWhiteSpace(Model?.Imagen))
                     {
                         <div class="mt-3">
@@ -83,14 +85,10 @@
                         </div>
                     }
 
-
                     <div class="mt-3" id="previewWrap" style="display:none;">
                         <div class="form-text mb-1">Vista previa:</div>
                         <img id="previewImg" style="max-width:100%; height:auto; border:1px solid #eee; border-radius:6px;" />
                     </div>
-                </div>
-
-
 
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-success">Guardar</button>
@@ -101,6 +99,9 @@
     </div>
 </form>
 </div>
+
+
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 
