@@ -231,10 +231,11 @@
                                     <span>Archivo adjunto (@proyecto.TamanoArchivo.FormatearTamanoArchivo())</span>
                                 </div>
                                 <div>
-                                    <a href="@Url.Action("VerArchivo", new { id = proyecto.ProyectoID })"
-                                       class="btn btn-sm btn-outline-primary me-1" target="_blank" title="Ver archivo">
-                                        <i class="fas fa-eye"></i>
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       href="@Url.Action("VerArchivo", "Proyectos", new { id = proyecto.ProyectoID })">
+                                        <i class="fas fa-eye me-1"></i> Ver
                                     </a>
+
                                     <a href="@Url.Action("DescargarArchivo", new { id = proyecto.ProyectoID })"
                                        class="btn btn-sm btn-outline-secondary" title="Descargar">
                                         <i class="fas fa-download"></i>

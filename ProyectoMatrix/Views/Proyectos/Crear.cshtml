@@ -19,8 +19,27 @@
         </a>
     </div>
 
+    @*CAPTURAR ERRORES*@
+
+    <div asp-validation-summary="All" class="alert alert-danger"></div>
+
+    @if (ViewBag.ModelErrors != null)
+    {
+        <div class="alert alert-warning">
+            <ul>
+                @foreach (var e in (IEnumerable<string>)ViewBag.ModelErrors)
+                {
+                    <li>@e</li>
+                }
+            </ul>
+        </div>
+    }
+
+
+
     <!-- Formulario -->
-    <form asp-action="Crear" method="post" enctype="multipart/form-data" class="form-container">
+    <form id="formCrearProyecto" asp-action="Crear" method="post" enctype="multipart/form-data" class="form-container">
+        @Html.AntiForgeryToken()
         <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
         <!-- Sección: Información Básica -->
@@ -217,24 +236,34 @@
         <!-- Sección: Archivo Adjunto -->
         <div class="form-section">
             <h5><i class="fas fa-paperclip me-2"></i>Documento del Proyecto</h5>
-            <div class="file-upload-container" id="fileUploadContainer">
+
+            <div class="file-upload-container text-center p-4 border rounded"
+                 id="zonaDrop"
+                 style="cursor:pointer; border-style:dashed;"
+                 ondragover="event.preventDefault()"
+                 ondrop="return false;">
                 <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">Arrastra el archivo aquí o haz clic para seleccionar</h5>
-                <p class="text-muted mb-3">Formatos soportados: PDF, DOC, DOCX, XLS, XLSX (máximo 10MB)</p>
+                <h5 class="text-muted mb-1">Arrastra el archivo aquí o usa el botón</h5>
+                <p class="text-muted mb-0">PDF, DOC(X), XLS(X) – máx 10MB</p>
+
+
                 <input type="file" name="archivo" id="archivo" class="d-none"
                        accept=".pdf,.doc,.docx,.xls,.xlsx" />
-                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('archivo').click();">
-                    <i class="fas fa-folder-open me-1"></i>Seleccionar Archivo
-                </button>
+
+                <!-- Botón que abre el selector -->
+                <label for="archivo" class="btn btn-outline-primary mt-3 mb-0">
+                    <i class="fas fa-folder-open me-1"></i> Seleccionar archivo
+                </label>
             </div>
-            <div id="fileInfo" class="mt-3" style="display: none;">
+
+            <div id="fileInfo" class="mt-3" style="display:none;">
                 <div class="alert alert-info d-flex align-items-center">
                     <i class="fas fa-file-alt fa-2x me-3"></i>
                     <div>
-                        <strong id="fileName"></strong><br>
+                        <strong id="fileName"></strong><br />
                         <small id="fileSize" class="text-muted"></small>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-danger ms-auto" onclick="clearFile()">
+                    <button type="button" class="btn btn-sm btn-outline-danger ms-auto" onclick="limpiarArchivo()">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -251,133 +280,101 @@
 
         <!-- Botones de Acción -->
         <div class="text-center pt-3 border-top">
-            <button type="submit" class="btn-crear-proyecto">
-                <i class="fas fa-save me-1"></i>Crear Proyecto
-            </button>
+    <button type="submit" class="btn-crear-proyecto">
+      <i class="fas fa-save me-1"></i> Crear Proyecto
+    </button>
             <a href="@Url.Action("Index")" class="btn btn-outline-secondary btn-action">
                 <i class="fas fa-times me-1"></i>Cancelar
             </a>
         </div>
     </form>
 </div>
-
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    <partial name="_ValidationScriptsPartial" />
 
     <script>
-        // Actualizar valor del progreso
-        function updateProgressValue(value) {
-            document.getElementById('progresoValue').textContent = value + '%';
-            document.getElementById('progresoSlider').nextElementSibling.children[1].className =
-                `badge bg-${value == 100 ? 'success' : value >= 75 ? 'info' : value >= 50 ? 'warning' : 'danger'}`;
-        }
+        document.addEventListener('DOMContentLoaded', function () {
+            // Referencias (coinciden con tu HTML)
+            const contenedor = document.getElementById('zonaDrop');       // ⬅️ zonaDrop (no fileUploadContainer)
+            const input = document.getElementById('archivo');
+            const info = document.getElementById('fileInfo');
+            const lblNombre = document.getElementById('fileName');
+            const lblTamano = document.getElementById('fileSize');
+            const form = document.getElementById('formCrearProyecto');
+            const btnSubmit = form ? form.querySelector('button[type="submit"]') : null;
 
-        // Manejo de archivos
-        const fileUploadContainer = document.getElementById('fileUploadContainer');
-        const fileInput = document.getElementById('archivo');
-        const fileInfo = document.getElementById('fileInfo');
-
-        // Click en el contenedor
-        fileUploadContainer.addEventListener('click', function() {
-            fileInput.click();
-        });
-
-        // Drag and drop
-        fileUploadContainer.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            this.classList.add('dragover');
-        });
-
-        fileUploadContainer.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            this.classList.remove('dragover');
-        });
-
-        fileUploadContainer.addEventListener('drop', function(e) {
-            e.preventDefault();
-            this.classList.remove('dragover');
-
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                fileInput.files = files;
-                showFileInfo(files[0]);
+            if (!contenedor || !input || !info || !lblNombre || !lblTamano) {
+                console.warn('Faltan IDs en el HTML');
+                return;
             }
-        });
 
-        // Cuando se selecciona un archivo
-        fileInput.addEventListener('change', function() {
-            if (this.files.length > 0) {
-                showFileInfo(this.files[0]);
+            // Utilidades
+            const MAX_MB = 10;
+            const EXT = ['pdf','doc','docx','xls','xlsx'];
+            const bytesATexto = b => (b/1048576)>=1 ? (b/1048576).toFixed(2)+' MB' : (b/1024).toFixed(0)+' KB';
+            const extValida = n => { const p=n.lastIndexOf('.'); return p>=0 && EXT.includes(n.substring(p+1).toLowerCase()); };
+
+            function mostrarInfoArchivo(f){
+                lblNombre.textContent = f.name;
+                lblTamano.textContent = bytesATexto(f.size);
+                info.style.display = 'block';
             }
-        });
-
-        // Mostrar información del archivo
-        function showFileInfo(file) {
-            document.getElementById('fileName').textContent = file.name;
-            document.getElementById('fileSize').textContent = formatFileSize(file.size);
-            fileInfo.style.display = 'block';
-        }
-
-        // Limpiar archivo
-        function clearFile() {
-            fileInput.value = '';
-            fileInfo.style.display = 'none';
-        }
-
-        // Formatear tamaño del archivo
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        // Validar archivo antes del envío
-        document.querySelector('form').addEventListener('submit', function(e) {
-            const file = fileInput.files[0];
-            if (file) {
-                // Validar tamaño (10MB máximo)
-                if (file.size > 10 * 1024 * 1024) {
-                    e.preventDefault();
-                    alert('El archivo no puede ser mayor a 10MB');
-                    return;
-                }
-
-                // Validar tipo
-                const allowedTypes = ['.pdf', '.doc', '.docx', '.xls', '.xlsx'];
-                const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-                if (!allowedTypes.includes(fileExtension)) {
-                    e.preventDefault();
-                    alert('Tipo de archivo no permitido. Solo se permiten: PDF, DOC, DOCX, XLS, XLSX');
-                    return;
-                }
+            function limpiarArchivo(){
+                input.value = '';
+                info.style.display = 'none';
             }
-        });
+            window.limpiarArchivo = limpiarArchivo; // para el botón "X"
 
-        // Inicializar tooltips si están disponibles
-        document.addEventListener('DOMContentLoaded', function() {
-            // Inicializar tooltips de Bootstrap si están disponibles
-            if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                    return new bootstrap.Tooltip(tooltipTriggerEl);
+            // Click en el contenedor → abrir selector, excepto si fue el label
+            contenedor.addEventListener('click', function (e) {
+                if (!e.target.closest('label')) input.click();
+            });
+
+            // Drag & Drop sencillo
+            contenedor.addEventListener('dragover', e => { e.preventDefault(); contenedor.classList.add('dragover'); });
+            contenedor.addEventListener('dragleave', e => { e.preventDefault(); contenedor.classList.remove('dragover'); });
+            contenedor.addEventListener('drop', e => {
+                e.preventDefault(); contenedor.classList.remove('dragover');
+                const files = e.dataTransfer?.files;
+                if (!files || files.length === 0) return;
+                const f = files[0];
+                if (!extValida(f.name)) { alert('Formato no permitido: ' + EXT.join(', ')); return; }
+                if (f.size > MAX_MB * 1024 * 1024) { alert(`Máximo ${MAX_MB} MB.`); return; }
+                const dt = new DataTransfer(); dt.items.add(f); input.files = dt.files;
+                mostrarInfoArchivo(f);
+            });
+
+            // Cambio por selector
+            input.addEventListener('change', function () {
+                const f = this.files && this.files[0];
+                if (!f) { limpiarArchivo(); return; }
+                if (!extValida(f.name)) { alert('Formato no permitido.'); limpiarArchivo(); return; }
+                if (f.size > MAX_MB * 1024 * 1024) { alert(`Máx ${MAX_MB} MB.`); limpiarArchivo(); return; }
+                mostrarInfoArchivo(f);
+            });
+
+            // Autogenerar Código cuando salgas de Nombre (usa tus asp-for actuales)
+            const nombreInput = document.getElementById('NombreProyecto');
+            const codigoInput = document.getElementById('CodigoProyecto');
+            if (nombreInput && codigoInput) {
+                nombreInput.addEventListener('blur', function(){
+                    if (codigoInput.value.trim() === '' && this.value.trim() !== '') {
+                        const d = new Date();
+                        const y = d.getFullYear();
+                        const m = String(d.getMonth()+1).padStart(2,'0');
+                        const rnd = String(Math.floor(Math.random()*999)+1).padStart(3,'0');
+                        codigoInput.value = `PRY-${y}${m}-${rnd}`;
+                    }
                 });
             }
 
-            // Auto-generar código del proyecto si está vacío
-            const nombreInput = document.querySelector('input[name="NombreProyecto"]');
-            const codigoInput = document.querySelector('input[name="CodigoProyecto"]');
-
-            if (nombreInput && codigoInput) {
-                nombreInput.addEventListener('blur', function() {
-                    if (codigoInput.value === '' && this.value !== '') {
-                        const year = new Date().getFullYear();
-                        const month = String(new Date().getMonth() + 1).padStart(2, '0');
-                        const randomNum = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
-                        codigoInput.value = `PRY-${year}${month}-${randomNum}`;
+            // Validación al enviar (opcional)
+            if (form) {
+                form.addEventListener('submit', function(e){
+                    const f = input.files && input.files[0];
+                    if (f) {
+                        if (!extValida(f.name)) { e.preventDefault(); alert('Formato no permitido.'); return; }
+                        if (f.size > MAX_MB * 1024 * 1024) { e.preventDefault(); alert(`Máx ${MAX_MB} MB.`); return; }
                     }
                 });
             }

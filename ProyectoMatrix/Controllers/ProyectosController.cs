@@ -162,46 +162,72 @@ public class ProyectosController : Controller
             proyecto.EmpresaID = empresaId.Value;
             proyecto.CreadoPor = username;
             proyecto.FechaCreacion = DateTime.Now;
-            
+            proyecto.EsActivo = true;
 
-            // Manejar archivo si se subió uno
-            if (archivo != null && archivo.Length > 0)
-            {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "proyectos", "documentos");
-                if (!Directory.Exists(uploadsFolder))
-                    Directory.CreateDirectory(uploadsFolder);
+            // Se llenan despues
+            ModelState.Remove(nameof(proyecto.CreadoPor));
+            ModelState.Remove(nameof(proyecto.ArchivoRuta));
+            ModelState.Remove(nameof(proyecto.Extension));
 
-                var uniqueFileName = $"{Guid.NewGuid()}_{archivo.FileName}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    await archivo.CopyToAsync(fileStream);
-                }
-
-                proyecto.ArchivoRuta = $"/proyectos/documentos/{uniqueFileName}";
-                proyecto.TamanoArchivo = archivo.Length;
-                proyecto.Extension = Path.GetExtension(archivo.FileName);
-                proyecto.EsActivo = true;
-            }
-
-            ModelState.Clear();                    
-            TryValidateModel(proyecto);
 
             if (!ModelState.IsValid)
             {
-                // (Opcional) Para depurar, muestra los errores reales:
                 ViewBag.ModelErrors = ModelState
                     .Where(kv => kv.Value.Errors.Count > 0)
                     .Select(kv => $"{kv.Key}: {string.Join(" | ", kv.Value.Errors.Select(e => e.ErrorMessage))}")
                     .ToList();
-
-                return View(proyecto); // el file input se vacía por seguridad del navegador
+                return View(proyecto);
             }
 
+            int proyectoIdNuevo = await _proyectosBD.CrearProyectoAsync(proyecto);
 
-            // 3) Guardar
-            await _proyectosBD.CrearProyectoAsync(proyecto);
+            //Crear carpeta raiz en el NAS 
+            string nombreCarpeta = ObtenerNombreCarpetaProyecto(proyectoIdNuevo, proyecto.NombreProyecto);
+            string rutaBaseNas = ObtenerRutaBaseProyectos();
+            string rutaProyecto = Path.Combine(rutaBaseNas, nombreCarpeta);
+
+            try
+            {
+                if (!Directory.Exists(rutaProyecto))
+                    Directory.CreateDirectory(rutaProyecto);
+            }
+            catch 
+            {
+                TempData["Warn"] = "El proyecto se creó, pero no se pudo crear la carpeta en el NAS. Verifique permisos/ruta.";
+            }
+
+         
+                // Manejar archivo si se subió uno
+
+                if (archivo != null && archivo.Length > 0)
+            {
+
+                string carpetaDestino = Path.Combine(rutaProyecto, "Documentos");
+                if (!Directory.Exists(carpetaDestino)) Directory.CreateDirectory(carpetaDestino);
+
+                string ext = Path.GetExtension(archivo.FileName)?.ToLowerInvariant();
+                string nombreSeguro = $"{Guid.NewGuid()}{ext}";
+                string rutaArchivoFisico = Path.Combine(carpetaDestino, nombreSeguro);
+
+                using (var fs = new FileStream(rutaArchivoFisico, FileMode.Create))
+                    await archivo.CopyToAsync(fs);
+
+                // 1) llena propiedades en memoria (si tu entidad las tiene)
+                proyecto.Extension = ext;
+                proyecto.TamanoArchivo = archivo.Length;
+                // guarda una RUTA RELATIVA (recomendado) para UI / descargas
+                proyecto.ArchivoRuta = Path.Combine("Documentos", nombreSeguro).Replace("\\", "/");
+
+                // 2) persiste en BD (UPDATE)
+                await _proyectosBD.ActualizarRutaArchivoAsync(
+        proyectoIdNuevo,
+        proyecto.ArchivoRuta,
+        proyecto.Extension,
+        proyecto.TamanoArchivo,
+        empresaId.Value
+    );
+
+            }
 
             TempData["Exito"] = "Proyecto creado exitosamente.";
             return RedirectToAction("Index");
@@ -212,6 +238,8 @@ public class ProyectosController : Controller
             return View(proyecto);
         }
     }
+
+
 
 
 
@@ -314,24 +342,55 @@ public class ProyectosController : Controller
             return RedirectToAction("Login", "Login");
 
         var proyecto = await _proyectosBD.ObtenerProyectoPorIdAsync(id, empresaId.Value);
-        if (proyecto == null || string.IsNullOrEmpty(proyecto.ArchivoRuta))
-            return NotFound();
+        if (proyecto == null) return NotFound("Proyecto no encontrado.");
 
-        // 1) Normaliza ruta
-        var rel = proyecto.ArchivoRuta.Replace("~/", "").TrimStart('/', '\\');
-        var root = _env.WebRootPath; // ...\wwwroot
-        var full = Path.GetFullPath(Path.Combine(root, rel));
+        if (string.IsNullOrWhiteSpace(proyecto.ArchivoRuta))
+            return NotFound("El proyecto no tiene archivo asociado.");
 
-        // 2) Seguridad: la ruta debe permanecer dentro de wwwroot
-        if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        string carpetaProyecto = ObtenerNombreCarpetaProyecto(proyecto.ProyectoID, proyecto.NombreProyecto);
+
+
+
+
+        string baseNas = ObtenerRutaBaseProyectos(); // p.ej. "\\\\192.168.1.50\\Proyectos"
+                                                     // Normaliza la ruta relativa que se guardo, p.ej. "Documentos/xxx.pdf"
+        string relativa = proyecto.ArchivoRuta.Replace("~/", "").TrimStart('/', '\\')
+                              .Replace('/', Path.DirectorySeparatorChar)
+                              .Replace('\\', Path.DirectorySeparatorChar);
+
+        //  Path físico final en NAS
+        string carpetaFisicaProyecto = Path.Combine(baseNas, carpetaProyecto);
+        string rutaArchivoFisico = Path.GetFullPath(Path.Combine(carpetaFisicaProyecto, relativa));
+
+        // Defensa básica: el archivo debe estar dentro de la carpeta del proyecto en NAS
+        string raizEsperada = Path.GetFullPath(carpetaFisicaProyecto) + Path.DirectorySeparatorChar;
+        if (!rutaArchivoFisico.StartsWith(raizEsperada, StringComparison.OrdinalIgnoreCase))
             return BadRequest("Ruta inválida.");
-  
 
+        if (!System.IO.File.Exists(rutaArchivoFisico))
+            return NotFound("Archivo no encontrado en el repositorio.");
 
-        if (!System.IO.File.Exists(full)) return NotFound("Archivo no encontrado en el servidor.");
+        //  Content-Type y stream
+        string contentType = ObtenerMimeTypePorExtension(Path.GetExtension(rutaArchivoFisico));
+        var fs = new FileStream(rutaArchivoFisico, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        var contentType = GetContentType(full);
-        return PhysicalFile(full, contentType, enableRangeProcessing: true); // permite rango para PDFs
+        return File(fs, contentType, Path.GetFileName(rutaArchivoFisico), enableRangeProcessing: true);
+    }
+
+    private static string ObtenerMimeTypePorExtension(string? ext)
+    {
+        ext = (ext ?? "").ToLowerInvariant();
+        return ext switch
+        {
+            ".pdf" => "application/pdf",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".xls" => "application/vnd.ms-excel",
+            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            _ => "application/octet-stream"
+        };
     }
 
 
@@ -465,12 +524,16 @@ public class ProyectosController : Controller
 
     private string ObtenerRutaBaseProyectos()
     {
-        var rutaBase = _config["Rutas:NAS"];
-        if (string.IsNullOrWhiteSpace(rutaBase))
-            throw new InvalidOperationException("Falta configurar RUTAS en appsettings.json ");
-        return rutaBase;
-    }
-//Metodo para obtener el nombre de unac arpeta raiz
+
+        // Lee el valor de appsettings.json -> "Rutas:ProyectosNAS"
+        string? ruta = _config["Ruta:NAS"];
+
+        if (string.IsNullOrWhiteSpace(ruta))
+            throw new InvalidOperationException("Configura RUTAS en appsettings.json (Rutas:ProyectosNAS).");
+
+        return ruta;
+    } 
+    //Metodo para obtener el nombre de unac arpeta raiz
     private string ObtenerNombreCarpetaProyecto (int proyectoId, string nombreProyecto)
     {
         //Quitar los caracteres invalidos para Windows

@@ -448,4 +448,21 @@ public class ProyectosBD
         }
 
     }
+
+
+    public async Task ActualizarRutaArchivoAsync(int proyectoId, string? ruta, string? extension, long? tamano, int empresaId)
+    {
+        using var con = new SqlConnection(_connectionString);
+        using var cmd = new SqlCommand("dbo.Proyecto_ActualizarArchivo", con);
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.Parameters.AddWithValue("@ProyectoID", proyectoId);
+        cmd.Parameters.AddWithValue("@EmpresaID", empresaId);
+        cmd.Parameters.AddWithValue("@ArchivoRuta", (object?)ruta ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Extension", (object?)extension ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@TamanoArchivo", (object?)tamano ?? DBNull.Value);
+
+        await con.OpenAsync();
+        await cmd.ExecuteNonQueryAsync();
+    }
+ 
 }
