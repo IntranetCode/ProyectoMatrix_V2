@@ -34,7 +34,7 @@ namespace ProyectoMatrix.Controllers
         private int? GetEmpresaId()
             => int.TryParse(User.FindFirst("EmpresaID")?.Value, out var id) ? id : (int?)null;
 
-        // --- Helpers de validación de URLs ---
+        // --- Helpers de validación de URLs (predefinimos las url que se pueden aceptar) ---
         private static bool EsRegistroUrl(string? url)
             => !string.IsNullOrWhiteSpace(url)
                && url.Contains("events.teams.microsoft.com", StringComparison.OrdinalIgnoreCase);
@@ -307,15 +307,26 @@ namespace ProyectoMatrix.Controllers
                 ModelState.AddModelError(nameof(model.FechaFin), "La fecha de fin debe ser mayor que la fecha de inicio.");
 
             // Validación de URLs (solo si vienen con valor)
+            // UrlRegistro (opcional, pero si viene debe ser válida)
             if (!string.IsNullOrWhiteSpace(model.UrlRegistro) && !EsRegistroUrl(model.UrlRegistro))
                 ModelState.AddModelError(nameof(model.UrlRegistro), "La URL de registro debe ser de events.teams.microsoft.com.");
 
-            if (!string.IsNullOrWhiteSpace(model.UrlTeams) && !EsJoinUrl(model.UrlTeams))
+            // UrlTeams (REQUERIDA y con formato válido)
+            if (string.IsNullOrWhiteSpace(model.UrlTeams))
+            {
+                ModelState.AddModelError(nameof(model.UrlTeams), "Debes proporcionar el enlace para unirse a Teams.");
+            }
+            else if (!EsJoinUrl(model.UrlTeams))
+            {
                 ModelState.AddModelError(nameof(model.UrlTeams), "La URL de unirse debe ser de teams.microsoft.com/l/meetup-join/...");
+            }
 
+            // UrlGrabacion (opcional, pero si viene debe ser válida)
             if (!string.IsNullOrWhiteSpace(model.UrlGrabacion) && !EsGrabacionUrl(model.UrlGrabacion))
                 ModelState.AddModelError(nameof(model.UrlGrabacion), "La URL de grabación debe ser de SharePoint/OneDrive/YouTube/Vimeo.");
 
+
+            model.UrlGrabacion = null;
 
             if (!ModelState.IsValid)
             {
@@ -323,6 +334,8 @@ namespace ProyectoMatrix.Controllers
                 return View("~/Views/Lider/CrearWebinar.cshtml", model);
             }
 
+
+            //Codigo para guardar una imagen si se subió
             var rutaRel = await GuardarImagenAsync(imagenFile);
             if (!string.IsNullOrWhiteSpace(rutaRel))
                 model.Imagen = rutaRel;

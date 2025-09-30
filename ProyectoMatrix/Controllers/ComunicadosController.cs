@@ -521,10 +521,6 @@ namespace ProyectoMatrix.Controllers
                 .FirstOrDefaultAsync(c => c.ComunicadoID == id);
 
             if (comunicado == null) return NotFound();
-
-
-
-            if (comunicado == null) return NotFound();
             if (!comunicado.Activo)
             {
                 TempData["Warn"] = "El comunicado ya estaba eliminado.";

@@ -62,13 +62,58 @@
                 <small class="text-muted d-block mt-1">Mantén presionada la tecla Ctrl/⌘ para seleccionar varias.</small>
             </div>
 
-            
 
-            <div class="mb-3">
-                <label asp-for="UrlTeams" class="form-label">URL de Teams</label>
-                <input asp-for="UrlTeams" class="form-control" placeholder="https://teams.microsoft.com/l/meetup-join/..." />
-                <span asp-validation-for="UrlTeams" class="text-danger"></span>
-            </div>
+                <div class="col-md-8">
+                   @*Url para el registro*@
+                    <div class="mb-3">
+                        <label class="etiqueta form-label" for="UrlRegistro">URL de registro (opcional)</label>
+                        <input type="url"
+                               id="UrlRegistro"
+                               name="UrlRegistro"
+                               class="entrada form-control"
+                               placeholder="https://events.teams.microsoft.com/..."
+                               value="@Model?.UrlRegistro" />
+                        <small class="texto-ayuda form-text">
+                            Si usas registro de Teams, pega aquí el enlace de <em>events.teams.microsoft.com</em>.
+                        </small>
+                        <span class="texto-error text-danger" asp-validation-for="UrlRegistro"></span>
+                    </div>
+
+
+                    @*URL para Unirse en vivo*@
+                    <div class="mb-3">
+                        <label class="etiqueta form-label" for="UrlTeams">URL para unirse en vivo (obligatoria)</label>
+                        <input type="url"
+                               id="UrlTeams"
+                               name="UrlTeams"
+                               class="entrada form-control"
+                               placeholder="https://teams.microsoft.com/l/meetup-join/..."
+                               value="@Model?.UrlTeams" />
+                        <small class="texto-ayuda form-text">
+                            Enlace de Teams para unirse al webinar (formato <em>teams.microsoft.com/l/meetup-join/...</em>).
+                        </small>
+                        <span class="texto-error text-danger" asp-validation-for="UrlTeams"></span>
+                    </div>
+
+
+                    @*Url para la grabacion del webinar, pero solo se pueden ingresar datos al momento de editar*@
+                    <div class="mb-3">
+                        <label class="etiqueta form-label" for="UrlGrabacion">URL de grabación (se agrega después)</label>
+                        <input type="url"
+                               id="UrlGrabacion"
+                               name="UrlGrabacion"
+                               class="entrada form-control"
+                               placeholder="(Se habilita al editar)"
+                               value="@Model?.UrlGrabacion"
+                               readonly />
+                        <small class="texto-ayuda form-text">
+                            Este enlace se añade cuando la grabación esté disponible (SharePoint/OneDrive/YouTube/Vimeo).
+                        </small>
+                        <span class="texto-error text-danger" asp-validation-for="UrlGrabacion"></span>
+                    </div>
+                </div>
+
+
 
 
                 <div class="col-md-4">
@@ -163,4 +208,24 @@ ini?.addEventListener('change', validarFechas);
         validarFechas();
         })();
     </script>
+
+    <script>
+        function toggleAcceso() {
+          const t = document.querySelector('input[name="tipoAcceso"]:checked')?.value;
+          const reg = document.getElementById('wrapUrlRegistro');
+          const teams = document.getElementById('wrapUrlTeams');
+          if (t === 'directo') {
+            reg.style.display = 'none';
+            teams.style.display = '';
+          } else {
+            reg.style.display = '';
+            teams.style.display = 'none';
+          }
+        }
+        document.querySelectorAll('input[name="tipoAcceso"]').forEach(r => {
+          r.addEventListener('change', toggleAcceso);
+        });
+        document.addEventListener('DOMContentLoaded', toggleAcceso);
+    </script>
+
 }

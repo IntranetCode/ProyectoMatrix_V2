@@ -462,7 +462,7 @@
           function linkDestino(tipo, idOrigen) {
             let url = '#';
             if (tipo === 'CursoAsignado') url = `/Cursos/MisCursos/${idOrigen}`;
-            else if (tipo === 'WebinarAsignado') url = `/Webinars/LiderLista/${idOrigen}`;
+            else if (tipo === 'WebinarAsignado') url = `/Lider/Lista/${idOrigen}`;
             else if (tipo === 'Comunicado_Nuevo') url = `/Comunicados/Index/${idOrigen}`;
             return `<a class="js-ver" href="${url}">Ver</a>`;
           }

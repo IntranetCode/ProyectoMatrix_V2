@@ -1,7 +1,6 @@
 ﻿@using ProyectoMatrix.Models
 @model Proyecto
-@{ 
-    
+@{
     var rol = Context.Session.GetString("Rol") ?? "Colaborador";
     Layout = rol == "Administrador" ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_LayoutComunicados.cshtml";
 }
@@ -47,6 +46,49 @@
                                placeholder="PRY-2025-001" />
                         <span asp-validation-for="CodigoProyecto" class="text-danger"></span>
                     </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label asp-for="Cliente" class="form-label">
+                            <i class="fas fa-building me-1"></i>Cliente
+                        </label>
+                        <input asp-for="Cliente" class="form-control"
+                               placeholder="Ingrese el nombre del cliente" />
+                        <span asp-validation-for="Cliente" class="text-danger"></span>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label asp-for="Ubicacion" class="form-label">
+                            <i class="fas fa-map-marker-alt me-1"></i> Ubicacion del proyecto
+                        </label>
+                        <input asp-for="Ubicacion" class="form-control"
+                        placeholder="Ingrese la ubicacion del proyecto"/>
+                        <span asp-validation-for="Ubicacion" class="text-danger"></span>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label asp-for="Tipo" class="form-label">
+                            <i class="fas fa-tag me-1"></i>
+                            Tipo
+                        </label>
+                        <input asp-for="Tipo" class="form-control"
+                               placeholder="Ingrese el tipo de proyecto a desarrollar" />
+                        <span asp-validation-for="Tipo" class="text-danger"></span>
+                    </div>
+
                 </div>
             </div>
 

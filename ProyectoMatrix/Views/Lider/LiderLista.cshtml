@@ -58,7 +58,7 @@ else if (destacado != null)
                 @if (!string.IsNullOrWhiteSpace(destacado.Imagen))
                 {
                     <img class="card-img-top hero-img"
-                         src="@destacado.Imagen"
+                         src="@destacado.Imagen" 
                          alt="Imagen del webinar destacado" />
                     <div class="hero-overlay"></div>
                 }
@@ -76,10 +76,21 @@ else if (destacado != null)
                     <div>
                         @if (enCurso && !string.IsNullOrWhiteSpace(destacado.UrlTeams))
                         {
-                            <button type="button" class="btn btn-primary"
+
+                            @*
+                                  <button type="button" class="btn btn-primary"
                                     onclick="abrirEnKiosko('@destacado.UrlTeams')">
                                 Unirse por Teams
                             </button>
+
+                            *@
+
+                            <button type="button" class="btn btn-primary"
+                                    onclick="abrirTeamsTopLevel('@destacado.UrlTeams')">
+                                Unirse por Teams
+                            </button>
+
+                       
                         }
                         else if (yaPaso && !string.IsNullOrWhiteSpace(destacado.UrlGrabacion))
                         {
@@ -286,206 +297,161 @@ else if (destacado != null)
 </div>
 
 
-
-
 <script>
-    // ====== Base de datos de videos (solo 2 categorías) ======
+    /* 
+        Datos y rendering Videoteca*/
     const videosData = {
-        estrategico: [
-            { id: 1, titulo: "Visión Estratégica para CEOs", speaker: "Carlos Mendoza", descripcion: "Cómo desarrollar una visión a largo plazo y comunicarla efectivamente", duracion: "52 min", nivel: "Avanzado", rating: 4.8, views: 856, videoId: "WRgDEFqrYl0", thumbnail: "" },
-            { id: 2, titulo: "Toma de Decisiones Estratégicas", speaker: "Ana García", descripcion: "Frameworks y metodologías para decisiones de alto impacto", duracion: "38 min", nivel: "Intermedio", rating: 4.7, views: 623, videoId: "WRgDEFqrYl0", thumbnail: "" },
-            { id: 3, titulo: "Liderazgo en Crisis", speaker: "Roberto Silva", descripcion: "Estrategias probadas para liderar en momentos de incertidumbre", duracion: "41 min", nivel: "Avanzado", rating: 4.9, views: 1243, videoId: "WRgDEFqrYl0", thumbnail: "" }
-        ],
-        equipos: [
-            { id: 4, titulo: "Motivación de Equipos Remotos", speaker: "Laura Martínez", descripcion: "Técnicas efectivas para mantener la motivación en equipos distribuidos", duracion: "35 min", nivel: "Intermedio", rating: 4.6, views: 789, videoId: "WRgDEFqrYl0", thumbnail: "" },
-            { id: 5, titulo: "Feedback Constructivo", speaker: "Miguel Torres", descripcion: "El arte de dar y recibir feedback para el crecimiento del equipo", duracion: "28 min", nivel: "Básico", rating: 4.5, views: 567, videoId: "WRgDEFqrYl0", thumbnail: "" },
-            { id: 6, titulo: "Delegación Efectiva", speaker: "Patricia López", descripcion: "Cómo delegar tareas manteniendo la calidad y desarrollando talento", duracion: "33 min", nivel: "Intermedio", rating: 4.7, views: 445, videoId: "WRgDEFqrYl0", thumbnail: "" }
-        ]
+      estrategico: [
+        { id: 1, titulo: "Visión Estratégica para CEOs", speaker: "Carlos Mendoza", descripcion: "Cómo desarrollar una visión a largo plazo y comunicarla efectivamente", duracion: "52 min", nivel: "Avanzado", rating: 4.8, views: 856, videoId: "WRgDEFqrYl0", thumbnail: "" },
+        { id: 2, titulo: "Toma de Decisiones Estratégicas", speaker: "Ana García", descripcion: "Frameworks y metodologías para decisiones de alto impacto", duracion: "38 min", nivel: "Intermedio", rating: 4.7, views: 623, videoId: "WRgDEFqrYl0", thumbnail: "" },
+        { id: 3, titulo: "Liderazgo en Crisis", speaker: "Roberto Silva", descripcion: "Estrategias probadas para liderar en momentos de incertidumbre", duracion: "41 min", nivel: "Avanzado", rating: 4.9, views: 1243, videoId: "WRgDEFqrYl0", thumbnail: "" }
+      ],
+      equipos: [
+        { id: 4, titulo: "Motivación de Equipos Remotos", speaker: "Laura Martínez", descripcion: "Técnicas efectivas para mantener la motivación en equipos distribuidos", duracion: "35 min", nivel: "Intermedio", rating: 4.6, views: 789, videoId: "WRgDEFqrYl0", thumbnail: "" },
+        { id: 5, titulo: "Feedback Constructivo", speaker: "Miguel Torres", descripcion: "El arte de dar y recibir feedback para el crecimiento del equipo", duracion: "28 min", nivel: "Básico", rating: 4.5, views: 567, videoId: "WRgDEFqrYl0", thumbnail: "" },
+        { id: 6, titulo: "Delegación Efectiva", speaker: "Patricia López", descripcion: "Cómo delegar tareas manteniendo la calidad y desarrollando talento", duracion: "33 min", nivel: "Intermedio", rating: 4.7, views: 445, videoId: "WRgDEFqrYl0", thumbnail: "" }
+      ]
     };
 
     let filtroActual = 'todos';
     let todosLosVideos = [];
 
-    // Inicializar página
     document.addEventListener('DOMContentLoaded', function () {
-        // Combinar todos los videos
-        Object.values(videosData).forEach(categoria => todosLosVideos.push(...categoria));
+      Object.values(videosData).forEach(cat => todosLosVideos.push(...cat));
+      cargarVideosPorCategoria();
 
-        // Cargar videos por categoría
-        cargarVideosPorCategoria();
-
-        // Animaciones de entrada
-        setTimeout(() => {
-            const categorySections = document.querySelectorAll('.category-section');
-            categorySections.forEach((section, index) => {
-                section.style.opacity = '0';
-                section.style.transform = 'translateY(30px)';
-                setTimeout(() => {
-                    section.style.transition = 'all 0.6s ease';
-                    section.style.opacity = '1';
-                    section.style.transform = 'translateY(0)';
-                }, index * 200);
-            });
-        }, 300);
+      // Animación de entrada
+      setTimeout(() => {
+        const categorySections = document.querySelectorAll('.category-section');
+        categorySections.forEach((section, index) => {
+          section.style.opacity = '0';
+          section.style.transform = 'translateY(30px)';
+          setTimeout(() => {
+            section.style.transition = 'all 0.6s ease';
+            section.style.opacity = '1';
+            section.style.transform = 'translateY(0)';
+          }, index * 200);
+        });
+      }, 300);
     });
 
     function cargarVideosPorCategoria() {
-        Object.keys(videosData).forEach(categoria => {
-            const grid = document.getElementById(categoria + '-grid');
-            if (grid) grid.innerHTML = videosData[categoria].map(video => crearVideoCard(video)).join('');
-        });
+      Object.keys(videosData).forEach(categoria => {
+        const grid = document.getElementById(categoria + '-grid');
+        if (grid) grid.innerHTML = videosData[categoria].map(video => crearVideoCard(video)).join('');
+      });
     }
 
     function crearVideoCard(video) {
-        return `
-            <div class="video-card" onclick="reproducirVideo('${video.videoId}', '${video.titulo}')">
-                <div class="video-thumbnail">
-                    <div class="video-level">${video.nivel}</div>
-                    <div class="video-duration">${video.duracion}</div>
-                    <div class="video-play-overlay">
-                        <div class="video-play-btn">
-                            <i class="fas fa-play"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="video-info">
-                    <h3 class="video-title">${video.titulo}</h3>
-                    <div class="video-speaker">
-                        <i class="fas fa-user-tie"></i>
-                        ${video.speaker}
-                    </div>
-                    <p class="video-description">${video.descripcion}</p>
-                    <div class="video-stats">
-                        <div class="video-rating">
-                            <i class="fas fa-star" style="color: #ffd700;"></i>
-                            ${video.rating}
-                        </div>
-                        <div class="video-views">
-                            <i class="fas fa-eye"></i>
-                            ${Number(video.views).toLocaleString()}
-                        </div>
-                    </div>
-                </div>
+      return `
+        <div class="video-card" onclick="reproducirVideo('${video.videoId}', '${video.titulo.replace(/'/g,"\\'")}')">
+          <div class="video-thumbnail">
+            <div class="video-level">${video.nivel}</div>
+            <div class="video-duration">${video.duracion}</div>
+            <div class="video-play-overlay">
+              <div class="video-play-btn"><i class="fas fa-play"></i></div>
             </div>
-        `;
+          </div>
+          <div class="video-info">
+            <h3 class="video-title">${video.titulo}</h3>
+            <div class="video-speaker"><i class="fas fa-user-tie"></i> ${video.speaker}</div>
+            <p class="video-description">${video.descripcion}</p>
+            <div class="video-stats">
+              <div class="video-rating"><i class="fas fa-star" style="color: #ffd700;"></i> ${video.rating}</div>
+              <div class="video-views"><i class="fas fa-eye"></i> ${Number(video.views).toLocaleString()}</div>
+            </div>
+          </div>
+        </div>`;
     }
+
     function filtrarPor(e, categoria) {
       document.querySelectorAll('.filter-tag').forEach(btn => btn.classList.remove('active'));
       if (e && e.target) e.target.classList.add('active');
 
-        filtroActual = categoria;
+      filtroActual = categoria;
+      const secciones = document.querySelectorAll('.category-section');
+      secciones.forEach(seccion => {
+        if (categoria === 'todos') seccion.style.display = 'block';
+        else seccion.style.display = seccion.dataset.category === categoria ? 'block' : 'none';
+      });
 
-        // Mostrar/ocultar secciones
-        const secciones = document.querySelectorAll('.category-section');
-        secciones.forEach(seccion => {
-            if (categoria === 'todos') {
-                seccion.style.display = 'block';
-            } else {
-                seccion.style.display = seccion.dataset.category === categoria ? 'block' : 'none';
-            }
-        });
-
-        // Scroll suave a la primera sección visible
-        if (categoria !== 'todos') {
-            const seccionVisible = document.querySelector(`[data-category="${categoria}"]`);
-            if (seccionVisible) seccionVisible.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+      if (categoria !== 'todos') {
+        const seccionVisible = document.querySelector(`[data-category="${categoria}"]`);
+        if (seccionVisible) seccionVisible.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     function buscarVideos(termino) {
-        if (termino.length < 2) {
-            cargarVideosPorCategoria();
-            return;
-        }
+      if (termino.length < 2) { cargarVideosPorCategoria(); return; }
+      const t = termino.toLowerCase();
+      const videosFiltrados = todosLosVideos.filter(v =>
+        v.titulo.toLowerCase().includes(t) ||
+        v.speaker.toLowerCase().includes(t) ||
+        v.descripcion.toLowerCase().includes(t)
+      );
 
-        const terminoLower = termino.toLowerCase();
-        const videosFiltrados = todosLosVideos.filter(video =>
-            video.titulo.toLowerCase().includes(terminoLower) ||
-            video.speaker.toLowerCase().includes(terminoLower) ||
-            video.descripcion.toLowerCase().includes(terminoLower)
-        );
+      Object.keys(videosData).forEach(categoria => {
+        const grid = document.getElementById(categoria + '-grid');
+        if (grid) grid.innerHTML = '';
+      });
 
-        // Limpiar las dos grids
-        Object.keys(videosData).forEach(categoria => {
-            const grid = document.getElementById(categoria + '-grid');
-            if (grid) grid.innerHTML = '';
-        });
-
-        // Mostrar resultados en la primera grid visible
-        const primeraGrid = document.querySelector('.videos-grid');
-        if (primeraGrid) {
-            if (videosFiltrados.length > 0) {
-                primeraGrid.innerHTML = videosFiltrados.map(video => crearVideoCard(video)).join('');
-            } else {
-                primeraGrid.innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #888;">
-                        <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                        <h3>No se encontraron videos</h3>
-                        <p>Intenta con otros términos de búsqueda</p>
-                    </div>
-                `;
-            }
-        }
+      const primeraGrid = document.querySelector('.videos-grid');
+      if (!primeraGrid) return;
+      primeraGrid.innerHTML = videosFiltrados.length
+        ? videosFiltrados.map(v => crearVideoCard(v)).join('')
+        : `
+          <div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #888;">
+            <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+            <h3>No se encontraron videos</h3>
+            <p>Intenta con otros términos de búsqueda</p>
+          </div>`;
     }
 
+    /*  Modal YouTube simple*/
     function reproducirVideo(videoId, titulo) {
-        const modal = document.getElementById('videoModal');
-        const player = document.getElementById('videoPlayer');
+      const modal = document.getElementById('videoModal');
+      const player = document.getElementById('videoPlayer');
+      if (!modal || !player) return;
 
-        player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
-        modal.classList.add('show');
-
-        // Prevenir scroll del body
-        document.body.style.overflow = 'hidden';
-
-        // Log/analytics opcional
-        console.log(`Reproduciendo: ${titulo}`);
+      player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+      modal.classList.add('show');
+      document.body.style.overflow = 'hidden';
+      console.log(`Reproduciendo: ${titulo}`);
     }
 
     function cerrarModal() {
-        const modal = document.getElementById('videoModal');
-        const player = document.getElementById('videoPlayer');
+      const modal = document.getElementById('videoModal');
+      const player = document.getElementById('videoPlayer');
+      if (!modal || !player) return;
 
-        player.src = '';
-        modal.classList.remove('show');
-        document.body.style.overflow = 'auto';
+      player.src = '';
+      modal.classList.remove('show');
+      document.body.style.overflow = 'auto';
     }
 
-    // Cerrar modal con ESC
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') cerrarModal();
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModal(); });
+    document.getElementById('videoModal')?.addEventListener('click', function (e) {
+      if (e.target === this) cerrarModal();
     });
 
-    // Cerrar modal haciendo clic fuera del contenido
-    document.getElementById('videoModal').addEventListener('click', function (e) {
-        if (e.target === this) cerrarModal();
-    });
-
-    // Animaciones al hacer scroll
+    /*  Animaciones on scroll  */
     const observerOptions = { threshold: 0.1, rootMargin: '0px 0px -50px 0px' };
     const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateY(0)';
-            }
-        });
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
     }, observerOptions);
-
     setTimeout(() => {
-        document.querySelectorAll('.category-section').forEach(section => {
-            section.style.opacity = '0';
-            section.style.transform = 'translateY(30px)';
-            observer.observe(section);
-        });
+      document.querySelectorAll('.category-section').forEach(section => {
+        section.style.opacity = '0';
+        section.style.transform = 'translateY(30px)';
+        observer.observe(section);
+      });
     }, 500);
-</script>
 
-
-
-
-
-<script>
     // Carga asíncrona de la API de YouTube
     (function loadYT(){
       if (window.YT && window.YT.Player) return;
@@ -497,28 +463,18 @@ else if (destacado != null)
     let heroPlayer = null;
     let heroObserver = null;
 
-    // La API llamará a esta función cuando esté lista
     function onYouTubeIframeAPIReady() {
       const wrap = document.getElementById('heroVideoWrap');
       const target = document.getElementById('heroPlayer');
-      if (!wrap || !target) return; // no hay videoDestacado
+      if (!wrap || !target) return;
 
       const videoId = wrap.getAttribute('data-video-id');
       if (!videoId) return;
 
       heroPlayer = new YT.Player('heroPlayer', {
         videoId,
-        playerVars: {
-          autoplay: 0,        // lo controlamos por visibilidad
-          mute: 1,            // requerido para autoplay
-          controls: 1,
-          rel: 0,
-          modestbranding: 1,
-          playsinline: 1
-        },
-        events: {
-          onReady: setupHeroVisibilityControl
-        }
+        playerVars: { autoplay: 0, mute: 1, controls: 1, rel: 0, modestbranding: 1, playsinline: 1 },
+        events: { onReady: setupHeroVisibilityControl }
       });
     }
 
@@ -531,7 +487,6 @@ else if (destacado != null)
           entries.forEach(entry => {
             if (!heroPlayer) return;
             if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-              // reproducir al estar 50% visible
               try { heroPlayer.playVideo(); } catch(e){}
             } else {
               try { heroPlayer.pauseVideo(); } catch(e){}
@@ -540,17 +495,14 @@ else if (destacado != null)
         }, { threshold: [0, 0.5, 1] });
         heroObserver.observe(host);
       } else {
-        // Fallback simple
         try { heroPlayer.playVideo(); } catch(e){}
       }
 
-      // Pausar al cambiar de pestaña
       document.addEventListener('visibilitychange', () => {
         if (!heroPlayer) return;
         if (document.hidden) {
           try { heroPlayer.pauseVideo(); } catch(e){}
         } else {
-          // Reanudar solo si el héroe está suficiente visible
           const r = host.getBoundingClientRect();
           const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
           const visible = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
@@ -560,14 +512,14 @@ else if (destacado != null)
       });
     }
 
-    // Si abres el modal "Ver ahora", pausa el héroe para evitar doble audio
+    // Pausar héroe si se abre el modal de videoteca
     const _origReproducirVideo = window.reproducirVideo;
     window.reproducirVideo = function(videoId, titulo) {
       try { if (heroPlayer && heroPlayer.pauseVideo) heroPlayer.pauseVideo(); } catch(e){}
       _origReproducirVideo(videoId, titulo);
     };
 
-    // --- Fallback si la API de YT no responde en 2.5s: inserta iframe directo ---
+    // Fallback si la API de YT no responde
     setTimeout(() => {
       const target = document.querySelector('#heroPlayer iframe');
       const wrap = document.getElementById('heroVideoWrap');
@@ -581,13 +533,8 @@ else if (destacado != null)
         document.getElementById('heroPlayer').appendChild(iframe);
       }
     }, 2500);
-</script>
 
-
-
-@*Scrip para el kiosko y botones*@
-<script>
-    // --- Detectores / normalizadores para grabaciones embeíbles ---
+    /* Helpers de embebido (SharePoint/YouTube/Vimeo)*/
     function esUrlStream(u){
       try{
         const url = new URL(u);
@@ -615,9 +562,9 @@ else if (destacado != null)
           const id = y.pathname.replace('/','');
           return `https://www.youtube.com/embed/${id}?rel=0`;
         }
-        if (y.pathname.toLowerCase().startsWith('/watch')) {
+        if (y.hostname.includes('youtube.com')) {
           const id = y.searchParams.get('v');
-          return id ? `https://www.youtube.com/embed/${id}?rel=0` : u;
+          if (id) return `https://www.youtube.com/embed/${id}?rel=0`;
         }
         return u;
       } catch { return u; }
@@ -628,13 +575,28 @@ else if (destacado != null)
         const v = new URL(u);
         if (v.hostname === 'vimeo.com') {
           const id = v.pathname.split('/').filter(Boolean)[0];
-          return id ? `https://player.vimeo.com/video/${id}` : u;
+          if (id) return `https://player.vimeo.com/video/${id}`;
         }
         return u;
       } catch { return u; }
     }
 
-      function abrirEnKiosko(url){
+    /*   Kiosko (abrir dentro + fallback)   */
+    function esTeamsJoin(u){
+      try{
+        const x = new URL(u);
+        return x.host.toLowerCase() === 'teams.microsoft.com'
+               && x.pathname.toLowerCase().startsWith('/l/meetup-join');
+      }catch{ return false; }
+    }
+    function abrirTeamsTopLevel(url){
+      window.location.href = url; // Teams join no se puede embeber
+    }
+
+    function abrirEnKiosko(url){
+      // Si es un enlace de unirse de Teams, abrimos top-level
+      if (esTeamsJoin(url)) { abrirTeamsTopLevel(url); return; }
+
       const wrap  = document.getElementById('kioskoWrap');
       const frame = document.getElementById('kioskoFrame');
       if (!wrap || !frame) return;
@@ -648,13 +610,12 @@ else if (destacado != null)
       wrap.style.display = 'block';
       document.body.classList.add('kiosko-open');
 
-      // Si en 6s no carga (X-Frame-Options / CSP), abrimos top-level:
-      setTimeout(() => {
-        if (!cargado) window.location.href = url;
-      }, 6000);
+      // Si no carga (X-Frame-Options/CSP), fallback a top-level
+      setTimeout(() => { if (!cargado) window.location.href = url; }, 6000);
     }
 
     function abrirGrabacionKiosko(url){
+      console.log('Grabación a abrir:', url); // debug útil
       let embed = url;
       if (esUrlStream(url))        embed = normalizarStreamEmbed(url);
       else if (esYouTube(url))     embed = aEmbedYouTube(url);
@@ -669,12 +630,9 @@ else if (destacado != null)
       if (wrap)  wrap.style.display = 'none';
       document.body.classList.remove('kiosko-open');
     }
-</script>
 
-
-<script>
-    document.addEventListener('click', function(e){
-      const scope = e.target.closest('.lider-hero, .lider-container'); // solo aquí
+   
+      const scope = e.target.closest('.lider-hero, .lider-container'); // limita el alcance
       if (!scope) return;
 
       const a = e.target.closest('a');
@@ -687,6 +645,10 @@ else if (destacado != null)
       abrirEnKiosko(href);
     });
 </script>
+
+
+
+
 
 
 

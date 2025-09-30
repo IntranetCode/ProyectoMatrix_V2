@@ -90,6 +90,7 @@ public class ProyectosController : Controller
         return View(viewModel);
     }
 
+
     [HttpGet]
     public async Task<IActionResult> Detalle(int id)
     {
@@ -109,6 +110,8 @@ public class ProyectosController : Controller
 
         return View(proyecto);
     }
+
+
 
 
     [HttpGet]
@@ -135,6 +138,9 @@ public class ProyectosController : Controller
 
         return View(proyecto);
     }
+
+
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     [AutorizarAccion("Proyectos", "Crear")]
@@ -156,6 +162,7 @@ public class ProyectosController : Controller
             proyecto.EmpresaID = empresaId.Value;
             proyecto.CreadoPor = username;
             proyecto.FechaCreacion = DateTime.Now;
+            
 
             // Manejar archivo si se subió uno
             if (archivo != null && archivo.Length > 0)
@@ -192,6 +199,7 @@ public class ProyectosController : Controller
                 return View(proyecto); // el file input se vacía por seguridad del navegador
             }
 
+
             // 3) Guardar
             await _proyectosBD.CrearProyectoAsync(proyecto);
 
@@ -204,6 +212,8 @@ public class ProyectosController : Controller
             return View(proyecto);
         }
     }
+
+
 
     [HttpGet]
     [AutorizarAccion("Proyectos", "Editar")]
@@ -222,6 +232,8 @@ public class ProyectosController : Controller
 
         return View(proyecto);
     }
+
+
 
 
     //Se modificara este controlador para que los cambios al editar un proyecto se guarde correctamente
@@ -290,6 +302,9 @@ public class ProyectosController : Controller
         return RedirectToAction("Detalle", new { id = actual.ProyectoID });
     }
 
+
+
+
     [HttpGet]
     [AutorizarAccion("Proyectos", "Ver")]
     public async Task<IActionResult> VerArchivo(int id)
@@ -320,6 +335,8 @@ public class ProyectosController : Controller
     }
 
 
+
+
     public async Task<IActionResult> DescargarArchivo(int id)
     {
         int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
@@ -347,6 +364,8 @@ public class ProyectosController : Controller
         return PhysicalFile(full, contentType, fileDownloadName: downloadName);
     }
 
+
+
     [HttpPost]
     public async Task<IActionResult> ActualizarProgreso([FromBody] ActualizarProgresoModel model)
     {
@@ -364,6 +383,7 @@ public class ProyectosController : Controller
             return BadRequest(new { success = false, message = ex.Message });
         }
     }
+
 
 
     [HttpPost]
@@ -384,6 +404,32 @@ public class ProyectosController : Controller
             return BadRequest(new { success = false, message = ex.Message });
         }
     }
+
+    //Se agregara un nuevo metodo para eliminar un proyecto
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AutorizarAccion("Proyectos", "Eliminar")]
+    public async Task<IActionResult> Eliminar(int id, string? returnUrl)
+    {
+        // Obtén empresaId del claim o sesión
+        int empresaId = int.TryParse(User.FindFirst("EmpresaID")?.Value, out var eid) ? eid : 0;
+
+        bool ok = await _proyectosBD.EliminarProyectoAsync(id, empresaId);
+
+        TempData[ok ? "Exito" : "Error"] =
+            ok ? "Proyecto eliminado correctamente." : "No se pudo eliminar el proyecto.";
+
+        // Si quieres volver a la misma página:
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+            return Redirect(returnUrl);
+
+        return RedirectToAction(nameof(Index));
+    }
+
+
+
+
 
     // Modelos para requests AJAX
     public class ActualizarProgresoModel
@@ -412,6 +458,43 @@ public class ProyectosController : Controller
             case ".xlsx": return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             default: return "application/octet-stream";
         }
+    }
+
+
+    //Nuevo metodo para el controlador oara contruir la ruta fisica de proyectos desde appsetting.jason
+
+    private string ObtenerRutaBaseProyectos()
+    {
+        var rutaBase = _config["Rutas:NAS"];
+        if (string.IsNullOrWhiteSpace(rutaBase))
+            throw new InvalidOperationException("Falta configurar RUTAS en appsettings.json ");
+        return rutaBase;
+    }
+//Metodo para obtener el nombre de unac arpeta raiz
+    private string ObtenerNombreCarpetaProyecto (int proyectoId, string nombreProyecto)
+    {
+        //Quitar los caracteres invalidos para Windows
+        var nombre = string.Concat(nombreProyecto
+            .Where(ch => !Path.GetInvalidFileNameChars().Contains(ch)));
+
+        //Reemplazar espacios por guiones
+        nombre= nombre.Replace (" ", "-").ToUpperInvariant();
+
+        return $"PROYECTO-{proyectoId}-{nombre}";
+    }
+
+    //Metodo para crear fisicamente la carpeta en el NADS
+
+    private string CrearCarpetaRaizProyecto(int proyectoId, string codigoProyecto = null)
+    {
+        var rutaBase = ObtenerRutaBaseProyectos();
+        var nombreCarpetaProyecto = ObtenerNombreCarpetaProyecto(proyectoId, codigoProyecto);
+        var rutaFisicaProyecto = Path.Combine(rutaBase, nombreCarpetaProyecto);
+
+        if (!Directory.Exists(rutaFisicaProyecto))
+            Directory.CreateDirectory(rutaFisicaProyecto);
+
+        return rutaFisicaProyecto;
     }
 
 }

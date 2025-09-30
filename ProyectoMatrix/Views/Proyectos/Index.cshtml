@@ -22,6 +22,11 @@
 <link href="~/css/stylesProyectosIndex.css" rel="stylesheet" />
 
 <div class="container-fluid">
+
+
+
+
+
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -29,14 +34,26 @@
             <p class="text-muted">Administra y da seguimiento a todos los proyectos de la empresa</p>
         </div>
         <div>
-            @if (puedeCrear)
-            {
-                <a href="@Url.Action("Crear")" class="btn-proyectos-principal">
-                    <i class="fas fa-plus me-1"></i>Nuevo Proyecto
-            </a> 
-            }
+           
         </div>
     </div>
+
+
+    <div class="botones ">
+        <div>
+            <p class="text-muted">Sube un proyecto o crea uno nuevo</p>
+        </div>
+        @if (puedeCrear)
+        {
+            <a href="@Url.Action("Crear")" class="btn-proyectos-principal">
+                <i class="fas fa-plus me-1"></i>Nuevo Proyecto
+            </a>
+
+        }
+
+    </div>
+
+
 
     <!-- Estadísticas -->
     <div class="estadisticas-grid">
@@ -256,6 +273,14 @@
                                     class="btn btn-sm btn-proyectos-outline-secundario">
                                         <i class="fas fa-edit me-1"></i>Editar
                                     </a>
+
+                                    <form asp-action="Eliminar" asp-route-id="@proyecto.ProyectoID"
+                                          method="post" class="d-inline"
+                                          onsubmit="return confirm('¿Seguro que desea eliminar este proyecto?');">
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash-alt me-1"></i> Eliminar
+                                        </button>
+                                    </form>
                                 }
                             </div>
                         </div>

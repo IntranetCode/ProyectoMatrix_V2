@@ -1,8 +1,11 @@
-﻿using ProyectoMatrix.Models;
+﻿using Microsoft.AspNetCore.Mvc;
+using ProyectoMatrix.Models;
+using ProyectoMatrix.Seguridad;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Security.Policy;
 using System.Threading.Tasks;
 
 public class ProyectosBD 
@@ -80,7 +83,8 @@ public class ProyectosBD
                 SELECT ProyectoID, NombreProyecto, Descripcion, CodigoProyecto, ArchivoRuta, 
                        FechaCreacion, FechaInicio, FechaFinPrevista, FechaFinReal, CreadoPor, 
                        ResponsableProyecto, EsActivo, EmpresaID, Tags, TamanoArchivo, Extension, 
-                       Estado, Prioridad, Presupuesto, Progreso, Observaciones, Visualizaciones
+                       Estado, Prioridad, Presupuesto, Progreso, Observaciones, Visualizaciones, Ubicacion,
+                       Cliente, Tipo
                 FROM [dbo].[Proyectos] 
                 WHERE ProyectoID = @ProyectoID AND EmpresaID = @EmpresaID";
 
@@ -116,7 +120,10 @@ public class ProyectosBD
                             Presupuesto = reader.IsDBNull("Presupuesto") ? null : reader.GetDecimal("Presupuesto"),
                             Progreso = reader.GetInt32("Progreso"),
                             Observaciones = reader.IsDBNull("Observaciones") ? null : reader.GetString("Observaciones"),
-                            Visualizaciones = reader.GetInt32("Visualizaciones")
+                            Visualizaciones = reader.GetInt32("Visualizaciones"),
+                            Ubicacion = reader.IsDBNull("Ubicacion") ? null :  reader.GetString("Ubicacion"),
+                            Cliente = reader.IsDBNull("Cliente") ? null : reader.GetString("Cliente"),
+                            Tipo = reader.IsDBNull("Tipo") ? null : reader.GetString("Tipo")
                         };
                     }
                 }
@@ -135,11 +142,12 @@ public class ProyectosBD
                 INSERT INTO Proyectos (NombreProyecto, Descripcion, CodigoProyecto, ArchivoRuta, 
                                      FechaCreacion, FechaInicio, FechaFinPrevista, CreadoPor, 
                                      ResponsableProyecto, EsActivo, EmpresaID, Tags, TamanoArchivo, 
-                                     Extension, Estado, Prioridad, Presupuesto, Progreso, Observaciones, Visualizaciones)
+                                     Extension, Estado, Prioridad, Presupuesto, Progreso, Observaciones, Visualizaciones,Ubicacion,
+                       Cliente, Tipo)
                 VALUES (@NombreProyecto, @Descripcion, @CodigoProyecto, @ArchivoRuta, @FechaCreacion, 
                         @FechaInicio, @FechaFinPrevista, @CreadoPor, @ResponsableProyecto, @EsActivo, 
                         @EmpresaID, @Tags, @TamanoArchivo, @Extension, @Estado, @Prioridad, 
-                        @Presupuesto, @Progreso, @Observaciones, 0);
+                        @Presupuesto, @Progreso, @Observaciones, 0 , @Ubicacion , @Cliente , @Tipo);
                 SELECT CAST(SCOPE_IDENTITY() as int);";
 
             using (var command = new SqlCommand(query, connection))
@@ -163,6 +171,9 @@ public class ProyectosBD
                 command.Parameters.AddWithValue("@Presupuesto", (object)proyecto.Presupuesto ?? DBNull.Value);
                 command.Parameters.AddWithValue("@Progreso", proyecto.Progreso);
                 command.Parameters.AddWithValue("@Observaciones", (object)proyecto.Observaciones ?? DBNull.Value);
+                command.Parameters.AddWithValue("@Ubicacion", (object)proyecto.Ubicacion ?? DBNull.Value);
+                command.Parameters.AddWithValue("@Cliente", (object)proyecto.Cliente ?? DBNull.Value);
+                command.Parameters.AddWithValue("@Tipo", (object)proyecto.Tipo ?? DBNull.Value) ;
 
                 var result = await command.ExecuteScalarAsync();
                 return Convert.ToInt32(result);
@@ -192,7 +203,10 @@ public class ProyectosBD
                     Prioridad = @Prioridad,
                     Presupuesto = @Presupuesto,
                     Progreso = @Progreso,
-                    Observaciones = @Observaciones
+                    Observaciones = @Observaciones,
+                    Ubicacion = @Ubicacion,
+                    Cliente = @Cliente,
+                    Tipo = @Tipo
                 WHERE ProyectoID = @ProyectoID AND EmpresaID = @EmpresaID";
 
             using (var command = new SqlCommand(query, connection))
@@ -215,6 +229,9 @@ public class ProyectosBD
                 command.Parameters.AddWithValue("@Presupuesto", (object)proyecto.Presupuesto ?? DBNull.Value);
                 command.Parameters.AddWithValue("@Progreso", proyecto.Progreso);
                 command.Parameters.AddWithValue("@Observaciones", (object)proyecto.Observaciones ?? DBNull.Value);
+                command.Parameters.AddWithValue("@Ubicacion", (object)proyecto.Ubicacion ?? DBNull.Value);
+                command.Parameters.AddWithValue("@Cliente", (object)proyecto.Cliente ?? DBNull.Value);
+                command.Parameters.AddWithValue("@Tipo", (object)proyecto.Tipo ?? DBNull.Value);
 
                 int filasAfectadas = await command.ExecuteNonQueryAsync();
                 return filasAfectadas > 0;
@@ -292,12 +309,15 @@ public class ProyectosBD
         }
     }
 
+
+
     public async Task<bool> EliminarProyectoAsync(int proyectoId, int empresaId)
     {
         using (var connection = new SqlConnection(_connectionString))
         {
             await connection.OpenAsync();
-            string query = "UPDATE Proyectos SET EsActivo = 0 WHERE ProyectoID = @ProyectoID AND EmpresaID = @EmpresaID";
+            string query = "UPDATE Proyectos " +
+                "SET EsActivo = 0 WHERE ProyectoID = @ProyectoID AND EmpresaID = @EmpresaID";
 
             using (var command = new SqlCommand(query, connection))
             {
@@ -310,6 +330,11 @@ public class ProyectosBD
         }
     }
 
+
+
+
+
+
     public async Task<List<Proyecto>> BuscarProyectosAsync(int empresaId, string termino)
     {
         var proyectos = new List<Proyecto>();
@@ -321,7 +346,8 @@ public class ProyectosBD
                 SELECT ProyectoID, NombreProyecto, Descripcion, CodigoProyecto, ArchivoRuta, 
                        FechaCreacion, FechaInicio, FechaFinPrevista, FechaFinReal, CreadoPor, 
                        ResponsableProyecto, EsActivo, EmpresaID, Tags, TamanoArchivo, Extension, 
-                       Estado, Prioridad, Presupuesto, Progreso, Observaciones, Visualizaciones
+                       Estado, Prioridad, Presupuesto, Progreso, Observaciones, Visualizaciones,
+                       Ubicacion, Cliente, Tipo
                  FROM [dbo].[Proyectos]
                 WHERE EmpresaID = @EmpresaID 
                     AND EsActivo = 1
@@ -363,7 +389,10 @@ public class ProyectosBD
                             Presupuesto = reader.IsDBNull("Presupuesto") ? null : reader.GetDecimal("Presupuesto"),
                             Progreso = reader.GetInt32("Progreso"),
                             Observaciones = reader.IsDBNull("Observaciones") ? null : reader.GetString("Observaciones"),
-                            Visualizaciones = reader.GetInt32("Visualizaciones")
+                            Visualizaciones = reader.GetInt32("Visualizaciones"),
+                            Ubicacion = reader.IsDBNull("Ubicacion") ? null : reader.GetString("Ubicacion"),
+                            Cliente = reader.IsDBNull("Cliente") ? null : reader.GetString ("Cliente"),
+                            Tipo = reader.IsDBNull("Tipo") ? null :  reader.GetString ("Tipo")
                         });
                     }
                 }
@@ -371,5 +400,52 @@ public class ProyectosBD
         }
 
         return proyectos;
+    }
+
+    //Se creó un nuevo metodo para mandar a llamar al procedimiento almacenado de Carpetas
+
+    public async Task<(int CarpetaID, string RutaRelativa)> CrearCarpetaAsync(
+        int proyectoId,
+        int? carpetaPadreId,
+        string nombreCarpeta,
+        int? usuarioCreadorId)
+    {
+        using var conexion = new SqlConnection(_connectionString);
+        await conexion.OpenAsync();
+
+        using var comando = new SqlCommand("dbo.sp_CrearCarpeta", conexion);
+        comando.CommandType = CommandType.StoredProcedure;
+
+        //Parametros de entradda 
+        comando.Parameters.Add("@ProyectoID", SqlDbType.Int).Value = proyectoId;
+        comando.Parameters.Add("@CarpetaPadreID", SqlDbType.Int).Value = (object)carpetaPadreId ?? DBNull.Value;
+        comando.Parameters.Add("@NombreCarpeta", SqlDbType.NVarChar, 200).Value = nombreCarpeta;
+        comando.Parameters.Add("@UsuarioCreadorID", SqlDbType.Int).Value=(object)usuarioCreadorId ?? DBNull.Value;
+
+        //Parametos de salida
+        var parametroRuta = comando.Parameters.Add("@RutaRelativaOut", SqlDbType.NVarChar, 1000);
+        parametroRuta.Direction = ParameterDirection.Output;
+
+        var parametroId = comando.Parameters.Add("@CarpetaIDOut", SqlDbType.Int);
+        parametroId.Direction = ParameterDirection.Output;
+
+
+        //Ejecutar
+
+        try
+        {
+            await comando.ExecuteNonQueryAsync();
+
+            int idCarpeta = (int)parametroId.Value;
+            string rutaRelativa = parametroRuta.Value?.ToString() ?? string.Empty;
+
+            return (idCarpeta, rutaRelativa);
+
+        }
+        catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
+        {
+            throw new InvalidOperationException("Ya existe una carpeta creada con ese nombre", ex);
+        }
+
     }
 }

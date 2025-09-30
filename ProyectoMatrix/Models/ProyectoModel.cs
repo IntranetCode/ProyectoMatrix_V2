@@ -72,6 +72,12 @@ namespace ProyectoMatrix.Models
 
         public int Visualizaciones { get; set; }
 
+        public string Ubicacion { get; set; }
+
+        public string Cliente { get; set; }
+
+        public string Tipo { get; set; }
+
         // Propiedades de navegación
         public List<ProyectoArchivo> Archivos { get; set; } = new List<ProyectoArchivo>();
     }
