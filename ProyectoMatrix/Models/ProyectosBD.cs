@@ -464,5 +464,72 @@ public class ProyectosBD
         await con.OpenAsync();
         await cmd.ExecuteNonQueryAsync();
     }
- 
+
+
+    //eSTE Metodo es para listar las carpetas dentro de un proyecto
+    public async Task<List<CarpetaDto>> ListarCarpetasProyectoAsync(int proyectoId)
+    {
+        var lista = new List<CarpetaDto>();
+
+        using var con = new SqlConnection(_connectionString);
+        await con.OpenAsync();
+
+        // Leemos todas las carpetas activas del proyecto
+        var sql = @"
+        SELECT CarpetaID, CarpetaPadreID, Nombre, RutaRelativa
+        FROM dbo.Carpetas
+        WHERE ProyectoID = @ProyectoID AND Activa = 1
+        ORDER BY RutaRelativa ASC;";
+
+        using var cmd = new SqlCommand(sql, con);
+        cmd.Parameters.AddWithValue("@ProyectoID", proyectoId);
+
+        using var rd = await cmd.ExecuteReaderAsync();
+        while (await rd.ReadAsync())
+        while (await rd.ReadAsync())
+        {
+            var bruta = rd["RutaRelativa"] as string ?? "";
+            // Normalizar
+            var limpia = bruta.StartsWith("/") ? bruta.Substring(1) : bruta;
+
+            lista.Add(new CarpetaDto
+            {
+                CarpetaID = (int)rd["CarpetaID"],
+                CarpetaPadreID = rd["CarpetaPadreID"] == DBNull.Value ? null : (int?)rd["CarpetaPadreID"],
+                Nombre = (string)rd["Nombre"],
+                RutaRelativa = limpia, 
+                Nivel = string.IsNullOrEmpty(limpia) ? 0 : limpia.Count(c => c == '/')
+            });
+        }
+
+        return lista;
+    }
+
+
+    //Metodo para obtener la ruta de la carpeta 
+    public async Task<string?> ObtenerRutaRelativaCarpetaAsync(int proyectoId, int carpetaId)
+    {
+        using var con = new SqlConnection(_connectionString);
+        await con.OpenAsync();
+
+        var sql = @"
+        SELECT RutaRelativa
+        FROM dbo.Carpetas
+        WHERE ProyectoID = @ProyectoID AND CarpetaID = @CarpetaID AND Activa = 1;";
+
+        using var cmd = new SqlCommand(sql, con);
+        cmd.Parameters.AddWithValue("@ProyectoID", proyectoId);
+        cmd.Parameters.AddWithValue("@CarpetaID", carpetaId);
+
+        var obj = await cmd.ExecuteScalarAsync();
+        if (obj == null || obj == DBNull.Value) return null;
+
+        var bruta = (string)obj;
+        return bruta.StartsWith("/") ? bruta.Substring(1) : bruta; // normalizada
+    }
+
+
+
+
+
 }

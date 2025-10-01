@@ -1,12 +1,11 @@
 //Configuración y conexión a base de datos
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.EntityFrameworkCore;
 using ProyectoMatrix.Controllers;
+using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Servicios;
-
-using Microsoft.AspNetCore.Server.IIS;
-
 using System.Security.Claims;
 
 
@@ -86,6 +85,12 @@ builder.Services.AddScoped<ServicioNotificaciones>();
 
 //Restra el servicio de Bitacora
 builder.Services.AddScoped<BitacoraService>();
+
+//Se agrega el servicio para la ruta NAS
+
+builder.Services.AddScoped<RutaNas>();
+
+
 
 builder.Services.AddDistributedMemoryCache();
 

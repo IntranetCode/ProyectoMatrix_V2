@@ -1,142 +1,14 @@
-﻿@using ProyectoMatrix.Servicios
+﻿@using ProyectoMatrix.Models
+@using ProyectoMatrix.Servicios
 
-@using ProyectoMatrix.Models
-@model Proyecto
+@using ProyectoMatrix.Models.ViewModels
+@model ProyectoDetalleVm
 @{
     ViewData["Title"] = "Detalle del Proyecto";
     var rol = Context.Session.GetString("Rol") ?? "Colaborador";
     Layout = rol == "Administrador" ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_Colaborador.cshtml";
 }
-
-@section Estilos {
-    <style>
-        .proyecto-header {
-            background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%);
-            color: white;
-            padding: 2rem;
-            border-radius: 15px;
-            margin-bottom: 2rem;
-        }
-
-        .info-card {
-            background: white;
-            border-radius: 15px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 1.5rem;
-            height: 100%;
-        }
-         
-            .info-card h6 {
-                color: var(--bs-primary);
-                font-weight: 600;
-                margin-bottom: 1rem;
-            }
-
-        .progreso-circular {
-            position: relative;
-            width: 120px;
-            height: 120px;
-            margin: 0 auto;
-        }
-
-            .progreso-circular svg {
-                transform: rotate(-90deg);
-                width: 100%;
-                height: 100%;
-            }
-
-            .progreso-circular .progreso-bg {
-                fill: none;
-                stroke: #e9ecef;
-                stroke-width: 8;
-            }
-
-            .progreso-circular .progreso-fill {
-                fill: none;
-                stroke-width: 8;
-                stroke-linecap: round;
-                transition: stroke-dasharray 0.5s ease;
-            }
-
-        .progreso-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .timeline {
-            position: relative;
-            padding-left: 2rem;
-        }
-
-            .timeline::before {
-                content: '';
-                position: absolute;
-                left: 0.75rem;
-                top: 0;
-                bottom: 0;
-                width: 2px;
-                background: #dee2e6;
-            }
-
-        .timeline-item {
-            position: relative;
-            padding-bottom: 1.5rem;
-        }
-
-            .timeline-item::before {
-                content: '';
-                position: absolute;
-                left: -1.75rem;
-                top: 0.25rem;
-                width: 12px;
-                height: 12px;
-                border-radius: 50%;
-                background: var(--bs-primary);
-                border: 3px solid white;
-                box-shadow: 0 0 0 3px var(--bs-primary);
-            }
-
-            .timeline-item.completed::before {
-                background: var(--bs-success);
-                box-shadow: 0 0 0 3px var(--bs-success);
-            }
-
-        .archivo-preview {
-            border: 2px solid #dee2e6;
-            border-radius: 15px;
-            padding: 1.5rem;
-            text-align: center;
-            background: #f8f9fa;
-        }
-
-        .estado-badge-large {
-            font-size: 1rem;
-            padding: 0.75rem 1.5rem;
-            border-radius: 25px;
-            font-weight: 600;
-        }
-
-        .prioridad-indicator {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 0.5rem;
-        }
-
-        .action-buttons {
-            position: sticky;
-            top: 100px;
-            z-index: 10;
-        }
-    </style>
-}
-
+<link href="~/css/stylesProyectosDetalle.css" rel="stylesheet" />
 @*Mandar a llamar al servicio de acceso para ocultar o mostrar los botones correspondientes *@
 @inject IServicioAcceso Acceso
 @{
@@ -153,28 +25,28 @@
         <div class="d-flex justify-content-between align-items-start">
             <div class="flex-grow-1">
                 <div class="d-flex align-items-center mb-2">
-                    <h1 class="h2 mb-0 me-3">@Model.NombreProyecto</h1>
-                    <span class="badge estado-badge-large bg-@Model.Estado.ObtenerColorEstado()">
-                        <i class="@Model.Estado.ObtenerIconoEstado() me-1"></i>
-                        @Model.Estado.ObtenerNombreEstado()
+                    <h1 class="h2 mb-0 me-3">@Model.Proyecto.NombreProyecto</h1>
+                    <span class="badge estado-badge-large bg-@Model.Proyecto.Estado.ObtenerColorEstado()">
+                        <i class="@Model.Proyecto.Estado.ObtenerIconoEstado() me-1"></i>
+                        @Model.Proyecto.Estado.ObtenerNombreEstado()
                     </span>
                 </div>
 
-                @if (!string.IsNullOrEmpty(Model.CodigoProyecto))
+                @if (!string.IsNullOrEmpty(Model.Proyecto.CodigoProyecto))
                 {
-                    <p class="mb-2"><strong>Código:</strong> @Model.CodigoProyecto</p>
+                    <p class="mb-2"><strong>Código:</strong> @Model.Proyecto.CodigoProyecto</p>
                 }
 
-                @if (!string.IsNullOrEmpty(Model.Descripcion))
+                @if (!string.IsNullOrEmpty(Model.Proyecto.Descripcion))
                 {
-                    <p class="mb-0 text-white-75">@Model.Descripcion</p>
+                    <p class="mb-0 text-white-75">@Model.Proyecto.Descripcion</p>
                 }
             </div>
 
             <div class="action-buttons">
                 @if (puedeEditar)
                 {
-                    <a href="@Url.Action("Editar", new { id = Model.ProyectoID })" class="btn btn-light me-2">
+                    <a href="@Url.Action("Editar", new { id = Model.Proyecto.ProyectoID })" class="btn btn-light me-2">
                         <i class="fas fa-edit me-1"></i>Editar
                     </a>
                 }
@@ -188,24 +60,24 @@
         <div class="row mt-3">
             <div class="col-auto">
                 <small class="text-white-75">Creado por:</small>
-                <strong class="d-block">@(Model.CreadoPor ?? "Sin especificar")</strong>
+                <strong class="d-block">@(Model.Proyecto.CreadoPor ?? "Sin especificar")</strong>
             </div>
             <div class="col-auto">
                 <small class="text-white-75">Fecha de creación:</small>
-                <strong class="d-block">@Model.FechaCreacion.ToString("dd/MM/yyyy")</strong>
+                <strong class="d-block">@Model.Proyecto.FechaCreacion.ToString("dd/MM/yyyy")</strong>
             </div>
-            @if (!string.IsNullOrEmpty(Model.ResponsableProyecto))
+            @if (!string.IsNullOrEmpty(Model.Proyecto.ResponsableProyecto))
             {
                 <div class="col-auto">
                     <small class="text-white-75">Responsable:</small>
-                    <strong class="d-block">@Model.ResponsableProyecto</strong>
+                    <strong class="d-block">@Model.Proyecto.ResponsableProyecto</strong>
                 </div>
             }
             @if (puedeCrear)
             {
                 <div class="col-auto">
                     <small class="text-white-75">Visualizaciones:</small>
-                <strong class="d-block"><i class="fas fa-eye me-1"></i>@Model.Visualizaciones</strong>
+                    <strong class="d-block"><i class="fas fa-eye me-1"></i>@Model.Proyecto.Visualizaciones</strong>
             </div>
             }
         </div>
@@ -214,7 +86,7 @@
 
     <div class="row">
         <!-- Columna Principal -->
-        <div class="col-lg-8">
+        <div class="col-12 col-lg-8">
             <!-- Progreso del Proyecto -->
             <div class="info-card">
                 <h6><i class="fas fa-chart-line me-2"></i>Progreso del Proyecto</h6>
@@ -224,26 +96,26 @@
                             <svg viewBox="0 0 42 42">
                                 <circle class="progreso-bg" cx="21" cy="21" r="15.915"></circle>
                                 <circle class="progreso-fill" cx="21" cy="21" r="15.915"
-                                        stroke="@(Model.Progreso == 100 ? "#28a745" : Model.Progreso >= 75 ? "#17a2b8" : Model.Progreso >= 50 ? "#ffc107" : "#dc3545")"
-                                        stroke-dasharray="@(Model.Progreso), 100"
+                                        stroke="@(Model.Proyecto.Progreso == 100 ? "#28a745" : Model.Proyecto.Progreso >= 75 ? "#17a2b8" : Model.Proyecto.Progreso >= 50 ? "#ffc107" : "#dc3545")"
+                                        stroke-dasharray="@(Model.Proyecto.Progreso), 100"
                                         stroke-dashoffset="0"></circle>
                             </svg>
-                            <div class="progreso-text text-@(Model.Progreso == 100 ? "success" : Model.Progreso >= 75 ? "info" : Model.Progreso >= 50 ? "warning" : "danger")">
-                                @Model.Progreso%
+                            <div class="progreso-text text-@(Model.Proyecto.Progreso == 100 ? "success" : Model.Proyecto.Progreso >= 75 ? "info" : Model.Proyecto.Progreso >= 50 ? "warning" : "danger")">
+                                @Model.Proyecto.Progreso%
                             </div>
                         </div>
                     </div>
                     <div class="col-md-8">
                         <div class="d-flex align-items-center mb-2">
-                            <span class="prioridad-indicator bg-@Model.Prioridad.ObtenerColorPrioridad()"></span>
-                            <strong>Prioridad: @Model.Prioridad.ObtenerNombrePrioridad()</strong>
+                            <span class="prioridad-indicator bg-@Model.Proyecto.Prioridad.ObtenerColorPrioridad()"></span>
+                            <strong>Prioridad: @Model.Proyecto.Prioridad.ObtenerNombrePrioridad()</strong>
                         </div>
 
-                        @if (Model.Presupuesto.HasValue)
+                        @if (Model.Proyecto.Presupuesto.HasValue)
                         {
                             <p class="mb-2">
                                 <i class="fas fa-dollar-sign me-1 text-muted"></i>
-                                <strong>Presupuesto:</strong> $@Model.Presupuesto.Value.ToString("N2")
+                                <strong>Presupuesto:</strong> $@Model.Proyecto.Presupuesto.Value.ToString("N2")
                             </p>
                         }
 
@@ -258,14 +130,14 @@
                             <div class="input-group">
 
                                 <input type="range" class="form-range me-2" min="0" max="100"
-                                       value="@Model.Progreso" id="progresoSlider"
+                                       value="@Model.Proyecto.Progreso" id="progresoSlider"
                                        oninput="updateProgressDisplay(this.value)" />
 
-                                <span class="input-group-text" id="progresoValue">@Model.Progreso%</span>
+                                <span class="input-group-text" id="progresoValue">@Model.Proyecto.Progreso%</span>
                                 @if (puedeEditar)
                                 {
                                     <button type="button" class="btn btn-primary"
-                                            onclick="actualizarProgreso(@Model.ProyectoID)">
+                                            onclick="actualizarProgreso(@Model.Proyecto.ProyectoID)">
                                         Actualizar
                                     </button>
                                 }
@@ -282,7 +154,7 @@
                                     <select class="form-select" id="nuevoEstado">
                                         @foreach (EstadoProyecto estado in Enum.GetValues<EstadoProyecto>())
                                         {
-                                            <option value="@((int)estado)" selected="@(Model.Estado == estado)">
+                                        <option value="@((int)estado)" selected="@(Model.Proyecto.Estado == estado)">
                                                 @estado.ObtenerNombreEstado()
                                             </option>
                                         }
@@ -290,7 +162,7 @@
                                @if (puedeEditar)
                                 {
                                     <button type="button" class="btn btn-outline-primary"
-                                    onclick="cambiarEstado(@Model.ProyectoID)">
+                                            onclick="cambiarEstado(@Model.Proyecto.ProyectoID)">
                                         Cambiar
                                     </button>
                                 }
@@ -309,25 +181,25 @@
                 <div class="timeline">
                     <div class="timeline-item completed">
                         <strong>Proyecto Creado</strong>
-                        <div class="text-muted">@Model.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</div>
-                        <small class="text-muted">por @(Model.CreadoPor ?? "Sistema")</small>
+                        <div class="text-muted">@Model.Proyecto.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</div>
+                        <small class="text-muted">por @(Model.Proyecto.CreadoPor ?? "Sistema")</small>
                     </div>
 
-                    @if (Model.FechaInicio.HasValue)
+                    @if (Model.Proyecto.FechaInicio.HasValue)
                     {
-                        <div class="timeline-item @(Model.FechaInicio <= DateTime.Now ? "completed" : "")">
+                        <div class="timeline-item @(Model.Proyecto.FechaInicio <= DateTime.Now ? "completed" : "")">
                             <strong>Fecha de Inicio</strong>
-                            <div class="text-muted">@Model.FechaInicio.Value.ToString("dd/MM/yyyy")</div>
+                            <div class="text-muted">@Model.Proyecto.FechaInicio.Value.ToString("dd/MM/yyyy")</div>
                         </div>
                     }
 
-                    @if (Model.FechaFinPrevista.HasValue)
+                    @if (Model.Proyecto.FechaFinPrevista.HasValue)
                     {
-                        <div class="timeline-item @(Model.Estado == EstadoProyecto.Completado ? "completed" : "")">
+                        <div class="timeline-item @(Model.Proyecto.Estado == EstadoProyecto.Completado ? "completed" : "")">
                             <strong>Entrega Prevista</strong>
-                            <div class="text-muted @(Model.FechaFinPrevista < DateTime.Now && Model.Estado != EstadoProyecto.Completado ? "text-danger" : "")">
-                                @Model.FechaFinPrevista.Value.ToString("dd/MM/yyyy")
-                                @if (Model.FechaFinPrevista < DateTime.Now && Model.Estado != EstadoProyecto.Completado)
+                            <div class="text-muted @(Model.Proyecto.FechaFinPrevista < DateTime.Now && Model.Proyecto.Estado != EstadoProyecto.Completado ? "text-danger" : "")">
+                                @Model.Proyecto.FechaFinPrevista.Value.ToString("dd/MM/yyyy")
+                                @if (Model.Proyecto.FechaFinPrevista < DateTime.Now && Model.Proyecto.Estado != EstadoProyecto.Completado)
                                 {
                                     <span class="badge bg-danger ms-2">Atrasado</span>
                                 }
@@ -335,63 +207,111 @@
                         </div>
                     }
 
-                    @if (Model.FechaFinReal.HasValue)
+                    @if (Model.Proyecto.FechaFinReal.HasValue)
                     {
                         <div class="timeline-item completed">
                             <strong>Proyecto Completado</strong>
-                            <div class="text-success">@Model.FechaFinReal.Value.ToString("dd/MM/yyyy HH:mm")</div>
+                            <div class="text-success">@Model.Proyecto.FechaFinReal.Value.ToString("dd/MM/yyyy HH:mm")</div>
                         </div>
                     }
                 </div>
             </div>
 
             <!-- Observaciones -->
-            @if (!string.IsNullOrEmpty(Model.Observaciones))
+            @if (!string.IsNullOrEmpty(Model.Proyecto.Observaciones))
             {
                 <div class="info-card">
                     <h6><i class="fas fa-sticky-note me-2"></i>Observaciones</h6>
                     <div class="bg-light p-3 rounded">
-                        @Model.Observaciones
+                        @Model.Proyecto.Observaciones
                     </div>
                 </div>
             }
         </div>
 
+
+
+
+
+
+
         <!-- Columna Lateral -->
-        <div class="col-lg-4">
+        <div class="col-12 col-lg-4">
             <!-- Archivo del Proyecto -->
-            @if (!string.IsNullOrEmpty(Model.ArchivoRuta))
-            {
-                <div class="info-card">
-                    <h6><i class="fas fa-paperclip me-2"></i>Documento del Proyecto</h6>
-                    <div class="archivo-preview">
-                        <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
-                        <h6>Documento Adjunto</h6>
-                        <p class="text-muted mb-3">
-                            Tamaño: @Model.TamanoArchivo.FormatearTamanoArchivo()<br>
-                            Formato: @(Model.Extension?.ToUpper() ?? "PDF")
-                        </p>
-                        <div class="d-grid gap-2">
-                            <a href="@Url.Action("VerArchivo", new { id = Model.ProyectoID })"
-                               class="btn btn-primary" target="_blank">
-                                <i class="fas fa-eye me-1"></i>Ver Documento
-                            </a>
-                            <a href="@Url.Action("DescargarArchivo", new { id = Model.ProyectoID })"
-                               class="btn btn-outline-primary">
-                                <i class="fas fa-download me-1"></i>Descargar
-                            </a>
+         <!-- Gestor de Archivos -->
+            <div class="info-card" id="gestor-archivos"
+                  data-proyecto="@Model.Proyecto.ProyectoID"
+                  data-puede-crear="@puedeCrear.ToString().ToLower()"
+                  data-puede-editar="@puedeEditar.ToString().ToLower()"
+                  data-puede-eliminar="@puedeEliminar.ToString().ToLower()">
+                  
+  <h6><i class="fas fa-folder-open me-2"></i>Gestor de Archivos</h6>
+
+  <!-- Anti-CSRF para AJAX -->
+  <form id="ga-antiforgery">@Html.AntiForgeryToken()</form>
+
+  <!-- Breadcrumb -->
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb mb-0" id="ga-breadcrumb"></ol>
+  </nav>
+
+  <!-- Toolbar -->
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    @if (puedeCrear )
+    {
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-primary" id="ga-subir-btn">
+                                <i class="fas fa-upload me-1"></i> Subir archivos
+                            </button>
+                            <input type="file" id="ga-file-input" multiple hidden />
                         </div>
-                    </div>
+                        <button type="button" class="btn btn-outline-primary" id="ga-nueva-carpeta-btn">
+                            <i class="fas fa-folder-plus me-1"></i> Nueva carpeta
+                        </button>
+    }
+                    <button type="button" class="btn btn-outline-secondary" id="ga-recargar-btn">
+                        <i class="fas fa-rotate-right me-1"></i> Recargar
+                    </button>
                 </div>
-            }
+
+  <!-- Tabla -->
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:36px;"></th>
+          <th>Nombre</th>
+          <th style="width:140px;">Tamaño</th>
+          <th style="width:160px;">Modificado</th>
+          <th style="width:200px;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="ga-lista"></tbody>
+    </table>
+  </div>
+
+  <!-- Progreso -->
+  <div class="progress mt-3 d-none" id="ga-progress-wrap" style="height:10px;">
+    <div class="progress-bar" id="ga-progress" role="progressbar" style="width:0;"></div>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
 
             <!-- Tags -->
-            @if (!string.IsNullOrEmpty(Model.Tags))
+            @if (!string.IsNullOrEmpty(Model.Proyecto.Tags))
             {
                 <div class="info-card">
                     <h6><i class="fas fa-tags me-2"></i>Etiquetas</h6>
                     <div>
-                        @foreach (var tag in Model.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                        @foreach (var tag in Model.Proyecto.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
                         {
                             <span class="badge bg-light text-dark me-1 mb-1">#@tag.Trim()</span>
                         }
@@ -405,22 +325,22 @@
                 <div class="small">
                     <div class="d-flex justify-content-between mb-2">
                         <span>ID del Proyecto:</span>
-                        <strong>@Model.ProyectoID</strong>
+                        <strong>@Model.Proyecto.ProyectoID</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Empresa:</span>
-                        <strong>ID @Model.EmpresaID</strong>
+                        <strong>ID @Model.Proyecto.EmpresaID</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Estado:</span>
-                        <span class="badge bg-@Model.Estado.ObtenerColorEstado()">
-                            @Model.Estado.ObtenerNombreEstado()
+                        <span class="badge bg-@Model.Proyecto.Estado.ObtenerColorEstado()">
+                            @Model.Proyecto.Estado.ObtenerNombreEstado()
                         </span>
                     </div>
                     <div class="d-flex justify-content-between">
                         <span>Activo:</span>
-                        <span class="badge bg-@(Model.EsActivo ? "success" : "danger")">
-                            @(Model.EsActivo ? "Sí" : "No")
+                        <span class="badge bg-@(Model.Proyecto.EsActivo ? "success" : "danger")">
+                            @(Model.Proyecto.EsActivo ? "Sí" : "No")
                         </span>
                     </div>
                 </div>
@@ -431,7 +351,7 @@
 
 @section Scripts {
     <script>
-        let currentProgress = @Model.Progreso;
+        let currentProgress = @Model.Proyecto.Progreso;
 
         // Actualizar display del progreso
         function updateProgressDisplay(value) {
@@ -504,6 +424,7 @@
                     setTimeout(() => location.reload(), 1500);
                 } else {
                     showAlert('Error al cambiar el estado', 'danger');
+                    showAlert('Error al cambiar el estado', 'danger');
                 }
             })
             .catch(error => {
@@ -529,5 +450,201 @@
                 if (alert) alert.remove();
             }, 5000);
         }
-    </script>
+ 
+                     </script>
+
+<script>
+(function(){
+  const wrap = document.getElementById('gestor-archivos');
+  if(!wrap) return;
+
+  const proyectoId = parseInt(wrap.dataset.proyecto,10);
+  // Carpeta inicial: Documentos (coincide con tu Crear/Detalle)
+  let ruta = "Documentos";
+
+  const elLista = document.getElementById('ga-lista');
+  const elBread = document.getElementById('ga-breadcrumb');
+  const elFile = document.getElementById('ga-file-input');
+  const elSubir = document.getElementById('ga-subir-btn');
+  const elNueva = document.getElementById('ga-nueva-carpeta-btn');
+  const elRecargar = document.getElementById('ga-recargar-btn');
+  const progressWrap = document.getElementById('ga-progress-wrap');
+  const progressBar = document.getElementById('ga-progress');
+
+  // Token anti-CSRF
+  const token = document.querySelector('#ga-antiforgery [name="__RequestVerificationToken"]')?.value || '';
+
+          function humanSize(bytes){
+          const b = Number(bytes);
+          if (!Number.isFinite(b) || b <= 0) return '—';
+          const u = ['B','KB','MB','GB','TB'];
+          let i = 0, n = b;
+          while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+          return (n >= 10 ? Math.round(n) : n.toFixed(1)) + ' ' + u[i];
+        }
+        function fechaLocal(isoStr){
+  if(!isoStr) return '—';
+  const d = new Date(isoStr);
+  return isNaN(d) ? '—' : d.toLocaleString();
+}
+  function pintarBreadcrumb(crumbs){
+    elBread.innerHTML = '';
+    crumbs.forEach((c, idx) => {
+      const li = document.createElement('li');
+      li.className = 'breadcrumb-item' + (idx === crumbs.length-1 ? ' active' : '');
+      if(idx === crumbs.length-1){ li.textContent = c.nombre; }
+      else{
+        const a = document.createElement('a'); a.href='#'; a.textContent=c.nombre;
+        a.addEventListener('click', e => { e.preventDefault(); ruta = c.ruta || "Documentos"; listar(); });
+        li.appendChild(a);
+      }
+      elBread.appendChild(li);
+    });
+  }
+
+  function puedePrever(nombre){
+    const n = (nombre||'').toLowerCase();
+    return n.endsWith('.png')||n.endsWith('.jpg')||n.endsWith('.jpeg')||n.endsWith('.gif')||n.endsWith('.webp')||n.endsWith('.pdf');
+  }
+
+  function urlDescargar(r){ return '@Url.Action("DescargarArchivo", "Proyectos")' + `?id=${proyectoId}&rutaRelativa=${encodeURIComponent(r)}`; }
+  function urlPreview(r){ return '@Url.Action("Previsualizar", "Proyectos")' + `?proyectoId=${proyectoId}&rutaRelativa=${encodeURIComponent(r)}`; }
+
+  async function listar(){
+    const res = await fetch('@Url.Action("ListarArchivos","Proyectos")', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'RequestVerificationToken': token },
+      body: JSON.stringify({ ProyectoId: proyectoId, Ruta: ruta })
+    });
+    const data = await res.json();
+    if(!data.ok){ showAlert?.('Error al listar','danger'); return; }
+
+    pintarBreadcrumb(data.breadcrumb);
+    const items = data.items || [];
+    elLista.innerHTML = '';
+
+    // subir un nivel si no estamos en raíz
+    if(ruta && ruta !== 'Documentos'){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><i class="fas fa-level-up-alt"></i></td>
+                      <td colspan="4"><a href="#" id="ga-up">Subir un nivel</a></td>`;
+      elLista.appendChild(tr);
+      tr.querySelector('#ga-up').addEventListener('click', (e)=>{
+        e.preventDefault();
+        const parts = ruta.split('/'); parts.pop();
+        ruta = parts.join('/') || 'Documentos';
+        listar();
+      });
+    }
+
+  items.forEach(it=>{
+  const tr = document.createElement('tr');
+
+  const acciones = it.esCarpeta
+    ? `
+      <button type="button" class="btn btn-sm btn-outline-secondary ga-ren" data-r="${it.rutaRelativa}"><i class="fas fa-i-cursor"></i></button>
+      <button type="button" class="btn btn-sm btn-outline-danger ga-del" data-r="${it.rutaRelativa}"><i class="fas fa-trash"></i></button>`
+    : `
+      <a class="btn btn-sm btn-outline-primary" href="${urlDescargar(it.rutaRelativa)}"><i class="fas fa-download"></i></a>
+      <button type="button" class="btn btn-sm btn-outline-secondary ga-ren" data-r="${it.rutaRelativa}"><i class="fas fa-i-cursor"></i></button>
+      <button type="button" class="btn btn-sm btn-outline-danger ga-del" data-r="${it.rutaRelativa}"><i class="fas fa-trash"></i></button>
+      ${puedePrever(it.nombre) ? `<a class="btn btn-sm btn-outline-success" target="_blank" href="${urlPreview(it.rutaRelativa)}"><i class="fas fa-eye"></i></a>` : ``}
+    `;
+
+  tr.innerHTML = `
+    <td><i class="${it.iconoCss}"></i></td>
+    <td class="text-truncate" style="max-width:360px;">
+      ${it.esCarpeta
+        ? `<a href="#" class="ga-open" data-r="${it.rutaRelativa}">${it.nombre}</a>`
+        : `<span>${it.nombre}</span>`}
+    </td>
+    <td>${it.esCarpeta ? '—' : humanSize(it.tamanoBytes)}</td>
+    <td>${fechaLocal(it.ultimaMod)}</td>
+    <td class="d-flex flex-wrap gap-2">${acciones}</td>`;
+
+  elLista.appendChild(tr);
+
+  tr.querySelectorAll('.ga-open').forEach(a=>{
+    a.addEventListener('click', e => { e.preventDefault(); ruta = a.dataset.r; listar(); });
+  });
+  tr.querySelectorAll('.ga-ren').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const rutaRel = btn.dataset.r;
+      const nuevo = prompt('Nuevo nombre:');
+      if(!nuevo) return;
+      const ok = await postJson('@Url.Action("Renombrar","Proyectos")',{ ProyectoId: proyectoId, RutaRelativa: rutaRel, NuevoNombre: nuevo });
+      showAlert?.(ok ? 'Renombrado correctamente':'No se pudo renombrar', ok ? 'success':'danger');
+      if(ok) listar();
+    });
+  });
+  tr.querySelectorAll('.ga-del').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const rutaRel = btn.dataset.r;
+      if(!confirm('¿Eliminar? Esta acción no se puede deshacer.')) return;
+      const ok = await postJson('@Url.Action("Eliminar","Proyectos")',{ ProyectoId: proyectoId, RutaRelativa: rutaRel });
+      showAlert?.(ok ? 'Eliminado':'No se pudo eliminar', ok ? 'success':'danger');
+      if(ok) listar();
+    });
+  });
+});
+  }
+
+  async function postJson(url, payload){
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'RequestVerificationToken': token },
+      body: JSON.stringify(payload)
+    });
+    try { const data = await res.json(); return !!data.ok; }
+    catch{ return false; }
+  }
+
+  // Subir
+  elSubir?.addEventListener('click', ()=> elFile.click());
+  elFile?.addEventListener('change', async ()=>{
+    if(!elFile.files || elFile.files.length===0) return;
+    const fd = new FormData();
+    for(const f of elFile.files) fd.append('files', f);
+    fd.append('proyectoId', proyectoId);
+    fd.append('rutaDestino', ruta);
+
+    progressWrap.classList.remove('d-none');
+    progressBar.style.width = '0%';
+
+    await new Promise((resolve)=>{
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST','@Url.Action("SubirArchivos", "Proyectos")', true);
+      xhr.setRequestHeader('RequestVerificationToken', token);
+      xhr.upload.onprogress = (e)=>{
+        if(e.lengthComputable){
+          progressBar.style.width = Math.round((e.loaded/e.total)*100) + '%';
+        }
+      };
+      xhr.onreadystatechange = ()=>{ if(xhr.readyState===4) resolve(); };
+      xhr.send(fd);
+    });
+
+    setTimeout(()=>{ progressWrap.classList.add('d-none'); progressBar.style.width='0%'; }, 500);
+    elFile.value = '';
+    showAlert?.('Subida finalizada','success');
+    listar();
+  });
+
+  // Nueva carpeta
+  elNueva?.addEventListener('click', async ()=>{
+    const nombre = prompt('Nombre de la nueva carpeta:');
+    if(!nombre) return;
+    const ok = await postJson('@Url.Action("CrearCarpeta", "Proyectos")', { ProyectoId: proyectoId, RutaPadre: ruta, Nombre: nombre });
+    showAlert?.(ok ? 'Carpeta creada' : 'No se pudo crear', ok ? 'success':'danger');
+    if(ok) listar();
+  });
+
+  // Recargar
+  elRecargar?.addEventListener('click', listar);
+
+  // Init
+  listar();
+})();
+</script>
+
 }

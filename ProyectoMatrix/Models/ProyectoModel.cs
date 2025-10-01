@@ -22,6 +22,8 @@ namespace ProyectoMatrix.Models
         Critica
     }
 
+
+
     public class Proyecto
     {
         public int ProyectoID { get; set; }
@@ -37,7 +39,7 @@ namespace ProyectoMatrix.Models
         public string CodigoProyecto { get; set; }
 
         public string ArchivoRuta { get; set; }
-
+        
         public DateTime FechaCreacion { get; set; }
 
         public DateTime? FechaInicio { get; set; }
@@ -107,6 +109,31 @@ namespace ProyectoMatrix.Models
         public Dictionary<EstadoProyecto, int> ContadorPorEstado { get; set; } = new Dictionary<EstadoProyecto, int>();
         public Dictionary<PrioridadProyecto, int> ContadorPorPrioridad { get; set; } = new Dictionary<PrioridadProyecto, int>();
     }
+
+    public class CarpetaDto
+    {
+        public int CarpetaID { get; set; }
+        public int? CarpetaPadreID { get; set; }
+        public string Nombre { get; set; }
+        public string RutaRelativa { get; set; } // p.ej. "/Documentos" o "/Planos/Planta"
+        public int Nivel { get; set; }           // calculado aquí (cuántos "/" contiene)
+    }
+
+
+
+    public class ArchivoItemVm
+    {
+        public string Nombre { get; set; } = "";
+        public string RutaRelativa { get; set; } = ""; // ej: "", "docs", "docs/manual.pdf"
+        public bool EsCarpeta { get; set; }
+        public long TamanoBytes { get; set; }
+        public DateTime UltimaMod { get; set; }
+        public string IconoCss { get; set; } = "fas fa-file";
+    }
+
+
+    public class ListarReq { public int ProyectoId { get; set; } public string? Ruta { get; set; } }
+
 
     // Extensions para facilitar el manejo de enums
     public static class ProyectoExtensions
