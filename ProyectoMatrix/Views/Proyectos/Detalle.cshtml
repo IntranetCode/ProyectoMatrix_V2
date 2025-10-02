@@ -175,6 +175,96 @@
                 </div>
             </div>
 
+           
+           
+
+            <!-- Gestor de Archivos -->
+
+            <div class="info-card" id="gestor-archivos"
+                 data-proyecto="@Model.Proyecto.ProyectoID"
+                 data-puede-crear="@puedeCrear.ToString().ToLower()"
+                 data-puede-editar="@puedeEditar.ToString().ToLower()"
+                 data-puede-eliminar="@puedeEliminar.ToString().ToLower()">
+
+                <h6><i class="fas fa-folder-open me-2"></i>Gestor de Archivos</h6>
+
+                <!-- Anti-CSRF para AJAX -->
+                <form id="ga-antiforgery">@Html.AntiForgeryToken()</form>
+
+                <!-- Breadcrumb -->
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb mb-0" id="ga-breadcrumb"></ol>
+                </nav>
+
+                <!-- Toolbar -->
+
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    @if (puedeCrear)
+                    {
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-primary" id="ga-subir-btn">
+                                <i class="fas fa-upload me-1"></i> Subir archivos
+                            </button>
+                            <input type="file" id="ga-file-input" multiple hidden />
+                        </div>
+                        <button type="button" class="btn btn-outline-primary" id="ga-nueva-carpeta-btn">
+                            <i class="fas fa-folder-plus me-1"></i> Nueva carpeta
+                        </button>
+                    }
+                    <button type="button" class="btn btn-outline-secondary" id="ga-recargar-btn">
+                        <i class="fas fa-rotate-right me-1"></i>
+                    </button>
+                </div>
+
+                <!-- Tabla -->
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:36px;"></th>
+                                <th>Nombre</th>
+                                <th style="width:140px;">Tamaño</th>
+                                <th style="width:160px;">Modificado</th>
+                                <th style="width:200px;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ga-lista"></tbody>
+                    </table>
+                </div>
+
+                <!-- Progreso -->
+                <div class="progress mt-3 d-none" id="ga-progress-wrap" style="height:10px;">
+                    <div class="progress-bar" id="ga-progress" role="progressbar" style="width:0;"></div>
+                </div>
+            </div>
+
+
+
+            <!-- Tags -->
+            @if (!string.IsNullOrEmpty(Model.Proyecto.Tags))
+            {
+                <div class="info-card">
+                    <h6><i class="fas fa-tags me-2"></i>Etiquetas</h6>
+                    <div>
+                        @foreach (var tag in Model.Proyecto.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            <span class="badge bg-light text-dark me-1 mb-1">#@tag.Trim()</span>
+                        }
+                    </div>
+                </div>
+            }
+
+
+        </div>
+
+
+
+        <!-- Columna Lateral -->
+        <div class="col-12 col-lg-4">
+
+            
+
+
             <!-- Fechas del Proyecto -->
             <div class="info-card">
                 <h6><i class="fas fa-calendar-alt me-2"></i>Timeline del Proyecto</h6>
@@ -227,97 +317,7 @@
                     </div>
                 </div>
             }
-        </div>
 
-
-
-
-
-
-
-        <!-- Columna Lateral -->
-        <div class="col-12 col-lg-4">
-            <!-- Archivo del Proyecto -->
-         <!-- Gestor de Archivos -->
-            <div class="info-card" id="gestor-archivos"
-                  data-proyecto="@Model.Proyecto.ProyectoID"
-                  data-puede-crear="@puedeCrear.ToString().ToLower()"
-                  data-puede-editar="@puedeEditar.ToString().ToLower()"
-                  data-puede-eliminar="@puedeEliminar.ToString().ToLower()">
-                  
-  <h6><i class="fas fa-folder-open me-2"></i>Gestor de Archivos</h6>
-
-  <!-- Anti-CSRF para AJAX -->
-  <form id="ga-antiforgery">@Html.AntiForgeryToken()</form>
-
-  <!-- Breadcrumb -->
-  <nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb mb-0" id="ga-breadcrumb"></ol>
-  </nav>
-
-  <!-- Toolbar -->
-  <div class="d-flex flex-wrap gap-2 mb-3">
-    @if (puedeCrear )
-    {
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-primary" id="ga-subir-btn">
-                                <i class="fas fa-upload me-1"></i> Subir archivos
-                            </button>
-                            <input type="file" id="ga-file-input" multiple hidden />
-                        </div>
-                        <button type="button" class="btn btn-outline-primary" id="ga-nueva-carpeta-btn">
-                            <i class="fas fa-folder-plus me-1"></i> Nueva carpeta
-                        </button>
-    }
-                    <button type="button" class="btn btn-outline-secondary" id="ga-recargar-btn">
-                        <i class="fas fa-rotate-right me-1"></i> Recargar
-                    </button>
-                </div>
-
-  <!-- Tabla -->
-  <div class="table-responsive">
-    <table class="table align-middle mb-0">
-      <thead class="table-light">
-        <tr>
-          <th style="width:36px;"></th>
-          <th>Nombre</th>
-          <th style="width:140px;">Tamaño</th>
-          <th style="width:160px;">Modificado</th>
-          <th style="width:200px;">Acciones</th>
-        </tr>
-      </thead>
-      <tbody id="ga-lista"></tbody>
-    </table>
-  </div>
-
-  <!-- Progreso -->
-  <div class="progress mt-3 d-none" id="ga-progress-wrap" style="height:10px;">
-    <div class="progress-bar" id="ga-progress" role="progressbar" style="width:0;"></div>
-  </div>
-</div>
-
-
-
-
-
-
-
-
-
-
-            <!-- Tags -->
-            @if (!string.IsNullOrEmpty(Model.Proyecto.Tags))
-            {
-                <div class="info-card">
-                    <h6><i class="fas fa-tags me-2"></i>Etiquetas</h6>
-                    <div>
-                        @foreach (var tag in Model.Proyecto.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
-                        {
-                            <span class="badge bg-light text-dark me-1 mb-1">#@tag.Trim()</span>
-                        }
-                    </div>
-                </div>
-            }
 
             <!-- Información Adicional -->
             <div class="info-card">
@@ -349,302 +349,336 @@
     </div>
 </div>
 
-@section Scripts {
-    <script>
-        let currentProgress = @Model.Proyecto.Progreso;
 
-        // Actualizar display del progreso
-        function updateProgressDisplay(value) {
-            document.getElementById('progresoValue').textContent = value + '%';
-            currentProgress = parseInt(value);
-        }
-
-        // Actualizar progreso via AJAX
-        function actualizarProgreso(proyectoId) {
-            const nuevoProgreso = currentProgress;
-
-            fetch('@Url.Action("ActualizarProgreso")', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
-                },
-                body: JSON.stringify({
-                    proyectoId: proyectoId,
-                    progreso: nuevoProgreso
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Actualizar el círculo de progreso
-                    const circle = document.querySelector('.progreso-fill');
-                    const text = document.querySelector('.progreso-text');
-
-                    circle.setAttribute('stroke-dasharray', `${nuevoProgreso}, 100`);
-                    text.textContent = `${nuevoProgreso}%`;
-
-                    // Cambiar color según el progreso
-                    let color = nuevoProgreso == 100 ? '#28a745' :
-                               nuevoProgreso >= 75 ? '#17a2b8' :
-                               nuevoProgreso >= 50 ? '#ffc107' : '#dc3545';
-                    circle.setAttribute('stroke', color);
-
-                    // Mostrar mensaje de éxito
-                    showAlert('Progreso actualizado correctamente', 'success');
-                } else {
-                    showAlert('Error al actualizar el progreso', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('Error de conexión', 'danger');
-            });
-        }
-
-        // Cambiar estado via AJAX
-        function cambiarEstado(proyectoId) {
-            const nuevoEstado = document.getElementById('nuevoEstado').value;
-
-            fetch('@Url.Action("CambiarEstado")', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
-                },
-                body: JSON.stringify({
-                    proyectoId: proyectoId,
-                    estado: parseInt(nuevoEstado)
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showAlert('Estado actualizado correctamente. Recargando página...', 'success');
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    showAlert('Error al cambiar el estado', 'danger');
-                    showAlert('Error al cambiar el estado', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('Error de conexión', 'danger');
-            });
-        }
-
-        // Mostrar alertas
-        function showAlert(message, type) {
-            const alertHtml = `
-                <div class="alert alert-${type} alert-dismissible fade show position-fixed"
-                     style="top: 100px; right: 20px; z-index: 9999;" role="alert">
-                    ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            
+            <!-- Modal de vista previa (único) -->
+            <div class="modal fade" id="ga-preview" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="ga-preview-title">Vista previa</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body p-0" id="ga-preview-body"></div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
                 </div>
-            `;
-            document.body.insertAdjacentHTML('beforeend', alertHtml);
+            </div>
+@section Scripts {
+                <script>
+                    (function(){
+                      // --- Alertas flotantes ---
+                      function showAlert(message, type) {
+                        const html = `
+                          <div class="alert alert-${type} alert-dismissible fade show position-fixed"
+                               style="top:16px;right:16px;z-index:1040" role="alert">
+                            ${message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                          </div>`;
+                        document.body.insertAdjacentHTML('beforeend', html);
+                        setTimeout(() => {
+                          const el = document.querySelector('.alert.position-fixed');
+                          if (el) el.remove();
+                        }, 5000);
+                      }
 
-            // Auto-eliminar después de 5 segundos
-            setTimeout(() => {
-                const alert = document.querySelector('.alert:last-child');
-                if (alert) alert.remove();
-            }, 5000);
-        }
- 
-                     </script>
+                      // --- Cargar Bootstrap si no está ---
+                                          const modalEl = document.getElementById('ga-preview');
+                    if (modalEl && modalEl.parentElement !== document.body) {
+                      document.body.appendChild(modalEl); // mover modal directamente bajo <body>
+                    }
 
-<script>
-(function(){
-  const wrap = document.getElementById('gestor-archivos');
-  if(!wrap) return;
+                      function ensureBootstrap(){
+                        return new Promise(resolve=>{
+                          if (window.bootstrap && bootstrap.Modal) return resolve();
+                          const s=document.createElement('script');
+                          s.src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js";
+                          s.onload=resolve; document.head.appendChild(s);
+                        });
+                      }
 
-  const proyectoId = parseInt(wrap.dataset.proyecto,10);
-  // Carpeta inicial: Documentos (coincide con tu Crear/Detalle)
-  let ruta = "Documentos";
+                      ensureBootstrap().then(() => {
+                        const wrap = document.getElementById('gestor-archivos');
+                        if(!wrap) return;
 
-  const elLista = document.getElementById('ga-lista');
-  const elBread = document.getElementById('ga-breadcrumb');
-  const elFile = document.getElementById('ga-file-input');
-  const elSubir = document.getElementById('ga-subir-btn');
-  const elNueva = document.getElementById('ga-nueva-carpeta-btn');
-  const elRecargar = document.getElementById('ga-recargar-btn');
-  const progressWrap = document.getElementById('ga-progress-wrap');
-  const progressBar = document.getElementById('ga-progress');
+                        // === Estado/elementos ===
+                        const proyectoId   = parseInt(wrap.dataset.proyecto,10);
+                        const canCrear     = wrap.dataset.puedeCrear   === 'true';
+                        const canEditar    = wrap.dataset.puedeEditar  === 'true';
+                        const canEliminar  = wrap.dataset.puedeEliminar=== 'true';
+                        let ruta = "Documentos";
 
-  // Token anti-CSRF
-  const token = document.querySelector('#ga-antiforgery [name="__RequestVerificationToken"]')?.value || '';
+                        const elLista    = document.getElementById('ga-lista');
+                        const elBread    = document.getElementById('ga-breadcrumb');
+                        const elFile     = document.getElementById('ga-file-input');
+                        const elSubir    = document.getElementById('ga-subir-btn');
+                        const elNueva    = document.getElementById('ga-nueva-carpeta-btn');
+                        const elRecargar = document.getElementById('ga-recargar-btn');
+                        const progressWrap = document.getElementById('ga-progress-wrap');
+                        const progressBar  = document.getElementById('ga-progress');
 
-          function humanSize(bytes){
-          const b = Number(bytes);
-          if (!Number.isFinite(b) || b <= 0) return '—';
-          const u = ['B','KB','MB','GB','TB'];
-          let i = 0, n = b;
-          while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
-          return (n >= 10 ? Math.round(n) : n.toFixed(1)) + ' ' + u[i];
-        }
-        function fechaLocal(isoStr){
-  if(!isoStr) return '—';
-  const d = new Date(isoStr);
-  return isNaN(d) ? '—' : d.toLocaleString();
-}
-  function pintarBreadcrumb(crumbs){
-    elBread.innerHTML = '';
-    crumbs.forEach((c, idx) => {
-      const li = document.createElement('li');
-      li.className = 'breadcrumb-item' + (idx === crumbs.length-1 ? ' active' : '');
-      if(idx === crumbs.length-1){ li.textContent = c.nombre; }
-      else{
-        const a = document.createElement('a'); a.href='#'; a.textContent=c.nombre;
-        a.addEventListener('click', e => { e.preventDefault(); ruta = c.ruta || "Documentos"; listar(); });
-        li.appendChild(a);
-      }
-      elBread.appendChild(li);
-    });
-  }
+                        const token = document.querySelector('#ga-antiforgery [name="__RequestVerificationToken"]')?.value || '';
 
-  function puedePrever(nombre){
-    const n = (nombre||'').toLowerCase();
-    return n.endsWith('.png')||n.endsWith('.jpg')||n.endsWith('.jpeg')||n.endsWith('.gif')||n.endsWith('.webp')||n.endsWith('.pdf');
-  }
+                        // === Helpers ===
+                        function humanSize(bytes){
+                          const b = Number(bytes);
+                          if(!Number.isFinite(b) || b <= 0) return '—';
+                          const u = ['B','KB','MB','GB','TB'];
+                          let i=0, n=b;
+                          while(n >= 1024 && i < u.length-1){ n/=1024; i++; }
+                          return (n >= 10 ? Math.round(n) : n.toFixed(1)) + ' ' + u[i];
+                        }
+                        function fechaLocal(isoStr){
+                          if(!isoStr) return '—';
+                          const d = new Date(isoStr);
+                          return isNaN(d) ? '—' : d.toLocaleString();
+                        }
+                        function pintarBreadcrumb(crumbs){
+                          elBread.innerHTML = '';
+                          (crumbs||[]).forEach((c,idx)=>{
+                            const li = document.createElement('li');
+                            li.className = 'breadcrumb-item' + (idx===crumbs.length-1?' active':'');
+                            if(idx===crumbs.length-1){ li.textContent = c.nombre; }
+                            else{
+                              const a = document.createElement('a');
+                              a.href='#'; a.textContent=c.nombre;
+                              a.addEventListener('click', e => { e.preventDefault(); ruta = c.ruta || "Documentos"; listar(); });
+                              li.appendChild(a);
+                            }
+                            elBread.appendChild(li);
+                          });
+                        }
+                        function puedePrever(nombre){
+                          const n = (nombre||'').toLowerCase();
+                          return n.endsWith('.png')||n.endsWith('.jpg')||n.endsWith('.jpeg')||n.endsWith('.gif')||n.endsWith('.webp')||
+                                 n.endsWith('.pdf')||
+                                 n.endsWith('.mp4')||n.endsWith('.webm')||n.endsWith('.ogg')||
+                                 n.endsWith('.mp3')||n.endsWith('.wav')||n.endsWith('.oga')||
+                                 n.endsWith('.txt')||n.endsWith('.log')||n.endsWith('.csv')||n.endsWith('.json')||n.endsWith('.xml')||
+                                 n.endsWith('.doc')||n.endsWith('.docx')||n.endsWith('.xls')||n.endsWith('.xlsx')||n.endsWith('.ppt')||n.endsWith('.pptx')||
+                                 n.endsWith('.dwg')||n.endsWith('.dxf')||n.endsWith('.step')||n.endsWith('.stp')||n.endsWith('.iges')||n.endsWith('.igs');
+                        }
+                        function urlDescargar(r){
+                          return '@Url.Action("DescargarArchivo", "Proyectos")' + `?id=${proyectoId}&rutaRelativa=${encodeURIComponent(r)}`;
+                        }
+                        function makePreviewUrl(r){
+                          return '@Url.Action("VerArchivo", "Proyectos")' + `?id=${proyectoId}&rutaRelativa=${encodeURIComponent(r)}`;
+                        }
+                        function extDe(nombre){
+                          const i=(nombre||'').lastIndexOf('.'); return i>=0 ? nombre.slice(i).toLowerCase() : '';
+                        }
 
-  function urlDescargar(r){ return '@Url.Action("DescargarArchivo", "Proyectos")' + `?id=${proyectoId}&rutaRelativa=${encodeURIComponent(r)}`; }
-  function urlPreview(r){ return '@Url.Action("Previsualizar", "Proyectos")' + `?proyectoId=${proyectoId}&rutaRelativa=${encodeURIComponent(r)}`; }
+                        // Modal ÚNICO
+                        const modalEl  = document.getElementById('ga-preview');
+                        const bodyEl   = document.getElementById('ga-preview-body');
+                        const titleEl  = document.getElementById('ga-preview-title');
+                        const bsPreview = modalEl ? bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop:true, keyboard:true, focus:true }) : null;
 
-  async function listar(){
-    const res = await fetch('@Url.Action("ListarArchivos","Proyectos")', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json', 'RequestVerificationToken': token },
-      body: JSON.stringify({ ProyectoId: proyectoId, Ruta: ruta })
-    });
-    const data = await res.json();
-    if(!data.ok){ showAlert?.('Error al listar','danger'); return; }
+                        modalEl?.addEventListener('hidden.bs.modal', ()=> {
+                          if (bodyEl) bodyEl.innerHTML = '';
+                          
+                        });
 
-    pintarBreadcrumb(data.breadcrumb);
-    const items = data.items || [];
-    elLista.innerHTML = '';
+                        // Vista previa
+                        function openPreview(rutaRelativa, nombre){
+                          if (!bodyEl) return;
+                          // quita alertas que puedan tapar la X
+                          document.querySelectorAll('.alert.position-fixed').forEach(a => a.remove());
 
-    // subir un nivel si no estamos en raíz
-    if(ruta && ruta !== 'Documentos'){
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td><i class="fas fa-level-up-alt"></i></td>
-                      <td colspan="4"><a href="#" id="ga-up">Subir un nivel</a></td>`;
-      elLista.appendChild(tr);
-      tr.querySelector('#ga-up').addEventListener('click', (e)=>{
-        e.preventDefault();
-        const parts = ruta.split('/'); parts.pop();
-        ruta = parts.join('/') || 'Documentos';
-        listar();
-      });
-    }
+                          titleEl.textContent = nombre || 'Vista previa';
+                          const url = makePreviewUrl(rutaRelativa);
+                          const ext = extDe(nombre || rutaRelativa);
 
-  items.forEach(it=>{
-  const tr = document.createElement('tr');
+                          bodyEl.innerHTML = '';
 
-  const acciones = it.esCarpeta
-    ? `
-      <button type="button" class="btn btn-sm btn-outline-secondary ga-ren" data-r="${it.rutaRelativa}"><i class="fas fa-i-cursor"></i></button>
-      <button type="button" class="btn btn-sm btn-outline-danger ga-del" data-r="${it.rutaRelativa}"><i class="fas fa-trash"></i></button>`
-    : `
-      <a class="btn btn-sm btn-outline-primary" href="${urlDescargar(it.rutaRelativa)}"><i class="fas fa-download"></i></a>
-      <button type="button" class="btn btn-sm btn-outline-secondary ga-ren" data-r="${it.rutaRelativa}"><i class="fas fa-i-cursor"></i></button>
-      <button type="button" class="btn btn-sm btn-outline-danger ga-del" data-r="${it.rutaRelativa}"><i class="fas fa-trash"></i></button>
-      ${puedePrever(it.nombre) ? `<a class="btn btn-sm btn-outline-success" target="_blank" href="${urlPreview(it.rutaRelativa)}"><i class="fas fa-eye"></i></a>` : ``}
-    `;
+                          if (['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg'].includes(ext)) {
+                            bodyEl.innerHTML = `<div class="p-3"><img src="${url}" class="img-fluid" /></div>`;
+                          }
+                          else if (ext === '.pdf') {
+                            bodyEl.innerHTML = `<iframe src="${url}#toolbar=1" style="width:100%;height:80vh;border:0;"></iframe>`;
+                          }
+                          else if (['.mp4','.webm','.ogg'].includes(ext)) {
+                            bodyEl.innerHTML = `<video controls style="width:100%;max-height:80vh;"><source src="${url}">Tu navegador no soporta video HTML5.</video>`;
+                          }
+                          else if (['.mp3','.wav','.oga','.ogg'].includes(ext)) {
+                            bodyEl.innerHTML = `<div class="p-3"><audio controls style="width:100%;"><source src="${url}">Tu navegador no soporta audio HTML5.</audio></div>`;
+                          }
+                          else if (['.txt','.log','.csv','.json','.xml'].includes(ext)) {
+                            bodyEl.innerHTML = `<iframe src="${url}" style="width:100%;height:80vh;border:0;"></iframe>`;
+                          }
+                          else if (['.doc','.docx','.xls','.xlsx','.ppt','.pptx'].includes(ext)) {
+                            const absUrl = new URL(url, window.location.origin).toString();
+                            const office = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absUrl)}`;
+                            bodyEl.innerHTML = `
+                              <div class="alert alert-info m-3">Intentando abrir con Office Online. Si no carga, descárgalo.</div>
+                              <iframe src="${office}" style="width:100%;height:75vh;border:0;"></iframe>`;
+                          }
+                          else if (['.dwg','.dxf','.step','.stp','.iges','.igs'].includes(ext)) {
+                            bodyEl.innerHTML = `
+                              <div class="p-3">
+                                <div class="alert alert-warning">
+                                  CAD no se previsualiza nativamente.
+                                  <ul class="mb-0">
+                                    <li>Integrar Autodesk Forge Viewer</li>
+                                    <li>Convertir a PDF/imagen</li>
+                                    <li>Descargar y abrir en tu app CAD</li>
+                                  </ul>
+                                </div>
+                                <a class="btn btn-sm btn-primary" href="${urlDescargar(rutaRelativa)}"><i class="fas fa-download me-1"></i> Descargar</a>
+                              </div>`;
+                          }
+                          else {
+                            bodyEl.innerHTML = `
+                              <div class="p-3">
+                                <div class="alert alert-secondary">Tipo no soportado para vista previa.</div>
+                                <a class="btn btn-sm btn-primary" href="${urlDescargar(rutaRelativa)}"><i class="fas fa-download me-1"></i> Descargar</a>
+                              </div>`;
+                          }
 
-  tr.innerHTML = `
-    <td><i class="${it.iconoCss}"></i></td>
-    <td class="text-truncate" style="max-width:360px;">
-      ${it.esCarpeta
-        ? `<a href="#" class="ga-open" data-r="${it.rutaRelativa}">${it.nombre}</a>`
-        : `<span>${it.nombre}</span>`}
-    </td>
-    <td>${it.esCarpeta ? '—' : humanSize(it.tamanoBytes)}</td>
-    <td>${fechaLocal(it.ultimaMod)}</td>
-    <td class="d-flex flex-wrap gap-2">${acciones}</td>`;
+                          bsPreview?.show();
+                        }
 
-  elLista.appendChild(tr);
+                        // aPI POST JSON
+                        async function postJson(url, payload){
+                          const res = await fetch(url, {
+                            method:'POST',
+                            headers:{ 'Content-Type':'application/json', 'RequestVerificationToken': token },
+                            body: JSON.stringify(payload)
+                          });
+                          try { const data = await res.json(); return !!data.ok; }
+                          catch { return false; }
+                        }
 
-  tr.querySelectorAll('.ga-open').forEach(a=>{
-    a.addEventListener('click', e => { e.preventDefault(); ruta = a.dataset.r; listar(); });
-  });
-  tr.querySelectorAll('.ga-ren').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const rutaRel = btn.dataset.r;
-      const nuevo = prompt('Nuevo nombre:');
-      if(!nuevo) return;
-      const ok = await postJson('@Url.Action("Renombrar","Proyectos")',{ ProyectoId: proyectoId, RutaRelativa: rutaRel, NuevoNombre: nuevo });
-      showAlert?.(ok ? 'Renombrado correctamente':'No se pudo renombrar', ok ? 'success':'danger');
-      if(ok) listar();
-    });
-  });
-  tr.querySelectorAll('.ga-del').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const rutaRel = btn.dataset.r;
-      if(!confirm('¿Eliminar? Esta acción no se puede deshacer.')) return;
-      const ok = await postJson('@Url.Action("Eliminar","Proyectos")',{ ProyectoId: proyectoId, RutaRelativa: rutaRel });
-      showAlert?.(ok ? 'Eliminado':'No se pudo eliminar', ok ? 'success':'danger');
-      if(ok) listar();
-    });
-  });
-});
-  }
+                        // Listado / acciones 
+                        async function listar(){
+                          const res = await fetch('@Url.Action("ListarArchivos", "Proyectos")', {
+                            method:'POST',
+                            headers:{ 'Content-Type':'application/json', 'RequestVerificationToken': token },
+                            body: JSON.stringify({ ProyectoId: proyectoId, Ruta: ruta })
+                          });
+                          const data = await res.json();
+                          if(!data.ok){ showAlert('Error al listar','danger'); return; }
 
-  async function postJson(url, payload){
-    const res = await fetch(url, {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json', 'RequestVerificationToken': token },
-      body: JSON.stringify(payload)
-    });
-    try { const data = await res.json(); return !!data.ok; }
-    catch{ return false; }
-  }
+                          pintarBreadcrumb(data.breadcrumb);
+                          const items = data.items || [];
+                          elLista.innerHTML = '';
 
-  // Subir
-  elSubir?.addEventListener('click', ()=> elFile.click());
-  elFile?.addEventListener('change', async ()=>{
-    if(!elFile.files || elFile.files.length===0) return;
-    const fd = new FormData();
-    for(const f of elFile.files) fd.append('files', f);
-    fd.append('proyectoId', proyectoId);
-    fd.append('rutaDestino', ruta);
+                          if(ruta && ruta !== 'Documentos'){
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                              <td><i class="fas fa-level-up-alt"></i></td>
+                              <td colspan="4"><a href="#" id="ga-up">Subir un nivel</a></td>`;
+                            elLista.appendChild(tr);
+                            tr.querySelector('#ga-up').addEventListener('click', (e)=>{
+                              e.preventDefault();
+                              const parts = ruta.split('/'); parts.pop();
+                              ruta = parts.join('/') || 'Documentos';
+                              listar();
+                            });
+                          }
 
-    progressWrap.classList.remove('d-none');
-    progressBar.style.width = '0%';
+                          items.forEach(it=>{
+                            const tr = document.createElement('tr');
 
-    await new Promise((resolve)=>{
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST','@Url.Action("SubirArchivos", "Proyectos")', true);
-      xhr.setRequestHeader('RequestVerificationToken', token);
-      xhr.upload.onprogress = (e)=>{
-        if(e.lengthComputable){
-          progressBar.style.width = Math.round((e.loaded/e.total)*100) + '%';
-        }
-      };
-      xhr.onreadystatechange = ()=>{ if(xhr.readyState===4) resolve(); };
-      xhr.send(fd);
-    });
+                            // Acciones según tipo y permisos
+                            let acciones = '';
+                            if (it.esCarpeta) {
+                              if (canEliminar) acciones += `
+                                <button type="button" class="btn btn-sm btn-outline-danger ga-del" data-r="${it.rutaRelativa}">
+                                  <i class="fas fa-trash"></i>
+                                </button>`;
+                            } else {
+                              acciones += `
+                                <a class="btn btn-sm btn-outline-primary" href="${urlDescargar(it.rutaRelativa)}">
+                                  <i class="fas fa-download"></i>
+                                </a>`;
+                              if (canEliminar) acciones += `
+                                <button type="button" class="btn btn-sm btn-outline-danger ga-del" data-r="${it.rutaRelativa}">
+                                  <i class="fas fa-trash"></i>
+                                </button>`;
+                              if (puedePrever(it.nombre)) acciones += `
+                                <button type="button" class="btn btn-sm btn-outline-success ga-view" data-r="${it.rutaRelativa}" data-n="${it.nombre}">
+                                  <i class="fas fa-eye"></i>
+                                </button>`;
+                            }
 
-    setTimeout(()=>{ progressWrap.classList.add('d-none'); progressBar.style.width='0%'; }, 500);
-    elFile.value = '';
-    showAlert?.('Subida finalizada','success');
-    listar();
-  });
+                            tr.innerHTML = `
+                              <td><i class="${it.iconoCss}"></i></td>
+                              <td class="text-truncate" style="max-width:360px;">
+                                ${it.esCarpeta
+                                  ? `<a href="#" class="ga-open" data-r="${it.rutaRelativa}">${it.nombre}</a>`
+                                  : `<span>${it.nombre}</span>`}
+                              </td>
+                              <td>${it.esCarpeta ? '—' : humanSize(it.tamanoBytes)}</td>
+                              <td>${fechaLocal(it.ultimaMod)}</td>
+                              <td class="d-flex flex-wrap gap-2">${acciones}</td>`;
 
-  // Nueva carpeta
-  elNueva?.addEventListener('click', async ()=>{
-    const nombre = prompt('Nombre de la nueva carpeta:');
-    if(!nombre) return;
-    const ok = await postJson('@Url.Action("CrearCarpeta", "Proyectos")', { ProyectoId: proyectoId, RutaPadre: ruta, Nombre: nombre });
-    showAlert?.(ok ? 'Carpeta creada' : 'No se pudo crear', ok ? 'success':'danger');
-    if(ok) listar();
-  });
+                            elLista.appendChild(tr);
 
-  // Recargar
-  elRecargar?.addEventListener('click', listar);
+                            tr.querySelectorAll('.ga-open').forEach(a=>{
+                              a.addEventListener('click', e => { e.preventDefault(); ruta = a.dataset.r; listar(); });
+                            });
+                            tr.querySelectorAll('.ga-del').forEach(btn=>{
+                              btn.addEventListener('click', async ()=>{
+                                const rutaRel = btn.dataset.r;
+                                if(!confirm('¿Eliminar? Esta acción no se puede deshacer.')) return;
+                                const ok = await postJson('@Url.Action("EliminarArchivo", "Proyectos")',{ ProyectoId: proyectoId, RutaRelativa: rutaRel });
+                                showAlert(ok ? 'Eliminado' : 'No se pudo eliminar', ok ? 'success' : 'danger');
+                                if(ok) listar();
+                              });
+                            });
+                            tr.querySelectorAll('.ga-view').forEach(btn=>{
+                              btn.addEventListener('click', ()=> openPreview(btn.dataset.r, btn.dataset.n));
+                            });
+                          });
+                        }
 
-  // Init
-  listar();
-})();
-</script>
+                        //  Subir archivos 
+                        elSubir?.addEventListener('click', ()=> elFile.click());
+                        elFile?.addEventListener('change', async ()=>{
+                          if(!elFile.files || elFile.files.length===0) return;
+                          const fd = new FormData();
+                          for(const f of elFile.files) fd.append('files', f);
+                          fd.append('proyectoId', proyectoId);
+                          fd.append('rutaDestino', ruta);
 
+                          progressWrap.classList.remove('d-none');
+                          progressBar.style.width = '0%';
+
+                          await new Promise((resolve)=>{
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('POST','@Url.Action("SubirArchivos", "Proyectos")', true);
+                            xhr.setRequestHeader('RequestVerificationToken', token);
+                            xhr.upload.onprogress = (e)=>{
+                              if(e.lengthComputable){
+                                progressBar.style.width = Math.round((e.loaded/e.total)*100) + '%';
+                              }
+                            };
+                            xhr.onreadystatechange = ()=>{ if(xhr.readyState===4) resolve(); };
+                            xhr.send(fd);
+                          });
+
+                          setTimeout(()=>{ progressWrap.classList.add('d-none'); progressBar.style.width='0%'; }, 400);
+                          elFile.value = '';
+                          showAlert('Subida finalizada','success');
+                          listar();
+                        });
+
+                        // Nueva carpeta / Recargar
+                        elNueva?.addEventListener('click', async ()=>{
+                          const nombre = prompt('Nombre de la nueva carpeta:');
+                          if(!nombre) return;
+                          const ok = await postJson('@Url.Action("CrearCarpeta", "Proyectos")', { ProyectoId: proyectoId, RutaPadre: ruta, Nombre: nombre });
+                          showAlert(ok ? 'Carpeta creada' : 'No se pudo crear', ok ? 'success' : 'danger');
+                          if(ok) listar();
+                        });
+                        elRecargar?.addEventListener('click', listar);
+
+                        // === Arranque ===
+                        listar();
+                      });
+                    })();
+                </script>
 }

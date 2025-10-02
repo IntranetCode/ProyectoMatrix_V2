@@ -135,6 +135,15 @@ namespace ProyectoMatrix.Models
     public class ListarReq { public int ProyectoId { get; set; } public string? Ruta { get; set; } }
 
 
+
+    public sealed class CrearCarpetaDto
+    {
+        public int ProyectoId { get; set; }
+        public string? RutaPadre { get; set; }   // ruta relativa donde crear la carpeta
+        public string Nombre { get; set; } = ""; // nombre de la nueva carpeta
+    }
+
+
     // Extensions para facilitar el manejo de enums
     public static class ProyectoExtensions
     {

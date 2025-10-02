@@ -183,3 +183,52 @@
             margin-top: .5rem;
         }
 }
+
+
+
+.modal-backdrop {
+    z-index: 1050 !important;
+}
+
+.modal {
+    z-index: 1060 !important;
+}
+
+#ga-preview .modal-content {
+    position: relative;
+}
+
+#ga-preview .modal-header,
+#ga-preview .modal-footer {
+    position: relative;
+    z-index: 2;
+}
+
+#ga-preview .modal-body > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Tamaños cómodos para el visor dentro del modal */
+#ga-preview .modal-body {
+    overflow-y: auto; 
+    overflow-x: hidden;
+}
+
+
+    #ga-preview .modal-body iframe,
+    #ga-preview .modal-body img,
+    #ga-preview .modal-body video {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        border: 0;
+    }
+    /* Altura del área de visualización  */
+    #ga-preview .modal-body iframe {
+        height: calc(100vh - 180px);
+    }
+
+    #ga-preview .modal-body video {
+        max-height: calc(100vh - 180px);
+    }

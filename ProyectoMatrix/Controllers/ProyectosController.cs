@@ -100,7 +100,7 @@ public class ProyectosController : Controller
     public async Task<IActionResult> Detalle(int id, int? carpetaId = null)
     {
         ViewBag.TituloNavbar = "Detalle del Proyecto";
-        ViewBag.LogoNavbar = "logo-proyectos.png";
+        ViewBag.LogoNavbar = "logo_proyectos.png";
 
         int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
         if (empresaId == null)
@@ -171,7 +171,7 @@ public class ProyectosController : Controller
     public IActionResult Crear()
     {
         ViewBag.TituloNavbar = "Crear Nuevo Proyecto";
-        ViewBag.LogoNavbar = "logo-proyectos.png";
+        ViewBag.LogoNavbar = "logo_proyectos.png";
 
         int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
         if (empresaId == null)
@@ -198,7 +198,7 @@ public class ProyectosController : Controller
     public async Task<IActionResult> Crear(Proyecto proyecto, IFormFile archivo)
     {
         ViewBag.TituloNavbar = "Crear Nuevo Proyecto";
-        ViewBag.LogoNavbar = "logo-proyectos.png";
+        ViewBag.LogoNavbar = "logo_proyectos.png";
 
         int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
         string username = HttpContext.Session.GetString("Username");
@@ -330,7 +330,7 @@ public class ProyectosController : Controller
     public async Task<IActionResult> Editar(int id)
     {
         ViewBag.TituloNavbar = "Editar Proyecto";
-        ViewBag.LogoNavbar = "logo-proyectos.png";
+        ViewBag.LogoNavbar = "logo_proyectos.png";
 
         int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
         if (empresaId == null)
@@ -353,7 +353,7 @@ public class ProyectosController : Controller
     public async Task<IActionResult> Editar(int id,Proyecto proyecto, IFormFile archivo)
     {
         ViewBag.TituloNavbar = "Editar Proyecto";
-        ViewBag.LogoNavbar = "logo-proyectos.png";
+        ViewBag.LogoNavbar = "logo_proyectos.png";
 
         //Verifica que usuario es el que esta iniciando sesion
 
@@ -748,7 +748,95 @@ public class ProyectosController : Controller
         });
     }
 
-   
+
+ 
+
+    public record EliminarReq(int ProyectoId, string RutaRelativa);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AutorizarAccion("Proyectos", "Eliminar")]
+    public async Task<IActionResult> EliminarArchivo([FromBody] EliminarReq req)
+    {
+        var empresaId = HttpContext.Session.GetInt32("EmpresaID");
+        if (empresaId is null) return Unauthorized();
+
+        var p = await _proyectosBD.ObtenerProyectoPorIdAsync(req.ProyectoId, empresaId.Value);
+        if (p is null) return NotFound();
+
+        var baseProyecto = _rutaNas.CrearCarpetaRaizProyecto(p.ProyectoID, p.NombreProyecto);
+        var full = Path.Combine(baseProyecto, req.RutaRelativa.Replace("/", Path.DirectorySeparatorChar.ToString()));
+
+        if (Directory.Exists(full)) Directory.Delete(full, recursive: true);
+        else if (System.IO.File.Exists(full)) System.IO.File.Delete(full);
+        else return NotFound();
+
+        return Json(new { ok = true });
+    }
+
+
+
+    //Metodo para crear una nueva carpeta en el gestor de archivos
+
+    [HttpPost]
+    [AutorizarAccion("Proyectos", "Crear")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CrearCarpeta([FromBody] CrearCarpetaDto dto)
+    {
+        try
+        {
+            // Sesión/empresa
+            int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
+            if (empresaId is null) return Json(false);
+
+            // Datos mínimos
+            if (dto is null || string.IsNullOrWhiteSpace(dto.Nombre)) return Json(false);
+
+            // Proyecto válido y perteneciente a la empresa
+            var proyecto = await _proyectosBD.ObtenerProyectoPorIdAsync(dto.ProyectoId, empresaId.Value);
+            if (proyecto is null) return Json(false);
+
+            // Normalizar la ruta relativa destino
+            var rutaRelativa = NormalizarRutaRelativa(
+                string.IsNullOrWhiteSpace(dto.RutaPadre) ? proyecto.ArchivoRuta : dto.RutaPadre
+            );
+
+            if (rutaRelativa is null) return Json(false);
+
+            // Validar nombre de carpeta 
+            var nombre = dto.Nombre.Trim();
+            if (nombre == "." || nombre == "..") return Json(false);
+            if (nombre.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return Json(false);
+            if (nombre.Contains(Path.DirectorySeparatorChar) || nombre.Contains(Path.AltDirectorySeparatorChar))
+                return Json(false);
+
+            // Combinar con NAS 
+            var rutaPadreCompleta = CombinarNas(proyecto, rutaRelativa);
+            if (string.IsNullOrWhiteSpace(rutaPadreCompleta)) return Json(false);
+
+            // Garantizar que la ruta padre exista
+            if (!Directory.Exists(rutaPadreCompleta))
+            {
+                
+                Directory.CreateDirectory(rutaPadreCompleta);
+            }
+
+            // Ruta final a crear
+            var rutaNuevaCarpeta = Path.Combine(rutaPadreCompleta, nombre);
+            if (Directory.Exists(rutaNuevaCarpeta))
+                return Json(new { ok = false, error = "La carpeta ya existe" });
+
+            Directory.CreateDirectory(rutaNuevaCarpeta);
+            return Json(new { ok = true }); 
+        }
+        catch
+        {
+            // aqui porner el servicio de bitacroa
+            return Json(false);
+        }
+    }
+
+
 
 
 }

@@ -279,23 +279,28 @@ h1.h3 {
 
 /* Otros estilos para la tarjeta de proyecto */
 .progreso-container {
-    background-color: #e9ecef;
-    border-radius: 15px;
-    height: 8px;
-    margin-top: 0.5rem;
+    margin-top: .5rem; /* solo separación superior */
 }
 
-.progreso-bar {
-    background-color: #e9ecef;
-    border-radius: 15px;
-    position: relative;
-    height: 8px;
+.progreso-header { /* fila "Progreso  45%" */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: .35rem; /* espacio antes de la pista */
+    line-height: 1.2;
 }
 
-.progreso-fill {
+.progreso-bar { /* PISTA */
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 999px;
+    overflow: hidden; /* redondeo perfecto del fill */
+}
+
+.progreso-fill { /* RELLENO */
     height: 100%;
-    border-radius: 15px;
-    transition: width 0.4s ease-in-out;
+    border-radius: inherit;
+    transition: width .4s ease-in-out;
 }
 
 .archivo-info {
@@ -315,4 +320,58 @@ h1.h3 {
 /* Estilos para el estado "No hay proyectos" */
 .text-center.py-5 .fas {
     color: #6c757d;
+}
+.botones {
+    margin: 2rem 0; /* + espacio arriba/abajo */
+    padding: 1rem 0; /* + aire interno */
+    border-top: 1px solid #dee2e6;
+    border-bottom: 1px solid #dee2e6;
+}
+
+    .botones > div {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content:flex-end; /* texto a la izq, botones a la der */
+        gap: .75rem 1rem;
+    }
+
+    .botones p {
+        margin: 0; /* evita dobles saltos */
+    }
+
+    .botones .btn-proyectos-principal {
+        margin-right: .1rem; /* separa botones entre sí */
+        color: azure !important;
+
+    }
+
+.proyecto-body {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem; /* espacio uniforme entre bloques */
+    overflow-wrap: anywhere; /* evita empalmes por palabras largas */
+}
+
+.progreso-container {
+    margin-top: .25rem;
+    margin-bottom: .75rem; /* separa de lo que viene después */
+}
+
+
+.proyecto-body .row {
+    --bs-gutter-y: .5rem; /* más separación vertical entre columnas al wrapear */
+}
+
+/* Ajusta line-height de textos pequeños para evitar que "se monten" visualmente */
+.proyecto-body small {
+    line-height: 1.25;
+}
+
+/* Cuando la tarjeta tenga ancho muy justo, que las dos columnas pasen a una debajo de otra */
+@media (max-width: 420px) {
+    .proyecto-body .row .col-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
 }

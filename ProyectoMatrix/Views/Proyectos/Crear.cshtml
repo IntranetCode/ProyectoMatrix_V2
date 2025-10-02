@@ -42,7 +42,7 @@
         @Html.AntiForgeryToken()
         <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
-        <!-- Sección: Información Básica -->
+        <!-- Información Básica -->
         <div class="form-section">
             <h5><i class="fas fa-info-circle me-2"></i>Información Básica</h5>
             <div class="row">
@@ -62,7 +62,7 @@
                             <i class="fas fa-hashtag me-1"></i>Código del Proyecto
                         </label>
                         <input asp-for="CodigoProyecto" class="form-control"
-                               placeholder="PRY-2025-001" />
+                               placeholder="PRY-xxxx-xxx" />
                         <span asp-validation-for="CodigoProyecto" class="text-danger"></span>
                     </div>
                 </div>

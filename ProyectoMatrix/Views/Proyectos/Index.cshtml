@@ -40,16 +40,24 @@
 
 
     <div class="botones ">
+       
         <div>
-            <p class="text-muted">Sube un proyecto o crea uno nuevo</p>
-        </div>
         @if (puedeCrear)
         {
+                <div>
+                    <p class="text-muted fw-bold">Sube un proyecto o crea uno nuevo</p>
+                </div>
+            
             <a href="@Url.Action("Crear")" class="btn-proyectos-principal">
                 <i class="fas fa-plus me-1"></i>Nuevo Proyecto
             </a>
 
+            <a href="@Url.Action("Cargar")" class="btn-proyectos-principal">
+                <i class="fas fa-cloud-upload-alt me-1"></i> Cargar proyecto terminado
+            </a>
+
         }
+        </div>
 
     </div>
 
@@ -221,8 +229,7 @@
                                 </div>
                             }
                         </div>
-
-                        <!-- Archivo adjunto -->
+                        @*<!-- Archivo adjunto -->
                         @if (!string.IsNullOrEmpty(proyecto.ArchivoRuta))
                         {
                             <div class="archivo-info d-flex align-items-center justify-content-between">
@@ -242,7 +249,8 @@
                                     </a>
                                 </div>
                             </div>
-                        }
+                        }*@
+                        
 
                         <!-- Tags -->
                         @if (!string.IsNullOrEmpty(proyecto.Tags))
