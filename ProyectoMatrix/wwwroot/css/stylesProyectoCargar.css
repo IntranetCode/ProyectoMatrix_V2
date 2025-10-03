@@ -1,0 +1,227 @@
+﻿
+    .form-container
+
+{
+    /* Estilo principal del formulario (ya existente) */
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+    padding: 2rem;
+}
+
+.form-section {
+    /* Estilo para las secciones internas del formulario (ya existente) */
+    background: #f8f9fa; /* Gris muy claro */
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    /* Suaviza la separación con el borde */
+    border: 1px solid #e9ecef;
+}
+
+    .form-section h5 {
+        /* Encabezados de sección (ya existente con el color corporativo) */
+        color: #04173b; /* Azul muy oscuro */
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+/* --- Títulos y Encabezados de Página --- */
+
+.h3 {
+    font-weight: 700;
+    color: #04173b;
+}
+
+    .h3 i {
+        /* Color principal para el ícono del título de página */
+        color: #007bff !important; /* Usando un azul más vivo para contraste con el fondo oscuro del degradado */
+    }
+
+/* --- Campos de Formulario e Iconografía --- */
+
+.form-label {
+    font-weight: 500;
+    color: #343a40; /* Gris oscuro para el texto de la etiqueta */
+}
+
+    .form-label i {
+        /* Iconos dentro de las etiquetas */
+        color: #063f63; /* Azul medio oscuro */
+    }
+
+.form-control {
+    /* Estilo base para todos los inputs y textareas */
+    border-radius: 8px;
+    border-color: #ced4da;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+    .form-control:focus {
+        /* Efecto de foco sutil usando el color primario */
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+    }
+
+.form-control-lg {
+    /* Estilo para el input de nombre de proyecto (más prominente) */
+    font-size: 1.15rem;
+    font-weight: 500;
+}
+
+/* --- Botones --- */
+
+/* Botones de Acción (ya existente, estilo redondeado) */
+.btn-action {
+    padding: 0.75rem 2rem;
+    border-radius: 25px;
+    font-weight: 600;
+}
+
+/* Botón Guardar / Habilitar Gestor */
+#btn-guardar-habilitar,
+#btn-guardar-ir-index {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    /* Coincide con el estilo de botón principal */
+    background-color: #004085; /* Azul oscuro */
+    border-color: #004085;
+    color: #ffffff;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+    #btn-guardar-habilitar:hover,
+    #btn-guardar-ir-index:hover {
+        background-color: #063f63; /* Azul oscuro un poco más vibrante al pasar el mouse */
+        border-color: #063f63;
+    }
+
+/* Botón Volver (Back to Index) */
+.btn-outline-secondary {
+    border-radius: 8px;
+    font-weight: 500;
+    color: #6c757d;
+    border-color: #6c757d;
+    transition: all 0.2s ease-in-out;
+}
+
+    .btn-outline-secondary:hover {
+        color: #04173b;
+        background-color: #f1f1f1;
+        border-color: #04173b;
+    }
+
+
+/* --- Gestor de Archivos (info-card) --- */
+
+.info-card {
+    /* Contenedor del gestor de archivos */
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    border: 1px solid #dee2e6; /* Borde suave */
+    box-shadow: 0 1px 10px rgba(0,0,0,0.05); /* Sombra ligera */
+    /* Deshabilitar el gestor inicialmente si no hay ID */
+    pointer-events: none;
+    opacity: 0.6;
+    transition: opacity 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+    .info-card h6 {
+        /* Título del gestor de archivos */
+        color: #04173b;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    /* Estilo para cuando el gestor está habilitado (lo controla el JS quitando el estilo de .info-card) */
+    .info-card[data-proyecto]:not([data-proyecto="0"]) {
+        pointer-events: auto;
+        opacity: 1;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    }
+
+/* Barra de Herramientas del Gestor (Toolbar) */
+
+#ga-subir-btn {
+    /* Botón principal del gestor */
+    background-color: #007bff;
+    border-color: #007bff;
+    font-weight: 500;
+    border-radius: 6px;
+}
+
+    #ga-subir-btn:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+    }
+
+#ga-nueva-carpeta-btn, #ga-recargar-btn {
+    font-weight: 500;
+    border-radius: 6px;
+}
+
+
+/* Breadcrumb */
+#ga-breadcrumb {
+    /* Fondo del breadcrumb */
+    background-color: #e9ecef;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+}
+
+    #ga-breadcrumb .breadcrumb-item a {
+        /* Enlaces del breadcrumb */
+        color: #04173b;
+        text-decoration: none;
+    }
+
+    #ga-breadcrumb .breadcrumb-item.active {
+        /* Elemento activo del breadcrumb */
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+/* Tabla de Archivos */
+
+.table-light {
+    /* Encabezado de la tabla */
+    background-color: #e9ecef !important;
+}
+
+.table thead th {
+    /* Texto del encabezado */
+    color: #04173b;
+    font-weight: 600;
+}
+
+/* Iconos de carpeta y archivo en la tabla */
+.fa-folder {
+    color: #ffc107; /* Amarillo para carpetas */
+}
+
+.fa-file {
+    color: #495057; /* Gris para archivos */
+}
+
+/* Botones de acción en la tabla (Abrir / Eliminar) */
+.ga-abrir {
+    color: #28a745; /* Verde para 'Abrir' (Sign In Alt) */
+    border-color: #28a745;
+}
+
+    .ga-abrir:hover {
+        background-color: #28a745;
+        color: white;
+    }
+
+.ga-del {
+    color: #dc3545; /* Rojo para 'Eliminar' */
+    border-color: #dc3545;
+}
+
+    .ga-del:hover {
+        background-color: #dc3545;
+        color: white;
+    }

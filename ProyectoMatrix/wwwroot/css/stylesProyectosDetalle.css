@@ -99,7 +99,7 @@
     min-width: 0;
 }
 
-/* ----- Timeline ----- */
+/*  Timeline  */
 .timeline {
     position: relative;
     padding-left: 2rem;
@@ -138,7 +138,7 @@
         box-shadow: 0 0 0 3px var(--bs-success);
     }
 
-/* ----- Archivo / tags / extras ----- */
+/*  Archivo / tags / extras  */
 .archivo-preview {
     border: 2px solid #dee2e6;
     border-radius: 15px;
@@ -155,14 +155,14 @@
     margin-right: .5rem;
 }
 
-/* Botones laterales fijos (si los quieres sticky) */
+/* Botones laterales fijos  */
 .action-buttons {
-    position: sticky; /* queda bien dentro del header */
+    position: sticky; 
     top: 100px;
     z-index: 10;
 }
 
-/* ----- Inputs: evitar solapes ----- */
+
 .input-group {
     flex-wrap: nowrap;
 }
@@ -232,3 +232,109 @@
     #ga-preview .modal-body video {
         max-height: calc(100vh - 180px);
     }
+
+
+#gestor-archivos:not([data-proyecto]):not([data-proyecto="0"]) {
+    pointer-events: none;
+    opacity: 0.65;
+    background: #f8f9fa; /* Fondo ligeramente más oscuro para indicar inactividad */
+}
+
+/* Breadcrumb del Gestor de Archivos */
+#ga-breadcrumb {
+    background-color: #e9ecef; /* Gris claro sutil */
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+}
+
+    #ga-breadcrumb .breadcrumb-item a {
+        color: var(--bs-primary); /* Usar el azul principal */
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    #ga-breadcrumb .breadcrumb-item.active {
+        color: #6c757d;
+        font-weight: 400;
+    }
+
+/* Iconos de la Tabla de Archivos */
+.fa-folder {
+    color: var(--bs-warning); /* Amarillo de advertencia para carpetas */
+}
+
+.fa-file {
+    color: #6c757d; /* Gris para archivos estándar */
+}
+
+/* Botones de la Tabla (Acciones) */
+.table .btn-sm {
+    padding: .3rem .5rem;
+    border-radius: 6px;
+    font-size: .85rem;
+}
+
+.ga-abrir {
+    /* Botón Abrir (Carpeta) - Éxito */
+    color: var(--bs-success);
+    border-color: var(--bs-success);
+}
+
+    .ga-abrir:hover {
+        background-color: var(--bs-success);
+        color: #fff;
+    }
+
+.ga-del {
+    /* Botón Eliminar - Peligro */
+    color: var(--bs-danger);
+    border-color: var(--bs-danger);
+}
+
+    .ga-del:hover {
+        background-color: var(--bs-danger);
+        color: #fff;
+    }
+
+
+
+/* Icono de Título de la sección de Etiquetas */
+.info-card h6 .fa-tags {
+    color: var(--bs-info); /* Usar el color Info para contrastar con Primary del título */
+    margin-right: .5rem;
+}
+
+/* Estilo para los badges (etiquetas) */
+.info-card .badge {
+    padding: 0.5em 0.8em;
+    border-radius: 6px;
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    margin-right: 0.5rem; /* Separación entre etiquetas */
+    margin-bottom: 0.25rem; /* Asegura espacio si se envuelven en varias líneas */
+    display: inline-block;
+}
+
+    /* Redefinición específica del estilo bg-light/text-dark para tags */
+    .info-card .badge.bg-light.text-dark {
+        background-color: #e9ecef !important;
+        color: var(--bs-primary) !important;
+        border: 1px solid #ced4da;
+        transition: all 0.2s ease;
+    }
+
+
+.table-responsive {
+    /* Añade un marco visual a la tabla de archivos */
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+.table thead th {
+    /* Headers de la tabla más consistentes */
+    color: var(--bs-primary);
+    font-weight: 600;
+}

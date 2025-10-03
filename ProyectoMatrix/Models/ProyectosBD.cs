@@ -402,52 +402,7 @@ public class ProyectosBD
         return proyectos;
     }
 
-    //Se creó un nuevo metodo para mandar a llamar al procedimiento almacenado de Carpetas
-
-    public async Task<(int CarpetaID, string RutaRelativa)> CrearCarpetaAsync(
-        int proyectoId,
-        int? carpetaPadreId,
-        string nombreCarpeta,
-        int? usuarioCreadorId)
-    {
-        using var conexion = new SqlConnection(_connectionString);
-        await conexion.OpenAsync();
-
-        using var comando = new SqlCommand("dbo.sp_CrearCarpeta", conexion);
-        comando.CommandType = CommandType.StoredProcedure;
-
-        //Parametros de entradda 
-        comando.Parameters.Add("@ProyectoID", SqlDbType.Int).Value = proyectoId;
-        comando.Parameters.Add("@CarpetaPadreID", SqlDbType.Int).Value = (object)carpetaPadreId ?? DBNull.Value;
-        comando.Parameters.Add("@NombreCarpeta", SqlDbType.NVarChar, 200).Value = nombreCarpeta;
-        comando.Parameters.Add("@UsuarioCreadorID", SqlDbType.Int).Value=(object)usuarioCreadorId ?? DBNull.Value;
-
-        //Parametos de salida
-        var parametroRuta = comando.Parameters.Add("@RutaRelativaOut", SqlDbType.NVarChar, 1000);
-        parametroRuta.Direction = ParameterDirection.Output;
-
-        var parametroId = comando.Parameters.Add("@CarpetaIDOut", SqlDbType.Int);
-        parametroId.Direction = ParameterDirection.Output;
-
-
-        //Ejecutar
-
-        try
-        {
-            await comando.ExecuteNonQueryAsync();
-
-            int idCarpeta = (int)parametroId.Value;
-            string rutaRelativa = parametroRuta.Value?.ToString() ?? string.Empty;
-
-            return (idCarpeta, rutaRelativa);
-
-        }
-        catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
-        {
-            throw new InvalidOperationException("Ya existe una carpeta creada con ese nombre", ex);
-        }
-
-    }
+   
 
 
     public async Task ActualizarRutaArchivoAsync(int proyectoId, string? ruta, string? extension, long? tamano, int empresaId)
@@ -529,7 +484,124 @@ public class ProyectosBD
     }
 
 
+    //Metodo para guardar borradores para el apartado de cargar proyectos
 
+
+    public async Task<int> GuardarBorradorAsync(Proyecto modelo, int empresaId, int usuarioId)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        if (modelo.ProyectoID <= 0)
+        {
+            // INSERT
+            const string sql = @"
+INSERT INTO Proyectos
+(
+    NombreProyecto, Descripcion, CodigoProyecto, ArchivoRuta, TamanoArchivo, Extension,
+    FechaCreacion, FechaInicio, FechaFinPrevista, FechaFinReal, CreadoPor, ResponsableProyecto,
+    EsActivo, EmpresaID, Tags, Estado, Prioridad, Presupuesto, Progreso, Observaciones,
+    Visualizaciones, Ubicacion, Cliente, Tipo
+)
+VALUES
+(
+    @NombreProyecto, @Descripcion, @CodigoProyecto, @ArchivoRuta, @TamanoArchivo, @Extension,
+    @FechaCreacion, @FechaInicio, @FechaFinPrevista, @FechaFinReal, @CreadoPor, @ResponsableProyecto,
+    1, @EmpresaID, @Tags, @Estado, @Prioridad, @Presupuesto, @Progreso, @Observaciones,
+    @Visualizaciones, @Ubicacion, @Cliente, @Tipo
+);
+SELECT CAST(SCOPE_IDENTITY() AS INT);";
+
+            using var cmd = new SqlCommand(sql, connection);
+            // comunes
+            SetCommonProyectoParams(cmd, modelo, empresaId, isInsert: true, usuarioId: usuarioId);
+            // obligatorios de insert
+            cmd.Parameters.AddWithValue("@FechaCreacion", (object)(modelo.FechaCreacion == default ? DateTime.UtcNow : modelo.FechaCreacion));
+
+            var id = (int)(await cmd.ExecuteScalarAsync() ?? 0);
+            return id;
+        }
+        else
+        {
+            // UPDATE
+            const string sql = @"
+UPDATE Proyectos SET
+    NombreProyecto      = @NombreProyecto,
+    Descripcion         = @Descripcion,
+    CodigoProyecto      = @CodigoProyecto,
+    ArchivoRuta         = @ArchivoRuta,
+    TamanoArchivo       = @TamanoArchivo,
+    Extension           = @Extension,
+    FechaInicio         = @FechaInicio,
+    FechaFinPrevista    = @FechaFinPrevista,
+    FechaFinReal        = @FechaFinReal,
+    ResponsableProyecto = @ResponsableProyecto,
+    Tags                = @Tags,
+    Estado              = @Estado,
+    Prioridad           = @Prioridad,
+    Presupuesto         = @Presupuesto,
+    Progreso            = @Progreso,
+    Observaciones       = @Observaciones,
+    Visualizaciones     = @Visualizaciones,
+    Ubicacion           = @Ubicacion,
+    Cliente             = @Cliente,
+    Tipo                = @Tipo
+WHERE ProyectoID = @ProyectoID AND EmpresaID = @EmpresaID;
+SELECT @ProyectoID;";
+
+            using var cmd = new SqlCommand(sql, connection);
+            // comunes
+            SetCommonProyectoParams(cmd, modelo, empresaId, isInsert: false);
+            // clave
+            cmd.Parameters.AddWithValue("@ProyectoID", modelo.ProyectoID);
+
+            var id = (int)(await cmd.ExecuteScalarAsync() ?? 0);
+            return id;
+        }
+    }
+
+
+    private static void SetCommonProyectoParams(SqlCommand cmd, Proyecto m, int empresaId, bool isInsert, int? usuarioId = null)
+    {
+        // requeridos
+        cmd.Parameters.AddWithValue("@EmpresaID", empresaId);
+        cmd.Parameters.AddWithValue("@NombreProyecto", (object?)m.NombreProyecto ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Estado", (int)m.Estado);
+
+        // opcionales (null-safe)
+        cmd.Parameters.AddWithValue("@Descripcion", (object?)m.Descripcion ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@CodigoProyecto", (object?)m.CodigoProyecto ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@ArchivoRuta", (object?)m.ArchivoRuta ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@TamanoArchivo", (object?)m.TamanoArchivo ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Extension", (object?)m.Extension ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@FechaInicio", (object?)m.FechaInicio ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@FechaFinPrevista", (object?)m.FechaFinPrevista ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@FechaFinReal", (object?)m.FechaFinReal ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@ResponsableProyecto", (object?)m.ResponsableProyecto ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Tags", (object?)m.Tags ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Presupuesto", (object?)m.Presupuesto ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Progreso", (object?)m.Progreso ?? 0);
+        cmd.Parameters.AddWithValue("@Observaciones", (object?)m.Observaciones ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Visualizaciones", (object?)m.Visualizaciones ?? 0);
+        cmd.Parameters.AddWithValue("@Ubicacion", (object?)m.Ubicacion ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Cliente", (object?)m.Cliente ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Tipo", (object?)m.Tipo ?? DBNull.Value);
+        cmd.Parameters.Add("@Prioridad", SqlDbType.Int).Value = (int)m.Prioridad;
+
+
+        // CreadoPor solo tiene sentido en INSERT (es nvarchar(150) en tu tabla)
+        if (isInsert)
+        {
+            // Si en el modelo ya traes CreadoPor úsalo; si no, escribe un fallback con el ID
+            var creadoPor =  m.CreadoPor;
+            cmd.Parameters.AddWithValue("@CreadoPor", (object)creadoPor ?? DBNull.Value);
+        }
+        else
+        {
+            // En UPDATE no tocamos FechaCreacion ni CreadoPor
+            cmd.Parameters.AddWithValue("@CreadoPor", DBNull.Value);
+        }
+    }
 
 
 }

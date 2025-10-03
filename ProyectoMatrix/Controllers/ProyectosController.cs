@@ -264,23 +264,7 @@ public class ProyectosController : Controller
             }
 
             int? usuarioCreadorId = HttpContext.Session.GetInt32("UsuarioID"); // si lo manejas
-            foreach (var sub in subcarpetasBase)
-            {
-                try
-                {
-                    await _proyectosBD.CrearCarpetaAsync(
-                        proyectoId: proyectoIdNuevo,
-                        carpetaPadreId: null,
-                        nombreCarpeta: sub,
-                        usuarioCreadorId: usuarioCreadorId
-                    );
-                }
-                catch (InvalidOperationException)
-                {
-                    // Ya existe
-
-                }
-            }
+           
 
             // Manejar archivo si se subió uno por defecto se guardaran en Documentos
             if (archivo != null && archivo.Length > 0 && !string.IsNullOrEmpty(rutaProyecto))
@@ -785,57 +769,141 @@ public class ProyectosController : Controller
     {
         try
         {
-            // Sesión/empresa
             int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
-            if (empresaId is null) return Json(false);
+            if (empresaId is null) return Json(new { ok = false, error = "Sesión inválida." });
 
-            // Datos mínimos
-            if (dto is null || string.IsNullOrWhiteSpace(dto.Nombre)) return Json(false);
+            if (dto is null || string.IsNullOrWhiteSpace(dto.Nombre))
+                return Json(new { ok = false, error = "Nombre requerido." });
 
-            // Proyecto válido y perteneciente a la empresa
             var proyecto = await _proyectosBD.ObtenerProyectoPorIdAsync(dto.ProyectoId, empresaId.Value);
-            if (proyecto is null) return Json(false);
+            if (proyecto is null) return Json(new { ok = false, error = "Proyecto no encontrado." });
 
-            // Normalizar la ruta relativa destino
+            // Base "Documentos" si no viene rutaPadre
             var rutaRelativa = NormalizarRutaRelativa(
-                string.IsNullOrWhiteSpace(dto.RutaPadre) ? proyecto.ArchivoRuta : dto.RutaPadre
+                string.IsNullOrWhiteSpace(dto.RutaPadre) ? "Documentos" : dto.RutaPadre
             );
 
-            if (rutaRelativa is null) return Json(false);
-
-            // Validar nombre de carpeta 
             var nombre = dto.Nombre.Trim();
-            if (nombre == "." || nombre == "..") return Json(false);
-            if (nombre.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return Json(false);
-            if (nombre.Contains(Path.DirectorySeparatorChar) || nombre.Contains(Path.AltDirectorySeparatorChar))
-                return Json(false);
+            if (nombre is "." or "..")
+                return Json(new { ok = false, error = "Nombre inválido." });
+            if (nombre.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+                nombre.Contains(Path.DirectorySeparatorChar) ||
+                nombre.Contains(Path.AltDirectorySeparatorChar))
+                return Json(new { ok = false, error = "Nombre inválido." });
 
-            // Combinar con NAS 
             var rutaPadreCompleta = CombinarNas(proyecto, rutaRelativa);
-            if (string.IsNullOrWhiteSpace(rutaPadreCompleta)) return Json(false);
-
-            // Garantizar que la ruta padre exista
             if (!Directory.Exists(rutaPadreCompleta))
-            {
-                
                 Directory.CreateDirectory(rutaPadreCompleta);
-            }
 
-            // Ruta final a crear
             var rutaNuevaCarpeta = Path.Combine(rutaPadreCompleta, nombre);
             if (Directory.Exists(rutaNuevaCarpeta))
-                return Json(new { ok = false, error = "La carpeta ya existe" });
+                return Json(new { ok = false, error = "La carpeta ya existe." });
 
             Directory.CreateDirectory(rutaNuevaCarpeta);
-            return Json(new { ok = true }); 
+
+            // Puedes devolver la nueva ruta por comodidad del front
+            var nuevaRutaRel = string.IsNullOrEmpty(rutaRelativa) ? nombre : $"{rutaRelativa}/{nombre}";
+            return Json(new { ok = true, ruta = nuevaRutaRel });
         }
-        catch
+        catch (Exception ex)
         {
-            // aqui porner el servicio de bitacroa
-            return Json(false);
+            return Json(new { ok = false, error = ex.Message });
         }
     }
 
+
+    //Nuevo metodo para cargar proyectos
+
+    [HttpGet]
+    [AutorizarAccion("Proyectos", "Crear")]
+    public IActionResult Cargar()
+    {
+      
+        string username = HttpContext.Session.GetString("Username");
+        int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
+        if (empresaId == null || string.IsNullOrEmpty(username))
+            return RedirectToAction("Login", "Login");
+
+        // Vista para cargar un proyecto finalizado
+        var modelo = new Proyecto
+        {
+            EmpresaID = empresaId.Value,
+            // Valores por defecto para npo solicitar el estado y la prioridad en UI
+            Estado = EstadoProyecto.Completado,
+            Prioridad = PrioridadProyecto.Media,
+            EsActivo = true,
+            Progreso = 100,
+            CreadoPor = username
+
+
+        };
+        return View(modelo);
+    }
+
+    //Metodo para guardar borradores
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [AutorizarAccion("Proyectos", "Crear")]
+    public async Task<IActionResult> GuardarBorrador(Proyecto modelo)
+    {
+        int? usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+        int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
+        string username = HttpContext.Session.GetString("Username");
+
+        // ⬇⬇⬇  DEVUELVE JSON, NO REDIRECT
+        if (empresaId is null || usuarioId is null || string.IsNullOrEmpty(username))
+        {
+            Response.StatusCode = 401;
+            return Json(new { ok = false, message = "Sesión inválida." });
+        }
+
+        if (string.IsNullOrWhiteSpace(modelo.NombreProyecto))
+            return Json(new { ok = false, message = "El nombre del proyecto es obligatorio." });
+
+        var esNuevo = modelo.ProyectoID <= 0;
+
+        modelo.Estado = EstadoProyecto.Completado;
+        modelo.Progreso = 100;
+       
+
+
+        if (esNuevo)
+        {
+            
+            modelo.FechaCreacion = DateTime.UtcNow;
+            modelo.EmpresaID = empresaId.Value;
+            //modelo.CreadoPor = usuarioId.;
+            modelo.EsActivo = true;
+            modelo.CreadoPor = username;
+            
+        }
+        else
+        {
+            // Regla en actualización
+            modelo.EmpresaID = empresaId.Value;
+            
+        }
+
+        try
+        {
+            var id = await _proyectosBD.GuardarBorradorAsync(modelo, empresaId.Value,usuarioId.Value);
+            return Json(new { ok = id > 0, id, message = id > 0 ? null : "No se pudo guardar el proyecto." });
+        }
+        catch (Exception ex)
+        {
+            Response.StatusCode = 500; // para verlo claro en Network
+            return Json(new
+            {
+                ok = false,
+                message = "Error al guardar el proyecto.",
+                detail = ex.Message,
+                inner = ex.InnerException?.Message,
+                stack = ex.StackTrace
+            });
+        }
+
+    }
 
 
 
