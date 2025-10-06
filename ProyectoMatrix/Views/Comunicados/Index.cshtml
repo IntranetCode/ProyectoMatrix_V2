@@ -26,9 +26,9 @@
 @inject IServicioAcceso Acceso
 @{
     var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
-    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Gestionar Comunicados", "Crear");
+    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Crear Comunicados", "Crear");
     var puedeVer = await Acceso.TienePermisoAsync(usuarioId, "Ver Comunicados", "Ver");
-    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Gestionar Comunicados", "Eliminar");
+    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Eliminar Comunicados", "Eliminar");
 
 }
 

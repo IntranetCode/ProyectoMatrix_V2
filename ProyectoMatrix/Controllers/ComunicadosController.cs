@@ -31,7 +31,7 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        [AutorizarAccion("Ver Comunicados|Gestionar Comunicados", "Ver")]
+        [AutorizarAccion("Ver Comunicados", "Ver")]
         public async Task<IActionResult> Index(string? categoria = null, string? estado = null)
         {
             var userId = int.Parse(User.FindFirst("UsuarioID").Value);
@@ -195,7 +195,7 @@ namespace ProyectoMatrix.Controllers
 
 
         [HttpGet]
-        [AutorizarAccion("Ver Comunicados|Gestionar Comunicados", "Ver")]
+        [AutorizarAccion("Ver Comunicados", "Ver")]
         public async Task<IActionResult> Lista()
         {
 
@@ -270,7 +270,7 @@ namespace ProyectoMatrix.Controllers
        
        
         [HttpGet]
-        [AutorizarAccion("Gestionar Comunicados", "Crear")]
+        [AutorizarAccion("Crear Comunicados", "Crear")]
         public async Task<IActionResult> Crear()
         {
             var vm = new ComunicadoCreateVM
@@ -290,7 +290,7 @@ namespace ProyectoMatrix.Controllers
   
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [AutorizarAccion("Gestionar Comunicados", "Crear")]
+        [AutorizarAccion("Crear Comunicados", "Crear")]
         public async Task<IActionResult> Crear(ComunicadoCreateVM vm, [FromServices] BitacoraService bitacora)
         {
             // Ids desde claims (ajusta si usas otros)
@@ -431,7 +431,7 @@ namespace ProyectoMatrix.Controllers
 
         
         [HttpGet]
-        [AutorizarAccion("Gestionar Comunicados", "Crear")]
+        [AutorizarAccion("Crear Comunicados", "Crear")]
         public async Task<IActionResult> Gestionar(string? q = null, int page = 1, int pageSize = 15)
         {
             //Si el numero de la pagina es menor que uno lo ponemos en 1 
@@ -514,7 +514,7 @@ namespace ProyectoMatrix.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [AutorizarAccion("Gestionar Comunicados", "Eliminar")]
+        [AutorizarAccion("Eliminar Comunicados", "Eliminar")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var comunicado = await _db.Comunicados
@@ -574,7 +574,7 @@ namespace ProyectoMatrix.Controllers
 
      
         [HttpGet]
-        [AutorizarAccion("Gestionar Comunicados", "Editar")]
+        [AutorizarAccion("Editar Comunicados", "Editar")]
         public async Task<IActionResult> Editar(int id)
         {
             var comunicado = await _db.Comunicados
@@ -603,7 +603,7 @@ namespace ProyectoMatrix.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [AutorizarAccion("Gestionar Comunicados", "Editar")]
+        [AutorizarAccion("Editar Comunicados", "Editar")]
         public async Task<IActionResult> Editar(int id, ComunicadoCreateVM vm)
         {
             var comunicado = await _db.Comunicados

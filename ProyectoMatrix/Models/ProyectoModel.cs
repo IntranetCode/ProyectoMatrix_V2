@@ -19,7 +19,9 @@ namespace ProyectoMatrix.Models
         Baja,
         Media,
         Alta,
-        Critica
+        Critica,
+        Terminado 
+
     }
 
 

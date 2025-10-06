@@ -350,7 +350,12 @@
                y en editar el agregar , editar , eliminar una nueva fecha
                o se puede desde esta misma vista
            *@
+           <div class="info-card">
+               <h6><i class="fas fa-calendar-alt me-2"></i>Gestión de actividades</h6>
+               <div class="small">
 
+               </div>
+           </div>
 
 
 
@@ -417,7 +422,7 @@
                         const canCrear     = wrap.dataset.puedeCrear   === 'true';
                         const canEditar    = wrap.dataset.puedeEditar  === 'true';
                         const canEliminar  = wrap.dataset.puedeEliminar=== 'true';
-                        let ruta = "Documentos";
+                        let ruta = "";
 
                         const elLista    = document.getElementById('ga-lista');
                         const elBread    = document.getElementById('ga-breadcrumb');
@@ -453,7 +458,7 @@
                             else{
                               const a = document.createElement('a');
                               a.href='#'; a.textContent=c.nombre;
-                              a.addEventListener('click', e => { e.preventDefault(); ruta = c.ruta || "Documentos"; listar(); });
+                              a.addEventListener('click', e => { e.preventDefault(); ruta = c.ruta || ""; listar(); });
                               li.appendChild(a);
                             }
                             elBread.appendChild(li);
@@ -574,7 +579,7 @@
                           const items = data.items || [];
                           elLista.innerHTML = '';
 
-                          if(ruta && ruta !== 'Documentos'){
+                          if(ruta && ruta !== ''){
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
                               <td><i class="fas fa-level-up-alt"></i></td>
@@ -583,7 +588,7 @@
                             tr.querySelector('#ga-up').addEventListener('click', (e)=>{
                               e.preventDefault();
                               const parts = ruta.split('/'); parts.pop();
-                              ruta = parts.join('/') || 'Documentos';
+                              ruta = parts.join('/') || '';
                               listar();
                             });
                           }
