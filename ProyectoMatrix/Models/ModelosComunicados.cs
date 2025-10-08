@@ -24,7 +24,7 @@ namespace ProyectoMatrix.Models
 
     }
 
-    public class Usuario
+    public class M_Usuario
     {
                 public int UsuarioID { get; set; }
         public string Nombre { get; set; }
@@ -32,12 +32,12 @@ namespace ProyectoMatrix.Models
         public string Username { get; set;}
         public string Contraseña { get; set; }
 
-        public Rol Rol { get; set; }
+        public URol Rol { get; set; }
 
 
     }
 
-    public class Rol
+    public class URol
     {
         public int RolID { get; set; }
         public string NombreRol { get; set; }
@@ -55,7 +55,7 @@ namespace ProyectoMatrix.Models
         public ICollection<ComunicadoEmpresa> ComunicadoEmpresas { get; set; } 
             = new List<ComunicadoEmpresa>();
 
-        public Usuario UsuarioCreador { get; set; }
+        public M_Usuario UsuarioCreador { get; set; }
 
     }
 }

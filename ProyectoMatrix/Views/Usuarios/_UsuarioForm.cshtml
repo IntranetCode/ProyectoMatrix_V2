@@ -1,0 +1,165 @@
+﻿@model UsuarioFormViewModel
+
+@{
+    var accion = Model.EsModoCrear ? "Crear" : "Editar";
+    var iniciales = "NU";
+    if (!Model.EsModoCrear && !string.IsNullOrWhiteSpace(Model.Nombre))
+    {
+        iniciales = $"{Model.Nombre[0]}".ToUpper();
+        if (!string.IsNullOrWhiteSpace(Model.ApellidoPaterno))
+        {
+            iniciales += $"{Model.ApellidoPaterno[0]}".ToUpper();
+        }
+    }
+    var nombreCompleto = Model.EsModoCrear ? "Nuevo Usuario" : $"{Model.Nombre} {Model.ApellidoPaterno}";
+}
+
+<div class="panel-header-new">
+    <div class="user-avatar">@iniciales</div>
+    <div>
+        <h2 class="h4 mb-0">@nombreCompleto</h2>
+        @if (!Model.EsModoCrear)
+        {
+            <div class="user-actions">
+                <a href="#"><i class="fas fa-key"></i> Restablecer contraseña</a>
+            </div>
+        }
+    </div>
+    <button type="button" class="btn-close ms-auto align-self-start" id="close-panel-btn" aria-label="Close"></button>
+</div>
+
+<ul class="nav nav-tabs px-4" id="userTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="cuenta-tab" data-bs-toggle="tab" data-bs-target="#cuenta" type="button" role="tab" aria-controls="cuenta" aria-selected="true">Cuenta</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="permisos-tab" data-bs-toggle="tab" data-bs-target="#permisos" type="button" role="tab" aria-controls="permisos" aria-selected="false">Permisos</button>
+    </li>
+    @if (!Model.EsModoCrear && Model.HistorialDeCambios != null && Model.HistorialDeCambios.Any())
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="auditoria-tab" data-bs-toggle="tab" data-bs-target="#auditoria" type="button" role="tab" aria-controls="auditoria" aria-selected="false">Auditoría</button>
+        </li>
+    }
+</ul>
+
+<form id="user-form" asp-action="@accion" asp-controller="Usuarios" asp-route-id="@Model.UsuarioID" method="post" class="d-flex flex-column flex-grow-1">
+    @Html.AntiForgeryToken()
+
+    <div class="tab-content flex-grow-1 overflow-auto" id="userTabContent">
+
+        <div class="tab-pane fade show active p-4" id="cuenta" role="tabpanel" aria-labelledby="cuenta-tab">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            @if (!Model.EsModoCrear)
+            {
+                <input type="hidden" asp-for="UsuarioID" />
+            }
+
+            <h5>Datos Personales</h5>
+            <hr class="mt-2 mb-3" />
+            <div class="row">
+                <div class="col-md-6 mb-3"><label asp-for="Nombre" class="form-label"></label><input asp-for="Nombre" class="form-control" /><span asp-validation-for="Nombre" class="text-danger"></span></div>
+                <div class="col-md-6 mb-3"><label asp-for="ApellidoPaterno" class="form-label"></label><input asp-for="ApellidoPaterno" class="form-control" /><span asp-validation-for="ApellidoPaterno" class="text-danger"></span></div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3"><label asp-for="ApellidoMaterno" class="form-label"></label><input asp-for="ApellidoMaterno" class="form-control" /></div>
+                <div class="col-md-6 mb-3"><label asp-for="Telefono" class="form-label"></label><input asp-for="Telefono" class="form-control" /></div>
+            </div>
+            <div class="mb-3"><label asp-for="Correo" class="form-label"></label><input asp-for="Correo" class="form-control" /><span asp-validation-for="Correo" class="text-danger"></span></div>
+
+            <h5 class="mt-4">Datos de la Cuenta</h5>
+            <hr class="mt-2 mb-3" />
+            @if (Model.EsModoCrear)
+            {
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label asp-for="Username" class="form-label"></label><input asp-for="Username" class="form-control" /><span asp-validation-for="Username" class="text-danger"></span></div>
+                    <div class="col-md-6 mb-3"><label asp-for="Password" class="form-label"></label><input asp-for="Password" type="password" class="form-control" /><span asp-validation-for="Password" class="text-danger"></span></div>
+                </div>
+            }
+            <div class="row">
+                <div class="col-md-6 mb-3"><label asp-for="RolID" class="form-label"></label><input asp-for="RolID" type="number" class="form-control" /><span asp-validation-for="RolID" class="text-danger"></span></div>
+                <div class="col-md-6 mb-3"><label asp-for="EmpresasIDs" class="form-label">Empresa(s)</label><select asp-for="EmpresasIDs" asp-items="@ViewBag.Empresas" class="form-control" multiple></select><span asp-validation-for="EmpresasIDs" class="text-danger"></span></div>
+            </div>
+            @if (!Model.EsModoCrear)
+            {
+                <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" role="switch" asp-for="Activo" /><label class="form-check-label" asp-for="Activo"></label></div>
+            }
+        </div>
+
+        <div class="tab-pane fade p-4" id="permisos" role="tabpanel" aria-labelledby="permisos-tab">
+            <h5>Asignar Acceso a Menús</h5>
+            <hr class="mt-2 mb-3" />
+            <div class="accordion" id="accordionMenus">
+                @foreach (var menu in Model.MenusDisponibles)
+                {
+                    var collapseId = $"collapse-{menu.MenuID}";
+                    var headingId = $"heading-{menu.MenuID}";
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="@headingId">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId">
+                                @menu.Nombre
+                            </button>
+                        </h2>
+                        <div id="@collapseId" class="accordion-collapse collapse" aria-labelledby="@headingId" data-bs-parent="#accordionMenus">
+                            <div class="accordion-body">
+                                @foreach (var subMenu in menu.SubMenus)
+                                {
+                                    <div class="form-check">
+                                        <input type="checkbox"
+                                               name="SubMenuIDs"
+                                               value="@subMenu.SubMenuID"
+                                               class="form-check-input"
+                                               @(Model.SubMenuIDs.Contains(subMenu.SubMenuID) ? "checked" : "") />
+                                        <label class="form-check-label">@subMenu.Nombre</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+                
+
+        @if (!Model.EsModoCrear && Model.HistorialDeCambios != null && Model.HistorialDeCambios.Any())
+        {
+            <div class="tab-pane fade p-4" id="auditoria" role="tabpanel" aria-labelledby="auditoria-tab">
+                <table class="table table-sm table-striped">
+                    <thead class="thead-light"><tr><th>Fecha</th><th>Cambio Realizado</th><th>Modificado Por</th></tr></thead>
+                    <tbody>
+                        @foreach (var item in Model.HistorialDeCambios)
+                        {
+                            <tr>
+                                <td>@item.FechaModificacion.ToString("g")</td>
+                                <td>@item.DescripcionDelCambio</td>
+                                <td>@item.ModificadoPor</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="panel-footer mt-auto">
+        <button type="button" class="btn btn-secondary me-2" id="cancel-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar Cambios</button>
+    </div>
+</form>
+
+<script>
+    (function() {
+        // Lógica para "Seleccionar todo" por menú
+        const parentCheckboxes = document.querySelectorAll('.menu-parent-checkbox');
+        parentCheckboxes.forEach(parent => {
+            parent.addEventListener('change', function() {
+                const menuId = this.dataset.menuId;
+                const childCheckboxes = document.querySelectorAll(`.submenu-checkbox-${menuId}`);
+                childCheckboxes.forEach(child => {
+                    child.checked = this.checked;
+                });
+            });
+        });
+    })();
+</script>

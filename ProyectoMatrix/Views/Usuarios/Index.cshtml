@@ -1,0 +1,96 @@
+﻿@model IEnumerable<ProyectoMatrix.Models.V_InformacionUsuarioCompleta>
+
+@{
+    Layout = "_LayoutUsuarios";
+    ViewData["Title"] = "Administración de Usuarios";
+    var busquedaActual = ViewData["BusquedaActual"] as string;
+    var filtroCampoActual = ViewData["FiltroCampoActual"] as string;
+}
+
+<div class="page-container">
+    <div class="page-header-static">
+        <div class="page-header mb-4">
+            <h1 class="h2">@ViewData["Title"]</h1>
+        </div>
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-light p-3">
+                <div class="d-flex flex-wrap align-items-center justify-content-between">
+                    <div class="d-flex gap-2 mb-2 mb-md-0">
+                        <a id="btn-crear-usuario" asp-action="Crear" asp-controller="Usuarios" class="btn btn-primary"><i class="fas fa-plus me-1"></i> Agregar un usuario</a>
+                    </div>
+                    <div>
+                        <form asp-action="Index" method="get" class="d-flex">
+                            <input type="hidden" name="activos" value="@Context.Request.Query["activos"]" />
+                            <div class="input-group">
+                                <select name="filtroCampo" class="form-select flex-grow-0" style="width: auto;">
+                                    <option value="Todos" selected="@(filtroCampoActual == "Todos")">Todos los campos</option>
+                                    <option value="Nombre" selected="@(filtroCampoActual == "Nombre")">Nombre</option>
+                                    <option value="ApellidoPaterno" selected="@(filtroCampoActual == "ApellidoPaterno")">Apellido</option>
+                                    <option value="Correo" selected="@(filtroCampoActual == "Correo")">Correo</option>
+                                    <option value="Username" selected="@(filtroCampoActual == "Username")">Username</option>
+                                </select>
+                                <input type="text" name="busqueda" class="form-control" placeholder="Buscar..." value="@busquedaActual" />
+                                <button class="btn btn-outline-secondary" type="submit" title="Buscar"><i class="fas fa-search"></i></button>
+                                @if (!string.IsNullOrEmpty(busquedaActual))
+                                {
+                                    <a asp-action="Index" asp-route-activos="@Context.Request.Query["activos"]" class="btn btn-outline-danger" title="Limpiar filtro"><i class="fas fa-times"></i></a>
+                                }
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="scrollable-content">
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="ps-4">Username</th>
+                                <th>Nombre Completo</th>
+                                <th>Correo</th>
+                                <th>Rol</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td class="ps-4"><strong>@item.Username</strong></td>
+                                    <td>@item.Nombre @item.ApellidoPaterno</td>
+                                    <td>@item.Correo</td>
+                                    <td>@item.Rol</td>
+                                    <td class="text-center">
+                                        @if (item.Activo)
+                                        {
+                                            <span class="badge bg-success">Activo</span>
+                                        }
+                                        else
+                                        {
+
+                                            <span class="badge bg-danger">Inactivo</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <a class="btn-editar-usuario btn btn-warning btn-sm" asp-action="Editar" asp-controller="Usuarios" asp-route-id="@item.UsuarioID" title="Editar">
+                                            <i class="fas fa-pencil-alt"></i> Editar
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/usuarios/usuarios-panel.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,103 @@
+﻿@using System.Security.Claims
+@using ProyectoMatrix.Models.ModelUsuarios
+@inject ProyectoMatrix.Areas.AdminUsuarios.Interfaces.IUsuarioService UsuarioService
+
+@{
+    // Esta sección obtiene el ID del usuario actual. Es necesaria para las verificaciones.
+    var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    int.TryParse(userIdString, out int currentUserId);
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - AdminUsuarios</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/usuarios/panel.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/usuarios-styles.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="app-container">
+        <aside class="app-sidebar">
+            <div class="sidebar-header">
+                <a asp-controller="Home" asp-action="Index" class="text-white text-decoration-none">ProyectoMatrix</a>
+            </div>
+            <nav class="sidebar-nav">
+                <ul class="nav flex-column">
+
+                    @{
+                        // Verificamos si el usuario tiene permiso a CUALQUIERA de las opciones de submenú
+                        var puedeVerUsuariosActivos = currentUserId > 0 && await UsuarioService.VerificarPermisoAsync(currentUserId, 1);
+                        var puedeVerUsuariosInactivos = currentUserId > 0 && await UsuarioService.VerificarPermisoAsync(currentUserId, 2);
+                        var puedeVerTodos = currentUserId > 0 && await UsuarioService.VerificarPermisoAsync(currentUserId, 3);
+
+                        var mostrarMenuUsuarios = puedeVerUsuariosActivos || puedeVerUsuariosInactivos || puedeVerTodos;
+                    }
+
+                    @if (mostrarMenuUsuarios)
+                    {
+                        <li class="nav-item">
+                            <a href="#usuarios-submenu" data-bs-toggle="collapse" role="button" aria-expanded="true" class="nav-link text-white">
+                                <i class="fas fa-users fa-fw"></i> Usuarios
+                            </a>
+                            <ul id="usuarios-submenu" class="collapse show list-unstyled ps-4">
+                                @if (puedeVerUsuariosActivos)
+                                {
+                                    <li><a asp-controller="Usuarios" asp-action="Index" asp-route-activos="true" class="nav-link text-white-50"><span class="sub-item-line"></span> Usuarios activos</a></li>
+                                }
+                                @if (puedeVerUsuariosInactivos)
+                                {
+                                    <li><a asp-controller="Usuarios" asp-action="Index" asp-route-activos="false" class="nav-link text-white-50"><span class="sub-item-line"></span> Usuarios inactivos</a></li>
+                                }
+                                @if (puedeVerTodos)
+                                {
+                                    <li><a asp-controller="Usuarios" asp-action="Index" class="nav-link text-white-50"><span class="sub-item-line"></span> Todos los usuarios</a></li>
+                                }
+                            </ul>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        </aside>
+        <main id="main-content" class="app-content">
+            <div class="container-fluid p-4 h-100">
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div id="success-alert" class="alert alert-success d-flex align-items-center shadow-sm" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 1050; min-width: 300px; border-left: 5px solid #198754;">
+                        <i class="fas fa-check-circle fa-lg me-2"></i>
+                        <div>@TempData["SuccessMessage"]</div>
+                        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+                @RenderBody()
+            </div>
+        </main>
+    </div>
+
+    <div id="panel-overlay" class="panel-overlay"></div>
+    <div id="slide-out-panel" class="slide-out-panel">
+        <div id="panel-content" class="d-flex flex-column h-100"></div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var successAlert = document.getElementById('success-alert');
+            if (successAlert) {
+                setTimeout(function () {
+                    new bootstrap.Alert(successAlert).close();
+                }, 5000);
+            }
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

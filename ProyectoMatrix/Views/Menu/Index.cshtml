@@ -1,5 +1,7 @@
 ﻿@model List<ProyectoMatrix.Models.MenuModel>
-
+@using System.Security.Claims
+@using ProyectoMatrix.Areas.AdminUsuarios.Interfaces
+@inject IUsuarioService UsuarioService
 
 @{
     Layout = null;
@@ -9,8 +11,6 @@
     var logoEmpresa = Context.Session.GetString("EmpresaLogo") ?? "default-logo.png";
     var empresaId = Context.Session.GetString("EmpresaId") ?? "1";
 
-   
-    // Configuración de archivos CSS por empresa
     var cssEmpresaFile = empresaId switch
     {
         "1" => "LoginNutriservicios.css",
@@ -20,15 +20,16 @@
         _ => "site.css"
     };
 
-    // Enlaces SharePoint configurables 
     var enlacesMejoraContina = "https://nsgroupmx.sharepoint.com/sites/ProcesosyMejoraContinua";
     var enlacesCompras = "https://forms.office.com/r/K7u3UMVVKi";
     var enlacesLogistica = "https://forms.office.com/r/77fwUyxuE0";
     var enlacesEmbarques = "https://forms.office.com/r/MRjsPtpUrv";
     var enlacesHelpDesk = "https://forms.office.com/r/nBWtdqGsUm";
 
-    // ✅ FIX: Construir URL correctamente
     var currentUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}";
+
+    var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    int.TryParse(userIdString, out int currentUserId);
 }
 
 <!DOCTYPE html>
@@ -37,8 +38,6 @@
     <meta charset="utf-8" />
     <title>@ViewData["Title"]</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <!-- CSS Orden de carga optimizado -->
     <link rel="stylesheet" href="~/css/globals/variables.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/components/navbar.css" asp-append-version="true" />
@@ -46,31 +45,20 @@
     <link rel="stylesheet" href="~/css/pages/dashboard.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/@cssEmpresaFile" asp-append-version="true" />
     <link href="~/css/stylesMenuIndex.css" rel="stylesheet" />
-    <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-
-    <!-- Preload de recursos críticos -->
     <link rel="preload" href="~/js/dashboard.js" as="script" />
     <link rel="preload" href="~/Imagenes/logo-universidad-ns.png" as="image" />
 </head>
-
 <body data-empresa="@empresaId">
-    <!-- Skip Link para accesibilidad -->
     <a href="#main-content" class="skip-link visually-hidden">Saltar al contenido principal</a>
-
-    <!-- Main Content Wrapper -->
     <div class="main-wrapper">
-        <!-- Top Navigation -->
         <nav class="top-navbar" role="navigation" aria-label="Navegación principal">
             <div class="navbar-content">
                 <div class="navbar-left">
                     <a href="#" class="navbar-brand">
                         @if (!string.IsNullOrEmpty(logoEmpresa) && logoEmpresa != "default-logo.png")
                         {
-                            <img src="~/imagenes/@logoEmpresa"
-                                 alt="Logo de @nombreEmpresa"
-                                 class="navbar-logo"
-                                 loading="lazy" />
+                            <img src="~/imagenes/@logoEmpresa" alt="Logo de @nombreEmpresa" class="navbar-logo" loading="lazy" />
                         }
                         else
                         {
@@ -78,184 +66,109 @@
                         }
                         <span class="navbar-title">@nombreEmpresa</span>
                     </a>
-                  
                 </div>
-
-                <!-- Se quitaron los links hacia RRHH, NS, Y directorio
-                    y se coloco un boton de notificaciones a la derecha,y la opcion de notificaciones
-                    del menu desplegable se quitó
-                -->
                 <div class="navbar-right">
                     <div class="quick-actions-navbar">
                         <a class="quick-action-btn" id="btnNotificaciones" aria-haspopup="true" aria-expanded="false" title="Notificaciones">
                             <i class="fas fa-bell" aria-hidden="true"></i>
-                            <span id="notifCount" class="badge rounded-pill" hidden="true">0</span>  </a>
-
+                            <span id="notifCount" class="badge rounded-pill" hidden="true">0</span>
+                        </a>
                         <div id="notifDropdown" class="notif-dropdown" aria-labelledby="btnNotificaciones">
-                        
-                            <div class="notif-header">
-                              <strong>Notificaciones</strong>
-                               
-                            </div>
+                            <div class="notif-header"><strong>Notificaciones</strong></div>
                             <ul id="notifList" class="notif-list"></ul>
                         </div>
                     </div>
-
                     <div class="user-menu">
-                        <button class="user-toggle"
-                                id="userToggle"
-                                aria-expanded="false"
-                                aria-haspopup="true"
-                                aria-label="Menú de usuario">
-                            <div class="user-avatar" aria-hidden="true">
-                                @(nombreUsuario.Substring(0, 1).ToUpper())
-                            </div>
+                        <button class="user-toggle" id="userToggle" aria-expanded="false" aria-haspopup="true" aria-label="Menú de usuario">
+                            <div class="user-avatar" aria-hidden="true">@(nombreUsuario.Substring(0, 1).ToUpper())</div>
                             <div class="user-info">
                                 <div class="user-name">@nombreUsuario</div>
                                 <div class="user-role">Colaborador</div>
                             </div>
                             <i class="fas fa-chevron-down" aria-hidden="true"></i>
                         </button>
-
-                        <div class="user-dropdown"
-                             id="userDropdownMenu"
-                             role="menu"
-                             aria-labelledby="userToggle">
-                            <a href="#" class="dropdown-item" role="menuitem">
-                                <i class="fas fa-user" aria-hidden="true"></i>
-                                Mi Perfil
-                            </a>
-                            <a href="#" class="dropdown-item" role="menuitem">
-                                <i class="fas fa-cog" aria-hidden="true"></i>
-                                Configuración
-                            </a>
-                            <a href="#" class="dropdown-item" role="menuitem">
-                                <i class="fas fa-question-circle" aria-hidden="true"></i>
-                                Ayuda
-                            </a>
-                            <a href="/Login/Logout" class="dropdown-item">
-                                <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
-                                Cerrar Sesión
-                            </a>
-
+                        <div class="user-dropdown" id="userDropdownMenu" role="menu" aria-labelledby="userToggle">
+                            <a href="#" class="dropdown-item" role="menuitem"><i class="fas fa-user" aria-hidden="true"></i> Mi Perfil</a>
+                            <a href="#" class="dropdown-item" role="menuitem"><i class="fas fa-cog" aria-hidden="true"></i> Configuración</a>
+                            <a href="#" class="dropdown-item" role="menuitem"><i class="fas fa-question-circle" aria-hidden="true"></i> Ayuda</a>
+                            <a href="/Login/Logout" class="dropdown-item"><i class="fas fa-sign-out-alt" aria-hidden="true"></i> Cerrar Sesión</a>
                         </div>
                     </div>
                 </div>
             </div>
         </nav>
 
-       
-        <!-- Main Content -->
         <main class="main-content" id="main-content" role="main">
-            <!-- Welcome Section -->
             @{
-                var claseBienvenida = (ViewBag.MostrarBienvenida == true) 
-                ? "welcome-section as-overlay"
-                : "welcome-section is-pinned";
+                var claseBienvenida = (ViewBag.MostrarBienvenida == true) ? "welcome-section as-overlay" : "welcome-section is-pinned";
             }
             <section id="welcome-section" class="@claseBienvenida" aria-labelledby="welcome-title">
-
                 <div class="welcome-box">
                     <h1 id="welcome-title" class="welcome-title">¡Hola, @nombreUsuario!</h1>
-                    <p class="welcome-subtitle">
-                        Bienvenido al portal interno de @nombreEmpresa.
-                        Accede a recursos, capacitaciones y herramientas internas.
-                    </p>
+                    <p class="welcome-subtitle">Bienvenido al portal interno de @nombreEmpresa. Accede a recursos, capacitaciones y herramientas internas.</p>
                 </div>
-                </section>
-
+            </section>
             <div id="welcome-pinned-container" style="display: none;"></div>
 
-
-            <!-- Quick Actions Grid -->
             <section class="quick-actions" aria-label="Módulos disponibles">
                 @if (Model != null && Model.Any())
                 {
                     @foreach (var menu in Model)
                     {
-                        var cssClass = GetCssClassForMenu(menu.Nombre);
-                        var isUniversidad = menu.Nombre.Contains("Universidad", StringComparison.OrdinalIgnoreCase);
+                        // ✅ ESTA ES LA ÚNICA LÍNEA AÑADIDA: El @if que envuelve la tarjeta
+                        if (currentUserId > 0 && await UsuarioService.VerificarPermisoParaMenuAsync(currentUserId, menu.MenuID))
+                        {
+                            var cssClass = GetCssClassForMenu(menu.Nombre);
+                            var isUniversidad = menu.Nombre.Contains("Universidad", StringComparison.OrdinalIgnoreCase);
 
-                        
-
-                        <article class="action-card @cssClass @(isUniversidad ? "with-logo" : "")"
-                                 data-href="@menu.Url"
-                                 role="button"
-                                 tabindex="0">
-                            <div class="action-icon" aria-hidden="true">
-                                <i class="fas @menu.Icono"></i>
-                            </div>
-                            <h2 class="action-title">@menu.Nombre</h2>
-                            @* ✅ FIX: Verificar si Descripcion existe y no está vacía *@
-                            @if (!string.IsNullOrEmpty(menu.Descripcion))
-                            {
-                                <p class="action-description">@menu.Descripcion</p>
-                            }
-                            else
-                            {
-                                <p class="action-description">Accede a @menu.Nombre</p>
-                            }
-                        </article>
+                            <article class="action-card @cssClass @(isUniversidad ? "with-logo" : "")"
+                                     data-href="@menu.Url"
+                                     role="button"
+                                     tabindex="0">
+                                <div class="action-icon" aria-hidden="true">
+                                    <i class="fas @menu.Icono"></i>
+                                </div>
+                                <h2 class="action-title">@menu.Nombre</h2>
+                                @if (!string.IsNullOrEmpty(menu.Descripcion))
+                                {
+                                    <p class="action-description">@menu.Descripcion</p>
+                                }
+                                else
+                                {
+                                    <p class="action-description">Accede a @menu.Nombre</p>
+                                }
+                            </article>
+                        }
                     }
                 }
 
-                <!-- Enlaces SharePoint como tarjetas adicionales -->
-                <article class="action-card mejora"
-                         data-href-external="@enlacesMejoraContina"
-                         role="button"
-                         tabindex="0">
+                <article class="action-card mejora" data-href-external="@enlacesMejoraContina" role="button" tabindex="0">
                     <div class="external-link-badge">SharePoint</div>
-                    <div class="action-icon" aria-hidden="true">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
+                    <div class="action-icon" aria-hidden="true"><i class="fas fa-chart-line"></i></div>
                     <h2 class="action-title">Mejora Continua</h2>
                     <p class="action-description">Procesos y mejora continua del grupo</p>
                 </article>
-
-                <article class="action-card compras"
-                         data-href-external="@enlacesCompras"
-                         role="button"
-                         tabindex="0">
+                <article class="action-card compras" data-href-external="@enlacesCompras" role="button" tabindex="0">
                     <div class="external-link-badge">Forms</div>
-                    <div class="action-icon" aria-hidden="true">
-                        <i class="fas fa-shopping-cart"></i>
-                    </div>
+                    <div class="action-icon" aria-hidden="true"><i class="fas fa-shopping-cart"></i></div>
                     <h2 class="action-title">Compras</h2>
                     <p class="action-description">Solicitudes y gestión de compras</p>
                 </article>
-
-                <article class="action-card logistica"
-                         data-href-external="@enlacesLogistica"
-                         role="button"
-                         tabindex="0">
+                <article class="action-card logistica" data-href-external="@enlacesLogistica" role="button" tabindex="0">
                     <div class="external-link-badge">Forms</div>
-                    <div class="action-icon" aria-hidden="true">
-                        <i class="fas fa-truck"></i>
-                    </div>
+                    <div class="action-icon" aria-hidden="true"><i class="fas fa-truck"></i></div>
                     <h2 class="action-title">Logística</h2>
                     <p class="action-description">Gestión logística y entregas</p>
                 </article>
-
-                <article class="action-card embarques"
-                         data-href-external="@enlacesEmbarques"
-                         role="button"
-                         tabindex="0">
+                <article class="action-card embarques" data-href-external="@enlacesEmbarques" role="button" tabindex="0">
                     <div class="external-link-badge">Forms</div>
-                    <div class="action-icon" aria-hidden="true">
-                        <i class="fas fa-ship"></i>
-                    </div>
+                    <div class="action-icon" aria-hidden="true"><i class="fas fa-ship"></i></div>
                     <h2 class="action-title">Embarques</h2>
                     <p class="action-description">Control de embarques y envíos</p>
                 </article>
-
-                <article class="action-card helpdesk"
-                         data-href-external="@enlacesHelpDesk"
-                         role="button"
-                         tabindex="0">
+                <article class="action-card helpdesk" data-href-external="@enlacesHelpDesk" role="button" tabindex="0">
                     <div class="external-link-badge">Forms</div>
-                    <div class="action-icon" aria-hidden="true">
-                        <i class="fas fa-headset"></i>
-                    </div>
+                    <div class="action-icon" aria-hidden="true"><i class="fas fa-headset"></i></div>
                     <h2 class="action-title">Help Desk</h2>
                     <p class="action-description">Soporte técnico y asistencia</p>
                 </article>
@@ -263,14 +176,11 @@
         </main>
     </div>
 
-    <!-- Scripts -->
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/dashboard.js" asp-append-version="true"></script>
-
-    <!-- ✅ FIX: Schema markup corregido -->
     <script type="application/ld+json">
         {
-            "@@context": "https://schema.org", 
+            "@@context": "https://schema.org",
             "@@type": "WebApplication",
             "name": "Intranet NS Group",
             "description": "Portal interno de @nombreEmpresa",
@@ -279,14 +189,11 @@
             "operatingSystem": "Web"
         }
     </script>
-
     <script>
-        window.mostrarBienvenida= '@((ViewBag.MostrarBienvenida== true) ? "true" : "false")';
-
+        window.mostrarBienvenida = '@((ViewBag.MostrarBienvenida == true) ? "true" : "false")';
     </script>
-
-
     <script>
+        // ... (Tu script de animación de bienvenida sin cambios) ...
         document.addEventListener("DOMContentLoaded", function () {
             const welcomeSectionOverlay = document.getElementById("welcome-section");
             const mainWrapper = document.querySelector(".main-wrapper");
@@ -294,41 +201,31 @@
 
             if (welcomeSectionOverlay.classList.contains("as-overlay")) {
                 mainWrapper.classList.add("overlay-lock");
-
-                // 1. Clonar el elemento de bienvenida para la versión "pinned"
                 const welcomePinned = welcomeSectionOverlay.cloneNode(true);
                 welcomePinned.classList.remove("as-overlay", "leaving");
                 welcomePinned.classList.add("is-pinned");
-                welcomePinned.style.opacity = '0'; // Inicialmente invisible
+                welcomePinned.style.opacity = '0';
                 welcomePinned.style.transition = 'opacity 0.4s ease-in-out';
                 pinnedContainer.appendChild(welcomePinned);
                 pinnedContainer.style.display = 'block';
-
-                // 2. Transición del overlay y aparición del elemento fijo
                 setTimeout(() => {
-                    welcomeSectionOverlay.classList.add("leaving"); // Inicia la transición del overlay
-                    welcomePinned.style.opacity = '1'; // El elemento fijo empieza a aparecer
+                    welcomeSectionOverlay.classList.add("leaving");
+                    welcomePinned.style.opacity = '1';
                 }, 2000);
-
-                // 3. Cuando la transición del overlay termina, eliminarlo
                 welcomeSectionOverlay.addEventListener("transitionend", function handler(event) {
                     if (event.propertyName === 'opacity' && welcomeSectionOverlay.classList.contains("leaving")) {
                         welcomeSectionOverlay.remove();
                         mainWrapper.classList.remove("overlay-lock");
-
-                        // Asegúrate de que la transición termine y luego remueve el listener
                         welcomeSectionOverlay.removeEventListener('transitionend', handler);
                     }
                 });
             }
         });
     </script>
-
-
     <script>
+        // ... (Tu script de clics en tarjetas sin cambios) ...
         document.addEventListener('DOMContentLoaded', function () {
           const cards = document.querySelectorAll('.action-card');
-
           cards.forEach(function (card) {
             card.addEventListener('click', function () {
               const url = card.getAttribute('data-href') || card.getAttribute ('data-href-external');
@@ -340,36 +237,31 @@
                   }
               }
             });
-
             card.addEventListener('keydown', function (e) {
               if (e.key === 'Enter') {
                 const url = card.getAttribute('data-href') || card.getAttribute ('data-href-external');
                 if (url && url !== "#") {
                     if(card.hasAttribute('data-href-external')){
                         window.open(url, '_blank');
-                        }else{
-                            window.location.href = url;
-                        }
+                    }else{
+                        window.location.href = url;
+                    }
                 }
               }
-              
             });
           });
         });
     </script>
-
     <script>
+        // ... (Tu script de menú de usuario sin cambios) ...
         document.addEventListener('DOMContentLoaded', function () {
             const toggleBtn = document.getElementById('userToggle');
             const dropdown = document.getElementById('userDropdownMenu');
-
             if (!toggleBtn || !dropdown) return;
-
             toggleBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 dropdown.classList.toggle('show');
             });
-
             document.addEventListener('click', function (e) {
                 if (!dropdown.contains(e.target) && !toggleBtn.contains(e.target)) {
                     dropdown.classList.remove('show');
@@ -377,24 +269,19 @@
             });
         });
     </script>
-
     <script>
-        // Reemplaza la URL del login con la del index en el historial
         if (window.history.replaceState) {
             window.history.replaceState(null, '', '/Menu/Index');
         }
     </script>
-
     @Html.AntiForgeryToken()
-
     <script>
+        // ... (Tu script de notificaciones sin cambios) ...
         (function () {
           const btn = document.getElementById('btnNotificaciones');
           const badge = document.getElementById('notifCount');
           const dropdown = document.getElementById('notifDropdown');
           const list = document.getElementById('notifList');
-
-          // === Utils ===
           function getToken() {
             return (
               document.querySelector('meta[name="request-verification-token"]')?.content ||
@@ -402,18 +289,15 @@
               ''
             );
           }
-
           function renderBadge(total) {
             if (!badge) return;
             const n = Number(total) || 0;
             if (n > 0) { badge.textContent = n; badge.hidden = false; }
             else { badge.textContent = '0'; badge.hidden = true; }
           }
-
           function bust(url) {
             return url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
           }
-
           async function post(url, body = {}) {
             const res = await fetch(url, {
               method: 'POST',
@@ -428,7 +312,6 @@
             if (!res.ok) throw new Error('POST ' + url + ' -> ' + res.status);
             try { return await res.json(); } catch { return {}; }
           }
-
           async function getJson(url) {
             const res = await fetch(bust(url), {
               credentials: 'same-origin',
@@ -438,7 +321,6 @@
             if (!res.ok) throw new Error('GET ' + url + ' -> ' + res.status);
             return await res.json();
           }
-
           async function actualizarContador() {
             try {
               const data = await getJson('/Notificaciones/Contar');
@@ -448,17 +330,13 @@
               console.error('Contar:', e);
             }
           }
-
-          // helper para Id/id, etc.
           function val(n, up, low) { return n[up] ?? n[low]; }
-
           function escapeHtml(str) {
             return String(str)
               .replace(/&/g, '&amp;').replace(/</g, '&lt;')
               .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
               .replace(/'/g, '&#039;');
           }
-
           function linkDestino(tipo, idOrigen) {
             let url = '#';
             if (tipo === 'CursoAsignado') url = `/Cursos/MisCursos/${idOrigen}`;
@@ -466,17 +344,14 @@
             else if (tipo === 'Comunicado_Nuevo') url = `/Comunicados/Index/${idOrigen}`;
             return `<a class="js-ver" href="${url}">Ver</a>`;
           }
-
           async function cargarLista(pagina = 1, tamanio = 10) {
             try {
               const data = await getJson(`/Notificaciones/Listar?pagina=${pagina}&tamanio=${tamanio}`);
               list.innerHTML = '';
-
               if (!data.items || data.items.length === 0) {
                 list.innerHTML = '<li class="notif-empty">Sin notificaciones</li>';
                 return;
               }
-
               data.items.forEach(n => {
                 const id = val(n, 'Id', 'id');
                 const titulo = val(n, 'Titulo', 'titulo') ?? '';
@@ -486,13 +361,11 @@
                 const fechaStr = val(n, 'FechaCreacion', 'fechaCreacion');
                 const fecha = new Date(fechaStr || Date.now()).toLocaleString();
                 const esLeida = !!(n.Leida ?? n.leida ?? n.EsLeida ?? n.esLeida);
-
                 const li = document.createElement('li');
                 li.className = 'notif-item' + (!esLeida ? ' unread' : '');
                 li.dataset.id = id;
                 li.dataset.tipo = tipo;
                 li.dataset.idorigen = idOrigen;
-
                 li.innerHTML = `
                   <div class="notif-row">
                     <div class="notif-main">
@@ -508,40 +381,28 @@
                 `;
                 list.appendChild(li);
               });
-
             } catch (e) {
               console.error('Listar:', e);
               list.innerHTML = '<li class="notif-error">Error al cargar</li>';
             }
           }
-
-          // Marca todas como leídas y luego vuelve a contar DESDE EL SERVIDOR
           async function marcarTodasAlAbrir() {
             try {
               const r = await post('/Notificaciones/MarcarTodasLeidas');
-              // Limpieza visual
               list?.querySelectorAll('.notif-item.unread').forEach(li => {
                 li.classList.remove('unread');
                 li.querySelector('.notif-new')?.remove();
               });
-              // Relee contador real (evita caches)
               await actualizarContador();
-
-              // (opcional) log para depurar cuántas actualizó el servidor
-                      if (typeof r.updated !== 'undefined' || typeof r.total !== 'undefined') {
-          console.debug('Notificaciones actualizadas:', r.updated ?? r.total);
-        }
-
+              if (typeof r.updated !== 'undefined' || typeof r.total !== 'undefined') {
+                console.debug('Notificaciones actualizadas:', r.updated ?? r.total);
+              }
             } catch (e) {
               console.error('MarcarTodasLeidas:', e);
-              // Si falla, recontamos por si quedó inconsistente
               try { await actualizarContador(); } catch {}
             }
           }
-
-          // === Abrir/cerrar dropdown ===
           let yaMarqueEnEstaApertura = false;
-
           btn?.addEventListener('click', async (e) => {
             e.stopPropagation();
             const open = dropdown.getAttribute('data-open') === '1';
@@ -553,15 +414,12 @@
             }
             dropdown.setAttribute('data-open', '1');
             dropdown.style.display = 'block';
-
-            await cargarLista(); // el usuario “ve/lee”…
-
+            await cargarLista();
             if (!yaMarqueEnEstaApertura) {
               yaMarqueEnEstaApertura = true;
-              await marcarTodasAlAbrir(); // …y luego pedimos marcarlas
+              await marcarTodasAlAbrir();
             }
           });
-
           document.addEventListener('click', (e) => {
             if (!dropdown.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
               dropdown.setAttribute('data-open', '0');
@@ -569,12 +427,8 @@
               yaMarqueEnEstaApertura = false;
             }
           });
-
-          // Contador inicial + refresco periódico (sin caché)
           actualizarContador();
           setInterval(actualizarContador, 30000);
-
-          // API opcional
           window.Notificaciones = {
             actualizarContador,
             cargarLista,
@@ -590,24 +444,18 @@
           };
         })();
     </script>
-
-
 </body>
 </html>
 
 @functions {
-    // ✅ Helper para determinar la clase CSS según el nombre del menú
     private string GetCssClassForMenu(string menuNombre)
     {
         if (string.IsNullOrEmpty(menuNombre)) return "";
-
         var menuLower = menuNombre.ToLowerInvariant();
-
         return menuLower switch
         {
             var x when x.Contains("universidad") => "universidad",
             var x when x.Contains("líder") || x.Contains("lider") => "lider",
-
             var x when x.Contains("comunicados") => "comunicados",
             var x when x.Contains("proyectos") => "proyectos",
             _ => ""
