@@ -27,7 +27,7 @@ public class ProyectosController : Controller
 
 
     [HttpGet]
-    [AutorizarAccion ("Proyectos", "Ver")]
+    [AutorizarAccion ("Ver Proyectos", "Ver")]
     public async Task<IActionResult> Index(EstadoProyecto? estado = null, PrioridadProyecto? prioridad = null, string busqueda = null)
     {
         // Configurar navbar dinámico
@@ -93,7 +93,7 @@ public class ProyectosController : Controller
 
 
     [HttpGet]
-    [AutorizarAccion("Proyectos", "Ver")]
+    [AutorizarAccion("Ver Proyectos", "Ver")]
     public async Task<IActionResult> Detalle(int id, int? carpetaId = null)
     {
         ViewBag.TituloNavbar = "Detalle del Proyecto";
@@ -165,7 +165,7 @@ public class ProyectosController : Controller
 
     [HttpGet]
 
-    [AutorizarAccion("Proyectos", "Crear")]
+    [AutorizarAccion("Crear Proyectos", "Crear")]
     public IActionResult Crear()
     {
         ViewBag.TituloNavbar = "Crear Nuevo Proyecto";
@@ -192,7 +192,7 @@ public class ProyectosController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [AutorizarAccion("Proyectos", "Crear")]
+    [AutorizarAccion("Crear Proyectos", "Crear")]
     public async Task<IActionResult> Crear(Proyecto proyecto, IFormFile archivo)
     {
         ViewBag.TituloNavbar = "Crear Nuevo Proyecto";
@@ -293,7 +293,7 @@ public class ProyectosController : Controller
 
 
     [HttpGet]
-    [AutorizarAccion("Proyectos", "Editar")]
+    [AutorizarAccion("Editar proyecto", "Editar")]
     public async Task<IActionResult> Editar(int id)
     {
         ViewBag.TituloNavbar = "Editar Proyecto";
@@ -316,7 +316,7 @@ public class ProyectosController : Controller
     //Se modificara este controlador para que los cambios al editar un proyecto se guarde correctamente
 
     [HttpPost]
-    [AutorizarAccion("Proyectos", "Editar")]
+    [AutorizarAccion("Editar proyecto", "Editar")]
     public async Task<IActionResult> Editar(int id,Proyecto proyecto, IFormFile archivo)
     {
         ViewBag.TituloNavbar = "Editar Proyecto";
@@ -386,7 +386,7 @@ public class ProyectosController : Controller
 
 
     [HttpGet]
-    [AutorizarAccion("Proyectos", "Ver")]
+    [AutorizarAccion("Ver Proyectos", "Ver")]
     public async Task<IActionResult> VerArchivo(int id, string? rutaRelativa = null)
     {
         int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
@@ -464,7 +464,7 @@ public class ProyectosController : Controller
 
 
     [HttpGet]
-    [AutorizarAccion("Proyectos", "Ver")]
+    [AutorizarAccion("Ver Proyectos", "Ver")]
     public async Task<IActionResult> DescargarArchivo(int id, string? rutaRelativa = null)
     {
         int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
@@ -510,7 +510,7 @@ public class ProyectosController : Controller
 
 
     [HttpPost]
-    [AutorizarAccion("Proyectos", "Editar")]
+    [AutorizarAccion("Editar proyectos", "Editar")]
     public async Task<IActionResult> CambiarEstado([FromBody] CambiarEstadoModel model)
     {
         try
@@ -532,7 +532,7 @@ public class ProyectosController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [AutorizarAccion("Proyectos", "Eliminar")]
+    [AutorizarAccion("Eliminar Proyectos", "Eliminar")]
     public async Task<IActionResult> Eliminar(int id, string? returnUrl)
     {
         // Obtén empresaId del claim o sesión
@@ -569,7 +569,7 @@ public class ProyectosController : Controller
     [DisableRequestSizeLimit]
     [RequestFormLimits(MultipartBodyLengthLimit = long.MaxValue)]
     [ValidateAntiForgeryToken]
-    [AutorizarAccion("Proyectos", "Crear")] // o "Editar" si aplica
+    [AutorizarAccion("Crear Proyectos", "Crear")] // o "Editar" si aplica
     public async Task<IActionResult> SubirArchivos()
     {
         int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
@@ -675,7 +675,7 @@ public class ProyectosController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [AutorizarAccion("Proyectos", "Ver")]
+    [AutorizarAccion("Ver Proyectos", "Ver")]
     public async Task<IActionResult> ListarArchivos([FromBody] ListarReq req)
     {
         int? empresaId = HttpContext.Session.GetInt32("EmpresaID");
@@ -744,7 +744,7 @@ public class ProyectosController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [AutorizarAccion("Proyectos", "Eliminar")]
+    [AutorizarAccion("Eliminar Proyectos", "Eliminar")]
     public async Task<IActionResult> EliminarArchivo([FromBody] EliminarReq req)
     {
         var empresaId = HttpContext.Session.GetInt32("EmpresaID");
@@ -768,7 +768,7 @@ public class ProyectosController : Controller
     //Metodo para crear una nueva carpeta en el gestor de archivos
 
     [HttpPost]
-    [AutorizarAccion("Proyectos", "Crear")]
+    [AutorizarAccion("Crear Proyectos", "Crear")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CrearCarpeta([FromBody] CrearCarpetaDto dto)
     {
@@ -819,7 +819,7 @@ public class ProyectosController : Controller
     //Nuevo metodo para cargar proyectos
 
     [HttpGet]
-    [AutorizarAccion("Proyectos", "Crear")]
+    [AutorizarAccion("Crear Proyectos", "Crear")]
     public IActionResult Cargar()
     {
       
@@ -848,7 +848,7 @@ public class ProyectosController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [AutorizarAccion("Proyectos", "Crear")]
+    [AutorizarAccion("Crear Proyectos", "Crear")]
     public async Task<IActionResult> GuardarBorrador(Proyecto modelo)
     {
         int? usuarioId = HttpContext.Session.GetInt32("UsuarioID");

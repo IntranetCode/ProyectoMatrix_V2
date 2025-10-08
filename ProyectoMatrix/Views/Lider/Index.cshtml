@@ -11,9 +11,9 @@
 @inject IServicioAcceso Acceso
 @{
     var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
-    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Videos de Líderes", "Crear");
-    var puedeVer = await Acceso.TienePermisoAsync(usuarioId, "Videos de Líderes", "Ver");
-    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Videos de Líderes", "Eliminar");
+    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Crear webinar", "Crear");
+    var puedeVer = await Acceso.TienePermisoAsync(usuarioId, "Ver Webinars", "Ver");
+    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Eliminar webinar", "Eliminar");
 
 }
 

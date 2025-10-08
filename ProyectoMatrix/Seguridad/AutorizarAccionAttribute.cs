@@ -44,8 +44,8 @@ namespace ProyectoMatrix.Seguridad
             var acceso = http.RequestServices.GetRequiredService<IServicioAcceso>();
             foreach (var sm in _subMenus)
                 if (await acceso.TienePermisoAsync(usuarioId, sm, _accion))
-                    return; // OK
-                            // ----- SIN PERMISO -----
+                    return; // Con permiso
+                            // SIN PERMISO 
             bool isAjax =
                 string.Equals(http.Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
                 http.Request.Headers["Accept"].Any(a => a?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true);

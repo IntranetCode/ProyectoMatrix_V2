@@ -96,16 +96,34 @@ namespace ProyectoMatrix.Controllers
             return nombres.Count == 0 ? "-" : string.Join(", ", nombres);
         }
 
+        // metodo que decide que vista mostrarle al usuario segun sus permisos
+        [HttpGet]
+        public async Task<IActionResult> Entrada()
+        {
+            var userIdStr = User.FindFirst("UsuarioID")?.Value;
+            if (!int.TryParse(userIdStr, out var userId)) return RedirectToAction("Login", "Login");
+
+            // ¿Tiene alguna acción de gestor?
+            var esGestor =
+                await _acceso.TienePermisoAsync(userId, "Crear webinar", "Crear") ||
+                await _acceso.TienePermisoAsync(userId, "Editar webinar", "Editar") ||
+                await _acceso.TienePermisoAsync(userId, "Eliminar Proyectos", "Eliminar");
+
+            // Seguridad real: el controlador de Index/Lista debe tener su propia autorización.
+            return esGestor
+                ? RedirectToAction("Index", "Lider")
+                : RedirectToAction("Lista", "Lider");
+        }
 
 
-        [AutorizarAccion ("Videos de Líderes", "Ver")]
+        [AutorizarAccion ("Ver Webinars", "Ver")]
         [HttpGet]
         public IActionResult Index()
         {
             return View();
         }
 
-        [AutorizarAccion("Videos de Líderes", "Ver")]
+        [AutorizarAccion("Ver Webinars", "Ver")]
         [HttpGet]
         [AllowAnonymous] // opcional
         public async Task<IActionResult> Lista()
@@ -200,7 +218,7 @@ namespace ProyectoMatrix.Controllers
 
 
 
-        [AutorizarAccion("Videos de Líderes", "Ver")]
+        [AutorizarAccion("Ver Webinars", "Ver")]
         [HttpGet]
         public async Task<IActionResult> MisWebinars()
         {
@@ -243,7 +261,7 @@ namespace ProyectoMatrix.Controllers
 
 
         [HttpGet]
-        [AutorizarAccion("Videos de Líderes", "Ver")]
+        [AutorizarAccion("Ver Webinars", "Ver")]
         public async Task<IActionResult> Details(int? id)
         {
             if (id <= 0) return NotFound();
@@ -287,7 +305,7 @@ namespace ProyectoMatrix.Controllers
 
         
         [HttpGet]
-        [AutorizarAccion("Videos de Líderes", "Crear")]
+        [AutorizarAccion("Crear webinar", "Crear")]
         public IActionResult CrearWebinar()
         {
             ViewBag.Empresas = GetEmpresasSelect();
@@ -296,7 +314,7 @@ namespace ProyectoMatrix.Controllers
 
 
 
-        [AutorizarAccion("Videos de Líderes", "Crear")]
+        [AutorizarAccion("Crear webinar", "Crear")]
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> CrearWebinar(Webinar model, int[]? empresasSeleccionadas, IFormFile? imagenFile)
         {
@@ -422,7 +440,7 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        [AutorizarAccion("Videos de Líderes", "Editar")]
+        [AutorizarAccion("Editar webinar", "Editar")]
         [HttpGet]
         public async Task<IActionResult> Editar(int? id, string? returnUrl)
         {
@@ -468,7 +486,7 @@ namespace ProyectoMatrix.Controllers
 
 
 
-        [AutorizarAccion("Videos de Líderes", "Editar")]
+        [AutorizarAccion("Editar webinar", "Editar")]
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Editar(
     int id, Webinar model, int[]? empresasSeleccionadas, IFormFile? imagenFile, string? returnUrl)
@@ -590,7 +608,7 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        [AutorizarAccion("Videos de Líderes", "Crear")]
+        [AutorizarAccion("Crear webinar", "Crear")]
         [HttpGet]
         public async Task<IActionResult> GestionarWebinar()
         {
@@ -627,7 +645,7 @@ namespace ProyectoMatrix.Controllers
             return View("~/Views/Lider/GestionarWebinar.cshtml",lista);
         }
 
-        [AutorizarAccion("Videos de Líderes", "Ver")]
+        [AutorizarAccion("Ver Webinars", "Ver")]
         [HttpGet]
         public async Task<IActionResult> LiderLista()
         {
@@ -676,7 +694,7 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        [AutorizarAccion("Videos de Líderes", "Eliminar")]
+        [AutorizarAccion("Eliminar webinar", "Eliminar")]
         [HttpGet]
         public async Task<IActionResult> Eliminar(int? id, string? returnUrl)
         {
@@ -699,7 +717,7 @@ namespace ProyectoMatrix.Controllers
             return View("~/Views/Lider/GestionarWebinar.cshtml",w); // Views/Webinars/Delete.cshtml (o tu ruta)
         }
 
-        [AutorizarAccion("Videos de Líderes", "Eliminar")]
+        [AutorizarAccion("Eliminar webinar", "Eliminar")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Eliminar(int id, string? returnUrl)
