@@ -27,3 +27,57 @@ html {
 body {
   margin-bottom: 60px;
 }
+.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+.app-sidebar {
+    width: 250px;
+    background-color: #343a40; /* Color oscuro como M365 */
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.sidebar-header {
+    padding: 1rem;
+    font-size: 1.25rem;
+    text-align: center;
+    border-bottom: 1px solid #495057;
+}
+
+.sidebar-nav ul {
+    list-style: none;
+    padding: 0;
+}
+
+.sidebar-nav .nav-link {
+    display: block;
+    color: #ced4da;
+    padding: 0.75rem 1.5rem;
+    text-decoration: none;
+}
+
+    .sidebar-nav .nav-link:hover {
+        background-color: #495057;
+    }
+
+    .sidebar-nav .nav-link.active {
+        font-weight: bold;
+        color: #fff;
+    }
+
+.sidebar-nav .sub-item-line { /* La línea azul al lado del submenú activo */
+    border-left: 3px solid #007bff;
+    padding-left: 5px;
+}
+
+.sidebar-nav i {
+    margin-right: 10px;
+}
+
+.app-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    background-color: #f4f6f8;
+}

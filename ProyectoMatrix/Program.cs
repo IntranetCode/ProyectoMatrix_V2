@@ -1,79 +1,47 @@
-//Configuración y conexión a base de datos derarrollo y productivo
+ï»¿// Usings para nuestro mÃ³dulo
+using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
+using ProyectoMatrix.Areas.AdminUsuarios.Services;
+
+// Usings existentes
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
-using ProyectoMatrix.Controllers;
+using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
-
-using Microsoft.AspNetCore.Server.IIS;
-
 using System.Security.Claims;
-
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ? AGREGAR ESTAS LÍNEAS PARA ARCHIVOS GRANDES
-builder.Services.Configure<FormOptions>(options =>
+// --- ConfiguraciÃ³n de Servicios ---
+
+// 1. Controladores, Vistas y Razor Pages
+builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
+builder.Services.AddRazorPages();
+
+// 2. AÃ‘ADIDO: Habilita la validaciÃ³n del lado del cliente en toda la aplicaciÃ³n
+builder.Services.AddRazorPages().AddViewOptions(options =>
 {
-    options.MultipartBodyLengthLimit = 268435456; // 256 MB
-    options.ValueLengthLimit = int.MaxValue;
-    options.MultipartHeadersLengthLimit = int.MaxValue;
+    options.HtmlHelperOptions.ClientValidationEnabled = true;
 });
 
 
-builder.Services.Configure<IISServerOptions>(options =>
-{
-    options.MaxRequestBodySize = 268435456; // 256 MB
-});
-
-// ? AGREGAR CONFIGURACIÓN DEL SERVIDOR
-builder.WebHost.ConfigureKestrel(options =>
-{
-    // Escuchar en puerto 500 para todas las IPs
-    //options.ListenAnyIP(5001);
-
-    // ? AGREGAR LÍMITES PARA KESTREL TAMBIÉN
-    options.Limits.MaxRequestBodySize = 268435456; // 256 MB
-});
-
-// ? AGREGAR CONFIGURACIÓN DEL SERVIDOR
-//builder.WebHost.ConfigureKestrel(options =>
-//{
-    // Escuchar en puerto 500 para todas las IPs
-   // options.ListenAnyIP(500);
-//});
-
-// Obtener la cadena de conexión desde appsettings.json
+// 3. Registramos el DbContext (una sola vez)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-// Registrar el contexto de la base de datos
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// ? AGREGAR MVC Controllers
-builder.Services.AddControllersWithViews();
+// 4. Registramos todos tus servicios
+builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+builder.Services.AddScoped<UniversidadServices>();
+builder.Services.AddScoped<ServicioNotificaciones>();
+builder.Services.AddScoped<BitacoraService>();
 
-// Agregar servicios
-builder.Services.AddRazorPages();
-
-// ? CONFIGURAR Session con opciones
+// 5. ConfiguraciÃ³n de SesiÃ³n y AutenticaciÃ³n
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
-
-// ? SERVICIOS Universidad NS
-builder.Services.AddScoped<UniversidadServices>();
-
-
-
-builder.Services.AddAuthorization();
-
-
-
-// Agregar la autenticación antes de construir la app
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -81,84 +49,38 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LogoutPath = "/Login/Logout";
     });
 
-
-
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("GestionComunicados", policy =>
-        policy.RequireAssertion(ctx =>
-        {
-            // por nombre de rol:
-            var r = ctx.User.FindFirst(ClaimTypes.Role)?.Value;
-            if (r == "Administrador de Intranet" || r == "Propietario de Contenido" || r == "Autor/Editor de Contenido")
-                return true;
-
-            // o por RolID:
-            var rid = ctx.User.FindFirst("RolID")?.Value;
-            return rid == "1" || rid == "3" || rid == "4";
-        }));
-});
-
-
-
-
-// Registrar el servicio de notificacionesa
-builder.Services.AddScoped<ServicioNotificaciones>();
-
-
-//Restra el servicio de Bitacora
-builder.Services.AddScoped<BitacoraService>();
-
-builder.Services.AddDistributedMemoryCache();
-
-
+// ... tu cÃ³digo de AddAuthorization si tienes ...
 
 var app = builder.Build();
 
-// Configurar el middleware
+// --- ConfiguraciÃ³n del Pipeline de Peticiones ---
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
 
-// ? COMENTAR O QUITAR ESTA LÍNEA para HTTP
-// app.UseHttpsRedirection();
-
-
-
-app.Use(async (context, next) =>
-{
-    context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-    context.Response.Headers["Pragma"] = "no-cache";
-    context.Response.Headers["Expires"] = "0";
-    await next();
-});
-
-
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
-
-// ? Session DEBE ir antes de Authentication
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
+// --- ConfiguraciÃ³n de Rutas (Endpoints) ---
 
-// ? MAPEAR Controllers ANTES de RazorPages
+// Ruta para las Areas
 app.MapControllerRoute(
-    name: "universidad",
-    pattern: "Universidad/{action=Index}/{id?}",
-    defaults: new { controller = "Universidad" });
+    name: "areas",
+    pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
+// Ruta por defecto
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Login}/{action=Login}/{id?}");
 
-
-
+// AÃ‘ADIDO: Habilita el mapeo para Razor Pages
 app.MapRazorPages();
 
 app.Run();

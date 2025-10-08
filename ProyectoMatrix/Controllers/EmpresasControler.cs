@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using ProyectoMatrix.Models;
 
 namespace ProyectoMatrix.Controllers
 {

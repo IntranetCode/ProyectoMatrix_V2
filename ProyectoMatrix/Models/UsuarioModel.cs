@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ProyectoMatrix.Models.ModelUsuarios;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
@@ -12,6 +13,8 @@ namespace ProyectoMatrix.Models
         public int EmpresaID { get; set; }
         public string Username { get; set; }
 
+       
+        
         // Contraseña hasheada en la base de datos
         public string Password { get; set; } = string.Empty;
 

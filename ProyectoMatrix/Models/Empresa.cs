@@ -1,23 +1,20 @@
-﻿namespace ProyectoMatrix.Models
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
+namespace ProyectoMatrix.Models
 {
-    using System.Collections.Generic;
-    using System.ComponentModel.DataAnnotations;
-
     public class Empresa
     {
         [Key]
         public int EmpresaID { get; set; }
+
         public string Nombre { get; set; } = string.Empty;
-     
 
-        // Relaciones (opcional)
-        public ICollection<ComunicadoEmpresa> ComunicadoEmpresas { get; set; } 
-        =new List<ComunicadoEmpresa>();
+        public bool Activa { get; set; }
 
-        public ICollection<WebinarEmpresa> WebinarsEmpresas { get; set; }
-        =new List<WebinarEmpresa>();
+        // Propiedades de navegación
+        public virtual ICollection<ComunicadoEmpresa> ComunicadoEmpresas { get; set; } = new List<ComunicadoEmpresa>();
+
+        public virtual ICollection<WebinarEmpresa> WebinarsEmpresas { get; set; } = new List<WebinarEmpresa>();
     }
-
 }
-
