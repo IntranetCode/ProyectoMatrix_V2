@@ -1,3 +1,8 @@
+// Usings para nuestro módulo
+using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
+using ProyectoMatrix.Areas.AdminUsuarios.Services;
+
+
 //Configuración y conexión a base de datos derarrollo y productivo
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Features;
@@ -5,6 +10,10 @@ using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.EntityFrameworkCore;
 using ProyectoMatrix.Controllers;
 using ProyectoMatrix.Helpers;
+
+using Microsoft.EntityFrameworkCore;
+using ProyectoMatrix.Models;
+
 using ProyectoMatrix.Servicios;
 using System.Security.Claims;
 
@@ -33,8 +42,8 @@ builder.WebHost.ConfigureKestrel(options =>
 // ? AGREGAR CONFIGURACIÓN DEL SERVIDOR
 //builder.WebHost.ConfigureKestrel(options =>
 //{
-    // Escuchar en puerto 500 para todas las IPs
-   // options.ListenAnyIP(500);
+// Escuchar en puerto 500 para todas las IPs
+// options.ListenAnyIP(500);
 //});
 
 // Obtener la cadena de conexión desde appsettings.json
@@ -44,11 +53,22 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// ? AGREGAR MVC Controllers
-builder.Services.AddControllersWithViews();
+// ? AGREGAR MVC Controllers // 1. Controladores, Vistas y Razor Pages
+builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
 
 // Agregar servicios
 builder.Services.AddRazorPages();
+
+
+
+// 2. AÑADIDO: Habilita la validación del lado del cliente en toda la aplicación
+builder.Services.AddRazorPages().AddViewOptions(options =>
+{
+    options.HtmlHelperOptions.ClientValidationEnabled = true;
+});
+
+
+
 
 // ? CONFIGURAR Session con opciones
 builder.Services.AddSession(options =>
@@ -57,15 +77,6 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
-
-// ? SERVICIOS Universidad NS
-builder.Services.AddScoped<UniversidadServices>();
-
-
-
-builder.Services.AddAuthorization();
-
-
 
 // Agregar la autenticación antes de construir la app
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -76,7 +87,18 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 
 
+builder.Services.AddAuthorization();
 
+
+
+
+
+// 4. Registramos todos tus servicios
+builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+
+
+// ? SERVICIOS Universidad NS
+builder.Services.AddScoped<UniversidadServices>();
 
 
 // Registrar el servicio de notificacionesa
