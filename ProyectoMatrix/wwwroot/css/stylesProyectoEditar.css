@@ -1,0 +1,138 @@
+﻿body {
+    /* Fondo ligeramente gris para destacar el formulario */
+    background-color: #f8f9fa;
+}
+
+h2 {
+    color: #004085; /* Azul oscuro corporativo */
+    border-bottom: 3px solid #007bff; /* Línea divisoria azul */
+    padding-bottom: 10px;
+    margin-bottom: 25px;
+    font-weight: 700;
+}
+
+/* --- Contenedor del Formulario --- */
+form {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Sombra suave para un efecto de elevación */
+}
+
+/* --- Estilo de las Secciones del Formulario --- */
+.form-section {
+    border: 1px solid #e9ecef; /* Borde sutil para delimitar la sección */
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    background-color: #ffffff;
+}
+
+    .form-section h5 {
+        color: #495057; /* Un color de texto para el título de la sección */
+        font-weight: 600;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px dashed #ced4da; /* Línea de puntos para separar el título */
+    }
+
+        .form-section h5 i {
+            color: #007bff; /* Color azul para los iconos de la sección */
+        }
+
+/* --- Campos de Formulario Personalizados --- */
+.form-label {
+    font-weight: 500;
+    color: #343a40;
+}
+
+    .form-label i {
+        color: #6c757d; /* Color gris para los iconos de las etiquetas */
+    }
+
+/* Input principal más grande */
+.form-control-lg {
+    font-size: 1.1rem;
+    border: 2px solid #ced4da;
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-range:focus {
+    border-color: #80bdff; /* Un azul de enfoque suave */
+    box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+}
+
+/* --- Estilo del Slider de Progreso --- */
+#progresoSlider {
+    height: 10px; /* Hace el slider más delgado */
+}
+
+#progresoValue {
+    font-size: 0.9rem;
+    padding: 0.5em 0.8em;
+    min-width: 60px; /* Asegura que el badge tenga un ancho mínimo */
+}
+
+/* --- Estilo para la Carga de Archivos (Drop Zone) --- */
+.file-upload-container {
+    border: 2px dashed #adb5bd; /* Borde punteado */
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+}
+
+    .file-upload-container:hover {
+        background-color: #e9ecef; /* Cambio de color al pasar el ratón */
+        border-color: #007bff;
+    }
+
+    .file-upload-container .fa-cloud-upload-alt {
+        color: #adb5bd !important;
+    }
+
+/* Estilo para la vista previa del archivo subido */
+#fileInfo .alert {
+    border-left: 5px solid #007bff; /* Borde lateral para destacar la alerta */
+}
+
+#fileInfo .fa-file-alt {
+    color: #007bff;
+}
+
+
+/* --- Botones de Acción (Guardar y Cancelar) --- */
+
+/* Botón Guardar */
+.btn-crear-proyecto {
+    /* Estilo del botón principal de acción (usado para "Guardar cambios") */
+    background-color: #28a745; /* Verde */
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 50px; /* Bordes redondeados */
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    transition: all 0.3s ease-in-out;
+    margin-right: 15px; /* Separación del botón Cancelar */
+}
+
+    .btn-crear-proyecto:hover {
+        background-color: #218838;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(40, 167, 69, 0.4);
+    }
+
+/* Botón Cancelar */
+.btn-action {
+    padding: 10px 25px;
+    border-radius: 50px; /* Bordes redondeados */
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.95rem;
+    transition: all 0.3s ease-in-out;
+}

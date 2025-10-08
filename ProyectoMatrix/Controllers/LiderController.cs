@@ -34,7 +34,26 @@ namespace ProyectoMatrix.Controllers
         private int? GetEmpresaId()
             => int.TryParse(User.FindFirst("EmpresaID")?.Value, out var id) ? id : (int?)null;
 
-     
+        // --- Helpers de validación de URLs (predefinimos las url que se pueden aceptar) ---
+        private static bool EsRegistroUrl(string? url)
+            => !string.IsNullOrWhiteSpace(url)
+               && url.Contains("events.teams.microsoft.com", StringComparison.OrdinalIgnoreCase);
+
+        private static bool EsJoinUrl(string? url)
+            => !string.IsNullOrWhiteSpace(url)
+               && url.Contains("/l/meetup-join/", StringComparison.OrdinalIgnoreCase);
+
+        private static bool EsGrabacionUrl(string? url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return false;
+            var u = url.ToLowerInvariant();
+            return u.Contains(".sharepoint.com") || u.Contains("1drv.ms")
+                || u.Contains("youtube.com") || u.Contains("youtu.be")
+                || u.Contains("vimeo.com") || u.Contains("player.vimeo.com");
+        }
+
+
+
 
         private List<SelectListItem> GetEmpresasSelect()
             => _db.Empresas
@@ -77,16 +96,34 @@ namespace ProyectoMatrix.Controllers
             return nombres.Count == 0 ? "-" : string.Join(", ", nombres);
         }
 
+        // metodo que decide que vista mostrarle al usuario segun sus permisos
+        [HttpGet]
+        public async Task<IActionResult> Entrada()
+        {
+            var userIdStr = User.FindFirst("UsuarioID")?.Value;
+            if (!int.TryParse(userIdStr, out var userId)) return RedirectToAction("Login", "Login");
+
+            // ¿Tiene alguna acción de gestor?
+            var esGestor =
+                await _acceso.TienePermisoAsync(userId, "Crear webinar", "Crear") ||
+                await _acceso.TienePermisoAsync(userId, "Editar webinar", "Editar") ||
+                await _acceso.TienePermisoAsync(userId, "Eliminar Proyectos", "Eliminar");
+
+            // Seguridad real: el controlador de Index/Lista debe tener su propia autorización.
+            return esGestor
+                ? RedirectToAction("Index", "Lider")
+                : RedirectToAction("Lista", "Lider");
+        }
 
 
-        [AutorizarAccion ("Videos de Líderes", "Ver")]
+        [AutorizarAccion ("Ver Webinars", "Ver")]
         [HttpGet]
         public IActionResult Index()
         {
             return View();
         }
 
-        [AutorizarAccion("Videos de Líderes", "Ver")]
+        [AutorizarAccion("Ver Webinars", "Ver")]
         [HttpGet]
         [AllowAnonymous] // opcional
         public async Task<IActionResult> Lista()
@@ -99,11 +136,10 @@ namespace ProyectoMatrix.Controllers
                 (empresaId.HasValue &&
                  _db.WebinarsEmpresas.Any(we => we.WebinarID == w.WebinarID && we.EmpresaID == empresaId.Value))
             );
-
-            // --- DESTACADO: próximo webinar ---
+            // --- DESTACADO: próximo o en curso ---
             var proximo = await baseQ
-                .Where(w => w.FechaInicio > ahora)
-                .OrderBy(w => w.FechaInicio)
+                .Where(w => w.FechaFin >= ahora)   // aún no ha terminado
+                .OrderBy(w => w.FechaInicio)       // el que sigue más pronto o el que ya está en curso primero
                 .FirstOrDefaultAsync();
 
             if (proximo != null)
@@ -115,7 +151,9 @@ namespace ProyectoMatrix.Controllers
                     Descripcion = proximo.Descripcion,
                     FechaInicio = proximo.FechaInicio,
                     FechaFin = proximo.FechaFin,
-                    UrlTeams = proximo.UrlTeams,
+                    UrlTeams = proximo.UrlTeams,      
+                    UrlGrabacion = proximo.UrlGrabacion, 
+                    UrlRegistro = proximo.UrlRegistro,   
                     Imagen = proximo.Imagen,
                     DirigidoA = proximo.EsPublico ? "Todas" : await GetDirigidoAAsync(proximo.WebinarID, proximo.EsPublico)
                 };
@@ -125,6 +163,7 @@ namespace ProyectoMatrix.Controllers
             {
                 ViewBag.Destacado = null;
             }
+
 
             // --- VIDEO DESTACADO: solo si NO hay webinar destacado ---
             if (ViewBag.Destacado == null)
@@ -145,7 +184,7 @@ namespace ProyectoMatrix.Controllers
 
             // --- Lista ---
             var lista = await baseQ
-                .OrderBy(w => w.FechaInicio)
+                .OrderByDescending(w => w.FechaInicio)
                 .Select(w => new WebinarListItemVm
                 {
                     WebinarID = w.WebinarID,
@@ -154,6 +193,8 @@ namespace ProyectoMatrix.Controllers
                     FechaInicio = w.FechaInicio,
                     FechaFin = w.FechaFin,
                     UrlTeams = w.UrlTeams,
+                    UrlGrabacion = w.UrlGrabacion,
+                    UrlRegistro = w.UrlRegistro,
                     Imagen = w.Imagen,
                     DirigidoA = w.EsPublico ? "Todas" : ""
                 })
@@ -177,7 +218,7 @@ namespace ProyectoMatrix.Controllers
 
 
 
-        [AutorizarAccion("Videos de Líderes", "Ver")]
+        [AutorizarAccion("Ver Webinars", "Ver")]
         [HttpGet]
         public async Task<IActionResult> MisWebinars()
         {
@@ -197,6 +238,8 @@ namespace ProyectoMatrix.Controllers
                     FechaInicio = w.FechaInicio,
                     FechaFin = w.FechaFin,
                     UrlTeams = w.UrlTeams,
+                    UrlRegistro = w.UrlRegistro,
+                    UrlGrabacion = w.UrlGrabacion,
                     Imagen = w.Imagen,
                     DirigidoA = w.EsPublico ? "Todas" : ""
                 })
@@ -218,7 +261,7 @@ namespace ProyectoMatrix.Controllers
 
 
         [HttpGet]
-        [AutorizarAccion("Videos de Líderes", "Ver")]
+        [AutorizarAccion("Ver Webinars", "Ver")]
         public async Task<IActionResult> Details(int? id)
         {
             if (id <= 0) return NotFound();
@@ -262,7 +305,7 @@ namespace ProyectoMatrix.Controllers
 
         
         [HttpGet]
-        [AutorizarAccion("Videos de Líderes", "Crear")]
+        [AutorizarAccion("Crear webinar", "Crear")]
         public IActionResult CrearWebinar()
         {
             ViewBag.Empresas = GetEmpresasSelect();
@@ -271,16 +314,46 @@ namespace ProyectoMatrix.Controllers
 
 
 
-        [AutorizarAccion("Videos de Líderes", "Crear")]
+        [AutorizarAccion("Crear webinar", "Crear")]
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> CrearWebinar(Webinar model, int[]? empresasSeleccionadas, IFormFile? imagenFile)
         {
+
+
+            // Validación de coherencia de fechas
+            if (model.FechaFin <= model.FechaInicio)
+                ModelState.AddModelError(nameof(model.FechaFin), "La fecha de fin debe ser mayor que la fecha de inicio.");
+
+            // Validación de URLs (solo si vienen con valor)
+            // UrlRegistro (opcional, pero si viene debe ser válida)
+            if (!string.IsNullOrWhiteSpace(model.UrlRegistro) && !EsRegistroUrl(model.UrlRegistro))
+                ModelState.AddModelError(nameof(model.UrlRegistro), "La URL de registro debe ser de events.teams.microsoft.com.");
+
+            // UrlTeams (REQUERIDA y con formato válido)
+            if (string.IsNullOrWhiteSpace(model.UrlTeams))
+            {
+                ModelState.AddModelError(nameof(model.UrlTeams), "Debes proporcionar el enlace para unirse a Teams.");
+            }
+            else if (!EsJoinUrl(model.UrlTeams))
+            {
+                ModelState.AddModelError(nameof(model.UrlTeams), "La URL de unirse debe ser de teams.microsoft.com/l/meetup-join/...");
+            }
+
+            // UrlGrabacion (opcional, pero si viene debe ser válida)
+            if (!string.IsNullOrWhiteSpace(model.UrlGrabacion) && !EsGrabacionUrl(model.UrlGrabacion))
+                ModelState.AddModelError(nameof(model.UrlGrabacion), "La URL de grabación debe ser de SharePoint/OneDrive/YouTube/Vimeo.");
+
+
+            model.UrlGrabacion = null;
+
             if (!ModelState.IsValid)
             {
                 ViewBag.Empresas = GetEmpresasSelect();
                 return View("~/Views/Lider/CrearWebinar.cshtml", model);
             }
 
+
+            //Codigo para guardar una imagen si se subió
             var rutaRel = await GuardarImagenAsync(imagenFile);
             if (!string.IsNullOrWhiteSpace(rutaRel))
                 model.Imagen = rutaRel;
@@ -367,7 +440,7 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        [AutorizarAccion("Videos de Líderes", "Editar")]
+        [AutorizarAccion("Editar webinar", "Editar")]
         [HttpGet]
         public async Task<IActionResult> Editar(int? id, string? returnUrl)
         {
@@ -395,10 +468,25 @@ namespace ProyectoMatrix.Controllers
             ViewBag.ReturnUrl = string.IsNullOrWhiteSpace(returnUrl)
                 ? Url.Action("GestionarWebinar", "Lider")
                 : returnUrl;
+
+            ViewBag.Empresas = await _db.Empresas
+    .OrderBy(e => e.Nombre)
+    .Select(e => new SelectListItem { Value = e.EmpresaID.ToString(), Text = e.Nombre })
+    .ToListAsync();
+
+            ViewBag.EmpresasSeleccionadas = seleccionadas; // List<int>
+
+
+
             return View("~/Views/Lider/EditarWebinar.cshtml", w);
         }
 
-        [AutorizarAccion("Videos de Líderes", "Editar")]
+
+
+
+
+
+        [AutorizarAccion("Editar webinar", "Editar")]
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Editar(
     int id, Webinar model, int[]? empresasSeleccionadas, IFormFile? imagenFile, string? returnUrl)
@@ -414,6 +502,18 @@ namespace ProyectoMatrix.Controllers
          ViewBag.ReturnUrl = returnUrl ?? Url.Action("GestionarWebinar", "Lider");
                 return View("~/Views/Lider/EditarWebinar.cshtml", model);
             }
+
+            if (!string.IsNullOrWhiteSpace(model.UrlRegistro) && !EsRegistroUrl(model.UrlRegistro))
+                ModelState.AddModelError(nameof(model.UrlRegistro), "La URL de registro debe ser de events.teams.microsoft.com.");
+
+            if (!string.IsNullOrWhiteSpace(model.UrlTeams) && !EsJoinUrl(model.UrlTeams))
+                ModelState.AddModelError(nameof(model.UrlTeams), "La URL de unirse debe ser de teams.microsoft.com/l/meetup-join/...");
+
+            if (!string.IsNullOrWhiteSpace(model.UrlGrabacion) && !EsGrabacionUrl(model.UrlGrabacion))
+                ModelState.AddModelError(nameof(model.UrlGrabacion), "La URL de grabación debe ser de SharePoint/OneDrive/YouTube/Vimeo.");
+
+
+
 
             //  Recupera el original para conservar campos
             var original = await _db.Webinars.AsNoTracking()
@@ -508,7 +608,7 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        [AutorizarAccion("Videos de Líderes", "Crear")]
+        [AutorizarAccion("Crear webinar", "Crear")]
         [HttpGet]
         public async Task<IActionResult> GestionarWebinar()
         {
@@ -545,7 +645,7 @@ namespace ProyectoMatrix.Controllers
             return View("~/Views/Lider/GestionarWebinar.cshtml",lista);
         }
 
-        [AutorizarAccion("Videos de Líderes", "Ver")]
+        [AutorizarAccion("Ver Webinars", "Ver")]
         [HttpGet]
         public async Task<IActionResult> LiderLista()
         {
@@ -561,6 +661,8 @@ namespace ProyectoMatrix.Controllers
                     FechaInicio = w.FechaInicio,
                     FechaFin = w.FechaFin,
                     UrlTeams = w.UrlTeams,
+                    UrlGrabacion = w.UrlGrabacion,
+                    UrlRegistro = w.UrlRegistro,
                     Imagen = w.Imagen,
                     DirigidoA = w.EsPublico ? "Todas" : ""
                 })
@@ -578,6 +680,8 @@ namespace ProyectoMatrix.Controllers
                     FechaInicio = w.FechaInicio,
                     FechaFin = w.FechaFin,
                     UrlTeams = w.UrlTeams,
+                    UrlGrabacion = w.UrlGrabacion,
+                    UrlRegistro = w.UrlRegistro,
                     Imagen = w.Imagen,
                     DirigidoA = w.EsPublico ? "Todas" : ""
                 })
@@ -590,7 +694,7 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        [AutorizarAccion("Videos de Líderes", "Eliminar")]
+        [AutorizarAccion("Eliminar webinar", "Eliminar")]
         [HttpGet]
         public async Task<IActionResult> Eliminar(int? id, string? returnUrl)
         {
@@ -613,7 +717,7 @@ namespace ProyectoMatrix.Controllers
             return View("~/Views/Lider/GestionarWebinar.cshtml",w); // Views/Webinars/Delete.cshtml (o tu ruta)
         }
 
-        [AutorizarAccion("Videos de Líderes", "Eliminar")]
+        [AutorizarAccion("Eliminar webinar", "Eliminar")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Eliminar(int id, string? returnUrl)
@@ -628,9 +732,8 @@ namespace ProyectoMatrix.Controllers
                 if (!userId.HasValue || w.UsuarioCreadorID != userId.Value) return Forbid();
             }
 
-            EliminarImagenFisica(w.Imagen);
 
-            _db.Webinars.Remove(w);
+            w.Activo = false;
             await _db.SaveChangesAsync();
 
 
@@ -681,4 +784,11 @@ namespace ProyectoMatrix.Controllers
         public Webinar Webinar { get; set; } = default!;
         public string DirigidoA { get; set; } = "-";
     }
+
+
+
+
+
+
+
 }

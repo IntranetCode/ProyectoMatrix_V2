@@ -12,9 +12,13 @@
         public string? Imagen { get; set; }
         public int? UsuarioCreadorID { get; set; }
 
+        public string? UrlGrabacion { get; set; }
 
+        public string? UrlRegistro { get; set; }
 
         public DateTime FechaCreacion { get; set; }
+
+        public bool Activo { get; set; } = true;
         public ICollection<WebinarEmpresa> WebinarsEmpresas { get; set; } = new List<WebinarEmpresa>();
 
 

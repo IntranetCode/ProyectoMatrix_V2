@@ -1,142 +1,14 @@
-﻿@using ProyectoMatrix.Servicios
+﻿@using ProyectoMatrix.Models
+@using ProyectoMatrix.Servicios
 
-@using ProyectoMatrix.Models
-@model Proyecto
+@using ProyectoMatrix.Models.ViewModels
+@model ProyectoDetalleVm
 @{
     ViewData["Title"] = "Detalle del Proyecto";
     var rol = Context.Session.GetString("Rol") ?? "Colaborador";
     Layout = rol == "Administrador" ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_Colaborador.cshtml";
 }
-
-@section Estilos {
-    <style>
-        .proyecto-header {
-            background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%);
-            color: white;
-            padding: 2rem;
-            border-radius: 15px;
-            margin-bottom: 2rem;
-        }
-
-        .info-card {
-            background: white;
-            border-radius: 15px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 1.5rem;
-            height: 100%;
-        }
-         
-            .info-card h6 {
-                color: var(--bs-primary);
-                font-weight: 600;
-                margin-bottom: 1rem;
-            }
-
-        .progreso-circular {
-            position: relative;
-            width: 120px;
-            height: 120px;
-            margin: 0 auto;
-        }
-
-            .progreso-circular svg {
-                transform: rotate(-90deg);
-                width: 100%;
-                height: 100%;
-            }
-
-            .progreso-circular .progreso-bg {
-                fill: none;
-                stroke: #e9ecef;
-                stroke-width: 8;
-            }
-
-            .progreso-circular .progreso-fill {
-                fill: none;
-                stroke-width: 8;
-                stroke-linecap: round;
-                transition: stroke-dasharray 0.5s ease;
-            }
-
-        .progreso-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .timeline {
-            position: relative;
-            padding-left: 2rem;
-        }
-
-            .timeline::before {
-                content: '';
-                position: absolute;
-                left: 0.75rem;
-                top: 0;
-                bottom: 0;
-                width: 2px;
-                background: #dee2e6;
-            }
-
-        .timeline-item {
-            position: relative;
-            padding-bottom: 1.5rem;
-        }
-
-            .timeline-item::before {
-                content: '';
-                position: absolute;
-                left: -1.75rem;
-                top: 0.25rem;
-                width: 12px;
-                height: 12px;
-                border-radius: 50%;
-                background: var(--bs-primary);
-                border: 3px solid white;
-                box-shadow: 0 0 0 3px var(--bs-primary);
-            }
-
-            .timeline-item.completed::before {
-                background: var(--bs-success);
-                box-shadow: 0 0 0 3px var(--bs-success);
-            }
-
-        .archivo-preview {
-            border: 2px solid #dee2e6;
-            border-radius: 15px;
-            padding: 1.5rem;
-            text-align: center;
-            background: #f8f9fa;
-        }
-
-        .estado-badge-large {
-            font-size: 1rem;
-            padding: 0.75rem 1.5rem;
-            border-radius: 25px;
-            font-weight: 600;
-        }
-
-        .prioridad-indicator {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 0.5rem;
-        }
-
-        .action-buttons {
-            position: sticky;
-            top: 100px;
-            z-index: 10;
-        }
-    </style>
-}
-
+<link href="~/css/stylesProyectosDetalle.css" rel="stylesheet" />
 @*Mandar a llamar al servicio de acceso para ocultar o mostrar los botones correspondientes *@
 @inject IServicioAcceso Acceso
 @{
@@ -153,28 +25,28 @@
         <div class="d-flex justify-content-between align-items-start">
             <div class="flex-grow-1">
                 <div class="d-flex align-items-center mb-2">
-                    <h1 class="h2 mb-0 me-3">@Model.NombreProyecto</h1>
-                    <span class="badge estado-badge-large bg-@Model.Estado.ObtenerColorEstado()">
-                        <i class="@Model.Estado.ObtenerIconoEstado() me-1"></i>
-                        @Model.Estado.ObtenerNombreEstado()
+                    <h1 class="h2 mb-0 me-3">@Model.Proyecto.NombreProyecto</h1>
+                    <span class="badge estado-badge-large bg-@Model.Proyecto.Estado.ObtenerColorEstado()">
+                        <i class="@Model.Proyecto.Estado.ObtenerIconoEstado() me-1"></i>
+                        @Model.Proyecto.Estado.ObtenerNombreEstado()
                     </span>
                 </div>
 
-                @if (!string.IsNullOrEmpty(Model.CodigoProyecto))
+                @if (!string.IsNullOrEmpty(Model.Proyecto.CodigoProyecto))
                 {
-                    <p class="mb-2"><strong>Código:</strong> @Model.CodigoProyecto</p>
+                    <p class="mb-2"><strong>Código:</strong> @Model.Proyecto.CodigoProyecto</p>
                 }
 
-                @if (!string.IsNullOrEmpty(Model.Descripcion))
+                @if (!string.IsNullOrEmpty(Model.Proyecto.Descripcion))
                 {
-                    <p class="mb-0 text-white-75">@Model.Descripcion</p>
+                    <p class="mb-0 text-white-75">@Model.Proyecto.Descripcion</p>
                 }
             </div>
 
             <div class="action-buttons">
                 @if (puedeEditar)
                 {
-                    <a href="@Url.Action("Editar", new { id = Model.ProyectoID })" class="btn btn-light me-2">
+                    <a href="@Url.Action("Editar", new { id = Model.Proyecto.ProyectoID })" class="btn btn-light me-2">
                         <i class="fas fa-edit me-1"></i>Editar
                     </a>
                 }
@@ -188,24 +60,24 @@
         <div class="row mt-3">
             <div class="col-auto">
                 <small class="text-white-75">Creado por:</small>
-                <strong class="d-block">@(Model.CreadoPor ?? "Sin especificar")</strong>
+                <strong class="d-block">@(Model.Proyecto.CreadoPor ?? "Sin especificar")</strong>
             </div>
             <div class="col-auto">
                 <small class="text-white-75">Fecha de creación:</small>
-                <strong class="d-block">@Model.FechaCreacion.ToString("dd/MM/yyyy")</strong>
+                <strong class="d-block">@Model.Proyecto.FechaCreacion.ToString("dd/MM/yyyy")</strong>
             </div>
-            @if (!string.IsNullOrEmpty(Model.ResponsableProyecto))
+            @if (!string.IsNullOrEmpty(Model.Proyecto.ResponsableProyecto))
             {
                 <div class="col-auto">
                     <small class="text-white-75">Responsable:</small>
-                    <strong class="d-block">@Model.ResponsableProyecto</strong>
+                    <strong class="d-block">@Model.Proyecto.ResponsableProyecto</strong>
                 </div>
             }
             @if (puedeCrear)
             {
                 <div class="col-auto">
                     <small class="text-white-75">Visualizaciones:</small>
-                <strong class="d-block"><i class="fas fa-eye me-1"></i>@Model.Visualizaciones</strong>
+                    <strong class="d-block"><i class="fas fa-eye me-1"></i>@Model.Proyecto.Visualizaciones</strong>
             </div>
             }
         </div>
@@ -214,7 +86,7 @@
 
     <div class="row">
         <!-- Columna Principal -->
-        <div class="col-lg-8">
+        <div class="col-12 col-lg-8">
             <!-- Progreso del Proyecto -->
             <div class="info-card">
                 <h6><i class="fas fa-chart-line me-2"></i>Progreso del Proyecto</h6>
@@ -224,26 +96,26 @@
                             <svg viewBox="0 0 42 42">
                                 <circle class="progreso-bg" cx="21" cy="21" r="15.915"></circle>
                                 <circle class="progreso-fill" cx="21" cy="21" r="15.915"
-                                        stroke="@(Model.Progreso == 100 ? "#28a745" : Model.Progreso >= 75 ? "#17a2b8" : Model.Progreso >= 50 ? "#ffc107" : "#dc3545")"
-                                        stroke-dasharray="@(Model.Progreso), 100"
+                                        stroke="@(Model.Proyecto.Progreso == 100 ? "#28a745" : Model.Proyecto.Progreso >= 75 ? "#17a2b8" : Model.Proyecto.Progreso >= 50 ? "#ffc107" : "#dc3545")"
+                                        stroke-dasharray="@(Model.Proyecto.Progreso), 100"
                                         stroke-dashoffset="0"></circle>
                             </svg>
-                            <div class="progreso-text text-@(Model.Progreso == 100 ? "success" : Model.Progreso >= 75 ? "info" : Model.Progreso >= 50 ? "warning" : "danger")">
-                                @Model.Progreso%
+                            <div class="progreso-text text-@(Model.Proyecto.Progreso == 100 ? "success" : Model.Proyecto.Progreso >= 75 ? "info" : Model.Proyecto.Progreso >= 50 ? "warning" : "danger")">
+                                @Model.Proyecto.Progreso%
                             </div>
                         </div>
                     </div>
                     <div class="col-md-8">
                         <div class="d-flex align-items-center mb-2">
-                            <span class="prioridad-indicator bg-@Model.Prioridad.ObtenerColorPrioridad()"></span>
-                            <strong>Prioridad: @Model.Prioridad.ObtenerNombrePrioridad()</strong>
+                            <span class="prioridad-indicator bg-@Model.Proyecto.Prioridad.ObtenerColorPrioridad()"></span>
+                            <strong>Prioridad: @Model.Proyecto.Prioridad.ObtenerNombrePrioridad()</strong>
                         </div>
 
-                        @if (Model.Presupuesto.HasValue)
+                        @if (Model.Proyecto.Presupuesto.HasValue)
                         {
                             <p class="mb-2">
                                 <i class="fas fa-dollar-sign me-1 text-muted"></i>
-                                <strong>Presupuesto:</strong> $@Model.Presupuesto.Value.ToString("N2")
+                                <strong>Presupuesto:</strong> $@Model.Proyecto.Presupuesto.Value.ToString("N2")
                             </p>
                         }
 
@@ -258,14 +130,14 @@
                             <div class="input-group">
 
                                 <input type="range" class="form-range me-2" min="0" max="100"
-                                       value="@Model.Progreso" id="progresoSlider"
+                                       value="@Model.Proyecto.Progreso" id="progresoSlider"
                                        oninput="updateProgressDisplay(this.value)" />
 
-                                <span class="input-group-text" id="progresoValue">@Model.Progreso%</span>
+                                <span class="input-group-text" id="progresoValue">@Model.Proyecto.Progreso%</span>
                                 @if (puedeEditar)
                                 {
                                     <button type="button" class="btn btn-primary"
-                                            onclick="actualizarProgreso(@Model.ProyectoID)">
+                                            onclick="actualizarProgreso(@Model.Proyecto.ProyectoID)">
                                         Actualizar
                                     </button>
                                 }
@@ -282,7 +154,7 @@
                                     <select class="form-select" id="nuevoEstado">
                                         @foreach (EstadoProyecto estado in Enum.GetValues<EstadoProyecto>())
                                         {
-                                            <option value="@((int)estado)" selected="@(Model.Estado == estado)">
+                                        <option value="@((int)estado)" selected="@(Model.Proyecto.Estado == estado)">
                                                 @estado.ObtenerNombreEstado()
                                             </option>
                                         }
@@ -290,7 +162,7 @@
                                @if (puedeEditar)
                                 {
                                     <button type="button" class="btn btn-outline-primary"
-                                    onclick="cambiarEstado(@Model.ProyectoID)">
+                                            onclick="cambiarEstado(@Model.Proyecto.ProyectoID)">
                                         Cambiar
                                     </button>
                                 }
@@ -303,95 +175,78 @@
                 </div>
             </div>
 
-            <!-- Fechas del Proyecto -->
-            <div class="info-card">
-                <h6><i class="fas fa-calendar-alt me-2"></i>Timeline del Proyecto</h6>
-                <div class="timeline">
-                    <div class="timeline-item completed">
-                        <strong>Proyecto Creado</strong>
-                        <div class="text-muted">@Model.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</div>
-                        <small class="text-muted">por @(Model.CreadoPor ?? "Sistema")</small>
-                    </div>
+           
+           
 
-                    @if (Model.FechaInicio.HasValue)
-                    {
-                        <div class="timeline-item @(Model.FechaInicio <= DateTime.Now ? "completed" : "")">
-                            <strong>Fecha de Inicio</strong>
-                            <div class="text-muted">@Model.FechaInicio.Value.ToString("dd/MM/yyyy")</div>
-                        </div>
-                    }
+            <!-- Gestor de Archivos -->
 
-                    @if (Model.FechaFinPrevista.HasValue)
-                    {
-                        <div class="timeline-item @(Model.Estado == EstadoProyecto.Completado ? "completed" : "")">
-                            <strong>Entrega Prevista</strong>
-                            <div class="text-muted @(Model.FechaFinPrevista < DateTime.Now && Model.Estado != EstadoProyecto.Completado ? "text-danger" : "")">
-                                @Model.FechaFinPrevista.Value.ToString("dd/MM/yyyy")
-                                @if (Model.FechaFinPrevista < DateTime.Now && Model.Estado != EstadoProyecto.Completado)
-                                {
-                                    <span class="badge bg-danger ms-2">Atrasado</span>
-                                }
-                            </div>
-                        </div>
-                    }
+            <div class="info-card" id="gestor-archivos"
+                 data-proyecto="@Model.Proyecto.ProyectoID"
+                 data-puede-crear="@puedeCrear.ToString().ToLower()"
+                 data-puede-editar="@puedeEditar.ToString().ToLower()"
+                 data-puede-eliminar="@puedeEliminar.ToString().ToLower()">
 
-                    @if (Model.FechaFinReal.HasValue)
+                <h6><i class="fas fa-folder-open me-2"></i>Gestor de Archivos</h6>
+
+                <!-- Anti-CSRF para AJAX -->
+                <form id="ga-antiforgery">@Html.AntiForgeryToken()</form>
+
+                <!-- Breadcrumb -->
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb mb-0" id="ga-breadcrumb"></ol>
+                </nav>
+
+                <!-- Toolbar -->
+
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    @if (puedeCrear)
                     {
-                        <div class="timeline-item completed">
-                            <strong>Proyecto Completado</strong>
-                            <div class="text-success">@Model.FechaFinReal.Value.ToString("dd/MM/yyyy HH:mm")</div>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-primary" id="ga-subir-btn">
+                                <i class="fas fa-upload me-1"></i> Subir archivos
+                            </button>
+                            <input type="file" id="ga-file-input" multiple hidden />
                         </div>
+                        <button type="button" class="btn btn-outline-primary" id="ga-nueva-carpeta-btn">
+                            <i class="fas fa-folder-plus me-1"></i> Nueva carpeta
+                        </button>
                     }
+                    <button type="button" class="btn btn-outline-secondary" id="ga-recargar-btn">
+                        <i class="fas fa-rotate-right me-1"></i>
+                    </button>
+                </div>
+
+                <!-- Tabla -->
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:36px;"></th>
+                                <th>Nombre</th>
+                                <th style="width:140px;">Tamaño</th>
+                                <th style="width:160px;">Modificado</th>
+                                <th style="width:200px;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ga-lista"></tbody>
+                    </table>
+                </div>
+
+                <!-- Progreso -->
+                <div class="progress mt-3 d-none" id="ga-progress-wrap" style="height:10px;">
+                    <div class="progress-bar" id="ga-progress" role="progressbar" style="width:0;"></div>
                 </div>
             </div>
 
-            <!-- Observaciones -->
-            @if (!string.IsNullOrEmpty(Model.Observaciones))
-            {
-                <div class="info-card">
-                    <h6><i class="fas fa-sticky-note me-2"></i>Observaciones</h6>
-                    <div class="bg-light p-3 rounded">
-                        @Model.Observaciones
-                    </div>
-                </div>
-            }
-        </div>
 
-        <!-- Columna Lateral -->
-        <div class="col-lg-4">
-            <!-- Archivo del Proyecto -->
-            @if (!string.IsNullOrEmpty(Model.ArchivoRuta))
-            {
-                <div class="info-card">
-                    <h6><i class="fas fa-paperclip me-2"></i>Documento del Proyecto</h6>
-                    <div class="archivo-preview">
-                        <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
-                        <h6>Documento Adjunto</h6>
-                        <p class="text-muted mb-3">
-                            Tamaño: @Model.TamanoArchivo.FormatearTamanoArchivo()<br>
-                            Formato: @(Model.Extension?.ToUpper() ?? "PDF")
-                        </p>
-                        <div class="d-grid gap-2">
-                            <a href="@Url.Action("VerArchivo", new { id = Model.ProyectoID })"
-                               class="btn btn-primary" target="_blank">
-                                <i class="fas fa-eye me-1"></i>Ver Documento
-                            </a>
-                            <a href="@Url.Action("DescargarArchivo", new { id = Model.ProyectoID })"
-                               class="btn btn-outline-primary">
-                                <i class="fas fa-download me-1"></i>Descargar
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            }
 
             <!-- Tags -->
-            @if (!string.IsNullOrEmpty(Model.Tags))
+            @if (!string.IsNullOrEmpty(Model.Proyecto.Tags))
             {
                 <div class="info-card">
                     <h6><i class="fas fa-tags me-2"></i>Etiquetas</h6>
                     <div>
-                        @foreach (var tag in Model.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                        @foreach (var tag in Model.Proyecto.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
                         {
                             <span class="badge bg-light text-dark me-1 mb-1">#@tag.Trim()</span>
                         }
@@ -399,135 +254,445 @@
                 </div>
             }
 
+
+        </div>
+
+
+
+        <!-- Columna Lateral -->
+        <div class="col-12 col-lg-4">
+
+            
+
+
+            <!-- Fechas del Proyecto -->
+            <div class="info-card">
+                <h6><i class="fas fa-calendar-alt me-2"></i>Timeline del Proyecto</h6>
+                <div class="timeline">
+                    <div class="timeline-item completed">
+                        <strong>Proyecto Creado</strong>
+                        <div class="text-muted">@Model.Proyecto.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</div>
+                        <small class="text-muted">por @(Model.Proyecto.CreadoPor ?? "Sistema")</small>
+                    </div>
+
+                    @if (Model.Proyecto.FechaInicio.HasValue)
+                    {
+                        <div class="timeline-item @(Model.Proyecto.FechaInicio <= DateTime.Now ? "completed" : "")">
+                            <strong>Fecha de Inicio</strong>
+                            <div class="text-muted">@Model.Proyecto.FechaInicio.Value.ToString("dd/MM/yyyy")</div>
+                        </div>
+                    }
+
+                    @if (Model.Proyecto.FechaFinPrevista.HasValue)
+                    {
+                        <div class="timeline-item @(Model.Proyecto.Estado == EstadoProyecto.Completado ? "completed" : "")">
+                            <strong>Entrega Prevista</strong>
+                            <div class="text-muted @(Model.Proyecto.FechaFinPrevista < DateTime.Now && Model.Proyecto.Estado != EstadoProyecto.Completado ? "text-danger" : "")">
+                                @Model.Proyecto.FechaFinPrevista.Value.ToString("dd/MM/yyyy")
+                                @if (Model.Proyecto.FechaFinPrevista < DateTime.Now && Model.Proyecto.Estado != EstadoProyecto.Completado)
+                                {
+                                    <span class="badge bg-danger ms-2">Atrasado</span>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @if (Model.Proyecto.FechaFinReal.HasValue)
+                    {
+                        <div class="timeline-item completed">
+                            <strong>Proyecto Completado</strong>
+                            <div class="text-success">@Model.Proyecto.FechaFinReal.Value.ToString("dd/MM/yyyy HH:mm")</div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Observaciones -->
+            @if (!string.IsNullOrEmpty(Model.Proyecto.Observaciones))
+            {
+                <div class="info-card">
+                    <h6><i class="fas fa-sticky-note me-2"></i>Observaciones</h6>
+                    <div class="bg-light p-3 rounded">
+                        @Model.Proyecto.Observaciones
+                    </div>
+                </div>
+            }
+
+
             <!-- Información Adicional -->
             <div class="info-card">
                 <h6><i class="fas fa-info-circle me-2"></i>Información del Sistema</h6>
                 <div class="small">
                     <div class="d-flex justify-content-between mb-2">
                         <span>ID del Proyecto:</span>
-                        <strong>@Model.ProyectoID</strong>
+                        <strong>@Model.Proyecto.ProyectoID</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Empresa:</span>
-                        <strong>ID @Model.EmpresaID</strong>
+                        <strong>ID @Model.Proyecto.EmpresaID</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Estado:</span>
-                        <span class="badge bg-@Model.Estado.ObtenerColorEstado()">
-                            @Model.Estado.ObtenerNombreEstado()
+                        <span class="badge bg-@Model.Proyecto.Estado.ObtenerColorEstado()">
+                            @Model.Proyecto.Estado.ObtenerNombreEstado()
                         </span>
                     </div>
                     <div class="d-flex justify-content-between">
                         <span>Activo:</span>
-                        <span class="badge bg-@(Model.EsActivo ? "success" : "danger")">
-                            @(Model.EsActivo ? "Sí" : "No")
+                        <span class="badge bg-@(Model.Proyecto.EsActivo ? "success" : "danger")">
+                            @(Model.Proyecto.EsActivo ? "Sí" : "No")
                         </span>
                     </div>
                 </div>
             </div>
+
+           @*En este apartado se debe de agregar el historial de fechas y posiblemente un Gantt
+               y en editar el agregar , editar , eliminar una nueva fecha
+               o se puede desde esta misma vista
+           *@
+           <div class="info-card">
+               <h6><i class="fas fa-calendar-alt me-2"></i>Gestión de actividades</h6>
+               <div class="small">
+
+               </div>
+           </div>
+
+
+
         </div>
     </div>
 </div>
 
-@section Scripts {
-    <script>
-        let currentProgress = @Model.Progreso;
 
-        // Actualizar display del progreso
-        function updateProgressDisplay(value) {
-            document.getElementById('progresoValue').textContent = value + '%';
-            currentProgress = parseInt(value);
-        }
-
-        // Actualizar progreso via AJAX
-        function actualizarProgreso(proyectoId) {
-            const nuevoProgreso = currentProgress;
-
-            fetch('@Url.Action("ActualizarProgreso")', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
-                },
-                body: JSON.stringify({
-                    proyectoId: proyectoId,
-                    progreso: nuevoProgreso
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Actualizar el círculo de progreso
-                    const circle = document.querySelector('.progreso-fill');
-                    const text = document.querySelector('.progreso-text');
-
-                    circle.setAttribute('stroke-dasharray', `${nuevoProgreso}, 100`);
-                    text.textContent = `${nuevoProgreso}%`;
-
-                    // Cambiar color según el progreso
-                    let color = nuevoProgreso == 100 ? '#28a745' :
-                               nuevoProgreso >= 75 ? '#17a2b8' :
-                               nuevoProgreso >= 50 ? '#ffc107' : '#dc3545';
-                    circle.setAttribute('stroke', color);
-
-                    // Mostrar mensaje de éxito
-                    showAlert('Progreso actualizado correctamente', 'success');
-                } else {
-                    showAlert('Error al actualizar el progreso', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('Error de conexión', 'danger');
-            });
-        }
-
-        // Cambiar estado via AJAX
-        function cambiarEstado(proyectoId) {
-            const nuevoEstado = document.getElementById('nuevoEstado').value;
-
-            fetch('@Url.Action("CambiarEstado")', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
-                },
-                body: JSON.stringify({
-                    proyectoId: proyectoId,
-                    estado: parseInt(nuevoEstado)
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showAlert('Estado actualizado correctamente. Recargando página...', 'success');
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    showAlert('Error al cambiar el estado', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('Error de conexión', 'danger');
-            });
-        }
-
-        // Mostrar alertas
-        function showAlert(message, type) {
-            const alertHtml = `
-                <div class="alert alert-${type} alert-dismissible fade show position-fixed"
-                     style="top: 100px; right: 20px; z-index: 9999;" role="alert">
-                    ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            
+            <!-- Modal de vista previa (único) -->
+            <div class="modal fade" id="ga-preview" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="ga-preview-title">Vista previa</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body p-0" id="ga-preview-body"></div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
                 </div>
-            `;
-            document.body.insertAdjacentHTML('beforeend', alertHtml);
+            </div>
+@section Scripts {
+                <script>
+                    (function(){
+                      // --- Alertas flotantes ---
+                      function showAlert(message, type) {
+                        const html = `
+                          <div class="alert alert-${type} alert-dismissible fade show position-fixed"
+                               style="top:16px;right:16px;z-index:1040" role="alert">
+                            ${message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                          </div>`;
+                        document.body.insertAdjacentHTML('beforeend', html);
+                        setTimeout(() => {
+                          const el = document.querySelector('.alert.position-fixed');
+                          if (el) el.remove();
+                        }, 5000);
+                      }
 
-            // Auto-eliminar después de 5 segundos
-            setTimeout(() => {
-                const alert = document.querySelector('.alert:last-child');
-                if (alert) alert.remove();
-            }, 5000);
-        }
-    </script>
+                      // --- Cargar Bootstrap si no está ---
+                                          const modalEl = document.getElementById('ga-preview');
+                    if (modalEl && modalEl.parentElement !== document.body) {
+                      document.body.appendChild(modalEl); // mover modal directamente bajo <body>
+                    }
+
+                      function ensureBootstrap(){
+                        return new Promise(resolve=>{
+                          if (window.bootstrap && bootstrap.Modal) return resolve();
+                          const s=document.createElement('script');
+                          s.src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js";
+                          s.onload=resolve; document.head.appendChild(s);
+                        });
+                      }
+
+                      ensureBootstrap().then(() => {
+                        const wrap = document.getElementById('gestor-archivos');
+                        if(!wrap) return;
+
+                        // === Estado/elementos ===
+                        const proyectoId   = parseInt(wrap.dataset.proyecto,10);
+                        const canCrear     = wrap.dataset.puedeCrear   === 'true';
+                        const canEditar    = wrap.dataset.puedeEditar  === 'true';
+                        const canEliminar  = wrap.dataset.puedeEliminar=== 'true';
+                        let ruta = "";
+
+                        const elLista    = document.getElementById('ga-lista');
+                        const elBread    = document.getElementById('ga-breadcrumb');
+                        const elFile     = document.getElementById('ga-file-input');
+                        const elSubir    = document.getElementById('ga-subir-btn');
+                        const elNueva    = document.getElementById('ga-nueva-carpeta-btn');
+                        const elRecargar = document.getElementById('ga-recargar-btn');
+                        const progressWrap = document.getElementById('ga-progress-wrap');
+                        const progressBar  = document.getElementById('ga-progress');
+
+                        const token = document.querySelector('#ga-antiforgery [name="__RequestVerificationToken"]')?.value || '';
+
+                        // === Helpers ===
+                        function humanSize(bytes){
+                          const b = Number(bytes);
+                          if(!Number.isFinite(b) || b <= 0) return '—';
+                          const u = ['B','KB','MB','GB','TB'];
+                          let i=0, n=b;
+                          while(n >= 1024 && i < u.length-1){ n/=1024; i++; }
+                          return (n >= 10 ? Math.round(n) : n.toFixed(1)) + ' ' + u[i];
+                        }
+                        function fechaLocal(isoStr){
+                          if(!isoStr) return '—';
+                          const d = new Date(isoStr);
+                          return isNaN(d) ? '—' : d.toLocaleString();
+                        }
+                        function pintarBreadcrumb(crumbs){
+                          elBread.innerHTML = '';
+                          (crumbs||[]).forEach((c,idx)=>{
+                            const li = document.createElement('li');
+                            li.className = 'breadcrumb-item' + (idx===crumbs.length-1?' active':'');
+                            if(idx===crumbs.length-1){ li.textContent = c.nombre; }
+                            else{
+                              const a = document.createElement('a');
+                              a.href='#'; a.textContent=c.nombre;
+                              a.addEventListener('click', e => { e.preventDefault(); ruta = c.ruta || ""; listar(); });
+                              li.appendChild(a);
+                            }
+                            elBread.appendChild(li);
+                          });
+                        }
+                        function puedePrever(nombre){
+                          const n = (nombre||'').toLowerCase();
+                          return n.endsWith('.png')||n.endsWith('.jpg')||n.endsWith('.jpeg')||n.endsWith('.gif')||n.endsWith('.webp')||
+                                 n.endsWith('.pdf')||
+                                 n.endsWith('.mp4')||n.endsWith('.webm')||n.endsWith('.ogg')||
+                                 n.endsWith('.mp3')||n.endsWith('.wav')||n.endsWith('.oga')||
+                                 n.endsWith('.txt')||n.endsWith('.log')||n.endsWith('.csv')||n.endsWith('.json')||n.endsWith('.xml')||
+                                 n.endsWith('.doc')||n.endsWith('.docx')||n.endsWith('.xls')||n.endsWith('.xlsx')||n.endsWith('.ppt')||n.endsWith('.pptx')||
+                                 n.endsWith('.dwg')||n.endsWith('.dxf')||n.endsWith('.step')||n.endsWith('.stp')||n.endsWith('.iges')||n.endsWith('.igs');
+                        }
+                        function urlDescargar(r){
+                          return '@Url.Action("DescargarArchivo", "Proyectos")' + `?id=${proyectoId}&rutaRelativa=${encodeURIComponent(r)}`;
+                        }
+                        function makePreviewUrl(r){
+                          return '@Url.Action("VerArchivo", "Proyectos")' + `?id=${proyectoId}&rutaRelativa=${encodeURIComponent(r)}`;
+                        }
+                        function extDe(nombre){
+                          const i=(nombre||'').lastIndexOf('.'); return i>=0 ? nombre.slice(i).toLowerCase() : '';
+                        }
+
+                        // Modal ÚNICO
+                        const modalEl  = document.getElementById('ga-preview');
+                        const bodyEl   = document.getElementById('ga-preview-body');
+                        const titleEl  = document.getElementById('ga-preview-title');
+                        const bsPreview = modalEl ? bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop:true, keyboard:true, focus:true }) : null;
+
+                        modalEl?.addEventListener('hidden.bs.modal', ()=> {
+                          if (bodyEl) bodyEl.innerHTML = '';
+                          
+                        });
+
+                        // Vista previa
+                        function openPreview(rutaRelativa, nombre){
+                          if (!bodyEl) return;
+                          // quita alertas que puedan tapar la X
+                          document.querySelectorAll('.alert.position-fixed').forEach(a => a.remove());
+
+                          titleEl.textContent = nombre || 'Vista previa';
+                          const url = makePreviewUrl(rutaRelativa);
+                          const ext = extDe(nombre || rutaRelativa);
+
+                          bodyEl.innerHTML = '';
+
+                          if (['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg'].includes(ext)) {
+                            bodyEl.innerHTML = `<div class="p-3"><img src="${url}" class="img-fluid" /></div>`;
+                          }
+                          else if (ext === '.pdf') {
+                            bodyEl.innerHTML = `<iframe src="${url}#toolbar=1" style="width:100%;height:80vh;border:0;"></iframe>`;
+                          }
+                          else if (['.mp4','.webm','.ogg'].includes(ext)) {
+                            bodyEl.innerHTML = `<video controls style="width:100%;max-height:80vh;"><source src="${url}">Tu navegador no soporta video HTML5.</video>`;
+                          }
+                          else if (['.mp3','.wav','.oga','.ogg'].includes(ext)) {
+                            bodyEl.innerHTML = `<div class="p-3"><audio controls style="width:100%;"><source src="${url}">Tu navegador no soporta audio HTML5.</audio></div>`;
+                          }
+                          else if (['.txt','.log','.csv','.json','.xml'].includes(ext)) {
+                            bodyEl.innerHTML = `<iframe src="${url}" style="width:100%;height:80vh;border:0;"></iframe>`;
+                          }
+                          else if (['.doc','.docx','.xls','.xlsx','.ppt','.pptx'].includes(ext)) {
+                            const absUrl = new URL(url, window.location.origin).toString();
+                            const office = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absUrl)}`;
+                            bodyEl.innerHTML = `
+                              <div class="alert alert-info m-3">Intentando abrir con Office Online. Si no carga, descárgalo.</div>
+                              <iframe src="${office}" style="width:100%;height:75vh;border:0;"></iframe>`;
+                          }
+                          else if (['.dwg','.dxf','.step','.stp','.iges','.igs'].includes(ext)) {
+                            bodyEl.innerHTML = `
+                              <div class="p-3">
+                                <div class="alert alert-warning">
+                                  CAD no se previsualiza nativamente.
+                                  <ul class="mb-0">
+                                    <li>Integrar Autodesk Forge Viewer</li>
+                                    <li>Convertir a PDF/imagen</li>
+                                    <li>Descargar y abrir en tu app CAD</li>
+                                  </ul>
+                                </div>
+                                <a class="btn btn-sm btn-primary" href="${urlDescargar(rutaRelativa)}"><i class="fas fa-download me-1"></i> Descargar</a>
+                              </div>`;
+                          }
+                          else {
+                            bodyEl.innerHTML = `
+                              <div class="p-3">
+                                <div class="alert alert-secondary">Tipo no soportado para vista previa.</div>
+                                <a class="btn btn-sm btn-primary" href="${urlDescargar(rutaRelativa)}"><i class="fas fa-download me-1"></i> Descargar</a>
+                              </div>`;
+                          }
+
+                          bsPreview?.show();
+                        }
+
+                        // aPI POST JSON
+                        async function postJson(url, payload){
+                          const res = await fetch(url, {
+                            method:'POST',
+                            headers:{ 'Content-Type':'application/json', 'RequestVerificationToken': token },
+                            body: JSON.stringify(payload)
+                          });
+                          try { const data = await res.json(); return !!data.ok; }
+                          catch { return false; }
+                        }
+
+                        // Listado / acciones 
+                        async function listar(){
+                          const res = await fetch('@Url.Action("ListarArchivos", "Proyectos")', {
+                            method:'POST',
+                            headers:{ 'Content-Type':'application/json', 'RequestVerificationToken': token },
+                            body: JSON.stringify({ ProyectoId: proyectoId, Ruta: ruta })
+                          });
+                          const data = await res.json();
+                          if(!data.ok){ showAlert('Error al listar','danger'); return; }
+
+                          pintarBreadcrumb(data.breadcrumb);
+                          const items = data.items || [];
+                          elLista.innerHTML = '';
+
+                          if(ruta && ruta !== ''){
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                              <td><i class="fas fa-level-up-alt"></i></td>
+                              <td colspan="4"><a href="#" id="ga-up">Subir un nivel</a></td>`;
+                            elLista.appendChild(tr);
+                            tr.querySelector('#ga-up').addEventListener('click', (e)=>{
+                              e.preventDefault();
+                              const parts = ruta.split('/'); parts.pop();
+                              ruta = parts.join('/') || '';
+                              listar();
+                            });
+                          }
+
+                          items.forEach(it=>{
+                            const tr = document.createElement('tr');
+
+                            // Acciones según tipo y permisos
+                            let acciones = '';
+                            if (it.esCarpeta) {
+                              if (canEliminar) acciones += `
+                                <button type="button" class="btn btn-sm btn-outline-danger ga-del" data-r="${it.rutaRelativa}">
+                                  <i class="fas fa-trash"></i>
+                                </button>`;
+                            } else {
+                              acciones += `
+                                <a class="btn btn-sm btn-outline-primary" href="${urlDescargar(it.rutaRelativa)}">
+                                  <i class="fas fa-download"></i>
+                                </a>`;
+                              if (canEliminar) acciones += `
+                                <button type="button" class="btn btn-sm btn-outline-danger ga-del" data-r="${it.rutaRelativa}">
+                                  <i class="fas fa-trash"></i>
+                                </button>`;
+                              if (puedePrever(it.nombre)) acciones += `
+                                <button type="button" class="btn btn-sm btn-outline-success ga-view" data-r="${it.rutaRelativa}" data-n="${it.nombre}">
+                                  <i class="fas fa-eye"></i>
+                                </button>`;
+                            }
+
+                            tr.innerHTML = `
+                              <td><i class="${it.iconoCss}"></i></td>
+                              <td class="text-truncate" style="max-width:360px;">
+                                ${it.esCarpeta
+                                  ? `<a href="#" class="ga-open" data-r="${it.rutaRelativa}">${it.nombre}</a>`
+                                  : `<span>${it.nombre}</span>`}
+                              </td>
+                              <td>${it.esCarpeta ? '—' : humanSize(it.tamanoBytes)}</td>
+                              <td>${fechaLocal(it.ultimaMod)}</td>
+                              <td class="d-flex flex-wrap gap-2">${acciones}</td>`;
+
+                            elLista.appendChild(tr);
+
+                            tr.querySelectorAll('.ga-open').forEach(a=>{
+                              a.addEventListener('click', e => { e.preventDefault(); ruta = a.dataset.r; listar(); });
+                            });
+                            tr.querySelectorAll('.ga-del').forEach(btn=>{
+                              btn.addEventListener('click', async ()=>{
+                                const rutaRel = btn.dataset.r;
+                                if(!confirm('¿Eliminar? Esta acción no se puede deshacer.')) return;
+                                const ok = await postJson('@Url.Action("EliminarArchivo", "Proyectos")',{ ProyectoId: proyectoId, RutaRelativa: rutaRel });
+                                showAlert(ok ? 'Eliminado' : 'No se pudo eliminar', ok ? 'success' : 'danger');
+                                if(ok) listar();
+                              });
+                            });
+                            tr.querySelectorAll('.ga-view').forEach(btn=>{
+                              btn.addEventListener('click', ()=> openPreview(btn.dataset.r, btn.dataset.n));
+                            });
+                          });
+                        }
+
+                        //  Subir archivos 
+                        elSubir?.addEventListener('click', ()=> elFile.click());
+                        elFile?.addEventListener('change', async ()=>{
+                          if(!elFile.files || elFile.files.length===0) return;
+                          const fd = new FormData();
+                          for(const f of elFile.files) fd.append('files', f);
+                          fd.append('proyectoId', proyectoId);
+                          fd.append('rutaDestino', ruta);
+
+                          progressWrap.classList.remove('d-none');
+                          progressBar.style.width = '0%';
+
+                          await new Promise((resolve)=>{
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('POST','@Url.Action("SubirArchivos", "Proyectos")', true);
+                            xhr.setRequestHeader('RequestVerificationToken', token);
+                            xhr.upload.onprogress = (e)=>{
+                              if(e.lengthComputable){
+                                progressBar.style.width = Math.round((e.loaded/e.total)*100) + '%';
+                              }
+                            };
+                            xhr.onreadystatechange = ()=>{ if(xhr.readyState===4) resolve(); };
+                            xhr.send(fd);
+                          });
+
+                          setTimeout(()=>{ progressWrap.classList.add('d-none'); progressBar.style.width='0%'; }, 400);
+                          elFile.value = '';
+                          showAlert('Subida finalizada','success');
+                          listar();
+                        });
+
+                        // Nueva carpeta / Recargar
+                        elNueva?.addEventListener('click', async ()=>{
+                          const nombre = prompt('Nombre de la nueva carpeta:');
+                          if(!nombre) return;
+                          const ok = await postJson('@Url.Action("CrearCarpeta", "Proyectos")', { ProyectoId: proyectoId, RutaPadre: ruta, Nombre: nombre });
+                          showAlert(ok ? 'Carpeta creada' : 'No se pudo crear', ok ? 'success' : 'danger');
+                          if(ok) listar();
+                        });
+                        elRecargar?.addEventListener('click', listar);
+
+                        // === Arranque ===
+                        listar();
+                      });
+                    })();
+                </script>
 }

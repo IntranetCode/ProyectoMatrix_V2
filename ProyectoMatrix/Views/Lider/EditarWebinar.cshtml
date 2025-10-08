@@ -69,9 +69,17 @@
                 <span asp-validation-for="UrlTeams" class="text-danger"></span>
             </div>
 
+            <div class="mb-3">
+                <label for="UrlGrabacion" class="form-label">URL de Grabación</label>
+                <input asp-for="UrlGrabacion" class="form-control" placeholder="https:// (Stream/SharePoint/YouTube/Vimeo)" />
+                <small class="text-muted">Se mostrará “Volver a ver” cuando el evento haya pasado.</small>
+                <span asp-validation-for="UrlGrabacion" class="text-danger"></span>
+            </div>
+
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-success">Guardar cambios</button>
-                <a asp-controller="Webinars" asp-action="MisWebinars" class="btn btn-secondary">Cancelar</a>
+                <a asp-controller="Lider" asp-action="GestionarWebinar" class="btn btn-secondary">Cancelar</a>
             </div>
         </div>
 

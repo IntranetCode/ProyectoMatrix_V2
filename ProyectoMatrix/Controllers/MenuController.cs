@@ -24,14 +24,8 @@ namespace ProyectoMatrix.Controllers
         [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public async Task<IActionResult> Index()
         {
-
             ViewBag.MostrarBienvenida = (TempData["MostrarBienvenida"] as string) == "true";
 
-            //ESTAS LINEAS DE CODIGO SON LAS QUE EVITABAN QUE FUNCIONARA LA APLICAION SE DEFINIA DESDE EL PRINCIPIO
-           // HttpContext.Session.SetInt32("UsuarioID", 1);
-          //  HttpContext.Session.SetInt32("EmpresaID", 2);
-
-            //CACHE DE NAVEGADOR
             Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
             Response.Headers["Pragma"] = "no-cache";
             Response.Headers["Expires"] = "0";
@@ -47,30 +41,27 @@ namespace ProyectoMatrix.Controllers
             using SqlConnection conn = new(connectionString);
             await conn.OpenAsync();
 
-            // ✅ CONSULTA MEJORADA - Elimina duplicados y maneja URLs NULL
-            string query = @"SELECT DISTINCT 
-                m.MenuID, 
-                m.Nombre AS NombreMenu,
-                sm.UrlEnlace
-            FROM Menus m
-            INNER JOIN SubMenus sm 
-                ON m.MenuID = sm.MenuID
-            INNER JOIN SubMenuAcciones sma 
-                ON sm.SubMenuID = sma.SubMenuID
-            INNER JOIN PermisosPorRol pr 
-                ON sma.SubMenuAccionID = pr.SubMenuAccionID
-            INNER JOIN Roles r 
-                ON pr.RolID = r.RolID
-            INNER JOIN Usuarios u 
-                ON r.RolID = u.RolID
-            INNER JOIN UsuariosEmpresas ue 
-                ON u.UsuarioID = ue.UsuarioID
-            INNER JOIN Empresas e 
-                ON ue.EmpresaID = e.EmpresaID
-            WHERE u.UsuarioID = @UsuarioID
-                AND sm.Activo = 1
-                AND sma.Activo = 1
-            ORDER BY m.MenuID;"; // Cambié a ORDER BY MenuID para orden consistente
+            // ✅ INICIO: CONSULTA SQL CORREGIDA CON UNION
+            string query = @"
+                -- Parte 1: Obtiene los menús permitidos por el ROL del usuario
+                SELECT m.MenuID, m.Nombre AS NombreMenu, sm.UrlEnlace
+                FROM Menus m
+                INNER JOIN SubMenus sm ON m.MenuID = sm.MenuID
+                INNER JOIN SubMenuAcciones sma ON sm.SubMenuID = sma.SubMenuID
+                INNER JOIN PermisosPorRol pr ON sma.SubMenuAccionID = pr.SubMenuAccionID
+                INNER JOIN Usuarios u ON pr.RolID = u.RolID
+                WHERE u.UsuarioID = @UsuarioID AND sm.Activo = 1 AND sma.Activo = 1
+
+                UNION
+
+                -- Parte 2: Obtiene los menús permitidos por asignación DIRECTA (checkboxes)
+                SELECT m.MenuID, m.Nombre AS NombreMenu, sm.UrlEnlace
+                FROM Menus m
+                INNER JOIN SubMenus sm ON m.MenuID = sm.MenuID
+                INNER JOIN Permisos p ON sm.SubMenuID = p.SubMenuID
+                WHERE p.UsuarioID = @UsuarioID AND sm.Activo = 1;
+            ";
+            // ✅ FIN: CONSULTA SQL CORREGIDA
 
             using SqlCommand cmd = new(query, conn);
             cmd.Parameters.AddWithValue("@UsuarioID", usuarioID.Value);
@@ -87,67 +78,53 @@ namespace ProyectoMatrix.Controllers
                 {
                     MenuID = reader.GetInt32("MenuID"),
                     Nombre = nombreMenu,
-                    Url = urlEnlace ?? GetUrlPorDefecto(nombreMenu), // ✅ URL por defecto si es NULL
-                    Icono = GetIconoParaMenu(nombreMenu), // ✅ Icono dinámico
-                    Descripcion = GetDescripcionParaMenu(nombreMenu), // ✅ Descripción para la vista
+                    Url = urlEnlace ?? GetUrlPorDefecto(nombreMenu),
+                    Icono = GetIconoParaMenu(nombreMenu),
+                    Descripcion = GetDescripcionParaMenu(nombreMenu),
                     Orden = 0,
                     MenuPadreID = null,
                     SubMenus = new List<MenuModel>()
                 });
             }
 
-            // ✅ ELIMINAR DUPLICADOS - Importante porque un menú puede tener múltiples acciones
             var menuRaiz = menusPlanos
                 .GroupBy(m => m.MenuID)
-                .Select(g => g.First()) // Toma el primer elemento de cada grupo
+                .Select(g => g.First())
                 .OrderBy(m => m.MenuID)
                 .ToList();
 
-            // Ya no necesitas el foreach porque no tienes submenús jerárquicos en tu estructura
-
             HttpContext.Session.SetString("MenuItems", JsonSerializer.Serialize(menuRaiz));
 
-
+           
             return View(menuRaiz);
         }
 
-        // ✅ MÉTODO HELPER - URLs por defecto para menús sin URL
+        // --- Tus métodos Helper (GetUrlPorDefecto, GetIconoParaMenu, etc.) van aquí sin cambios ---
         private string GetUrlPorDefecto(string nombreMenu)
         {
             if (string.IsNullOrEmpty(nombreMenu)) return "#";
-
             var menuLower = nombreMenu?.Trim().ToLowerInvariant() ?? "";
-
-
-
-
             return menuLower switch
             {
                 var x when x.Contains("universidad") => "/Universidad",
-                var x when x.Contains("usuario") => "/Usuario",
+                var x when x.Contains("usuario") => "/Usuarios/Index",
                 var x when x.Contains("gestión") => "/Usuario",
-                var x when x.Contains("líder") || x.Contains("lider") => "/Lider",
+                var x when x.Contains("líder") || x.Contains("lider") => "/Lider/Entrada",
                 var x when x.Contains("proyectos") => "/Proyectos/Index",
                 var x when x.Contains("comunicado") => "/Comunicados/Index",
                 _ => "#"
             };
         }
-
-        // ✅ MÉTODO HELPER - Iconos dinámicos
         private string GetIconoParaMenu(string nombreMenu)
         {
             if (string.IsNullOrEmpty(nombreMenu)) return "fa-cogs";
-
             var menuLower = nombreMenu?.Trim().ToLowerInvariant() ?? "";
-
-
             return menuLower switch
             {
                 var x when x.Contains("universidad") => "fa-graduation-cap",
                 var x when x.Contains("usuario") => "fa-users",
                 var x when x.Contains("gestión") => "fa-users-cog",
                 var x when x.Contains("líder") || x.Contains("lider") => "fa-user-tie",
-
                 var x when x.Contains("comunicado") => "fa-bullhorn",
                 var x when x.Contains("mejora") => "fa-chart-line",
                 var x when x.Contains("compra") => "fa-shopping-cart",
@@ -156,22 +133,16 @@ namespace ProyectoMatrix.Controllers
                 _ => "fa-cogs"
             };
         }
-
-        // ✅ MÉTODO HELPER - Descripciones para las tarjetas
         private string GetDescripcionParaMenu(string nombreMenu)
         {
             if (string.IsNullOrEmpty(nombreMenu)) return "";
-
             var menuLower = nombreMenu?.Trim().ToLowerInvariant() ?? "";
-
-
             return menuLower switch
             {
                 var x when x.Contains("universidad") => "Capacitación y Certificación Corporativa",
                 var x when x.Contains("usuario") => "Administración de usuarios del sistema",
                 var x when x.Contains("gestión") => "Gestión de usuarios y permisos",
                 var x when x.Contains("líder") || x.Contains("lider") => "Comunicación entre líderes",
-
                 var x when x.Contains("comunicado") => "Anuncios y comunicaciones internas",
                 var x when x.Contains("mejora") => "Procesos de mejora continua",
                 var x when x.Contains("compra") => "Solicitudes y gestión de compras",

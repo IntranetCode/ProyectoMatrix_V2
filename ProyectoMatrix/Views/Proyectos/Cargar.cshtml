@@ -1,0 +1,671 @@
+﻿@using ProyectoMatrix.Servicios
+@using ProyectoMatrix.Models
+@model Proyecto
+@{
+    ViewData["Title"] = "Gestión de Proyectos";
+   
+    Layout =  "~/Views/Shared/_LayoutComunicados.cshtml";
+}
+@*Mandar a llamar al servicio de acceso para ocultar o mostrar los botones correspondientes *@
+@inject IServicioAcceso Acceso
+@{
+    var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
+    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Crear");
+    var puedeEditar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Editar");
+    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Eliminar");
+}
+
+
+<link href="~/css/stylesProyectoCargar.css" rel="stylesheet" />
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="fas fa-file-upload me-2 text-primary "></i>Cargar un proyecto finalizado</h1>
+            <p class="text-muted">Agrega la información del proyecto y carga los archivos</p>
+
+        </div>
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+             <i class="fas fa-arrow-left me-1"></i> Volver a la vista principal
+        </a>
+
+    </div>
+
+    @*Formulario para pedir datos generales del proyecto ya terminado*@
+
+    <form id="formCargarProyecto" asp-action="Cargar" method="post" enctype="multipart/form-data" class="form-container">
+    @Html.AntiForgeryToken()
+
+        <input type="hidden" asp-for="Estado" value="@Model.Estado" />
+        <input type="hidden" asp-for="Progreso" value="@Model.Progreso" />
+
+     <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    
+     @*Informacion general del proyecto ya finalizado*@
+     <div class="form-section">
+            <h5><i class="fas fa-address-card me-2"></i>Informacion básica</h5>
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label asp-for="NombreProyecto" class="form-label">
+                            <i class="fas fa-project-diagram me-1"></i> Nombre del proyecto 
+                        </label>
+                        <input asp-for="NombreProyecto" class="form-control form-control-lg"
+                          placeholder="Ingrese el nombre del proyecto" required/>
+                          <span asp-validation-for="NombreProyecto" class="form-label"></span>
+
+
+                    </div>
+                </div>
+
+                <div class="col-md-4"> 
+                    <div class="mb-3">
+                        <label asp-for="CodigoProyecto" class="form-label">
+                            <i class="fas fa-hashtag me-1"></i>Codigo del proyecto
+                        </label>
+                        <input asp-for="CodigoProyecto" class="form-control" 
+                        placeholder="PRY-XXXX-XXX"/>
+                        <span asp-validation-for="CodigoProyecto" class="text-danger"></span>
+
+                    </div>
+
+                </div>
+
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label asp-for="Cliente" class="form-label">
+                            <i class="fas fa-building me-1"></i>Cliente
+                        </label>
+                        <input asp-for="Cliente" class="form-control"
+                               placeholder="Ingrese el nombre del cliente" />
+                        <span asp-validation-for="Cliente" class="text-danger"></span>
+                    </div>
+
+                </div>
+
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label asp-for="Ubicacion" class="form-label">
+                            <i class="fas fa-map-marker-alt me-1"></i> Ubicacion del proyecto
+                        </label>
+                        <input asp-for="Ubicacion" class="form-control"
+                               placeholder="Ingrese la ubicacion del proyecto" />
+                        <span asp-validation-for="Ubicacion" class="text-danger"></span>
+                    </div>
+
+                </div>
+
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label asp-for="Tipo" class="form-label">
+                            <i class="fas fa-tag me-1"></i>
+                            Tipo
+                        </label>
+                        <input asp-for="Tipo" class="form-control" 
+                         placeholder="Ingrese el tipo de proyecto que se desarrollo"/>
+                         <span asp-validation-for="Tipo" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="col-md-8">
+                <div class="mb-3">
+                      
+                       <label asp-for="Descripcion" class="form-label">
+                           <i class="fas fa-aling-left me-1"></i>Descripcion
+                       </label>
+                       <textarea asp-for="Descripcion" class="form-control" rows="3"
+                       placeholder="Describe brevemente el proyecto que se desarrolló"></textarea>
+                       <span asp-validation-for="Descripcion" class="text-danger"></span>
+                    </div>
+                </div>
+
+            </div>
+     </div>
+
+
+    @*SECCION DE ESTADO Y PRIORIDAD SE LLENA EN AUTOMATICO DESDE EL CONTROLADOR*@
+
+
+    @*Seccion de fecha de fechas en este caso finales *@
+    <div class="form-section">
+        <h5><i class="fas fa-calendar-alt me-2"></i>Fechas</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label asp-for="FechaInicio" class="form-label">
+                        <i class="fas fa-play-circle me-1"></i> Fecha de inicio
+                    </label>
+                    <input asp-for="FechaInicio" type="date" class="form-control" />
+                    <span asp-validation-for="FechaInicio" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label asp-for="FechaFinReal" class="form-label">
+                            <i class="fas fa-flag-checkered  me-1"></i>Fecha de culminación del proyecto
+                    </label>
+                    <input asp-for="FechaFinReal" type="date" class="form-control"/>
+                    <span asp-validation-for="FechaFinReal" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                    <div class="mb-3">
+                        <label asp-for="ResponsableProyecto" class="form-label">
+                            <i class="fas fa-user-tie me-1"></i>Responsable del Proyecto
+                        </label>
+                        <input asp-for="ResponsableProyecto" class="form-control"
+                               placeholder="Nombre del responsable" />
+                        <span asp-validation-for="ResponsableProyecto" class="text-danger"></span>
+                    </div>
+            </div>
+           
+
+
+
+        </div>
+    </div>
+
+
+
+
+    @*SUBIR ARCHIVOS*@
+
+    <div class="col-12 col-md-12">
+        <div class="mb-3">
+            <div class="info-card" id="gestor-archivos"
+            data-proyecto ="@Model.ProyectoID"
+            data-puede-crear="@puedeCrear.ToString().ToLower()"
+            data-puede-editar="@puedeEditar.ToString().ToLower()"
+            data-puede-eliminar="@puedeEliminar.ToString().ToLower()">
+
+            <h6><i class="fas fa-folder-open me-2"></i>Gestor de archivos</h6>
+
+                    
+
+                    <!-- Breadcrumb -->
+                    <nav aria-label="breadcrumb" class="mb-3">
+                        <ol class="breadcrumb mb-0" id="ga-breadcrumb"></ol>
+                    </nav>
+
+
+           @*Toolbar*@
+           <div class="d-flex flex-wrap gap-2 mb-3">
+               @if(puedeCrear)
+                        {
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-primary" id="ga-subir-btn">
+                                    <i class="fas fa-upload me-1"></i>Subir archivos
+                                </button>
+                                <input type="file" id="ga-file-input" multiple hidden/>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary" id="ga-nueva-carpeta-btn">
+                                <i class="fas fa-folder-plus me-1"></i> Nueva carpeta
+                            </button>
+                        }
+                        <button type="button" class="btn btn-outline-secondary" id="ga-recargar-btn">
+                            <i class="fas fa-rotate-right me-1"></i>
+                        </button>
+                    </div>
+
+           @*tabla*@
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:36px;"></th>
+                                    <th>Nombre</th>
+                                    <th style="width:140px;">Tamaño</th>
+                                    <th style="width:160px;">Modificado</th>
+                                    <th style="width:200px;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ga-lista"></tbody>
+                        </table>
+                    </div>
+           @*Progreso*@
+                    <div class="progress mt-3 d-none" id="ga-progress-wrap" style="height:10px;">
+                        <div class="progress-bar" id="ga-progress" role="progressbar" style="width:0;"></div>
+                    </div>
+
+        </div>
+
+        </div>
+    </div>
+        <div class="d-flex gap-2 mb-3">
+            
+            <button type="button" id="btn-guardar-ir-index" class="btn btn-success">
+                <i class="fas fa-save me-1"></i> Guardar
+            </button>
+        </div>
+
+        
+    </form>
+    
+
+</div>
+@section Scripts {
+    <script>
+        (async () => {
+          //Utilidades
+          const $ = (sel, root=document) => root.querySelector(sel);
+          const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
+          const byId = id => document.getElementById(id);
+
+          const form = byId('formCargarProyecto');
+          const ga = byId('gestor-archivos');
+          const listaBody = byId('ga-lista');
+          const breadcrumbOl = byId('ga-breadcrumb');
+          const progressWrap = byId('ga-progress-wrap');
+          const progressBar = byId('ga-progress');
+          const inputFiles = byId('ga-file-input');
+
+          const urls = {
+            guardar: '@Url.Action("GuardarBorrador", "Proyectos")',
+            listar: '@Url.Action("ListarArchivos", "Proyectos")',
+            crearCarpeta: '@Url.Action("CrearCarpeta", "Proyectos")',
+            subir: '@Url.Action("SubirArchivos", "Proyectos")',
+            eliminar: '@Url.Action("EliminarArchivo", "Proyectos")'
+          };
+
+          // lee token antiforgery desde el formulario principal
+          const getCsrf = () => form.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+          const getProyectoId = () => {
+            const raw = ga?.dataset?.proyecto;
+            const parsed = parseInt(raw, 10);
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+          };
+
+          const setProyectoId = (id) => {
+            if (!ga) return;
+            ga.dataset.proyecto = String(id);
+            toggleGestor(true);
+          };
+
+          const estado = {
+            ruta: '',   // ruta relativa actual dentro del gestor
+            items: [],  // últimos items listados
+          };
+
+          const puede = {
+            crear: ga?.dataset?.puedeCrear === 'true',
+            editar: ga?.dataset?.puedeEditar === 'true',
+            eliminar: ga?.dataset?.puedeEliminar === 'true'
+          };
+
+          // Habilita/deshabilita botones del gestor según haya ID
+          function toggleGestor(enabled){
+            byId('ga-subir-btn')?.toggleAttribute('disabled', !enabled);
+            byId('ga-nueva-carpeta-btn')?.toggleAttribute('disabled', !enabled);
+            byId('ga-recargar-btn')?.toggleAttribute('disabled', !enabled);
+          }
+
+          // Guardar proyecto (crear/actualizar) y devolver ID
+          async function guardarProyecto(habilitarDespues) {
+            // Serializamos form en FormData (incluye antiforgery del form)
+            const fd = new FormData(form);
+
+            // Si ya hay ProyectoID en el dataset, lo añadimos para que el servidor actualice
+            const yaId = getProyectoId();
+            if (yaId) fd.set('ProyectoID', yaId);
+
+            try {
+              const res = await fetch(urls.guardar, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: fd
+              });
+              const json = await safeJson(res);
+
+              if (!json?.ok) {
+                showAlert(json?.message || 'No se pudo guardar el proyecto.', 'danger');
+                return null;
+              }
+
+              const nuevoId = json.id;
+              if (!nuevoId) {
+                showAlert('El servidor no regresó el ID del proyecto.', 'warning');
+                return null;
+              }
+
+              setProyectoId(nuevoId);
+
+              if (habilitarDespues) {
+                estado.ruta = '';
+                await listar();
+              }
+
+              return nuevoId;
+            } catch (e) {
+              console.error(e);
+              showAlert('Error de red al guardar el proyecto.', 'danger');
+              return null;
+            }
+          }
+
+          // Botones
+          const btnGuardarHabilitar = byId('btn-guardar-habilitar');  // Clic aquí para habilitar el gestor de archivos
+          const btnGuardarIrIndex   = byId('btn-guardar-ir-index');    // Guardar y volver a Index
+
+          btnGuardarHabilitar?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const id = await guardarProyecto(true);   // guardar + listar
+            if (id) showAlert('Proyecto guardado. Gestor habilitado.', 'success');
+          });
+
+          btnGuardarIrIndex?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            btnGuardarIrIndex.disabled = true;
+            const old = btnGuardarIrIndex.innerHTML;
+            btnGuardarIrIndex.innerHTML =
+              '<span class="spinner-border spinner-border-sm me-1"></span> Guardando...';
+
+            const id = await guardarProyecto(false);  // solo guardar
+            if (id) {
+              window.location.href = '@Url.Action("Index", "Proyectos")';
+            } else {
+              btnGuardarIrIndex.disabled = false;
+              btnGuardarIrIndex.innerHTML = old;
+            }
+          });
+
+          // Helper: elegir 1ª propiedad disponible (tolerante Pascal/camel)
+          const pick = (o, ...keys) => {
+            for (const k of keys) if (o && k in o) return o[k];
+            return undefined;
+          };
+
+          // Listado de archivos/carpeta
+          async function listar() {
+            const proyectoId = getProyectoId();
+            if (!proyectoId) {
+              showAlert('Primero guarda el proyecto para obtener el ID.', 'warning');
+              return;
+            }
+
+            try {
+              const res = await safeFetchJson(urls.listar, {
+                ProyectoId: proyectoId,
+                Ruta: estado.ruta || ''
+              });
+              if (!res?.ok) {
+                showAlert(res?.message || 'No se pudo listar.', 'danger');
+                return;
+              }
+
+              // API regresa { ok, ruta, breadcrumb, items }
+              estado.ruta = res.ruta || (estado.ruta || '');
+              estado.items = Array.isArray(res.items) ? res.items : [];
+              renderLista_fromItems();         // usa propiedades tolerantes
+              renderBreadcrumb_fromApi(res);   // usa breadcrumb del server
+            } catch (e) {
+              console.error(e);
+              showAlert('Error de red al listar.', 'danger');
+            }
+          }
+
+          // Render de la tabla (tolerante camelCase/PascalCase)
+          function renderLista_fromItems() {
+            listaBody.innerHTML = '';
+            if (!estado.items.length) {
+              listaBody.innerHTML = `<tr><td colspan="5" class="text-muted">Carpeta vacía</td></tr>`;
+              return;
+            }
+
+            const rows = estado.items.map(it => {
+              const esCarpeta   = !!pick(it, 'EsCarpeta', 'esCarpeta');
+              const nombre      = pick(it, 'Nombre', 'nombre') ?? '';
+              const tamanoBytes = pick(it, 'TamanoBytes', 'tamanoBytes') ?? 0;
+              const ultimaMod   = pick(it, 'UltimaMod', 'ultimaMod');
+              const rutaRel     = pick(it, 'RutaRelativa', 'rutaRelativa') ?? '';
+
+              const icon = esCarpeta
+                ? '<i class="fas fa-folder text-warning"></i>'
+                : '<i class="fas fa-file"></i>';
+
+              const tam = esCarpeta ? '-' : formatearBytes(tamanoBytes);
+              const mod = formatearFecha(ultimaMod);
+
+              // Solo eliminar (y abrir si es carpeta)
+              const acciones = [];
+              if (esCarpeta) {
+                acciones.push(
+                  `<button type="button" class="btn btn-sm btn-outline-secondary ga-abrir" data-ruta="${html(rutaRel)}">
+                     <i class="fas fa-sign-in-alt"></i>
+                   </button>`
+                );
+              }
+              if (puede.eliminar) {
+                acciones.push(
+                  `<button type="button" class="btn btn-sm btn-outline-danger ga-del" data-ruta="${html(rutaRel)}">
+                     <i class="fas fa-trash"></i>
+                   </button>`
+                );
+              }
+
+              return `
+                <tr>
+                  <td>${icon}</td>
+                  <td>${html(nombre)}</td>
+                  <td>${tam}</td>
+                  <td>${mod}</td>
+                  <td class="d-flex gap-2">${acciones.join(' ')}</td>
+                </tr>`;
+            }).join('');
+
+            listaBody.innerHTML = rows;
+
+            // Abrir carpeta
+            $$('.ga-abrir', listaBody).forEach(btn => {
+              btn.addEventListener('click', () => {
+                estado.ruta = btn.dataset.ruta || '';
+                listar();
+              });
+            });
+
+            // Eliminar (archivo o carpeta)
+            $$('.ga-del', listaBody).forEach(btn => {
+              btn.addEventListener('click', async () => {
+                if (!confirm('¿Eliminar? Esta acción no se puede deshacer.')) return;
+                const ok = await postJson(urls.eliminar, {
+                  ProyectoId: getProyectoId(),
+                  RutaRelativa: btn.dataset.ruta
+                });
+                showAlert(ok ? 'Eliminado' : 'No se pudo eliminar',
+                          ok ? 'success' : 'danger');
+                if (ok) listar();
+              });
+            });
+          }
+
+          // Breadcrumb usando lo que ya envía tu API (nombre, ruta)
+          function renderBreadcrumb_fromApi(json) {
+            const bc = Array.isArray(json?.breadcrumb) ? json.breadcrumb : [];
+            const parts = bc.map(x => ({ nombre: x.nombre, ruta: x.ruta }));
+
+            breadcrumbOl.innerHTML = parts.map((p, i) => {
+              const esUltima = i === parts.length - 1;
+              if (esUltima) return `<li class="breadcrumb-item active">${html(p.nombre)}</li>`;
+              return `<li class="breadcrumb-item"><a href="#" data-ruta="${html(p.ruta)}">${html(p.nombre)}</a></li>`;
+            }).join('');
+
+            $$('a[data-ruta]', breadcrumbOl).forEach(a => {
+              a.addEventListener('click', ev => {
+                ev.preventDefault();
+                estado.ruta = a.dataset.ruta || '';
+                listar();
+              });
+            });
+          }
+
+          //Subir archivos (con progreso)
+          function clickSubir() {
+            if (!puede.crear) return;
+            inputFiles?.click();
+          }
+
+          function subirSeleccionados() {
+            const proyectoId = getProyectoId();
+            if (!proyectoId) { showAlert('Guarda primero el proyecto.', 'warning'); inputFiles.value=''; return; }
+
+            const files = inputFiles.files;
+            if (!files || !files.length) return;
+
+            const fd = new FormData();
+            for (const f of files) fd.append('files', f);
+            fd.append('proyectoId', proyectoId);
+            fd.append('rutaDestino', estado.ruta || ''); // ← tu API espera "rutaDestino"
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', urls.subir, true);
+            xhr.setRequestHeader('RequestVerificationToken', getCsrf()); // ← antiforgery
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+            xhr.upload.addEventListener('loadstart', () => {
+              progressWrap.classList.remove('d-none');
+              progressBar.style.width = '0%';
+            });
+
+            xhr.upload.addEventListener('progress', (ev) => {
+              if (ev.lengthComputable) {
+                const percent = Math.round((ev.loaded / ev.total) * 100);
+                progressBar.style.width = percent + '%';
+              }
+            });
+
+            xhr.addEventListener('load', () => {
+              inputFiles.value = '';
+              try {
+                const json = JSON.parse(xhr.responseText || '{}');
+                if (json?.ok) { showAlert('Archivo(s) subido(s).', 'success'); listar(); }
+                else { showAlert(json?.message || 'No se pudieron subir.', 'danger'); }
+              } catch { showAlert('Respuesta no válida al subir.', 'danger'); }
+            });
+
+            xhr.send(fd);
+          }
+
+          // Helpers UI
+          function showAlert(msg, type='info', timeout=3000) {
+            const div = document.createElement('div');
+            div.className = `alert alert-${type}`;
+            div.textContent = msg;
+            form.prepend(div);
+            setTimeout(() => div.remove(), timeout);
+          }
+
+          function html(s) {
+            return String(s ?? '')
+              .replaceAll('&', '&amp;')
+              .replaceAll('<', '&lt;')
+              .replaceAll('>', '&gt;')
+              .replaceAll('"', '&quot;')
+              .replaceAll("'", '&#39;');
+          }
+
+          function formatearBytes(bytes) {
+            if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+            const units = ['B','KB','MB','GB','TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            const val = bytes / Math.pow(1024, i);
+            return `${val.toFixed(val >= 10 ? 0 : 1)} ${units[i]}`;
+          }
+
+          function formatearFecha(isoUtc) {
+            if (!isoUtc) return '-';
+            try {
+              const d = new Date(isoUtc);
+              if (isNaN(d.getTime())) return '-';
+              return d.toLocaleString();
+            } catch { return '-'; }
+          }
+
+          async function safeJson(res) {
+            const txt = await res.text();
+            try { return JSON.parse(txt); }
+            catch { return null; }
+          }
+
+          // POST JSON con antiforgery (devuelve booleano .ok)
+          async function postJson(url, payload) {
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getCsrf(),
+                'X-Requested-With': 'XMLHttpRequest'
+              },
+              body: JSON.stringify(payload)
+            });
+            const json = await safeJson(res);
+            return res.ok && json?.ok === true; // devuelve booleano
+          }
+
+          // Helper: POST JSON (esperando objeto) para listar/crear carpeta
+          async function safeFetchJson(url, payload) {
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getCsrf(),
+                'X-Requested-With': 'XMLHttpRequest'
+              },
+              body: JSON.stringify(payload)
+            });
+            return await safeJson(res);
+          }
+
+          // Wire de botones del gestor
+          function wireGestor() {
+            byId('ga-recargar-btn')?.addEventListener('click', listar);
+            byId('ga-nueva-carpeta-btn')?.addEventListener('click', crearCarpeta);
+            byId('ga-subir-btn')?.addEventListener('click', clickSubir);
+            inputFiles?.addEventListener('change', subirSeleccionados);
+          }
+
+          //  Crear carpeta
+          async function crearCarpeta() {
+            if (!puede.crear) return;
+            const proyectoId = getProyectoId();
+            if (!proyectoId) { showAlert('Primero guarda el proyecto para obtener el ID.', 'warning'); return; }
+
+            const nombre = prompt('Nombre de la nueva carpeta:');
+            if (!nombre) return;
+
+            const payload = {
+              proyectoId: proyectoId,
+              rutaPadre: estado.ruta || '',
+              nombre: nombre
+            };
+
+            try {
+              const json = await safeFetchJson(urls.crearCarpeta, payload);
+              if (json?.ok) {
+                showAlert('Carpeta creada.', 'success');
+                listar();
+              } else {
+                showAlert(json?.message || 'No se pudo crear la carpeta.', 'danger');
+              }
+            } catch (e) {
+              console.error(e);
+              showAlert('Error de red al crear la carpeta.', 'danger');
+            }
+          }
+
+          //  Init
+          wireGestor();
+          toggleGestor(!!getProyectoId());
+
+          // Si ya venía un ProyectoID desde el modelo se habilita el gestor
+          const preId = getProyectoId();
+          if (preId) {
+            listar();
+          } else {
+            // Si no hay id se mantiene el gestor deshabilitado
+          }
+
+        })();
+    </script>
+}

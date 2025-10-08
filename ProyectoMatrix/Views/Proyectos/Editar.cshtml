@@ -2,7 +2,7 @@
 @using ProyectoMatrix.Models
 @model Proyecto
 @{
-    Layout = "_LayoutComunicados";
+    Layout = "~/Views/Shared/_LayoutComunicados.cshtml";
     ViewData["Title"] = "Editar Proyecto";
 }
 <h2>Editar Proyecto</h2>
@@ -26,7 +26,7 @@
     }
 }
 
-
+<link href="~/css/stylesProyectoEditar.css" rel="stylesheet" />
  <form asp-action="Editar" asp-route-id =" @Model.ProyectoID" method="post" enctype="multipart/form-data">
 @Html.AntiForgeryToken()
 
