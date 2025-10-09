@@ -1,0 +1,96 @@
+﻿/* ===== Paleta y base ===== */
+:root {
+    --u-primary: #3b82f6; /* azul principal */
+    --u-primary-600: #2563eb;
+    --u-border: #e9ecef;
+    --u-muted: #6c757d;
+    --u-bg-card: #ffffff;
+    --u-shadow: 0 10px 30px rgba(0,0,0,.08);
+}
+
+.evaluacion-page h2 {
+    color: var(--u-primary);
+}
+
+/* ===== Tarjetas ===== */
+.ee-card {
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--u-bg-card);
+    box-shadow: var(--u-shadow);
+}
+
+    .ee-card .card-header {
+        border-bottom: 1px solid var(--u-border);
+    }
+
+.ee-header h2 {
+    font-weight: 700;
+}
+
+/* ===== Formulario/Opciones ===== */
+.ee-opciones .ee-opcion .form-control {
+    border-left: 0;
+    border-right: 0;
+}
+
+.ee-opciones .input-group-text {
+    background: #f8fafc;
+}
+
+.ee-opciones .btn-outline-danger {
+    border-left: 0;
+}
+
+/* ===== Lista de preguntas ===== */
+.ee-pregunta {
+    border-color: var(--u-border) !important;
+}
+
+    .ee-pregunta .btn-outline-danger:hover {
+        background: #fee2e2;
+    }
+
+/* ===== Animación suave ===== */
+.fade-in {
+    animation: eeFade .35s ease-out;
+}
+
+@keyframes eeFade {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== Accesibilidad y detalles ===== */
+.form-control:focus, .form-select:focus {
+    border-color: var(--u-primary);
+    box-shadow: 0 0 0 .2rem rgba(59,130,246,.25);
+}
+
+.btn-primary {
+    background-color: var(--u-primary);
+    border-color: var(--u-primary);
+}
+
+    .btn-primary:hover {
+        background-color: var(--u-primary-600);
+        border-color: var(--u-primary-600);
+    }
+
+.text-primary {
+    color: var(--u-primary) !important;
+}
+
+/* ===== Compactado en pantallas chicas ===== */
+@media (max-width: 576px) {
+    .ee-header .btn {
+        width: 100%;
+    }
+}

@@ -154,28 +154,30 @@ namespace ProyectoMatrix.Servicios
                 var subCursos = new List<SubCursoDetalle>();
 
                 var query = @"
-            SELECT 
-                sc.SubCursoID,
-                sc.CursoID,
-                sc.NombreSubCurso,
-                sc.Descripcion,
-                sc.Orden,
-                sc.ArchivoVideo,
-                sc.ArchivoPDF,
-                sc.DuracionVideo,
-                sc.EsObligatorio,
-                sc.RequiereEvaluacion,
-                sc.PuntajeMinimo,
-                CAST(ISNULL(av.Completado, 0) AS bit) AS Completado,   -- 🔑 aseguramos bit
-                ISNULL(av.PorcentajeVisto, 0) AS PorcentajeVisto,     -- 🔑 aseguramos int
-                av.FechaCompletado
-            FROM dbo.SubCursos sc
-            LEFT JOIN dbo.AvancesSubCursos av
-                ON sc.SubCursoID = av.SubCursoID 
-                AND av.UsuarioID = @UsuarioId 
-                AND av.EmpresaID = @EmpresaId
-            WHERE sc.CursoID = @CursoID AND sc.Activo = 1
-            ORDER BY sc.Orden";
+           SELECT 
+    sc.SubCursoID,
+    sc.CursoID,
+    sc.NombreSubCurso,
+    sc.Descripcion,
+    sc.Orden,
+    sc.ArchivoVideo,
+    sc.ArchivoPDF,
+    sc.DuracionVideo,
+    sc.EsObligatorio,
+    sc.RequiereEvaluacion,
+    sc.PuntajeMinimo,
+    CAST(ISNULL(av.Completado, 0) AS bit) AS Completado,
+    ISNULL(av.PorcentajeVisto, 0) AS PorcentajeVisto,
+    av.FechaCompletado
+FROM dbo.SubCursos sc
+INNER JOIN dbo.Cursos c ON c.CursoID = sc.CursoID AND c.Activo = 1   -- 👈 agregar
+LEFT JOIN dbo.AvancesSubCursos av
+    ON sc.SubCursoID = av.SubCursoID 
+    AND av.UsuarioID = @UsuarioId 
+    AND av.EmpresaID = @EmpresaId
+WHERE sc.CursoID = @CursoID 
+  AND sc.Activo = 1
+ORDER BY sc.Orden";
 
                 using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
@@ -412,7 +414,7 @@ namespace ProyectoMatrix.Servicios
                     END AS Estado
                     
                 FROM dbo.AsignacionesCursos ac
-                INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID
+                INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID AND c.Activo = 1
                 INNER JOIN dbo.NivelesEducativos n ON c.NivelID = n.NivelID
                 LEFT JOIN dbo.SubCursos sc ON c.CursoID = sc.CursoID AND sc.Activo = 1
                 LEFT JOIN dbo.AvancesSubCursos asc ON sc.SubCursoID = asc.SubCursoID 
@@ -619,7 +621,7 @@ namespace ProyectoMatrix.Servicios
                        AND sc.CursoID = ac.CursoID
                        AND av.Completado = 1) as SubCursosCompletados
                 FROM dbo.AsignacionesCursos ac
-                INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID
+                INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID AND c.Activo = 1
                 INNER JOIN dbo.NivelesEducativos n ON c.NivelID = n.NivelID
                 WHERE ac.UsuarioID = @UsuarioID 
                   AND ac.EmpresaID = @EmpresaID 
@@ -2410,7 +2412,7 @@ namespace ProyectoMatrix.Servicios
                         u.Username as AsignadoPor,  -- o puedes unir con Persona para nombre completo
                         e.Nombre AS NombreEmpresa
                     FROM dbo.AsignacionesCursos ac
-                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID
+                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID AND c.Activo = 1
                     INNER JOIN dbo.Usuarios u ON ac.AsignadoPorUsuarioID = u.UsuarioID
                     INNER JOIN dbo.Empresas e ON ac.EmpresaID = e.EmpresaID
                     WHERE ac.FechaAsignacion >= DATEADD(day, -30, GETDATE()) AND ac.Activo = 1
@@ -2507,7 +2509,7 @@ namespace ProyectoMatrix.Servicios
                         END as EstaVencido
                 
                     FROM dbo.AsignacionesCursos ac
-                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID
+                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID AND c.Activo = 1
                     INNER JOIN dbo.NivelesEducativos n ON c.NivelID = n.NivelID
                     LEFT JOIN dbo.SubCursos sc ON c.CursoID = sc.CursoID AND sc.Activo = 1
                     LEFT JOIN dbo.AvancesSubCursos avs ON sc.SubCursoID = avs.SubCursoID   -- CAMBIO: asc → avs
@@ -2599,7 +2601,7 @@ namespace ProyectoMatrix.Servicios
                             THEN ac.CursoID 
                         END) as CursosVencidos
                     FROM dbo.AsignacionesCursos ac
-                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID
+                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID AND c.Activo = 1
                     LEFT JOIN dbo.SubCursos sc ON c.CursoID = sc.CursoID AND sc.Activo = 1
                     LEFT JOIN dbo.AvancesSubCursos avs ON sc.SubCursoID = avs.SubCursoID   -- CAMBIO: asc → avs
                         AND avs.UsuarioID = @UsuarioID AND avs.EmpresaID = @EmpresaID
@@ -2676,7 +2678,7 @@ namespace ProyectoMatrix.Servicios
                             THEN 1 ELSE 0
                         END AS CursoCompletado
                     FROM dbo.AsignacionesCursos ac
-                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID
+                    INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID AND c.Activo = 1
                     INNER JOIN dbo.NivelesEducativos n ON c.NivelID = n.NivelID
                     LEFT JOIN dbo.SubCursos sc ON c.CursoID = sc.CursoID AND sc.Activo = 1
                     LEFT JOIN dbo.AvancesSubCursos asc ON sc.SubCursoID = asc.SubCursoID 
@@ -2732,12 +2734,13 @@ namespace ProyectoMatrix.Servicios
             try
             {
                 var query = @"
-                    SELECT COUNT(*) 
-                    FROM dbo.AsignacionesCursos ac
-                    WHERE ac.UsuarioID = @UsuarioID 
-                        AND ac.CursoID = @CursoID 
-                        AND ac.EmpresaID = @EmpresaID 
-                        AND ac.Activo = 1";
+                    SELECT COUNT(*)
+FROM dbo.AsignacionesCursos ac
+INNER JOIN dbo.Cursos c ON c.CursoID = ac.CursoID AND c.Activo = 1
+WHERE ac.UsuarioID = @UsuarioID
+  AND ac.CursoID  = @CursoID
+  AND ac.EmpresaID = @EmpresaID
+  AND ac.Activo = 1";
 
                 using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
@@ -2756,27 +2759,58 @@ namespace ProyectoMatrix.Servicios
             }
         }
 
+        public enum SoftDeleteResult
+        {
+            Success,
+            AlreadyInactive,
+            NotFound,
+            Error
+        }
 
-        public async Task<bool> EliminarSubCursoAsync(int subCursoId)
+        public async Task<SoftDeleteResult> EliminarSubCursoAsync(int subCursoId, int usuarioId, string? motivo)
         {
             try
             {
-                var query = "UPDATE dbo.SubCursos SET Activo = 0 WHERE SubCursoID = @SubCursoId";
-
                 using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
-                using var command = new SqlCommand(query, connection);
-                command.Parameters.AddWithValue("@SubCursoId", subCursoId);
 
-                var rowsAffected = await command.ExecuteNonQueryAsync();
-                return rowsAffected > 0;
+                // 1) Intentar inactivar si está activo
+                const string sqlUpdate = @"
+UPDATE dbo.SubCursos
+SET Activo = 0
+WHERE SubCursoID = @Id AND Activo = 1;";
+
+                using (var cmd = new SqlCommand(sqlUpdate, connection))
+                {
+                    cmd.Parameters.Add("@Id", SqlDbType.Int).Value = subCursoId;
+                    var rows = await cmd.ExecuteNonQueryAsync();
+                    if (rows > 0)
+                        return SoftDeleteResult.Success; // se inactivó
+                }
+
+                // 2) Si no afectó filas, verificar si existe y ya estaba inactivo
+                const string sqlEstado = "SELECT Activo FROM dbo.SubCursos WHERE SubCursoID = @Id;";
+                using (var cmd2 = new SqlCommand(sqlEstado, connection))
+                {
+                    cmd2.Parameters.Add("@Id", SqlDbType.Int).Value = subCursoId;
+                    var estado = await cmd2.ExecuteScalarAsync();
+
+                    if (estado is null)
+                        return SoftDeleteResult.NotFound;
+
+                    var activo = Convert.ToBoolean(estado);
+                    return activo ? SoftDeleteResult.Error : SoftDeleteResult.AlreadyInactive;
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al eliminar subcurso");
-                return false;
+                _logger.LogError(ex, "Error al inactivar subcurso {SubCursoId}", subCursoId);
+                return SoftDeleteResult.Error;
             }
         }
+
+
+
 
         /// <summary>
         /// Verifica si un usuario tiene asignado un curso específico
@@ -3113,6 +3147,73 @@ namespace ProyectoMatrix.Servicios
                 cmd.Parameters.AddWithValue("@CursoID", cursoId);
                 var result = await cmd.ExecuteScalarAsync();
                 return result?.ToString() ?? "Curso";
+            }
+        }
+
+
+        public async Task<SoftDeleteResult> EliminarCursoAsync(int cursoId, int usuarioId, string? motivo)
+        {
+            try
+            {
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                using var tx = connection.BeginTransaction();
+
+                // 0) ¿Existe?
+                const string sqlExiste = "SELECT Activo FROM dbo.Cursos WHERE CursoID = @CursoID;";
+                using (var cmd0 = new SqlCommand(sqlExiste, connection, tx))
+                {
+                    cmd0.Parameters.Add("@CursoID", SqlDbType.Int).Value = cursoId;
+                    var estado = await cmd0.ExecuteScalarAsync();
+                    if (estado == null) { tx.Rollback(); return SoftDeleteResult.NotFound; }
+
+                    var activo = Convert.ToBoolean(estado);
+                    if (!activo) { tx.Commit(); return SoftDeleteResult.AlreadyInactive; }
+                }
+
+                // 1) Inactivar subcursos del curso
+                const string sqlSub = @"
+UPDATE dbo.SubCursos
+SET Activo = 0
+WHERE CursoID = @CursoID AND Activo = 1;";
+                using (var cmd1 = new SqlCommand(sqlSub, connection, tx))
+                {
+                    cmd1.Parameters.Add("@CursoID", SqlDbType.Int).Value = cursoId;
+                    await cmd1.ExecuteNonQueryAsync();
+                }
+
+                // 2) (Opcional) Inactivar asignaciones del curso
+                const string sqlAsig = @"
+UPDATE dbo.AsignacionesCursos
+SET Activo = 0
+WHERE CursoID = @CursoID AND Activo = 1;";
+                using (var cmd2 = new SqlCommand(sqlAsig, connection, tx))
+                {
+                    cmd2.Parameters.Add("@CursoID", SqlDbType.Int).Value = cursoId;
+                    await cmd2.ExecuteNonQueryAsync();
+                }
+
+                // 3) Inactivar el curso
+                const string sqlCurso = @"
+UPDATE dbo.Cursos
+SET Activo = 0
+WHERE CursoID = @CursoID AND Activo = 1;";
+                int afectados;
+                using (var cmd3 = new SqlCommand(sqlCurso, connection, tx))
+                {
+                    cmd3.Parameters.Add("@CursoID", SqlDbType.Int).Value = cursoId;
+                    afectados = await cmd3.ExecuteNonQueryAsync();
+                }
+
+                if (afectados == 0) { tx.Rollback(); return SoftDeleteResult.Error; }
+
+                tx.Commit();
+                return SoftDeleteResult.Success;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar (inactivar) curso {CursoId}", cursoId);
+                return SoftDeleteResult.Error;
             }
         }
 

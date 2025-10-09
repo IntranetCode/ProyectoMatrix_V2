@@ -8,8 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Models;
-using ProyectoMatrix.Servicios;
 using ProyectoMatrix.Seguridad;
+using ProyectoMatrix.Servicios;
+using static ProyectoMatrix.Servicios.UniversidadServices;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -356,7 +357,7 @@ namespace ProyectoMatrix.Controllers
                 TempData["Error"] = "Error al cargar tus cursos";
                 return View(new List<CursoAsignadoViewModel>());
             }
-        }
+        }  
 
         public async Task<IActionResult> GestionCursos()
         {
@@ -1120,14 +1121,6 @@ namespace ProyectoMatrix.Controllers
         {
             try
             {
-                var rolId = HttpContext.Session.GetInt32("RolID") ??
-                           HttpContext.Session.GetInt32("RolId") ?? 4;
-
-                if (!UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId))
-                {
-                    TempData["Error"] = "No tiene permisos para editar subcursos.";
-                    return RedirectToAction("Index");
-                }
 
                 var subCurso = await _universidadServices.GetSubCursoPorIdAsync(id);
 
@@ -1195,15 +1188,7 @@ namespace ProyectoMatrix.Controllers
             try
             {
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var rolId = HttpContext.Session.GetInt32("RolID") ??
-                           HttpContext.Session.GetInt32("RolId") ?? 4;
-
-                if (!usuarioId.HasValue || !UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId))
-                {
-                    TempData["Error"] = "No tiene permisos para editar subcursos.";
-                    return RedirectToAction("Index");
-                }
-
+               
                 if (archivoVideo != null && archivoVideo.Length > 0)
                 {
                     var rutaVideo = await GuardarArchivoAsync(archivoVideo, "videos");
@@ -1284,17 +1269,7 @@ namespace ProyectoMatrix.Controllers
                 TempData.Remove("Error");
                 TempData.Remove("Success");
 
-                _logger.LogInformation("Entrando a CrearEvaluacion con subCursoId: {SubCursoId}", subCursoId);
-                var rolId = HttpContext.Session.GetInt32("RolID") ??
-                           HttpContext.Session.GetInt32("RolId") ?? 4;
-
-                if (!UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId))
-                {
-                    _logger.LogWarning("Usuario SIN permisos para crear evaluaciones");
-                    TempData["Error"] = "No tiene permisos para crear evaluaciones.";
-                    return RedirectToAction("Index");
-                }
-
+              
                 var viewModel = await _universidadServices.GetEvaluacionViewModelAsync(subCursoId);
 
                 if (viewModel == null)
@@ -1343,13 +1318,7 @@ namespace ProyectoMatrix.Controllers
             try
             {
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var rolId = HttpContext.Session.GetInt32("RolID") ??
-                           HttpContext.Session.GetInt32("RolId") ?? 4;
-
-                if (!usuarioId.HasValue || !UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId))
-                {
-                    return Json(new { success = false, message = "No tiene permisos para crear evaluaciones." });
-                }
+               
 
                 if (request.Preguntas == null || !request.Preguntas.Any())
                 {
@@ -1798,37 +1767,47 @@ namespace ProyectoMatrix.Controllers
         // =====================================================
         // ELIMINAR SUBCURSO
         // =====================================================
-
         [HttpPost]
-        [ValidateAntiForgeryToken]
+       // [ValidateAntiForgeryToken]
         [AutorizarAccion("Eliminar curso", "Eliminar")]
-        public async Task<IActionResult> EliminarSubCurso(int id)
+        public async Task<IActionResult> EliminarSubCurso(int id, string? motivo = null)
         {
             try
             {
-                var rolId = HttpContext.Session.GetInt32("RolID") ?? 4;
-                if (!UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId))
+                var (idUsuario, idEmpresa) = LeerIdsSesion();
+
+                var result = await _universidadServices.EliminarSubCursoAsync(
+                    id, idUsuario ?? 0, motivo
+                );
+
+                bool ok;
+                string msg;
+                switch (result)
                 {
-                    return Json(new { success = false, message = "No tiene permisos" });
+                    case SoftDeleteResult.Success:
+                        ok = true; msg = "Subcurso eliminado correctamente."; break;
+                    case SoftDeleteResult.AlreadyInactive:
+                        ok = true; msg = "El subcurso ya estaba inactivo."; break;
+                    case SoftDeleteResult.NotFound:
+                        ok = false; msg = "Subcurso no encontrado."; break;
+                    default:
+                        ok = false; msg = "Error al eliminar el subcurso."; break;
                 }
 
-                var resultado = await _universidadServices.EliminarSubCursoAsync(id);
-
-                // Bitácora: eliminar subcurso (auditoría)
+                // Bitácora
                 try
                 {
-                    var (idUsuario, idEmpresa) = LeerIdsSesion();
                     var (sol, ip, ag) = LeerCtxMiddleware();
                     await _bitacora.RegistrarAsync(
                         idUsuario: idUsuario,
                         idEmpresa: idEmpresa,
                         accion: "ELIMINAR",
-                        mensaje: resultado ? $"SubCurso {id} eliminado" : "Error al eliminar subcurso",
+                        mensaje: $"{msg} Motivo: {motivo ?? "N/D"}",
                         modulo: "UNIVERSIDAD",
                         entidad: "SubCurso",
-                       entidadId: id.ToString(),
-                        resultado: resultado ? "OK" : "ERROR",
-                        severidad: resultado ? (byte)4 : (byte)3,
+                        entidadId: id.ToString(),
+                        resultado: ok ? "OK" : "ERROR",
+                        severidad: ok ? (byte)4 : (byte)3,
                         solicitudId: sol,
                         ip: ip,
                         AgenteUsuario: ag
@@ -1836,20 +1815,39 @@ namespace ProyectoMatrix.Controllers
                 }
                 catch { }
 
-                if (resultado)
-                {
-                    return Json(new { success = true, message = "SubCurso eliminado correctamente" });
-                }
-                else
-                {
-                    return Json(new { success = false, message = "Error al eliminar" });
-                }
+                return Json(new { success = ok, message = msg });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al eliminar subcurso");
+                _logger.LogError(ex, "Error al eliminar subcurso {SubCursoId}", id);
                 return Json(new { success = false, message = "Error al eliminar" });
             }
         }
+
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [AutorizarAccion("Eliminar curso", "Eliminar")]
+        public async Task<IActionResult> EliminarCurso(int id, string? motivo = null)
+        {
+            var (idUsuario, idEmpresa) = LeerIdsSesion();
+
+            var result = await _universidadServices.EliminarCursoAsync(id, idUsuario ?? 0, motivo);
+
+            bool ok; string msg;
+            switch (result)
+            {
+                case SoftDeleteResult.Success: ok = true; msg = "Curso eliminado correctamente."; break;
+                case SoftDeleteResult.AlreadyInactive: ok = true; msg = "El curso ya estaba inactivo."; break;
+                case SoftDeleteResult.NotFound: ok = false; msg = "Curso no encontrado."; break;
+                default: ok = false; msg = "Error al eliminar el curso."; break;
+            }
+
+            // Agregar bitacora
+            return Json(new { success = ok, message = msg });
+        }
+
+
     }
 }

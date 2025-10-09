@@ -1,0 +1,425 @@
+﻿
+:root {
+    --primary: #004AAD; /* Azul corporativo  */
+    --secondary: #FF6F00; /* Naranja acento */
+    --success: #2E7D32;
+    --warning: #FFC107;
+    --info: #0288D1;
+    --danger: #D32F2F;
+    --gray-50: #f9fafb;
+    --gray-75: #f4f6fb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --white: #fff;
+    --radius-lg: 14px;
+    --radius-md: 10px;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+    --shadow-lg: 0 8px 18px rgba(0,0,0,.12);
+    --shadow-xl: 0 12px 30px rgba(0,0,0,.14);
+}
+
+/* ==========
+   Base de página
+   ========== */
+.universidad-dashboard {
+    min-height: 100vh;
+    background: linear-gradient(135deg,#f8fafc 0%,#eef4ff 100%);
+    font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,"Noto Sans","Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji",sans-serif;
+    color: var(--gray-800);
+}
+
+/* ==========
+   Header
+   ========== */
+.dashboard-header {
+    background: var(--white);
+    border-bottom: 4px solid var(--primary);
+    padding: 2rem 0;
+    box-shadow: var(--shadow-sm);
+}
+
+.dashboard-title {
+    color: var(--primary);
+    font-weight: 800;
+    font-size: 1.8rem;
+    margin: 0;
+}
+
+.dashboard-subtitle {
+    color: var(--gray-600);
+    font-size: 1rem;
+    margin: .35rem 0 0;
+}
+
+.text-universidad {
+    color: var(--primary) !important;
+}
+
+/* ==========
+   Botones
+   ========== */
+.btn-universidad {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: .6rem 1.2rem;
+    font-weight: 700;
+    letter-spacing: .2px;
+    transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+    .btn-universidad:hover {
+        background: var(--secondary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+.btn-outline-universidad {
+    color: var(--primary);
+    border: 2px solid var(--primary);
+    border-radius: var(--radius-md);
+    padding: .5rem 1rem;
+    font-weight: 700;
+    transition: all .2s ease;
+    background: transparent;
+}
+
+    .btn-outline-universidad:hover {
+        background: var(--primary);
+        color: #fff;
+        box-shadow: var(--shadow-sm);
+    }
+
+/* ==========
+   Tarjetas de stats
+   ========== */
+.stat-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    background: #fff;
+    color: var(--gray-800);
+    padding: 1.6rem 1.5rem 1.4rem;
+    box-shadow: var(--shadow-md);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+    }
+
+.stat-icon {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    color: #fff;
+    opacity: .95;
+    box-shadow: var(--shadow-sm);
+}
+
+.stat-card-primary .stat-icon {
+    background: var(--primary);
+}
+
+.stat-card-success .stat-icon {
+    background: var(--success);
+}
+
+.stat-card-warning .stat-icon {
+    background: var(--warning);
+    color: #000;
+}
+
+.stat-card-info .stat-icon {
+    background: var(--info);
+}
+
+.stat-number {
+    font-size: 2.15rem;
+    font-weight: 800;
+    margin: 0 0 .35rem;
+    line-height: 1.1;
+}
+
+.stat-label {
+    font-size: 1rem;
+    color: var(--gray-600);
+    font-weight: 600;
+    margin: 0 0 .6rem;
+}
+
+/* Barra de progreso pequeña (reutilizable) */
+.progress.progress-sm {
+    height: .55rem;
+    background: var(--gray-100);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+    .progress.progress-sm .progress-bar {
+        background: var(--primary);
+        transition: width .4s ease;
+    }
+
+/* ==========
+   Contenedores de contenido
+   ========== */
+.content-card {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    transition: box-shadow .2s ease, transform .2s ease;
+}
+
+    .content-card:hover {
+        box-shadow: var(--shadow-lg);
+    }
+
+.content-card-header {
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid var(--gray-200);
+    background: var(--gray-50);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.content-card-title {
+    color: var(--primary);
+    font-size: 1.08rem;
+    font-weight: 800;
+    margin: 0;
+}
+
+.content-card-body {
+    padding: 1rem 1.25rem 1.25rem;
+}
+
+/* ==========
+   Tarjeta de curso
+   ========== */
+.curso-card {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-200);
+    background: #fff;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    height: 100%;
+}
+
+    .curso-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--gray-300);
+    }
+
+.curso-card-header {
+    padding: .75rem 1rem;
+    background: var(--gray-100);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.curso-card-body {
+    padding: 1rem;
+}
+
+.curso-card-footer {
+    padding: .75rem 1rem;
+    border-top: 1px solid var(--gray-200);
+    background: var(--gray-75);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.curso-title {
+    font-weight: 800;
+    color: var(--gray-800);
+    margin: 0 0 .25rem;
+}
+
+.curso-description {
+    font-size: .92rem;
+    color: var(--gray-600);
+    margin: 0 0 .6rem;
+}
+
+.curso-progress .progress {
+    margin-bottom: .25rem;
+}
+
+.curso-fecha-limite small {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+/* ==========
+   Badges (respeta las clases que ya usas)
+   ========== */
+.badge {
+    padding: .4rem .7rem;
+    border-radius: 12px;
+    font-size: .75rem;
+    font-weight: 800;
+}
+
+    .badge.bg-success {
+        background: var(--success) !important;
+        color: #fff;
+    }
+
+    .badge.bg-warning {
+        background: var(--warning) !important;
+        color: #000;
+    }
+
+    .badge.bg-danger {
+        background: var(--danger) !important;
+        color: #fff;
+    }
+
+    .badge.bg-info {
+        background: var(--info) !important;
+        color: #fff;
+    }
+
+/* ==========
+   Estado vacío
+   ========== */
+.empty-state i {
+    opacity: .55;
+}
+
+.empty-state h6 {
+    font-weight: 800;
+}
+
+/* ==========
+   Quick links
+   ========== */
+.quick-links {
+    display: block;
+}
+
+.quick-link-item {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .85rem 1rem;
+    border-radius: var(--radius-md);
+    background: var(--gray-50);
+    margin-bottom: .55rem;
+    color: var(--gray-700);
+    font-weight: 600;
+    text-decoration: none;
+    transition: background .2s ease, color .2s ease, transform .15s ease;
+}
+
+    .quick-link-item i.fas.fa-chevron-right {
+        margin-left: auto;
+        opacity: .6;
+    }
+
+    .quick-link-item:hover {
+        background: var(--secondary);
+        color: #fff !important;
+        transform: translateX(2px);
+    }
+
+    .quick-link-item .badge {
+        margin-left: auto;
+    }
+
+/* ==========
+   Certificados recientes
+   ========== */
+.certificado-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+    .certificado-item:last-child {
+        border-bottom: 0;
+    }
+
+.certificado-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #fff3cd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.certificado-content h6 {
+    margin: 0 0 .15rem;
+    font-weight: 800;
+    color: var(--gray-800);
+}
+
+/* ==========
+   Utilidades y responsivo
+   ========== */
+.progress-sm {
+    height: .55rem;
+}
+
+.stat-badge .badge {
+    font-weight: 800;
+}
+
+@media (max-width: 1199.98px) {
+    .dashboard-title {
+        font-size: 1.6rem;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .dashboard-header {
+        padding: 1.5rem 0;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .dashboard-title {
+        font-size: 1.45rem;
+    }
+
+    .content-card-header {
+        padding: .9rem 1rem;
+    }
+
+    .content-card-body {
+        padding: .9rem 1rem 1.1rem;
+    }
+
+    .stat-card {
+        padding: 1.25rem 1.1rem;
+    }
+}

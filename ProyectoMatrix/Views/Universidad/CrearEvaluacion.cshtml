@@ -1,59 +1,57 @@
 ﻿@model ProyectoMatrix.Models.EvaluacionViewModel
 @{
-    ViewData["Title"] = "Crear Evaluación";
+    var isEdit = Model?.TieneEvaluacion == true;
+    ViewData["Title"] = isEdit ? "Editar Evaluación" : "Crear Evaluación";
     Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
 }
 
-<div class="container-fluid p-4">
+<link rel="stylesheet" href="~/css/StylesUniversidadCE.css" asp-append-version="true" />
+
+<div class="container-fluid p-4 evaluacion-page">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex justify-content-between align-items-center ee-header">
                 <div>
-                    <h2 class="text-primary mb-1">
+                    <h2 class="mb-1">
                         <i class="fas fa-clipboard-check me-2"></i>
-                        Crear Evaluación
+                        @(isEdit ? "Editar Evaluación" : "Crear Evaluación")
                     </h2>
-                    <p class="text-muted mb-0">
+                    <p class="mb-0 text-muted">
                         <strong>SubCurso:</strong> @Model.NombreSubCurso
                         <span class="mx-2">•</span>
                         <strong>Curso:</strong> @Model.NombreCurso
                     </p>
                 </div>
-                <div>
-                    <a href="/Universidad/EditarCurso" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>
-                        Volver al Curso
-                    </a>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
+                        <i class="fas fa-arrow-left me-2"></i> Volver
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Success/Error Messages -->
+    <!-- Alerts -->
     @if (TempData["Success"] != null)
     {
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle me-2"></i>
-            @TempData["Success"]
+            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
-
     @if (TempData["Error"] != null)
     {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            @TempData["Error"]
+            <i class="fas fa-exclamation-triangle me-2"></i>@TempData["Error"]
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
 
-    <!-- Main Content -->
     <div class="row">
         <!-- Formulario para agregar preguntas -->
         <div class="col-md-8">
-            <div class="card border-0 shadow-sm">
+            <div class="card shadow-sm border-0 ee-card fade-in">
                 <div class="card-header bg-white">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-plus-circle me-2 text-primary"></i>
@@ -61,17 +59,20 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form id="formPregunta">
+                    <form id="formPregunta" autocomplete="off">
+                        @* Anti-forgery solo si tu acción lo valida *@
+                        @Html.AntiForgeryToken()
+
                         <div class="mb-3">
                             <label class="form-label fw-semibold">
                                 <i class="fas fa-question-circle text-primary me-1"></i>
                                 Texto de la Pregunta *
                             </label>
-                            <textarea id="textoPregunta" class="form-control" rows="3"
-                                      placeholder="Escribe aquí la pregunta..."></textarea>
+                            <textarea id="textoPregunta" class="form-control"
+                                      rows="3" placeholder="Escribe aquí la pregunta..."></textarea>
                         </div>
 
-                        <div class="row">
+                        <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">
                                     <i class="fas fa-list text-primary me-1"></i>
@@ -101,13 +102,12 @@
                                     <i class="fas fa-plus me-1"></i>Agregar Opción
                                 </button>
                             </div>
-                            <div id="contenedorOpciones">
-                                <!-- Las opciones se generan dinámicamente -->
-                            </div>
+                            <div id="contenedorOpciones" class="ee-opciones"></div>
+                            <small class="text-muted d-block mt-1">Marca con el círculo la opción correcta.</small>
                         </div>
 
-                        <!-- Opciones para Verdadero/Falso -->
-                        <div id="opcionesVerdaderoFalso" class="mt-4" style="display: none;">
+                        <!-- Opciones Verdadero/Falso -->
+                        <div id="opcionesVerdaderoFalso" class="mt-4" style="display:none;">
                             <h6>Respuesta Correcta</h6>
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="respuestaVF" id="verdadero" value="true" checked>
@@ -119,15 +119,13 @@
                             </div>
                         </div>
 
-                        <!-- Botones -->
+                        <!-- Acciones -->
                         <div class="d-flex gap-2 mt-4 pt-3 border-top">
                             <button type="button" class="btn btn-success" onclick="agregarPregunta()">
-                                <i class="fas fa-plus-circle me-2"></i>
-                                Agregar Pregunta
+                                <i class="fas fa-plus-circle me-2"></i>Agregar Pregunta
                             </button>
                             <button type="button" class="btn btn-outline-secondary" onclick="limpiarFormulario()">
-                                <i class="fas fa-eraser me-2"></i>
-                                Limpiar
+                                <i class="fas fa-eraser me-2"></i>Limpiar
                             </button>
                         </div>
                     </form>
@@ -135,31 +133,27 @@
             </div>
         </div>
 
-        <!-- Panel lateral con preguntas agregadas -->
+        <!-- Panel lateral -->
         <div class="col-md-4">
-            <!-- Información del SubCurso -->
-            <div class="card border-0 shadow-sm mb-3">
+            <!-- Info SubCurso -->
+            <div class="card shadow-sm border-0 mb-3 ee-card">
                 <div class="card-header bg-primary text-white">
                     <h6 class="card-title mb-0">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Información del SubCurso
+                        <i class="fas fa-info-circle me-2"></i>Información del SubCurso
                     </h6>
                 </div>
                 <div class="card-body">
-                    <p><strong>SubCurso:</strong> @Model.NombreSubCurso</p>
-                    <p><strong>Curso:</strong> @Model.NombreCurso</p>
-                    <p class="mb-0">
-                        <span class="badge bg-info" id="contadorPreguntas">0 preguntas</span>
-                    </p>
+                    <p class="mb-1"><strong>SubCurso:</strong> @Model.NombreSubCurso</p>
+                    <p class="mb-2"><strong>Curso:</strong> @Model.NombreCurso</p>
+                    <span class="badge bg-info" id="contadorPreguntas">0 preguntas</span>
                 </div>
             </div>
 
-            <!-- Lista de preguntas -->
-            <div class="card border-0 shadow-sm">
+            <!-- Lista preguntas -->
+            <div class="card shadow-sm border-0 ee-card">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h6 class="card-title mb-0">
-                        <i class="fas fa-list me-2 text-primary"></i>
-                        Preguntas Agregadas
+                        <i class="fas fa-list me-2 text-primary"></i>Preguntas Agregadas
                     </h6>
                     <button class="btn btn-sm btn-primary" onclick="guardarEvaluacion()" id="btnGuardar" disabled>
                         <i class="fas fa-save me-1"></i>Guardar
@@ -169,7 +163,7 @@
                     <div id="listaPreguntasAgregadas" class="p-3">
                         <div class="text-center text-muted py-4">
                             <i class="fas fa-clipboard-list fa-3x mb-3"></i>
-                            <p>No hay preguntas agregadas</p>
+                            <p class="mb-0">No hay preguntas agregadas</p>
                             <small>Agrega la primera pregunta usando el formulario</small>
                         </div>
                     </div>
@@ -183,11 +177,10 @@
     {
         <div class="row mt-4">
             <div class="col-12">
-                <div class="card border-0 shadow-sm">
+                <div class="card shadow-sm border-0 ee-card">
                     <div class="card-header bg-warning text-dark">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Evaluación Existente
+                            <i class="fas fa-exclamation-triangle me-2"></i>Evaluación Existente
                         </h5>
                     </div>
                     <div class="card-body">
@@ -196,18 +189,15 @@
                             Al guardar nuevas preguntas, se reemplazará la evaluación existente.
                         </div>
 
-                        <h6>Preguntas Actuales:</h6>
+                        <h6 class="mb-3">Preguntas Actuales:</h6>
                         @foreach (var pregunta in Model.Preguntas.OrderBy(p => p.Orden))
                         {
                             <div class="card border mb-2">
                                 <div class="card-body py-2">
                                     <div class="d-flex justify-content-between">
                                         <div>
-                                            <strong>@pregunta.Orden. @pregunta.TextoPregunta</strong>
-                                            <br>
-                                            <small class="text-muted">
-                                                @pregunta.TipoPregunta • @pregunta.PuntajeMaximo pts
-                                            </small>
+                                            <strong>@pregunta.Orden. @pregunta.TextoPregunta</strong><br />
+                                            <small class="text-muted">@pregunta.TipoPregunta • @pregunta.PuntajeMaximo pts</small>
                                         </div>
                                         <span class="badge bg-light text-dark">Existente</span>
                                     </div>
@@ -223,22 +213,22 @@
 
 @section Scripts {
     <script>
-        // Variables globales
+        // ===== Estado =====
         let preguntasTemporales = [];
         let contadorOpciones = 0;
 
-        // Inicializar
-        document.addEventListener('DOMContentLoaded', function() {
-            inicializarOpciones();
+        document.addEventListener('DOMContentLoaded', function () {
+            cambiarTipoPregunta();       // Asegura visibilidad correcta al cargar
+            inicializarOpciones();       // Crea 2 opciones por defecto
         });
 
         function cambiarTipoPregunta() {
             const tipo = document.getElementById('tipoPregunta').value;
+            const mult = document.getElementById('opcionesMultiple');
+            const vf   = document.getElementById('opcionesVerdaderoFalso');
 
-            document.getElementById('opcionesMultiple').style.display =
-                tipo === 'Multiple' ? 'block' : 'none';
-            document.getElementById('opcionesVerdaderoFalso').style.display =
-                tipo === 'Verdadero/Falso' ? 'block' : 'none';
+            mult.style.display = (tipo === 'Multiple') ? 'block' : 'none';
+            vf.style.display   = (tipo === 'Verdadero/Falso') ? 'block' : 'none';
 
             if (tipo === 'Multiple') {
                 inicializarOpciones();
@@ -246,207 +236,197 @@
         }
 
         function inicializarOpciones() {
-            const contenedor = document.getElementById('contenedorOpciones');
-            contenedor.innerHTML = '';
+            const cont = document.getElementById('contenedorOpciones');
+            cont.innerHTML = '';
             contadorOpciones = 0;
-
-            // Agregar dos opciones por defecto
             agregarOpcion();
             agregarOpcion();
 
-            // Marcar la primera como correcta
-            document.querySelector('input[name="opcionCorrecta"]').checked = true;
+            // Marca primera opción como correcta si existe
+            const first = cont.querySelector('input[name="opcionCorrecta"]');
+            if (first) first.checked = true;
         }
 
         function agregarOpcion() {
             contadorOpciones++;
-            const contenedor = document.getElementById('contenedorOpciones');
+            const cont = document.getElementById('contenedorOpciones');
 
-            const opcionDiv = document.createElement('div');
-            opcionDiv.className = 'input-group mb-2';
-            opcionDiv.id = `opcion_${contadorOpciones}`;
+            const row = document.createElement('div');
+            row.className = 'input-group mb-2 ee-opcion';
+            row.id = `opcion_${contadorOpciones}`;
 
-            opcionDiv.innerHTML = `
+            row.innerHTML = `
                 <div class="input-group-text">
-                    <input type="radio" name="opcionCorrecta" value="${contadorOpciones}">
+                    <input type="radio" name="opcionCorrecta" value="${contadorOpciones}" aria-label="Marcar como correcta">
                 </div>
                 <input type="text" class="form-control" placeholder="Opción ${contadorOpciones}"
                        id="textoOpcion_${contadorOpciones}">
-                <button type="button" class="btn btn-outline-danger" onclick="eliminarOpcion(${contadorOpciones})">
+                <button type="button" class="btn btn-outline-danger" onclick="eliminarOpcion(${contadorOpciones})"
+                        title="Eliminar opción">
                     <i class="fas fa-times"></i>
                 </button>
             `;
 
-            contenedor.appendChild(opcionDiv);
+            cont.appendChild(row);
         }
 
         function eliminarOpcion(numero) {
             const opciones = document.querySelectorAll('[id^="opcion_"]');
-            if (opciones.length > 2) {
-                document.getElementById(`opcion_${numero}`).remove();
-            } else {
+            if (opciones.length <= 2) {
                 alert('Debe tener al menos 2 opciones');
+                return;
+            }
+            document.getElementById(`opcion_${numero}`)?.remove();
+
+            // Si quitaste la marcada correcta, marca la primera disponible
+            const checked = document.querySelector('input[name="opcionCorrecta"]:checked');
+            if (!checked) {
+                const first = document.querySelector('input[name="opcionCorrecta"]');
+                if (first) first.checked = true;
             }
         }
 
         function agregarPregunta() {
-            const textoPregunta = document.getElementById('textoPregunta').value.trim();
-            const tipoPregunta = document.getElementById('tipoPregunta').value;
-            const puntaje = parseFloat(document.getElementById('puntajePregunta').value);
+            const textoPregunta = (document.getElementById('textoPregunta').value || '').trim();
+            const tipoPregunta  = document.getElementById('tipoPregunta').value;
+            const puntaje       = parseFloat(document.getElementById('puntajePregunta').value);
 
-            if (!textoPregunta) {
-                alert('Debe escribir el texto de la pregunta');
-                return;
-            }
+            if (!textoPregunta) return alert('Debe escribir el texto de la pregunta');
+            if (isNaN(puntaje) || puntaje <= 0) return alert('Puntaje inválido');
 
             const pregunta = {
-                textoPregunta: textoPregunta,
-                tipoPregunta: tipoPregunta,
+                textoPregunta,
+                tipoPregunta,
                 puntajeMaximo: puntaje,
                 opciones: []
             };
 
-            // Obtener opciones según el tipo
             if (tipoPregunta === 'Multiple') {
-                const opciones = document.querySelectorAll('[id^="textoOpcion_"]');
-                const opcionCorrecta = document.querySelector('input[name="opcionCorrecta"]:checked');
+                const inputs = document.querySelectorAll('[id^="textoOpcion_"]');
+                const ok = document.querySelector('input[name="opcionCorrecta"]:checked');
+                if (!ok) return alert('Debe marcar una opción como correcta');
 
-                if (!opcionCorrecta) {
-                    alert('Debe marcar una opción como correcta');
-                    return;
-                }
-
-                opciones.forEach((input, index) => {
-                    if (input.value.trim()) {
+                inputs.forEach((input, idx) => {
+                    const txt = (input.value || '').trim();
+                    if (txt.length) {
                         pregunta.opciones.push({
-                            textoOpcion: input.value.trim(),
-                            esCorrecta: opcionCorrecta.value == (index + 1)
+                            textoOpcion: txt,
+                            esCorrecta: ok.value == (idx + 1)
                         });
                     }
                 });
-
                 if (pregunta.opciones.length < 2) {
-                    alert('Debe tener al menos 2 opciones con texto');
-                    return;
+                    return alert('Debe tener al menos 2 opciones con texto');
                 }
-            } else if (tipoPregunta === 'Verdadero/Falso') {
-                const respuestaVF = document.querySelector('input[name="respuestaVF"]:checked').value;
+            }
+            else if (tipoPregunta === 'Verdadero/Falso') {
+                const vf = document.querySelector('input[name="respuestaVF"]:checked')?.value || 'true';
                 pregunta.opciones.push(
-                    { textoOpcion: 'Verdadero', esCorrecta: respuestaVF === 'true' },
-                    { textoOpcion: 'Falso', esCorrecta: respuestaVF === 'false' }
+                    { textoOpcion: 'Verdadero', esCorrecta: vf === 'true' },
+                    { textoOpcion: 'Falso',     esCorrecta: vf === 'false' }
                 );
             }
+            // Abierta: sin opciones
 
-            // Agregar a la lista temporal
             preguntasTemporales.push(pregunta);
-
-            // Actualizar UI
             actualizarListaPreguntas();
             limpiarFormulario();
         }
 
         function actualizarListaPreguntas() {
-            const lista = document.getElementById('listaPreguntasAgregadas');
-            const contador = document.getElementById('contadorPreguntas');
-            const btnGuardar = document.getElementById('btnGuardar');
+            const lista     = document.getElementById('listaPreguntasAgregadas');
+            const contador  = document.getElementById('contadorPreguntas');
+            const btnGuardar= document.getElementById('btnGuardar');
 
             contador.textContent = `${preguntasTemporales.length} pregunta(s)`;
-            btnGuardar.disabled = preguntasTemporales.length === 0;
+            btnGuardar.disabled  = preguntasTemporales.length === 0;
 
-            if (preguntasTemporales.length === 0) {
+            if (!preguntasTemporales.length) {
                 lista.innerHTML = `
                     <div class="text-center text-muted py-4">
                         <i class="fas fa-clipboard-list fa-3x mb-3"></i>
-                        <p>No hay preguntas agregadas</p>
+                        <p class="mb-0">No hay preguntas agregadas</p>
                         <small>Agrega la primera pregunta usando el formulario</small>
                     </div>`;
                 return;
             }
 
             let html = '';
-            preguntasTemporales.forEach((pregunta, index) => {
+            preguntasTemporales.forEach((p, i) => {
                 html += `
-                    <div class="card border mb-2">
-                        <div class="card-body py-2">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <small class="fw-bold">${index + 1}. ${pregunta.textoPregunta}</small>
-                                    <br>
-                                    <small class="text-muted">
-                                        ${pregunta.tipoPregunta} • ${pregunta.puntajeMaximo} pts
-                                    </small>
-                                </div>
-                                <button class="btn btn-outline-danger btn-sm" onclick="eliminarPregunta(${index})">
+                <div class="card border mb-2 ee-pregunta">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <small class="fw-bold">${i + 1}. ${p.textoPregunta}</small><br>
+                                <small class="text-muted">${p.tipoPregunta} • ${p.puntajeMaximo} pts</small>
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-danger" onclick="eliminarPregunta(${i})" title="Eliminar">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
                         </div>
-                    </div>`;
+                    </div>
+                </div>`;
             });
-
             lista.innerHTML = html;
         }
 
         function eliminarPregunta(index) {
-            if (confirm('¿Está seguro de eliminar esta pregunta?')) {
-                preguntasTemporales.splice(index, 1);
-                actualizarListaPreguntas();
-            }
+            if (!confirm('¿Eliminar esta pregunta?')) return;
+            preguntasTemporales.splice(index, 1);
+            actualizarListaPreguntas();
         }
 
         function limpiarFormulario() {
             document.getElementById('textoPregunta').value = '';
-            document.getElementById('tipoPregunta').value = 'Multiple';
+            document.getElementById('tipoPregunta').value  = 'Multiple';
             document.getElementById('puntajePregunta').value = '1';
             cambiarTipoPregunta();
         }
 
-        function guardarEvaluacion() {
-            if (preguntasTemporales.length === 0) {
-                alert('Debe agregar al menos una pregunta');
-                return;
+        async function guardarEvaluacion() {
+            if (!preguntasTemporales.length) {
+                return alert('Debe agregar al menos una pregunta');
             }
+            if (!confirm(`¿Guardar evaluación con ${preguntasTemporales.length} preguntas?`)) return;
 
-            if (!confirm(`¿Está seguro de guardar la evaluación con ${preguntasTemporales.length} preguntas?`)) {
-                return;
-            }
+            const btn = document.getElementById('btnGuardar');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Guardando...';
 
-            const btnGuardar = document.getElementById('btnGuardar');
-            btnGuardar.disabled = true;
-            btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Guardando...';
-
-            // Preparar datos para envío
-            const data = {
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+            const payload = {
                 subCursoID: @Model.SubCursoID,
                 preguntas: preguntasTemporales
             };
 
-            // Enviar datos
-            fetch('/Universidad/CrearEvaluacion', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    //'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(result => {
+            try {
+                const resp = await fetch('/Universidad/CrearEvaluacion', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'RequestVerificationToken': token } : {})
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const result = await resp.json();
+
                 if (result.success) {
                     alert('Evaluación guardada exitosamente');
                     location.reload();
                 } else {
-                    alert('Error al guardar: ' + result.message);
-                    btnGuardar.disabled = false;
-                    btnGuardar.innerHTML = '<i class="fas fa-save me-1"></i>Guardar';
+                    alert('Error al guardar: ' + (result.message || 'Desconocido'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-save me-1"></i>Guardar';
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al guardar la evaluación');
-                btnGuardar.disabled = false;
-                btnGuardar.innerHTML = '<i class="fas fa-save me-1"></i>Guardar';
-            });
+            } catch (err) {
+                console.error(err);
+                alert('Error de conexión al guardar la evaluación');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save me-1"></i>Guardar';
+            }
         }
     </script>
 }

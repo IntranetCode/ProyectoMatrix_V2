@@ -335,3 +335,33 @@ h2.mb-3 {
     position: relative;
     color: #fff;
 }
+
+/* Hacer la imagen responsiva y con altura consistente */
+.card-img-top {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9; /* mantiene proporción */
+    object-fit: cover;
+    display: block;
+}
+
+/* Asegurar stacking limpio en móvil */
+@media (max-width: 576px) {
+    .row > [class*="col-"] {
+        margin-bottom: .75rem;
+    }
+
+    .card {
+        min-height: auto;
+    }
+}
+
+/* Evitar overlays por z-index (por si hay sombras/gradientes) */
+.card {
+    position: relative;
+}
+
+.card-body {
+    position: relative;
+    z-index: 1;
+}

@@ -1,8 +1,14 @@
-﻿@model ProyectoMatrix.Models.CursoDetalleViewModel
+﻿@using System.Text.Json
+@model ProyectoMatrix.Models.CursoDetalleViewModel
 @{
     ViewData["Title"] = "Editar Curso";
     Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
 }
+
+<form id="afForm" method="post" style="display:none">
+    @Html.AntiForgeryToken()
+</form>
+
 
 <div class="container-fluid p-4">
     <!-- Header -->
@@ -132,28 +138,31 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm">
-                                                    <a href="/Universidad/EditarSubCurso/@subCurso.SubCursoID"
-                                                       class="btn btn-outline-primary btn-sm" title="Editar">
+                                                    <a asp-controller="Universidad"
+                                                       asp-action="EditarSubCurso"
+                                                       asp-route-id="@subCurso.SubCursoID"
+                                                       class="btn btn-outline-primary btn-sm"
+                                                       title="Editar">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
 
+
+
                                                     @if (subCurso.RequiereEvaluacion)
                                                     {
-                                                        <div class="small text-muted mb-2">
-                                                            DEBUG - SubCursoID: @subCurso.SubCursoID |
-                                                            Nombre: @subCurso.NombreSubCurso |
-                                                            Orden: @subCurso.Orden
-                                                        </div>
+                                                        
                                                         <a href="@Url.Action("CrearEvaluacion", "Universidad", new { subCursoId = subCurso.SubCursoID })"
                                                            class="btn btn-warning btn-sm" title="Crear/Editar Evaluación">
                                                             <i class="fas fa-clipboard-check"></i>
                                                         </a>
                                                     }
                                                     <button class="btn btn-outline-danger btn-sm"
-                                                            onclick="eliminarSubCurso(@subCurso.SubCursoID, '@subCurso.NombreSubCurso')"
+                                                            onclick='eliminarSubCurso(@subCurso.SubCursoID, @Html.Raw(JsonSerializer.Serialize(subCurso.NombreSubCurso)))'
                                                             title="Eliminar">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
+
+
                                                 </div>
                                             </td>
                                         </tr>
@@ -218,13 +227,7 @@
 
 @section Scripts {
     <script>
-        function eliminarSubCurso(subCursoId, nombre) {
-            if (confirm(`¿Estás seguro de eliminar el subcurso "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
-                // Implementar eliminación
-                console.log('Eliminar subcurso:', subCursoId);
-                // TODO: Llamada AJAX para eliminar
-            }
-        }
+        
 
         function previsualizarCurso(cursoId) {
             window.open(`/Universidad/TomarCurso/${cursoId}`, '_blank');
@@ -242,11 +245,81 @@
             }
         }
 
-        function eliminarCurso(cursoId, nombre) {
-            if (confirm(`¿ESTÁS SEGURO de eliminar el curso "${nombre}"?\n\nEsto eliminará:\n- El curso completo\n- Todos sus subcursos\n- Todo el progreso de usuarios\n\nEsta acción NO se puede deshacer.`)) {
-                // TODO: Implementar eliminación de curso
-                console.log('Eliminar curso:', cursoId);
-            }
+      
+    </script>
+
+
+    <script>
+        async function eliminarSubCurso(id, nombre) {
+          if (!confirm(`¿Eliminar "${nombre}"?`)) return;
+
+          const token = document.querySelector('#afForm input[name="__RequestVerificationToken"]')?.value || '';
+
+          const resp = await fetch('/Universidad/EliminarSubCurso', {
+            method: 'POST',
+            credentials: 'same-origin', 
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+              'RequestVerificationToken': token,
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new URLSearchParams({ id, motivo: 'Eliminación desde UI' })
+          });
+
+          const text = await resp.text();
+          let data;
+          try { data = JSON.parse(text); } catch {
+            console.error('Respuesta no JSON:', text);
+            alert('No se pudo contactar al servidor (posible sesión/CSRF).');
+            return;
+          }
+
+          if (data.success) {
+            alert(data.message || 'Subcurso eliminado.');
+            // elimina la fila del DOM
+            const btn = document.querySelector(`[onclick*="eliminarSubCurso(${id},"]`);
+            const tr = btn?.closest('tr');
+            if (tr) tr.remove();
+          } else {
+            alert(data.message || 'Error al eliminar subcurso');
+          }
         }
     </script>
+
+    <script>
+async function eliminarCurso(cursoId, nombre) {
+  if (!confirm(`¿ESTÁS SEGURO de eliminar el curso "${nombre}"?\n\nEsto inactivará:\n- El curso\n- Sus subcursos\n- Sus asignaciones\n\nPodrás reactivarlo si lo deseas.`)) return;
+
+  const token = document.querySelector('#afForm input[name="__RequestVerificationToken"]')?.value || '';
+
+  const resp = await fetch('/Universidad/EliminarCurso', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'RequestVerificationToken': token,
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: new URLSearchParams({ id: cursoId, motivo: 'Eliminación desde UI' })
+  });
+
+  const text = await resp.text();
+  let data; try { data = JSON.parse(text); } catch {
+    console.error('Respuesta no JSON:', text);
+    alert('No se pudo contactar al servidor.');
+    return;
+  }
+
+  if (data.success) {
+    alert(data.message);
+    // Redirige a gestión/lista
+    window.location.href = '/Universidad/GestionCursos';
+  } else {
+    alert(data.message || 'Error al eliminar curso');
+  }
+}
+</script>
+
+
+
 }

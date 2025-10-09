@@ -1,12 +1,12 @@
 ﻿@model ProyectoMatrix.Models.CrearSubCursoRequest
 @{
     // ✅ CAMBIAR ESTAS LÍNEAS
-    var esEdicion = ViewBag.EsEdicion == true;
-    var subCursoId = ViewBag.SubCursoId;
+    var esEdicion = (ViewBag.EsEdicion as bool?) == true;
+    var subCursoId = ViewBag.SubCursoId as int? ?? 0;
     ViewData["Title"] = esEdicion ? "Editar SubCurso" : "Crear SubCurso";
     Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
     var cursoId = ViewBag.CursoId;
-    var nombreCurso = ViewBag.NombreCurso ?? "Curso";
+    var nombreCurso = ViewBag.NombreCurso as string ?? "Curso";
 }
 
 <div class="container-fluid p-4">
@@ -23,7 +23,7 @@
                     <p class="text-muted mb-0">Para el curso: <strong>@nombreCurso</strong></p>
                 </div>
                 <div>
-                    <a href="/Universidad/EditarCurso/@cursoId" class="btn btn-outline-secondary">
+                    <a href="/Universidad/EditarCurso/@Model.CursoID" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>
                         Volver al Curso
                     </a>
@@ -46,7 +46,8 @@
                     <form asp-action="@(esEdicion ? "EditarSubCurso" : "CrearSubCurso")"
                           asp-route-id="@(esEdicion ? subCursoId : (object)null)"
                           method="post" enctype="multipart/form-data" id="crearSubCursoForm">
-                        <input type="hidden" asp-for="CursoID" value="@cursoId" />
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="CursoID" />
 
                         <!-- Información Básica -->
                         <div class="row mb-4">

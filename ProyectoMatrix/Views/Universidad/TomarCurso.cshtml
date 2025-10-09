@@ -5,78 +5,85 @@
     Layout = "_LayoutUniversidad";
 }
 
+<link rel="stylesheet" href="~/css/StylesUniversidadTC.css" asp-append-version="true" />
+
 <div class="tomar-curso-container">
-    <!-- Header del Curso -->
     <div class="curso-header">
         <div class="container-fluid">
-            <div class="row">
-                <div class="col-12">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb">
-                            <li class="breadcrumb-item">
-                                <a href="/Universidad">Universidad NS</a>
-                            </li>
-                            <li class="breadcrumb-item">
-                                <a href="/Universidad/MisCursos">Mis Cursos</a>
-                            </li>
-                            <li class="breadcrumb-item active">@Model.Curso.NombreCurso</li>
-                        </ol>
-                    </nav>
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="/Universidad">Universidad NS</a></li>
+                    <li class="breadcrumb-item"><a href="/Universidad/MisCursos">Mis Cursos</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.Curso.NombreCurso</li>
+                </ol>
+            </nav>
 
-                    <div class="curso-header-content">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <div class="curso-info">
-                                    <div class="curso-nivel-badge mb-2">
-                                        <span class="badge nivel-badge" style="background-color: @Model.Curso.ColorNivel">
-                                            @Model.Curso.NombreNivel
-                                        </span>
-                                    </div>
-                                    <h1 class="curso-title">@Model.Curso.NombreCurso</h1>
-                                    @if (!string.IsNullOrEmpty(Model.Curso.Descripcion))
-                                    {
-                                        <p class="curso-description">@Model.Curso.Descripcion</p>
-                                    }
+            <div class="curso-hero">
+                <div class="curso-hero-left">
+                    <div class="curso-chip-level" style="--nivel-color:@Model.Curso.ColorNivel">
+                        <i class="fas fa-layer-group me-1" aria-hidden="true"></i>@Model.Curso.NombreNivel
+                    </div>
+
+                    <h1 class="curso-title">
+                        <span class="title-accent" aria-hidden="true"></span>
+                        @Model.Curso.NombreCurso
+                    </h1>
+
+                    @if (!string.IsNullOrEmpty(Model.Curso.Descripcion))
+                    {
+                        <p class="curso-description mb-0">@Model.Curso.Descripcion</p>
+                    }
+
+                    <div class="curso-meta-chips">
+                        <span class="meta-chip">
+                            <i class="fas fa-list-ol" aria-hidden="true"></i>
+                            @Model.SubCursos.Count(sc => sc.Completado) / @Model.SubCursos.Count módulos
+                        </span>
+
+                        <span class="meta-chip">
+                            <i class="fas fa-chart-line" aria-hidden="true"></i>
+                            Progreso @Model.ProgresoGeneral.ToString("F0")%
+                        </span>
+
+                        <span class="meta-chip @(Model.CursoCompletado ? "meta-chip-success" : Model.ProgresoGeneral > 0 ? "meta-chip-primary" : "meta-chip-muted")">
+                            <i class="fas @(Model.CursoCompletado ? "fa-check-circle" : Model.ProgresoGeneral > 0 ? "fa-play" : "fa-circle")" aria-hidden="true"></i>
+                            @(Model.CursoCompletado ? "Completado" : Model.ProgresoGeneral > 0 ? "En progreso" : "Sin iniciar")
+                        </span>
+                    </div>
+                </div>
+
+                <div class="curso-hero-right">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <i class="fas fa-chart-pie text-primary" aria-hidden="true"></i>
+                            <span>Progreso General</span>
+                        </div>
+                        <div class="stat-content">
+                            <div class="progress-circle" data-percentage="@Model.ProgresoGeneral.ToString("F0")">
+                                <div class="progress-circle-inner">
+                                    <span class="progress-percentage">@Model.ProgresoGeneral.ToString("F0")%</span>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="curso-stats">
-                                    <div class="stat-card">
-                                        <div class="stat-header">
-                                            <i class="fas fa-chart-pie text-primary"></i>
-                                            <span>Progreso General</span>
-                                        </div>
-                                        <div class="stat-content">
-                                            <div class="progress-circle" data-percentage="@Model.ProgresoGeneral.ToString("F0")">
-                                                <div class="progress-circle-inner">
-                                                    <span class="progress-percentage">@Model.ProgresoGeneral.ToString("F0")%</span>
-                                                </div>
-                                            </div>
-                                            <div class="stat-details">
-                                                <small class="text-muted">
-                                                    @Model.SubCursos.Count(sc => sc.Completado) de @Model.SubCursos.Count módulos
-                                                </small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="stat-details">
+                                <small class="text-muted">
+                                    @Model.SubCursos.Count(sc => sc.Completado) de @Model.SubCursos.Count módulos
+                                </small>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
+            </div> <!-- /curso-hero -->
+        </div> <!-- /container-fluid -->
+    </div> <!-- /curso-header -->
     <!-- Contenido Principal -->
-    <div class="container-fluid mt-4">
+    <div class="container-fluid">
         <div class="row">
             <!-- Lista de SubCursos -->
             <div class="col-xl-8">
                 <div class="subcursos-container">
                     <div class="subcursos-header">
                         <h4>
-                            <i class="fas fa-list-ol me-2"></i>
+                            <i class="fas fa-list-ol me-2" aria-hidden="true"></i>
                             Módulos del Curso
                         </h4>
                         <p class="text-muted">
@@ -100,11 +107,11 @@
                                         <div class="subcurso-number">
                                             @if (isCompleted)
                                             {
-                                                <i class="fas fa-check-circle text-success"></i>
+                                                <i class="fas fa-check-circle text-success" aria-hidden="true"></i>
                                             }
                                             else if (isLocked)
                                             {
-                                                <i class="fas fa-lock text-muted"></i>
+                                                <i class="fas fa-lock text-muted" aria-hidden="true"></i>
                                             }
                                             else
                                             {
@@ -136,20 +143,20 @@
                                             <!-- Información del Video -->
                                             <div class="subcurso-meta">
                                                 <div class="meta-item">
-                                                    <i class="fas fa-play-circle text-primary me-1"></i>
+                                                    <i class="fas fa-play-circle text-primary me-1" aria-hidden="true"></i>
                                                     <span>Duración: @subCurso.DuracionFormateada</span>
                                                 </div>
                                                 @if (subCurso.RequiereEvaluacion)
                                                 {
                                                     <div class="meta-item">
-                                                        <i class="fas fa-clipboard-check text-info me-1"></i>
+                                                        <i class="fas fa-clipboard-check text-info me-1" aria-hidden="true"></i>
                                                         <span>Puntaje mínimo: @subCurso.PuntajeMinimo%</span>
                                                     </div>
                                                 }
                                                 @if (!string.IsNullOrEmpty(subCurso.ArchivoPDF))
                                                 {
                                                     <div class="meta-item">
-                                                        <i class="fas fa-file-pdf text-danger me-1"></i>
+                                                        <i class="fas fa-file-pdf text-danger me-1" aria-hidden="true"></i>
                                                         <span>Material adicional disponible</span>
                                                     </div>
                                                 }
@@ -165,7 +172,7 @@
                                                     </div>
                                                     <div class="progress progress-sm">
                                                         <div class="progress-bar @(isCompleted ? "bg-success" : "bg-primary")"
-                                                             style="width: @subCurso.PorcentajeVisto%">
+                                                             style="width: @($"{subCurso.PorcentajeVisto.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}%")">
                                                         </div>
                                                     </div>
                                                     @if (subCurso.TiempoTotalVisto > 0)
@@ -198,7 +205,7 @@
                                             @if (isLocked)
                                             {
                                                 <button class="btn btn-outline-secondary btn-sm" disabled>
-                                                    <i class="fas fa-lock me-1"></i>Bloqueado
+                                                    <i class="fas fa-lock me-1" aria-hidden="true"></i>Bloqueado
                                                 </button>
                                                 <small class="text-muted d-block mt-1">
                                                     Completa el módulo anterior
@@ -212,21 +219,20 @@
                                                    class="btn btn-universidad btn-sm">
                                                     @if (isCompleted)
                                                     {
-                                                        <i class="fas fa-eye me-1"></i>
+                                                        <i class="fas fa-eye me-1" aria-hidden="true"></i>
                                                         <text>Revisar</text>
                                                     }
                                                     else if (isInProgress)
                                                     {
-                                                        <i class="fas fa-play me-1"></i>
+                                                        <i class="fas fa-play me-1" aria-hidden="true"></i>
                                                         <text>Continuar</text>
                                                     }
                                                     else
                                                     {
-                                                        <i class="fas fa-play-circle me-1"></i>
+                                                        <i class="fas fa-play-circle me-1" aria-hidden="true"></i>
                                                         <text>Comenzar</text>
                                                     }
                                                 </a>
-
 
                                                 @if (!string.IsNullOrEmpty(subCurso.ArchivoPDF))
                                                 {
@@ -234,7 +240,7 @@
                                                        target="_blank"
                                                        class="btn btn-outline-danger btn-sm ms-1"
                                                        title="Ver material PDF">
-                                                        <i class="fas fa-file-pdf"></i>
+                                                        <i class="fas fa-file-pdf" aria-hidden="true"></i>
                                                     </a>
                                                 }
                                             }
@@ -247,7 +253,7 @@
                     else
                     {
                         <div class="empty-state text-center py-5">
-                            <i class="fas fa-video fa-3x text-muted mb-3"></i>
+                            <i class="fas fa-video fa-3x text-muted mb-3" aria-hidden="true"></i>
                             <h5 class="text-muted">Sin contenido disponible</h5>
                             <p class="text-muted">Este curso aún no tiene módulos configurados.</p>
                         </div>
@@ -257,429 +263,156 @@
 
             <!-- Sidebar de Información -->
             <div class="col-xl-4">
-                <!-- Resumen del Curso -->
                 <div class="info-card mb-4">
-                </div>
-                <div class="info-card-body">
-                    <div class="info-item">
-                        <div class="info-label">Total de módulos</div>
-                        <div class="info-value">@Model.SubCursos.Count</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Módulos completados</div>
-                        <div class="info-value">@Model.SubCursos.Count(sc => sc.Completado)</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Progreso general</div>
-                        <div class="info-value">@Model.ProgresoGeneral.ToString("F1")%</div>
-                    </div>
-                    @if (Model.SubCursosBloqueados > 0)
-                    {
-                        <div class="info-item">
-                            <div class="info-label">Módulos bloqueados</div>
-                            <div class="info-value text-warning">@Model.SubCursosBloqueados</div>
-                        </div>
-                    }
-                    <div class="info-item">
-                        <div class="info-label">Estado del curso</div>
-                        <div class="info-value">
-                            @if (Model.CursoCompletado)
-                            {
-                                <span class="badge bg-success">Completado</span>
-                                <br />
-                                <!-- Botón para descargar certificado -->
-                                <a asp-controller="Universidad"
-                                   asp-action="DescargarCertificado"
-                                   asp-route-id="@Model.Curso.CursoID"
-                                   class="btn btn-success btn-sm mt-2">
-                                    <i class="fas fa-certificate me-2"></i> Descargar Certificado
-                                </a>
-
-                            }
-                            else if (Model.ProgresoGeneral > 0)
-                            {
-                                <span class="badge bg-primary">En Progreso</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-secondary">Sin Iniciar</span>
-                            }
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Progreso Detallado -->
-            <div class="info-card mb-4">
-                <div class="info-card-header">
-                    <h6><i class="fas fa-chart-line me-2"></i>Tu Progreso</h6>
-                </div>
-                <div class="info-card-body">
-                    <div class="progress-detailed">
-                        @foreach (var subCurso in Model.SubCursos.Take(5))
-                        {
-                            <div class="progress-item">
-                                <div class="progress-item-header">
-                                    <span class="progress-item-title">@subCurso.NombreSubCurso</span>
-                                    <span class="progress-item-percentage">@subCurso.PorcentajeVisto.ToString("F0")%</span>
-                                </div>
-                                <div class="progress progress-xs">
-                                    <div class="progress-bar @(subCurso.Completado ? "bg-success" : "bg-primary")"
-                                         style="width: @subCurso.PorcentajeVisto%">
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                        @if (Model.SubCursos.Count > 5)
-                        {
-                            <div class="text-center mt-2">
-                                <small class="text-muted">Y @(Model.SubCursos.Count - 5) módulos más...</small>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <!-- Próximos Pasos -->
-            @{
-                var proximoSubCurso = Model.SubCursos.FirstOrDefault(sc => !sc.Completado && sc.PuedeAcceder);
-            }
-            @if (proximoSubCurso != null)
-            {
-                <div class="info-card mb-4">
-                    <div class="info-card-header">
-                        <h6><i class="fas fa-arrow-right me-2"></i>Próximo Paso</h6>
-                    </div>
                     <div class="info-card-body">
-                        <div class="next-step">
-                            <h6 class="next-step-title">@proximoSubCurso.NombreSubCurso</h6>
-                            <p class="next-step-description text-muted">@proximoSubCurso.Descripcion</p>
-                            <div class="next-step-meta mb-3">
-                                <small class="text-muted">
-                                    <i class="fas fa-clock me-1"></i>Duración: @proximoSubCurso.DuracionFormateada
-                                </small>
+                        <div class="info-item">
+                            <div class="info-label">Total de módulos</div>
+                            <div class="info-value">@Model.SubCursos.Count</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Módulos completados</div>
+                            <div class="info-value">@Model.SubCursos.Count(sc => sc.Completado)</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Progreso general</div>
+                            <div class="info-value">@Model.ProgresoGeneral.ToString("F1")%</div>
+                        </div>
+                        @if (Model.SubCursosBloqueados > 0)
+                        {
+                            <div class="info-item">
+                                <div class="info-label">Módulos bloqueados</div>
+                                <div class="info-value text-warning">@Model.SubCursosBloqueados</div>
                             </div>
-                            <a asp-controller="Universidad"
-                               asp-action="TomarSubCurso"
-                               asp-route-subCursoId="@proximoSubCurso.SubCursoID"
-                               class="btn btn-universidad btn-sm w-100">
-                                @if (proximoSubCurso.PorcentajeVisto > 0)
+                        }
+                        <div class="info-item">
+                            <div class="info-label">Estado del curso</div>
+                            <div class="info-value">
+                                @if (Model.CursoCompletado)
                                 {
-                                    <i class="fas fa-play me-2"></i>
-                                    <text>Continuar Módulo</text>
+                                    <span class="badge bg-success">Completado</span>
+                                    <br />
+                                    <a asp-controller="Universidad"
+                                       asp-action="DescargarCertificado"
+                                       asp-route-id="@Model.Curso.CursoID"
+                                       class="btn btn-success btn-sm mt-2">
+                                        <i class="fas fa-certificate me-2" aria-hidden="true"></i> Descargar Certificado
+                                    </a>
+                                }
+                                else if (Model.ProgresoGeneral > 0)
+                                {
+                                    <span class="badge bg-primary">En Progreso</span>
                                 }
                                 else
                                 {
-                                    <i class="fas fa-play-circle me-2"></i>
-                                    <text>Comenzar Módulo</text>
+                                    <span class="badge bg-secondary">Sin Iniciar</span>
                                 }
-                            </a>
-
+                            </div>
                         </div>
                     </div>
                 </div>
-            }
+            </div> <!-- /col-xl-4 -->
+        </div> <!-- /row -->
+        <!-- Bloques a ancho completo bajo el grid -->
+        <div class="info-card mb-4">
+            <div class="info-card-header">
+                <h6><i class="fas fa-chart-line me-2" aria-hidden="true"></i>Tu Progreso</h6>
+            </div>
+            <div class="info-card-body">
+                <div class="progress-detailed">
+                    @foreach (var subCurso in Model.SubCursos.Take(5))
+                    {
+                        <div class="progress-item">
+                            <div class="progress-item-header">
+                                <span class="progress-item-title">@subCurso.NombreSubCurso</span>
+                                <span class="progress-item-percentage">@subCurso.PorcentajeVisto.ToString("F0")%</span>
+                            </div>
+                            <div class="progress progress-xs">
+                                <div class="progress-bar @(subCurso.Completado ? "bg-success" : "bg-primary")"
+                                     style="width: @($"{subCurso.PorcentajeVisto.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}%")">
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    @if (Model.SubCursos.Count > 5)
+                    {
+                        <div class="text-center mt-2">
+                            <small class="text-muted">Y @(Model.SubCursos.Count - 5) módulos más...</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
 
-            <!-- Ayuda y Consejos -->
-            <div class="info-card">
+        @{
+            var proximoSubCurso = Model.SubCursos.FirstOrDefault(sc => !sc.Completado && sc.PuedeAcceder);
+        }
+        @if (proximoSubCurso != null)
+        {
+            <div class="info-card mb-4">
                 <div class="info-card-header">
-                    <h6><i class="fas fa-lightbulb me-2"></i>Consejos</h6>
+                    <h6><i class="fas fa-arrow-right me-2" aria-hidden="true"></i>Próximo Paso</h6>
                 </div>
                 <div class="info-card-body">
-                    <div class="tips-list">
-                        <div class="tip-item">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            <small>Completa los módulos en orden secuencial</small>
+                    <div class="next-step">
+                        <h6 class="next-step-title">@proximoSubCurso.NombreSubCurso</h6>
+                        <p class="next-step-description text-muted">@proximoSubCurso.Descripcion</p>
+                        <div class="next-step-meta mb-3">
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1" aria-hidden="true"></i>Duración: @proximoSubCurso.DuracionFormateada
+                            </small>
                         </div>
-                        <div class="tip-item">
-                            <i class="fas fa-clock text-info me-2"></i>
-                            <small>Dedica tiempo suficiente para ver cada video completo</small>
-                        </div>
-                        <div class="tip-item">
-                            <i class="fas fa-file-pdf text-danger me-2"></i>
-                            <small>Descarga los materiales PDF para consulta posterior</small>
-                        </div>
-                        <div class="tip-item">
-                            <i class="fas fa-graduation-cap text-warning me-2"></i>
-                            <small>Las evaluaciones requieren al menos @Model.SubCursos.FirstOrDefault()?.PuntajeMinimo ?? 70% para aprobar</small>
-                        </div>
+                        <a asp-controller="Universidad"
+                           asp-action="TomarSubCurso"
+                           asp-route-subCursoId="@proximoSubCurso.SubCursoID"
+                           class="btn btn-universidad btn-sm w-100">
+                            @if (proximoSubCurso.PorcentajeVisto > 0)
+                            {
+                                <i class="fas fa-play me-2" aria-hidden="true"></i>
+                                <text>Continuar Módulo</text>
+                            }
+                            else
+                            {
+                                <i class="fas fa-play-circle me-2" aria-hidden="true"></i>
+                                <text>Comenzar Módulo</text>
+                            }
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="info-card">
+            <div class="info-card-header">
+                <h6><i class="fas fa-lightbulb me-2" aria-hidden="true"></i>Consejos</h6>
+            </div>
+            <div class="info-card-body">
+                <div class="tips-list">
+                    <div class="tip-item">
+                        <i class="fas fa-check-circle text-success me-2" aria-hidden="true"></i>
+                        <small>Completa los módulos en orden secuencial</small>
+                    </div>
+                    <div class="tip-item">
+                        <i class="fas fa-clock text-info me-2" aria-hidden="true"></i>
+                        <small>Dedica tiempo suficiente para ver cada video completo</small>
+                    </div>
+                    <div class="tip-item">
+                        <i class="fas fa-file-pdf text-danger me-2" aria-hidden="true"></i>
+                        <small>Descarga los materiales PDF para consulta posterior</small>
+                    </div>
+                    <div class="tip-item">
+                        <i class="fas fa-graduation-cap text-warning me-2" aria-hidden="true"></i>
+                        <small>Las evaluaciones requieren al menos @((Model.SubCursos.FirstOrDefault()?.PuntajeMinimo ?? 70))% para aprobar</small>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-</div>
-
-<style>
-    :root {
-        --primary: #004AAD; /* Azul corporativo */
-        --secondary: #FF6F00; /* Naranja corporativo */
-        --success: #2E7D32;
-        --warning: #FFC107;
-        --info: #0288D1;
-        --danger: #D32F2F;
-        --gray-50: #f9fafb;
-        --gray-100: #f3f4f6;
-        --gray-200: #e5e7eb;
-        --gray-400: #9ca3af;
-        --gray-600: #4b5563;
-        --gray-700: #374151;
-        --gray-800: #1f2937;
-    }
-
-    .tomar-curso-container {
-        min-height: 100vh;
-        background: linear-gradient(135deg, #f8fafc 0%, #eef4ff 100%);
-        font-family: 'Segoe UI', Roboto, sans-serif;
-    }
-
-    /* ===== HEADER CURSO ===== */
-    .curso-header {
-        background: white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        padding: 2rem 0;
-        border-bottom: 4px solid var(--primary);
-    }
-
-    .curso-title {
-        color: var(--primary);
-        font-weight: 800;
-        font-size: 2.3rem;
-        margin-bottom: 1rem;
-    }
-
-    .curso-description {
-        color: var(--gray-600);
-        font-size: 1.1rem;
-        line-height: 1.6;
-    }
-
-    .nivel-badge {
-        background: var(--secondary);
-        color: white;
-        border-radius: 20px;
-        padding: 0.4rem 1rem;
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* ===== PROGRESO GENERAL ===== */
-    .stat-card {
-        background: white;
-        border-radius: 14px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        padding: 1.5rem;
-        text-align: center;
-    }
-
-    .progress-circle {
-        width: 90px;
-        height: 90px;
-        border-radius: 50%;
-        background: conic-gradient(var(--primary) 0deg, var(--primary) calc(var(--percentage) * 3.6deg), var(--gray-200) calc(var(--percentage) * 3.6deg));
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 1rem;
-        position: relative;
-        transition: background 0.8s ease;
-    }
-
-    .progress-circle-inner {
-        width: 65px;
-        height: 65px;
-        background: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        font-size: 1.1rem;
-        color: var(--primary);
-    }
-
-    /* ===== SUBCURSOS ===== */
-    .subcursos-container {
-        background: white;
-        border-radius: 14px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        overflow: hidden;
-        margin-top: 2rem;
-    }
-
-    .subcursos-header {
-        padding: 1.5rem;
-        border-bottom: 1px solid var(--gray-200);
-        background: var(--gray-50);
-        font-weight: 700;
-        color: var(--primary);
-    }
-
-    .subcurso-item {
-        transition: all 0.3s ease;
-        border-bottom: 1px solid var(--gray-100);
-    }
-
-        .subcurso-item:last-child {
-            border-bottom: none;
-        }
-
-        .subcurso-item:hover:not(.locked) {
-            background: var(--gray-50);
-        }
-
-        .subcurso-item.completed {
-            background: linear-gradient(90deg, rgba(46, 125, 50, 0.12) 0%, transparent 100%);
-            border-left: 4px solid var(--success);
-        }
-
-        .subcurso-item.in-progress {
-            background: linear-gradient(90deg, rgba(0, 74, 173, 0.15) 0%, transparent 100%);
-            border-left: 4px solid var(--primary);
-        }
-
-        .subcurso-item.locked {
-            opacity: 0.6;
-            background: var(--gray-50);
-        }
-
-    .subcurso-card {
-        display: flex;
-        padding: 1.2rem 1.5rem;
-        gap: 1rem;
-    }
-
-    .subcurso-number {
-        flex-shrink: 0;
-        width: 42px;
-        height: 42px;
-        border-radius: 50%;
-        background: var(--gray-200);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        color: var(--gray-600);
-    }
-
-    .subcurso-item.completed .subcurso-number {
-        background: var(--success);
-        color: white;
-    }
-
-    .subcurso-item.in-progress .subcurso-number {
-        background: var(--primary);
-        color: white;
-    }
-
-    .subcurso-title {
-        font-weight: 700;
-        font-size: 1.05rem;
-        color: var(--gray-800);
-        margin-bottom: 0.3rem;
-    }
-
-    .subcurso-description {
-        font-size: 0.9rem;
-        color: var(--gray-600);
-        margin-bottom: 0.6rem;
-    }
-
-    .subcurso-actions .btn-universidad {
-        background: var(--primary);
-        color: white;
-        border-radius: 8px;
-        padding: 0.4rem 1rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-
-        .subcurso-actions .btn-universidad:hover {
-            background: var(--secondary);
-            transform: translateY(-2px);
-        }
-
-    /* ===== INFO EXTRA ===== */
-    .info-card {
-        background: white;
-        border-radius: 14px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        overflow: hidden;
-        margin-top: 2rem;
-    }
-
-    .info-card-header {
-        background: var(--gray-50);
-        padding: 1rem 1.5rem;
-        border-bottom: 1px solid var(--gray-200);
-        font-weight: 700;
-        color: var(--primary);
-    }
-
-    .info-card-body {
-        padding: 1.5rem;
-    }
-
-    .info-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.8rem 0;
-        border-bottom: 1px solid var(--gray-100);
-    }
-
-        .info-item:last-child {
-            border-bottom: none;
-        }
-
-    .info-label {
-        color: var(--gray-600);
-        font-size: 0.9rem;
-    }
-
-    .info-value {
-        font-weight: 700;
-        color: var(--gray-800);
-    }
-
-    /* ===== NEXT STEP HIGHLIGHT ===== */
-    .next-step {
-        text-align: center;
-        padding: 1.5rem;
-        transition: all 0.3s ease;
-    }
-
-    .next-step-title {
-        font-weight: 700;
-        color: var(--primary);
-        margin-bottom: 0.5rem;
-    }
-
-    .next-step-description {
-        font-size: 0.9rem;
-        color: var(--gray-700);
-    }
-
-    /* ===== RESPONSIVE ===== */
-    @@media (max-width: 768px) {
-        .curso-title {
-            font-size: 1.7rem;
-        }
-
-        .subcurso-card {
-            flex-direction: column;
-            text-align: center;
-        }
-
-        .subcurso-actions {
-            align-items: center;
-        }
-    }
-
-    /* Animación dinámica del círculo */
-    .progress-circle {
-        --percentage: @Model.ProgresoGeneral;
-    }
-</style>
+    </div> <!-- /container-fluid -->
+</div> <!-- /tomar-curso-container -->
+@section Scripts {
+    <script>
+        document.querySelectorAll('.progress-circle').forEach(el=>{
+          const p = parseFloat(el.dataset.percentage || '0');
+          el.style.setProperty('--percentage', Math.max(0, Math.min(100, p)));
+        });
+    </script>
+}

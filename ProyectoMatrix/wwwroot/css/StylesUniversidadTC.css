@@ -1,0 +1,513 @@
+﻿:root {
+    --primary: #004AAD; /* Azul corporativo */
+    --secondary: #FF6F00; /* Naranja corporativo */
+    --success: #2E7D32;
+    --warning: #FFC107;
+    --info: #0288D1;
+    --danger: #D32F2F;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-400: #9ca3af;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    /* Spacing & tokens */
+    --sp-1: .25rem;
+    --sp-2: .5rem;
+    --sp-3: .75rem;
+    --sp-4: 1rem;
+    --sp-5: 1.25rem;
+    --sp-6: 1.5rem;
+    --radius-sm: 8px;
+    --radius: 14px;
+    --shadow: 0 4px 12px rgba(0,0,0,.08);
+    --shadow-lg: 0 6px 18px rgba(0,0,0,.12);
+}
+
+.tomar-curso-container {
+    min-height: 100vh;
+    background: linear-gradient(135deg,#f8fafc 0%,#eef4ff 100%);
+    font-family: 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ===== HEADER / HERO ===== */
+.curso-header {
+    background: radial-gradient(1200px 400px at 10% 0%, rgba(0,74,173,.06), transparent 70%), radial-gradient(900px 350px at 90% -10%, rgba(255,111,0,.05), transparent 65%), #fff;
+    border-bottom: 4px solid var(--primary);
+    padding: .75rem 0; /* compacto */
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+
+.curso-hero {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: .75rem; /* compacto */
+    align-items: center;
+    min-height: auto; /* evita alturas forzadas */
+}
+
+.curso-hero-left {
+    min-width: 0;
+}
+
+.curso-chip-level {
+    /* fallbacks */
+    background: #eef4ff;
+    border: 1px solid #d7def1;
+    /* modernos */
+    background: color-mix(in srgb, var(--nivel-color), #fff 85%);
+    border-color: color-mix(in srgb, var(--nivel-color), #000 85%);
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .35rem .7rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: .78rem;
+    color: var(--primary);
+}
+
+.curso-title {
+    color: var(--primary);
+    font-weight: 900;
+    font-size: 2.1rem;
+    letter-spacing: .2px;
+    margin: .25rem 0 0;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    /* Clamp para nombres largos (hasta 2 líneas) */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.title-accent {
+    width: 18px;
+    height: 10px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary), #fff 40%));
+    box-shadow: 0 2px 10px rgba(0,74,173,.25);
+}
+
+.curso-description {
+    color: var(--gray-600);
+    font-size: 1rem;
+    line-height: 1.6;
+    margin: .25rem 0 0;
+    max-width: 70ch;
+}
+
+.curso-meta-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .9rem;
+}
+
+.meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .4rem .7rem;
+    border-radius: 999px;
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-weight: 600;
+    font-size: .85rem;
+    border: 1px solid var(--gray-200);
+}
+
+    .meta-chip i {
+        font-size: .9rem;
+    }
+
+.meta-chip-primary {
+    background: color-mix(in srgb, var(--primary), #fff 85%);
+    color: var(--primary);
+    border-color: color-mix(in srgb, var(--primary), #000 90%);
+}
+
+.meta-chip-success {
+    background: color-mix(in srgb, var(--success), #fff 88%);
+    color: var(--success);
+    border-color: color-mix(in srgb, var(--success), #000 90%);
+}
+
+.meta-chip-muted {
+    opacity: .85;
+}
+
+.curso-hero-right {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* ===== TARJETAS / CONTENEDORES ===== */
+.stat-card, .subcursos-container, .info-card {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.stat-card {
+    padding: var(--sp-6);
+    text-align: center;
+}
+
+.subcursos-container {
+    margin-top: 2rem;
+}
+
+.info-card {
+    margin-top: 2rem;
+}
+
+.info-card-header {
+    background: var(--gray-50);
+    padding: var(--sp-5) var(--sp-6);
+    border-bottom: 1px solid var(--gray-200);
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.info-card-body {
+    padding: var(--sp-6);
+}
+
+/* ===== PROGRESO GENERAL (círculo) ===== */
+.progress-circle {
+    --percentage: 0;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--sp-4);
+    background: conic-gradient(var(--primary) calc(var(--percentage)*1%), var(--gray-200) 0);
+    transition: background .4s ease;
+}
+
+.progress-circle-inner {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--primary);
+}
+
+.progress-percentage {
+    line-height: 1;
+}
+
+/* ===== SUBCURSOS ===== */
+.subcursos-header {
+    padding: var(--sp-6);
+    border-bottom: 1px solid var(--gray-200);
+    background: var(--gray-50);
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.subcursos-list {
+    display: block;
+}
+
+.subcurso-item {
+    border-bottom: 1px solid var(--gray-100);
+    transition: background .25s ease, border-left-color .25s ease;
+}
+
+    .subcurso-item:last-child {
+        border-bottom: 0;
+    }
+
+    .subcurso-item:hover:not(.locked) {
+        background: var(--gray-50);
+    }
+
+    .subcurso-item.completed {
+        background: linear-gradient(90deg, rgba(46,125,50,.10) 0%, transparent 100%);
+        border-left: 4px solid var(--success);
+    }
+
+    .subcurso-item.in-progress {
+        background: linear-gradient(90deg, rgba(0,74,173,.12) 0%, transparent 100%);
+        border-left: 4px solid var(--primary);
+    }
+
+    .subcurso-item.locked {
+        opacity: .65;
+        background: var(--gray-50);
+    }
+
+.subcurso-card {
+    display: flex;
+    gap: var(--sp-5);
+    padding: var(--sp-5) var(--sp-6);
+}
+
+.subcurso-number {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--gray-200);
+    color: var(--gray-700);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
+.subcurso-item.completed .subcurso-number {
+    background: var(--success);
+    color: #fff;
+}
+
+.subcurso-item.in-progress .subcurso-number {
+    background: var(--primary);
+    color: #fff;
+}
+
+.subcurso-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.subcurso-header {
+    display: flex;
+    gap: var(--sp-3);
+    align-items: center;
+    justify-content: space-between;
+}
+
+.subcurso-title {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--gray-800);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.subcurso-badges .badge {
+    margin-left: .25rem;
+}
+
+.subcurso-description {
+    font-size: .92rem;
+    color: var(--gray-600);
+    margin: .35rem 0 .6rem;
+}
+
+.subcurso-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem var(--sp-6);
+    color: var(--gray-700);
+    font-size: .9rem;
+}
+
+    .subcurso-meta .meta-item {
+        display: flex;
+        align-items: center;
+        gap: .35rem;
+    }
+
+.subcurso-progress {
+    margin-top: .6rem;
+}
+
+.progress {
+    height: .75rem;
+}
+
+.progress-sm {
+    height: .55rem;
+}
+
+.progress-xs {
+    height: .4rem;
+}
+
+.progress, .progress-sm, .progress-xs {
+    background: var(--gray-200);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    transition: width .4s ease;
+}
+
+/* Botón acción subcurso */
+.subcurso-actions {
+    display: flex;
+    align-items: flex-start;
+    gap: .5rem;
+}
+
+    .subcurso-actions .btn-universidad {
+        background: var(--primary);
+        color: #fff;
+        border-radius: 8px;
+        padding: .45rem 1rem;
+        font-weight: 600;
+        transition: transform .2s ease, background .2s ease;
+    }
+
+        .subcurso-actions .btn-universidad:hover {
+            background: var(--secondary);
+            transform: translateY(-1px);
+        }
+
+/* ===== INFO ITEMS ===== */
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    padding: .8rem 0;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+    .info-item:last-child {
+        border-bottom: 0;
+    }
+
+.info-label {
+    color: var(--gray-600);
+    font-size: .92rem;
+}
+
+.info-value {
+    color: var(--gray-800);
+    font-weight: 700;
+}
+
+/* ===== Próximo paso / Empty ===== */
+.next-step {
+    text-align: center;
+    padding: var(--sp-6);
+}
+
+.next-step-title {
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: .25rem;
+}
+
+.next-step-description {
+    font-size: .92rem;
+    color: var(--gray-700);
+}
+
+.empty-state i {
+    opacity: .6;
+}
+
+/* ===== Responsive ===== */
+@media (max-width:1200px) {
+    .curso-hero {
+        grid-template-columns: 1fr 300px;
+    }
+}
+
+@media (max-width:992px) {
+    .curso-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .curso-hero-right {
+        justify-content: flex-start;
+    }
+
+    .curso-title {
+        font-size: 1.9rem;
+    }
+}
+
+@media (max-width:768px) {
+    .subcurso-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .subcurso-header {
+        flex-direction: column;
+        gap: .25rem;
+    }
+
+    .subcurso-actions {
+        justify-content: center;
+    }
+
+    .curso-title {
+        font-size: 1.7rem;
+    }
+}
+
+/* ===== Ajustes de márgenes post-header ===== */
+/* Reduce márgenes grandes que vengan de utilidades Bootstrap */
+.tomar-curso-container > .container-fluid.mt-4 {
+    margin-top: .25rem;
+}
+
+.tomar-curso-container [class*="mt-5"] {
+    margin-top: 1rem;
+}
+
+/* ===== Preferencias de movimiento ===== */
+@media (prefers-reduced-motion: reduce) {
+    .progress-bar, .progress-circle {
+        transition: none;
+    }
+}
+
+
+.curso-header .breadcrumb {
+    /* Si tienes Bootstrap, puedes activar el separador con variable: */
+    /* --bs-breadcrumb-divider: '›'; */
+    background: transparent;
+    padding: 0;
+    margin: 0;
+}
+
+.curso-header .breadcrumb-item {
+    font-size: .9rem;
+    color: var(--gray-600);
+}
+
+    .curso-header .breadcrumb-item + .breadcrumb-item::before {
+        /* Funciona aunque no tengas Bootstrap cargado */
+        content: "›";
+        color: var(--gray-400);
+        padding: 0 .35rem;
+    }
+
+.curso-header .breadcrumb a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+    .curso-header .breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+.curso-header .breadcrumb-item.active {
+    color: var(--gray-700);
+    font-weight: 700;
+}

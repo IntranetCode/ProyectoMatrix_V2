@@ -63,17 +63,50 @@
                     <!-- Video Player -->
                     @if (!string.IsNullOrEmpty(Model.ArchivoVideo))
                     {
-                        <div class="video-container">
+                        <div class="ns-video">
                             <video id="videoPlayer"
-                                   class="video-player"
-                                   controls
                                    preload="metadata"
+                                   class="ns-video-el"
                                    data-subcurso-id="@Model.SubCursoID"
                                    data-usuario-id="@usuarioId"
-                                   data-empresa-id="@empresaId">
+                                   data-empresa-id="@empresaId"
+                                   controlslist="nodownload noplaybackrate noremoteplayback"
+                                   playsinline
+                                   disablepictureinpicture>
                                 <source src="~/contenidos/@Model.ArchivoVideo" type="video/mp4">
-                                <p>Su navegador no soporta la reproducción de video.</p>
+                                Tu navegador no soporta video HTML5.
                             </video>
+
+                            <!-- Controles personalizados -->
+                            <div class="ns-controls">
+                                <div class="ns-left">
+                                    <button type="button" class="ns-btn ns-btn-primary" id="btnPlay" aria-label="Reproducir/Pausa">
+                                        <!-- ícono play/pause via CSS -->
+                                        <span class="ns-icon ns-icon-play" id="iconPlay"></span>
+                                    </button>
+                                    <button type="button" class="ns-btn" id="btnBack" aria-label="Retroceder 10 segundos" title="Retroceder 10s">
+                                        <span class="ns-icon ns-icon-back"></span>
+                                    </button>
+                                    <button type="button" class="ns-btn ns-btn-disabled" id="btnFwd" aria-label="Adelantar deshabilitado"
+                                            title="Adelantar deshabilitado" disabled>
+                                        <span class="ns-icon ns-icon-fwd"></span>
+                                    </button>
+                                </div>
+
+                                <div class="ns-right">
+                                    <div class="ns-progress" aria-hidden="true">
+                                        <div class="ns-progress-bar">
+                                            <div class="ns-progress-fill" id="progressFill" style="width:0%"></div>
+                                        </div>
+                                        <div class="ns-times">
+                                            <span id="timeCurrent">0:00</span>
+                                            <span id="timeSep">/</span>
+                                            <span id="timeDuration">0:00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                     
 
                             <!-- Overlay de progreso -->
                             <div class="video-progress-overlay" id="videoProgressOverlay">
@@ -222,18 +255,15 @@
                             </small>
                         </div>
 
-                        <button class="btn btn-warning w-100"
-                                id="startEvaluationBtn">
+                        <a class="btn btn-warning w-100" id="startEvaluationBtn"
+                           asp-controller="Universidad"
+                           asp-action="TomarEvaluacion"
+                           asp-route-subCursoId="@Model.SubCursoID">
                             <i class="fas fa-play-circle me-2"></i>
-                            @if (Model.UltimoIntento?.Aprobado == true)
-                            {
-                                <span>Repetir Evaluación</span>
-                            }
-                            else
-                            {
-                                <span>Tomar Evaluación</span>
-                            }
-                        </button>
+                            @(Model.UltimoIntento?.Aprobado == true ? "Repetir Evaluación" : "Tomar Evaluación")
+                        </a>
+
+
                     </div>
                 }
 
@@ -491,177 +521,572 @@
             font-size: 0.8rem;
         }
     }
+
+
+
+    .ns-video {
+        position: relative;
+        width: 100%;
+        background: #000;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .ns-video-el {
+        width: 100%;
+        height: auto;
+        display: block;
+        background: #000;
+    }
+
+    /* Controles overlay */
+    .ns-controls {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: .75rem;
+        padding: .75rem .9rem;
+        background: linear-gradient(transparent, rgba(0,0,0,.6));
+        color: #fff;
+        user-select: none;
+    }
+
+    .ns-left, .ns-right {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    .ns-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,.25);
+        background: rgba(255,255,255,.08);
+        color: #fff;
+        transition: .2s ease;
+        backdrop-filter: blur(2px);
+    }
+
+        .ns-btn:hover {
+            background: rgba(255,255,255,.18);
+            border-color: rgba(255,255,255,.35);
+        }
+
+        .ns-btn:active {
+            transform: translateY(1px);
+        }
+
+    .ns-btn-primary {
+        width: 44px;
+        height: 44px;
+        border-color: transparent;
+        background: #2563eb;
+    }
+
+        .ns-btn-primary:hover {
+            background: #1e4ed8;
+        }
+
+    .ns-btn-disabled, .ns-btn[disabled] {
+        opacity: .45;
+        cursor: not-allowed;
+        filter: grayscale(20%);
+        pointer-events: none;
+    }
+
+    /* Iconos con CSS puro */
+    .ns-icon {
+        width: 0;
+        height: 0;
+        position: relative;
+        display: block;
+    }
+
+    .ns-icon-play { /* triángulo play */
+        border-left: 10px solid #fff;
+        border-top: 6px solid transparent;
+        border-bottom: 6px solid transparent;
+    }
+
+    .ns-icon-pause { /* pause: dos barras */
+        width: 12px;
+        height: 12px;
+        box-sizing: content-box;
+    }
+
+        .ns-icon-pause::before, .ns-icon-pause::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            width: 4px;
+            height: 12px;
+            background: #fff;
+            border-radius: 1px;
+        }
+
+        .ns-icon-pause::before {
+            left: 0;
+        }
+
+        .ns-icon-pause::after {
+            right: 0;
+        }
+
+    .ns-icon-back, .ns-icon-fwd {
+        width: 14px;
+        height: 14px;
+        position: relative;
+    }
+
+        .ns-icon-back::before, .ns-icon-back::after,
+        .ns-icon-fwd::before, .ns-icon-fwd::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
+
+        .ns-icon-back::before { /* doble triángulo apuntando a la izq */
+            left: 0;
+            border-right: 8px solid #fff;
+        }
+
+        .ns-icon-back::after {
+            left: 6px;
+            border-right: 8px solid #fff;
+        }
+
+        .ns-icon-fwd::before {
+            right: 6px;
+            border-left: 8px solid #fff;
+        }
+
+        .ns-icon-fwd::after {
+            right: 0;
+            border-left: 8px solid #fff;
+        }
+
+    /* Progreso solo visual (no interactivo) */
+    .ns-progress {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        min-width: 220px;
+    }
+
+    .ns-progress-bar {
+        position: relative;
+        width: 360px;
+        max-width: 48vw;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.25);
+        overflow: hidden;
+        pointer-events: none; /* clave: no clics */
+    }
+
+    .ns-progress-fill {
+        height: 100%;
+        width: 0%;
+        background: #22c55e;
+        transition: width .15s linear;
+    }
+
+    .ns-times {
+        font: 500 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        opacity: .95;
+    }
+
+    #timeSep {
+        opacity: .7;
+        margin: 0 .25rem;
+    }
+
+    /* Oculta controles nativos para que se vean solo los personalizados (dejamos accesos mínimos si quieres) */
+    .ns-video-el::-webkit-media-controls-panel {
+        display: none !important;
+    }
+
+    .ns-video-el::-webkit-media-controls {
+        display: none !important;
+    }
+
+
 </style>
 
+@section Scripts{
 
-<script>
-    // Variables globales
-    const videoConfig = {
-        subCursoId: @Model.SubCursoID,
-        usuarioId: @usuarioId,
-        empresaId: @empresaId,
-        progresoPrevio: @Model.PorcentajeVisto,
-        tiempoVistoPrevio: @Model.TiempoTotalVisto,
-        requiereEvaluacion: @Model.RequiereEvaluacion.ToString().ToLower(),
-        completado: @Model.Completado.ToString().ToLower()
-    };
+    <script>
+        // Variables globales
+        const videoConfig = {
+            subCursoId: @Model.SubCursoID,
+            usuarioId: @usuarioId,
+            empresaId: @empresaId,
+            progresoPrevio: @Model.PorcentajeVisto,
+            tiempoVistoPrevio: @Model.TiempoTotalVisto,
+            requiereEvaluacion: @Model.RequiereEvaluacion.ToString().ToLower(),
+            completado: @Model.Completado.ToString().ToLower()
+        };
 
-    document.addEventListener('DOMContentLoaded', function() {
-        initVideoTracking();
-        initEvaluationButton();
-        initNotesFeature();
-    });
+        document.addEventListener('DOMContentLoaded', function() {
+            initVideoTracking();
+            initEvaluationButton();
+            initNotesFeature();
+        });
 
-    function initVideoTracking() {
-        const video = document.getElementById('videoPlayer');
-        if (!video) return;
+        function initVideoTracking() {
+            const video = document.getElementById('videoPlayer');
+            if (!video) return;
 
-        let lastUpdateTime = 0;
-        let totalWatchTime = videoConfig.tiempoVistoPrevio;
+            let lastUpdateTime = 0;
+            let totalWatchTime = videoConfig.tiempoVistoPrevio;
 
-        video.addEventListener('timeupdate', function() {
-            const currentTime = Math.floor(video.currentTime);
-            const duration = Math.floor(video.duration);
+            video.addEventListener('timeupdate', function() {
+                const currentTime = Math.floor(video.currentTime);
+                const duration = Math.floor(video.duration);
 
-            if (currentTime > lastUpdateTime) {
-                totalWatchTime += (currentTime - lastUpdateTime);
-                lastUpdateTime = currentTime;
+                if (currentTime > lastUpdateTime) {
+                    totalWatchTime += (currentTime - lastUpdateTime);
+                    lastUpdateTime = currentTime;
 
-                const progress = duration > 0 ? Math.min((totalWatchTime / duration) * 100, 100) : 0;
+                    const progress = duration > 0 ? Math.min((totalWatchTime / duration) * 100, 100) : 0;
 
-                updateProgressDisplay(progress, totalWatchTime);
+                    updateProgressDisplay(progress, totalWatchTime);
 
-                // Enviar progreso cada 10 segundos
-                if (currentTime % 10 === 0) {
-                    sendProgressUpdate(progress, totalWatchTime);
+                    // Enviar progreso cada 10 segundos
+                    if (currentTime % 10 === 0) {
+                        sendProgressUpdate(progress, totalWatchTime);
+                    }
+
+                    // Mostrar botón de completar si está cerca del final
+                    if (progress >= 95 && !videoConfig.completado) {
+                        document.getElementById('completeModuleBtn').style.display = 'block';
+                    }
                 }
-
-                // Mostrar botón de completar si está cerca del final
-                if (progress >= 95 && !videoConfig.completado) {
-                    document.getElementById('completeModuleBtn').style.display = 'block';
-                }
-            }
-        });
-
-        video.addEventListener('pause', function() {
-            lastUpdateTime = Math.floor(video.currentTime);
-        });
-
-        video.addEventListener('play', function() {
-            lastUpdateTime = Math.floor(video.currentTime);
-        });
-    }
-
-    function updateProgressDisplay(progress, timeWatched) {
-        document.getElementById('progressPercentage').textContent = Math.round(progress);
-        document.getElementById('displayProgress').textContent = progress.toFixed(1) + '%';
-
-        const minutes = Math.floor(timeWatched / 60);
-        const seconds = timeWatched % 60;
-        const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-
-        document.getElementById('timeWatched').textContent = timeString;
-        document.getElementById('displayTimeWatched').textContent = timeString;
-
-        const progressBar = document.getElementById('overallProgressBar');
-        progressBar.style.width = progress + '%';
-
-        // Actualizar estado
-        const statusBadge = document.getElementById('displayStatus');
-        if (progress >= 95) {
-            statusBadge.className = 'badge bg-success';
-            statusBadge.textContent = 'Completado';
-        } else if (progress > 0) {
-            statusBadge.className = 'badge bg-primary';
-            statusBadge.textContent = 'En Progreso';
-        }
-    }
-
-    function sendProgressUpdate(progress, timeWatched) {
-        fetch('/Universidad/ActualizarProgreso', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                SubCursoID: videoConfig.subCursoId,
-                UsuarioID: videoConfig.usuarioId,
-                EmpresaID: videoConfig.empresaId,
-                TiempoTotalVisto: timeWatched,
-                PorcentajeVisto: progress
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Progreso actualizado');
-            }
-        })
-        .catch(error => console.error('Error actualizando progreso:', error));
-    }
-
-    function initEvaluationButton() {
-        const evaluationBtn = document.getElementById('startEvaluationBtn');
-        if (evaluationBtn) {
-            evaluationBtn.addEventListener('click', function() {
-                window.location.href = `/Universidad/TomarEvaluacion/${videoConfig.subCursoId}`;
-            });
-        }
-    }
-
-    function initNotesFeature() {
-        const saveBtn = document.getElementById('saveNotesBtn');
-        if (saveBtn) {
-            saveBtn.addEventListener('click', function() {
-                const notes = document.getElementById('moduleNotes').value;
-                // Aquí podrías implementar guardar notas en localStorage o enviar al servidor
-                localStorage.setItem(`notes_${videoConfig.subCursoId}`, notes);
-
-                // Mostrar confirmación
-                const originalText = saveBtn.innerHTML;
-                saveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Guardado';
-                saveBtn.classList.add('btn-success');
-
-                setTimeout(() => {
-                    saveBtn.innerHTML = originalText;
-                    saveBtn.classList.remove('btn-success');
-                }, 2000);
             });
 
-            // Cargar notas guardadas
-            const savedNotes = localStorage.getItem(`notes_${videoConfig.subCursoId}`);
-            if (savedNotes) {
-                document.getElementById('moduleNotes').value = savedNotes;
+            video.addEventListener('pause', function() {
+                lastUpdateTime = Math.floor(video.currentTime);
+            });
+
+            video.addEventListener('play', function() {
+                lastUpdateTime = Math.floor(video.currentTime);
+            });
+        }
+
+        function updateProgressDisplay(progress, timeWatched) {
+            document.getElementById('progressPercentage').textContent = Math.round(progress);
+            document.getElementById('displayProgress').textContent = progress.toFixed(1) + '%';
+
+            const minutes = Math.floor(timeWatched / 60);
+            const seconds = timeWatched % 60;
+            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+            document.getElementById('timeWatched').textContent = timeString;
+            document.getElementById('displayTimeWatched').textContent = timeString;
+
+            const progressBar = document.getElementById('overallProgressBar');
+            progressBar.style.width = progress + '%';
+
+            // Actualizar estado
+            const statusBadge = document.getElementById('displayStatus');
+            if (progress >= 95) {
+                statusBadge.className = 'badge bg-success';
+                statusBadge.textContent = 'Completado';
+            } else if (progress > 0) {
+                statusBadge.className = 'badge bg-primary';
+                statusBadge.textContent = 'En Progreso';
             }
         }
-    }
 
-    // Botón completar módulo
-    document.addEventListener('click', function(e) {
-        if (e.target.id === 'completeModuleBtn') {
-            fetch('/Universidad/CompletarSubCurso', {
+        function sendProgressUpdate(progress, timeWatched) {
+            fetch('/Universidad/ActualizarProgreso', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    SubCursoId: videoConfig.subCursoId,
-                    TiempoVisto: videoConfig.tiempoVistoPrevio + Math.floor(document.getElementById('videoPlayer')?.currentTime || 0)
+                    SubCursoID: videoConfig.subCursoId,
+                    UsuarioID: videoConfig.usuarioId,
+                    EmpresaID: videoConfig.empresaId,
+                    TiempoTotalVisto: timeWatched,
+                    PorcentajeVisto: progress
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('¡Módulo completado exitosamente!');
-                    location.reload();
-                } else {
-                    alert('Error al completar el módulo: ' + data.message);
+                    console.log('Progreso actualizado');
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al completar el módulo');
-            });
+            .catch(error => console.error('Error actualizando progreso:', error));
         }
-    });
-</script>
+
+        function initEvaluationButton() {
+            const evaluationBtn = document.getElementById('startEvaluationBtn');
+            if (evaluationBtn) {
+                evaluationBtn.addEventListener('click', function() {
+                    window.location.href = `/Universidad/TomarEvaluacion/${videoConfig.subCursoId}`;
+                });
+            }
+        }
+
+        function initNotesFeature() {
+            const saveBtn = document.getElementById('saveNotesBtn');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', function() {
+                    const notes = document.getElementById('moduleNotes').value;
+                    // Aquí podrías implementar guardar notas en localStorage o enviar al servidor
+                    localStorage.setItem(`notes_${videoConfig.subCursoId}`, notes);
+
+                    // Mostrar confirmación
+                    const originalText = saveBtn.innerHTML;
+                    saveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Guardado';
+                    saveBtn.classList.add('btn-success');
+
+                    setTimeout(() => {
+                        saveBtn.innerHTML = originalText;
+                        saveBtn.classList.remove('btn-success');
+                    }, 2000);
+                });
+
+                // Cargar notas guardadas
+                const savedNotes = localStorage.getItem(`notes_${videoConfig.subCursoId}`);
+                if (savedNotes) {
+                    document.getElementById('moduleNotes').value = savedNotes;
+                }
+            }
+        }
+
+        // Botón completar módulo
+        document.addEventListener('click', function(e) {
+            if (e.target.id === 'completeModuleBtn') {
+                fetch('/Universidad/CompletarSubCurso', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        SubCursoId: videoConfig.subCursoId,
+                        TiempoVisto: videoConfig.tiempoVistoPrevio + Math.floor(document.getElementById('videoPlayer')?.currentTime || 0)
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('¡Módulo completado exitosamente!');
+                        location.reload();
+                    } else {
+                        alert('Error al completar el módulo: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al completar el módulo');
+                });
+            }
+        });
+    </script>
+
+
+
+    <script>
+        (function () {
+          const v = document.getElementById('videoPlayer');
+          if (!v) return;
+
+          // Opcional pero recomendado para evitar PiP y cambio de velocidad
+          v.setAttribute('controlsList', 'nodownload noplaybackrate noremoteplayback');
+          v.disablePictureInPicture = true;
+
+          // Carga el último punto permitido desde el servidor (segundos ya vistos)
+          let lastAllowed = Number(@Model.TiempoTotalVisto) || 0;  // ✅ ajusta si tu propiedad se llama diferente
+          if (lastAllowed < 0) lastAllowed = 0;
+
+          // Pequeño margen para falsos positivos de seeking
+          const EPS = 0.35;
+
+          // Reanudar donde se quedó
+          v.addEventListener('loadedmetadata', () => {
+            if (lastAllowed > 0 && lastAllowed < (v.duration || Infinity)) {
+              v.currentTime = lastAllowed;
+            }
+            // Cualquier rate raro se fuerza a 1x
+            if (v.playbackRate !== 1) v.playbackRate = 1;
+          });
+
+          // Mientras ve el video, avanza el límite permitido
+          v.addEventListener('timeupdate', () => {
+            if (v.currentTime > lastAllowed) lastAllowed = v.currentTime;
+          });
+
+          // Evita acelerar la reproducción
+          v.addEventListener('ratechange', () => {
+            if (v.playbackRate !== 1) v.playbackRate = 1;
+          });
+
+          // ——— Núcleo anti-adelanto ———
+          let clampGuardUntil = 0; // tiempo (ms) hasta cuando reforzar el clamp tras un seek
+          function clampIfForward() {
+            if (v.currentTime > lastAllowed + EPS) {
+              // Si intenta ir más allá, lo regresamos al último punto visto
+              v.currentTime = lastAllowed;
+            }
+          }
+
+          // Cuando el usuario busca con la barra o atajos, se dispara seeking/seeked
+          v.addEventListener('seeking', () => {
+            // Permitir ir hacia atrás libremente; solo bloquea si es hacia adelante
+            clampIfForward();
+            // Durante ~700ms después del seek, reforzamos el clamp cada frame
+            clampGuardUntil = performance.now() + 700;
+            requestAnimationFrame(function guard() {
+              clampIfForward();
+              if (performance.now() < clampGuardUntil) requestAnimationFrame(guard);
+            });
+          });
+
+          v.addEventListener('seeked', clampIfForward);
+
+          // Bloquea teclas que adelantan; deja retroceso
+          v.addEventListener('keydown', (e) => {
+            // ArrowRight / End / PageUp suelen adelantar
+            if (['ArrowRight', 'End', 'PageUp'].includes(e.key)) {
+              e.preventDefault();
+              // Si quisieras, podrías permitir salto atrás con ArrowLeft sin tocar nada
+            }
+          });
+
+          // (Opcional) Evita menú contextual (por si alguien intenta hacks)
+          v.addEventListener('contextmenu', e => e.preventDefault());
+        })();
+    </script>
+
+    <script>
+        (function () {
+          const v = document.getElementById('videoPlayer');
+          if (!v) return;
+
+          // ——— elementos UI
+          const btnPlay = document.getElementById('btnPlay');
+          const iconPlay = document.getElementById('iconPlay');
+          const btnBack = document.getElementById('btnBack');
+          const btnFwd  = document.getElementById('btnFwd');
+          const fill    = document.getElementById('progressFill');
+          const tCur    = document.getElementById('timeCurrent');
+          const tDur    = document.getElementById('timeDuration');
+
+          // ——— estado
+          const EPS = 0.35;
+          let lastAllowed = Number(@Model.TiempoTotalVisto) || 0; // reanudar
+          let seekingNow = false;
+
+          // util
+          const fmt = s => {
+            s = Math.max(0, Math.floor(s));
+            const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+            return h>0 ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+                       : `${m}:${String(sec).padStart(2,'0')}`;
+          };
+
+          // init
+          v.addEventListener('loadedmetadata', () => {
+            if (v.duration && lastAllowed >= v.duration) lastAllowed = Math.max(0, v.duration - 1);
+            if (lastAllowed > 0) v.currentTime = lastAllowed;
+            tDur.textContent = fmt(v.duration || 0);
+            updateUI();
+          });
+
+          // botones
+          btnPlay.addEventListener('click', async () => {
+            if (v.paused) { try { await v.play(); } catch {} } else { v.pause(); }
+          });
+          v.addEventListener('play',  () => swapIcon('pause'));
+          v.addEventListener('pause', () => swapIcon('play'));
+
+          function swapIcon(state){
+            if (state === 'pause') {
+              iconPlay.classList.remove('ns-icon-play');
+              iconPlay.classList.add('ns-icon-pause');
+            } else {
+              iconPlay.classList.remove('ns-icon-pause');
+              iconPlay.classList.add('ns-icon-play');
+            }
+          }
+
+          btnBack.addEventListener('click', () => {
+            v.currentTime = Math.max(0, v.currentTime - 10);
+          });
+
+          // Adelantar deshabilitado (mostrado solo visual)
+          btnFwd.addEventListener('click', (e) => { e.preventDefault(); });
+
+          // bloquear rate
+          v.addEventListener('ratechange', () => { if (v.playbackRate !== 1) v.playbackRate = 1; });
+
+          // bloquear advance
+          v.addEventListener('seeking', () => {
+            seekingNow = true;
+            if (v.currentTime > lastAllowed + EPS) v.currentTime = lastAllowed;
+          });
+          v.addEventListener('seeked', () => {
+            if (v.currentTime > lastAllowed + EPS) v.currentTime = lastAllowed;
+            seekingNow = false;
+          });
+
+          v.addEventListener('timeupdate', () => {
+            if (!v.paused && !seekingNow && v.currentTime > lastAllowed) lastAllowed = v.currentTime;
+            updateUI();
+          });
+
+          // guardia también en pausa (por click en la barra nativa si apareciera)
+          const guard = setInterval(() => {
+            if (v.currentTime > lastAllowed + EPS) v.currentTime = lastAllowed;
+          }, 120);
+
+          window.addEventListener('beforeunload', () => clearInterval(guard));
+
+          // UI
+          function updateUI(){
+            const dur = v.duration || 0;
+            const cur = v.currentTime || 0;
+            const pct = dur ? (cur / dur) * 100 : 0;
+            fill.style.width = `${pct}%`;
+            tCur.textContent = fmt(cur);
+            if (dur) tDur.textContent = fmt(dur);
+          }
+
+          // evitar menú/contexto sobre video
+          v.addEventListener('contextmenu', e => e.preventDefault());
+        })();
+    </script>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          const btn = document.getElementById('startEvaluationBtn');
+          if (!btn) return;
+
+          btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-subcurso-id');
+            // ¡OJO! El parámetro debe llamarse EXACTAMENTE igual que en tu acción: subCursoId
+            window.location.href = '@Url.Action("TomarEvaluacion", "Universidad")' + '?subCursoId=' + encodeURIComponent(id);
+          });
+        });
+    </script>
+
+
+}
+

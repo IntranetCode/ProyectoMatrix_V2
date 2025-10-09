@@ -27,9 +27,9 @@
     <link rel="stylesheet" href="~/css/components/cards.css" asp-append-version="true" />
     <link href="~/css/stylesUniversidadLU.css" rel="stylesheet" />
     <!-- Universidad NS Specific CSS -->
-    <link rel="stylesheet" href="~/css/universidad/universidad-core.css" asp-append-version="true" />
+    @*<link rel="stylesheet" href="~/css/universidad/universidad-core.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/universidad/universidad-components.css" asp-append-version="true" />
-
+*@ 
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
@@ -132,7 +132,7 @@
                 <div class="user-menu">
                     <button class="user-toggle" id="userMenuToggle">
                         <div class="user-avatar">
-                            <img src="~/Imagenes/avatars/default-avatar.png"
+                            <img src="~/Imagenes/default-avatar.png"
                                  alt="@nombreUsuario"
                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                             <div class="avatar-fallback" style="display: none;">
@@ -197,50 +197,7 @@
         <!-- Los toasts se agregan dinámicamente aquí -->
     </div>
 
-    <!-- Notifications Panel -->
-    <div class="notifications-panel" id="notificationsPanel">
-        <div class="notifications-header">
-            <h6>Notificaciones</h6>
-            <button class="btn-close" id="closeNotifications"></button>
-        </div>
-        <div class="notifications-content">
-            <div class="notification-item unread">
-                <div class="notification-icon bg-primary">
-                    <i class="fas fa-graduation-cap"></i>
-                </div>
-                <div class="notification-content">
-                    <h6>Nuevo curso asignado</h6>
-                    <p>Se te ha asignado el curso "Seguridad Alimentaria"</p>
-                    <small class="text-muted">Hace 2 horas</small>
-                </div>
-            </div>
-            <div class="notification-item">
-                <div class="notification-icon bg-success">
-                    <i class="fas fa-certificate"></i>
-                </div>
-                <div class="notification-content">
-                    <h6>Certificado disponible</h6>
-                    <p>Tu certificado de "Higiene Personal" está listo</p>
-                    <small class="text-muted">Ayer</small>
-                </div>
-            </div>
-            <div class="notification-item">
-                <div class="notification-icon bg-warning">
-                    <i class="fas fa-clock"></i>
-                </div>
-                <div class="notification-content">
-                    <h6>Recordatorio</h6>
-                    <p>Tienes 3 días para completar "Capacitación BPM"</p>
-                    <small class="text-muted">Hace 3 días</small>
-                </div>
-            </div>
-        </div>
-        <div class="notifications-footer">
-            <a href="/Universidad/Notificaciones" class="btn btn-sm btn-outline-primary w-100">
-                Ver todas las notificaciones
-            </a>
-        </div>
-    </div>
+    
 
     <!-- Overlay para cerrar paneles -->
     <div class="panel-overlay" id="panelOverlay"></div>
