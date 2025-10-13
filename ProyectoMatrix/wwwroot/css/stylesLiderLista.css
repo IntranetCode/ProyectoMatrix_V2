@@ -49,7 +49,7 @@ body {
         pointer-events: none;
     }
 
-  
+
     .lider-hero-container .hero-content {
         position: absolute;
         left: 50%;
@@ -111,7 +111,6 @@ body {
     background: linear-gradient(135deg, #04173b 0%, #063f63 50%, #04173b 100%) !important;
     width: 350px;
     height: 160px;
-
 }
 
     .card.h-100:hover {
@@ -120,7 +119,6 @@ body {
     }
 
     .card.h-100 .card-img-top {
-      
         object-fit: cover;
         object-position: center;
     }
@@ -187,16 +185,14 @@ h2.mb-3 {
         border: 1px solid rgba(59,130,246,.2);
     }
 }
+
 .hero-video-player iframe {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-   
-
-
-    }
+}
 
 
 .hero-video-wrap {
@@ -336,32 +332,40 @@ h2.mb-3 {
     color: #fff;
 }
 
-/* Hacer la imagen responsiva y con altura consistente */
-.card-img-top {
+/* Modal oculto por defecto */
+.video-modal {
+    display: none;
+
+}
+
+    /* Al abrir */
+    .video-modal.show {
+        display: block;
+    }
+
+.kiosko-wrap {
+    position: fixed;
+    inset: 0;
+    padding: 2rem;
+    background: rgba(0,0,0,.65);
+    z-index: 1055;
+    display: none;
+}
+
+    .kiosko-wrap .btn {
+        z-index: 1060;
+    }
+
+.kiosko-frame {
     width: 100%;
-    height: auto;
-    aspect-ratio: 16 / 9; /* mantiene proporción */
-    object-fit: cover;
-    display: block;
+    height: calc(100vh - 6rem);
+    border: 0;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.3);
 }
 
-/* Asegurar stacking limpio en móvil */
-@media (max-width: 576px) {
-    .row > [class*="col-"] {
-        margin-bottom: .75rem;
-    }
-
-    .card {
-        min-height: auto;
-    }
+body.kiosko-open {
+    overflow: hidden;
 }
 
-/* Evitar overlays por z-index (por si hay sombras/gradientes) */
-.card {
-    position: relative;
-}
-
-.card-body {
-    position: relative;
-    z-index: 1;
-}

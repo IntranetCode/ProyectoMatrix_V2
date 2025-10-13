@@ -20,6 +20,10 @@ namespace ProyectoMatrix.Models
         public string UrlRegistro { get; set; }
         public string UrlGrabacion { get; set; }
 
+        public string UrlEnVivoEmbed { get; set; }
+
+
+        public bool EsAsamblea => !string.IsNullOrWhiteSpace(UrlEnVivoEmbed);
 
         //Se agregaron helpers de estado 
 

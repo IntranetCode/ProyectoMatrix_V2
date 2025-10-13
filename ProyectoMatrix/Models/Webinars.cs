@@ -1,4 +1,6 @@
-﻿namespace ProyectoMatrix.Models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace ProyectoMatrix.Models
 {
     public class Webinar
     {
@@ -16,7 +18,12 @@
 
         public string? UrlRegistro { get; set; }
 
+        public string? UrlEnVivoEmbed { get; set; }
+
         public DateTime FechaCreacion { get; set; }
+
+        [NotMapped]
+        public bool EsAsamblea { get; set; }  // true = Asamblea , false = Webinar
 
         public bool Activo { get; set; } = true;
         public ICollection<WebinarEmpresa> WebinarsEmpresas { get; set; } = new List<WebinarEmpresa>();
@@ -36,6 +43,13 @@
        
     }
 
-   
+
+    public class WebinarGestionVm
+    {
+        public Webinar Webinar { get; set; } = default!;
+        public string DirigidoA { get; set; } = "-";
+    }
+
+
 
 }

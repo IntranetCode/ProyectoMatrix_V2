@@ -54,6 +54,24 @@ namespace ProyectoMatrix.Controllers
 
 
 
+        // metodo que decide que vista mostrarle al usuario segun sus permisos
+        [HttpGet]
+        public async Task<IActionResult> Entrada()
+        {
+            var userIdStr = User.FindFirst("UsuarioID")?.Value;
+            if (!int.TryParse(userIdStr, out var userId)) return RedirectToAction("Login", "Login");
+
+            // ¿Tiene alguna acción de gestor?
+            var esGestor =
+                await _acceso.TienePermisoAsync(userId, "Crear webinar", "Crear") ||
+                await _acceso.TienePermisoAsync(userId, "Editar webinar", "Editar") ||
+                await _acceso.TienePermisoAsync(userId, "Eliminar Proyectos", "Eliminar");
+
+            // Seguridad real: el controlador de Index/Lista debe tener su propia autorización.
+            return esGestor
+                ? RedirectToAction("Index", "Lider")
+                : RedirectToAction("Lista", "Lider");
+        }
 
         private List<SelectListItem> GetEmpresasSelect()
             => _db.Empresas
@@ -96,25 +114,40 @@ namespace ProyectoMatrix.Controllers
             return nombres.Count == 0 ? "-" : string.Join(", ", nombres);
         }
 
-        // metodo que decide que vista mostrarle al usuario segun sus permisos
-        [HttpGet]
-        public async Task<IActionResult> Entrada()
+
+        //Metodo que extrae el SRC de un iframer
+
+        private static string ExtractIframeSrcOrReturn(string input)
         {
-            var userIdStr = User.FindFirst("UsuarioID")?.Value;
-            if (!int.TryParse(userIdStr, out var userId)) return RedirectToAction("Login", "Login");
+            if (string.IsNullOrWhiteSpace(input)) return input?.Trim();
 
-            // ¿Tiene alguna acción de gestor?
-            var esGestor =
-                await _acceso.TienePermisoAsync(userId, "Crear webinar", "Crear") ||
-                await _acceso.TienePermisoAsync(userId, "Editar webinar", "Editar") ||
-                await _acceso.TienePermisoAsync(userId, "Eliminar Proyectos", "Eliminar");
+            var trimmed = input.Trim();
 
-            // Seguridad real: el controlador de Index/Lista debe tener su propia autorización.
-            return esGestor
-                ? RedirectToAction("Index", "Lider")
-                : RedirectToAction("Lista", "Lider");
+            // Si ya parece URL absoluta, se deculve tal cual
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out _))
+                return trimmed;
+
+            // src="..." cuando esta entre comillas dobles se estrae
+            var m = System.Text.RegularExpressions.Regex.Match(
+                trimmed, "src\\s*=\\s*\"([^\"]+)\"", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (m.Success) return m.Groups[1].Value.Trim();
+
+            // src='...' cuando esta en comillas simples se extrae
+            m = System.Text.RegularExpressions.Regex.Match(
+                trimmed, "src\\s*=\\s*'([^']+)'", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (m.Success) return m.Groups[1].Value.Trim();
+
+            return trimmed;
         }
 
+
+        private static bool IsAllowedLiveEmbedHost(string url)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+            var h = uri.Host.ToLowerInvariant();
+            // Town hall / convene y dominios Microsoft 365
+            return h.EndsWith(".microsoft.com") || h.EndsWith(".office.com") || h.EndsWith(".office365.com");
+        }
 
         [AutorizarAccion ("Ver Webinars", "Ver")]
         [HttpGet]
@@ -195,6 +228,7 @@ namespace ProyectoMatrix.Controllers
                     UrlTeams = w.UrlTeams,
                     UrlGrabacion = w.UrlGrabacion,
                     UrlRegistro = w.UrlRegistro,
+                    UrlEnVivoEmbed = w.UrlEnVivoEmbed,
                     Imagen = w.Imagen,
                     DirigidoA = w.EsPublico ? "Todas" : ""
                 })
@@ -240,6 +274,7 @@ namespace ProyectoMatrix.Controllers
                     UrlTeams = w.UrlTeams,
                     UrlRegistro = w.UrlRegistro,
                     UrlGrabacion = w.UrlGrabacion,
+                    UrlEnVivoEmbed = w.UrlEnVivoEmbed,
                     Imagen = w.Imagen,
                     DirigidoA = w.EsPublico ? "Todas" : ""
                 })
@@ -318,67 +353,82 @@ namespace ProyectoMatrix.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> CrearWebinar(Webinar model, int[]? empresasSeleccionadas, IFormFile? imagenFile)
         {
-
-
-            // Validación de coherencia de fechas
+            // Validación de fecha
             if (model.FechaFin <= model.FechaInicio)
                 ModelState.AddModelError(nameof(model.FechaFin), "La fecha de fin debe ser mayor que la fecha de inicio.");
 
-            // Validación de URLs (solo si vienen con valor)
-            // UrlRegistro (opcional, pero si viene debe ser válida)
+            // Normalización de los inputs
+            model.UrlEnVivoEmbed = ExtractIframeSrcOrReturn(model.UrlEnVivoEmbed);
+            model.UrlRegistro = model.UrlRegistro?.Trim();
+            model.UrlTeams = model.UrlTeams?.Trim();
+            model.UrlGrabacion = null; // siempre nula al crear
+
+            // Validaciones comunes opcionales
             if (!string.IsNullOrWhiteSpace(model.UrlRegistro) && !EsRegistroUrl(model.UrlRegistro))
                 ModelState.AddModelError(nameof(model.UrlRegistro), "La URL de registro debe ser de events.teams.microsoft.com.");
 
-            // UrlTeams (REQUERIDA y con formato válido)
-            if (string.IsNullOrWhiteSpace(model.UrlTeams))
-            {
-                ModelState.AddModelError(nameof(model.UrlTeams), "Debes proporcionar el enlace para unirse a Teams.");
-            }
-            else if (!EsJoinUrl(model.UrlTeams))
-            {
-                ModelState.AddModelError(nameof(model.UrlTeams), "La URL de unirse debe ser de teams.microsoft.com/l/meetup-join/...");
-            }
-
-            // UrlGrabacion (opcional, pero si viene debe ser válida)
             if (!string.IsNullOrWhiteSpace(model.UrlGrabacion) && !EsGrabacionUrl(model.UrlGrabacion))
                 ModelState.AddModelError(nameof(model.UrlGrabacion), "La URL de grabación debe ser de SharePoint/OneDrive/YouTube/Vimeo.");
 
+            // Reglas según formato
+            if (model.EsAsamblea)
+            {
+                // Asamblea: se requiere el url embed. Join es opcional (presentadores).
+                if (string.IsNullOrWhiteSpace(model.UrlEnVivoEmbed))
+                    ModelState.AddModelError(nameof(model.UrlEnVivoEmbed), "En Asamblea, el SRC de inserción es obligatorio.");
 
-            model.UrlGrabacion = null;
+                if (!string.IsNullOrWhiteSpace(model.UrlEnVivoEmbed) && !IsAllowedLiveEmbedHost(model.UrlEnVivoEmbed))
+                    ModelState.AddModelError(nameof(model.UrlEnVivoEmbed), "El SRC debe ser de Microsoft (microsoft.com / office.com / office365.com).");
 
+                //  UrlTeams aquí se usa solo para presentadores
+                if (!string.IsNullOrWhiteSpace(model.UrlTeams) && !EsJoinUrl(model.UrlTeams))
+                    ModelState.AddModelError(nameof(model.UrlTeams), "El enlace de unirse debe ser teams.microsoft.com/l/meetup-join/...");
+            }
+            else
+            {
+                // Webinar  se requiere JOIN. 
+                if (string.IsNullOrWhiteSpace(model.UrlTeams))
+                    ModelState.AddModelError(nameof(model.UrlTeams), "En Webinar, debes proporcionar el enlace para unirse a Teams (meetup-join).");
+                else if (!EsJoinUrl(model.UrlTeams))
+                    ModelState.AddModelError(nameof(model.UrlTeams), "La URL de unirse debe ser de teams.microsoft.com/l/meetup-join/...");
+
+                // Limpia el embed si alguien lo pegó por error
+                model.UrlEnVivoEmbed = null;
+            }
+
+            //  Resultado de validaciones
             if (!ModelState.IsValid)
             {
                 ViewBag.Empresas = GetEmpresasSelect();
                 return View("~/Views/Lider/CrearWebinar.cshtml", model);
             }
 
-
-            //Codigo para guardar una imagen si se subió
+            //  Imagen
             var rutaRel = await GuardarImagenAsync(imagenFile);
             if (!string.IsNullOrWhiteSpace(rutaRel))
                 model.Imagen = rutaRel;
 
+            // Auditoría mínima
             model.UsuarioCreadorID = GetUsuarioId();
 
+            //Persistencia
             _db.Webinars.Add(model);
             await _db.SaveChangesAsync();
 
-            // Relaciones empresa ↔ webinar (si no es público)
+            //  Relaciones empresa ↔ webinar (si no es público)
             if (!model.EsPublico && (empresasSeleccionadas?.Length > 0))
             {
-                var relaciones = empresasSeleccionadas
-                    .Distinct()
-                    .Select(eid => new WebinarEmpresa
-                    {
-                        WebinarID = model.WebinarID,
-                        EmpresaID = eid
-                    });
+                var relaciones = empresasSeleccionadas.Distinct().Select(eid => new WebinarEmpresa
+                {
+                    WebinarID = model.WebinarID,
+                    EmpresaID = eid
+                });
                 _db.WebinarsEmpresas.AddRange(relaciones);
                 await _db.SaveChangesAsync();
             }
 
-            var tipoNotif = "WebinarAsignado"; // unifica con tu JS
-
+            // srvicio de Notificaciones
+            var tipoNotif = "WebinarAsignado";
             if (model.EsPublico)
             {
                 await _notif.EmitirGlobal(
@@ -389,7 +439,7 @@ namespace ProyectoMatrix.Controllers
                     "Webinars"
                 );
             }
-            else if (empresasSeleccionadas?.Any() == true) // <- null-safe
+            else if (empresasSeleccionadas?.Any() == true)
             {
                 await _notif.EmitirParaEmpresas(
                     tipoNotif,
@@ -401,43 +451,37 @@ namespace ProyectoMatrix.Controllers
                 );
             }
 
+            // servicio de logs
             try
             {
                 var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
                 var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
-                var agenteUsuario =  HttpContext.Items["AgenteUsuario"]?.ToString();
-
-                int? idUsuario = GetUsuarioId();
-                int? idEmpresa = GetEmpresaId();
+                var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
 
                 await _bitacoraService.RegistrarAsync(
-
-                       idUsuario: idUsuario,
-                idEmpresa: idEmpresa,   
-                accion: "WEBINAR_CREAR",
-                mensaje: model.EsPublico  
-                 ? "Webinar público creado"
-                 : $"Webinar privado creado para {(empresasSeleccionadas?.Distinct().Count() ?? 0)} empresas",
-             modulo: "LIDER",
-    entidad: "Webinar",
-    entidadId: model.WebinarID.ToString(),
-    resultado: "OK",
-    severidad: 4,               // sugerencia: 4 = auditoría
-    solicitudId: solicitudId,
-    ip: direccionIp,
-    AgenteUsuario: agenteUsuario
-
-                    );
+                    idUsuario: GetUsuarioId(),
+                    idEmpresa: GetEmpresaId(),
+                    accion: "WEBINAR_CREAR",
+                    mensaje: model.EsPublico
+                             ? "Webinar público creado"
+                             : $"Webinar privado creado para {(empresasSeleccionadas?.Distinct().Count() ?? 0)} empresas",
+                    modulo: "LIDER",
+                    entidad: "Webinar",
+                    entidadId: model.WebinarID.ToString(),
+                    resultado: "OK",
+                    severidad: 4,
+                    solicitudId: solicitudId,
+                    ip: direccionIp,
+                    AgenteUsuario: agenteUsuario
+                );
             }
-            catch
-            {
-
-            }
-
-
+            catch {  }
 
             return RedirectToAction(nameof(MisWebinars));
         }
+
+
+
 
 
         [AutorizarAccion("Editar webinar", "Editar")]
@@ -485,63 +529,87 @@ namespace ProyectoMatrix.Controllers
 
 
 
-
         [AutorizarAccion("Editar webinar", "Editar")]
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Editar(
-    int id, Webinar model, int[]? empresasSeleccionadas, IFormFile? imagenFile, string? returnUrl)
+            int id, Webinar model, int[]? empresasSeleccionadas, IFormFile? imagenFile, string? returnUrl)
         {
             if (id != model.WebinarID) return NotFound();
 
-            // Validaciones...
+            // Normalizaciones
+            model.UrlRegistro = model.UrlRegistro?.Trim();
+            model.UrlTeams = model.UrlTeams?.Trim();
+
+            model.UrlEnVivoEmbed = model.EsAsamblea
+                ? ExtractIframeSrcOrReturn(model.UrlEnVivoEmbed)
+                : null;
+
+            // Grabación, si se pega todo el iframe manda a llamar al metodo para solo extraer el sscr
+            model.UrlGrabacion = string.IsNullOrWhiteSpace(model.UrlGrabacion)
+                ? null
+                : ExtractIframeSrcOrReturn(model.UrlGrabacion);
+
+            // Validaciones
             if (model.FechaFin < model.FechaInicio)
-         ModelState.AddModelError("FechaFin", "La fecha de fin no puede ser menor que la fecha de inicio.");
-            if (!ModelState.IsValid)
-            {
-                ViewBag.Empresas = GetEmpresasSelect();
-         ViewBag.ReturnUrl = returnUrl ?? Url.Action("GestionarWebinar", "Lider");
-                return View("~/Views/Lider/EditarWebinar.cshtml", model);
-            }
+                ModelState.AddModelError(nameof(model.FechaFin), "La fecha de fin no puede ser menor que la fecha de inicio.");
 
             if (!string.IsNullOrWhiteSpace(model.UrlRegistro) && !EsRegistroUrl(model.UrlRegistro))
                 ModelState.AddModelError(nameof(model.UrlRegistro), "La URL de registro debe ser de events.teams.microsoft.com.");
 
-            if (!string.IsNullOrWhiteSpace(model.UrlTeams) && !EsJoinUrl(model.UrlTeams))
-                ModelState.AddModelError(nameof(model.UrlTeams), "La URL de unirse debe ser de teams.microsoft.com/l/meetup-join/...");
-
             if (!string.IsNullOrWhiteSpace(model.UrlGrabacion) && !EsGrabacionUrl(model.UrlGrabacion))
-                ModelState.AddModelError(nameof(model.UrlGrabacion), "La URL de grabación debe ser de SharePoint/OneDrive/YouTube/Vimeo.");
+                ModelState.AddModelError(nameof(model.UrlGrabacion), "La URL/iframe de grabación debe ser de SharePoint/OneDrive/YouTube/Vimeo.");
 
+            if (model.EsAsamblea)
+            {
+                if (string.IsNullOrWhiteSpace(model.UrlEnVivoEmbed))
+                    ModelState.AddModelError(nameof(model.UrlEnVivoEmbed), "En Asamblea, el SRC de inserción es obligatorio.");
 
+                if (!string.IsNullOrWhiteSpace(model.UrlEnVivoEmbed) && !IsAllowedLiveEmbedHost(model.UrlEnVivoEmbed))
+                    ModelState.AddModelError(nameof(model.UrlEnVivoEmbed), "El SRC debe ser de Microsoft (microsoft.com / office.com / office365.com).");
 
+                if (!string.IsNullOrWhiteSpace(model.UrlTeams) && !EsJoinUrl(model.UrlTeams))
+                    ModelState.AddModelError(nameof(model.UrlTeams), "El enlace de unirse debe ser teams.microsoft.com/l/meetup-join/...");
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(model.UrlTeams))
+                    ModelState.AddModelError(nameof(model.UrlTeams), "En Webinar, debes proporcionar el enlace para unirse (meetup-join).");
+                else if (!EsJoinUrl(model.UrlTeams))
+                    ModelState.AddModelError(nameof(model.UrlTeams), "La URL de unirse debe ser de teams.microsoft.com/l/meetup-join/...");
+            }
 
-            //  Recupera el original para conservar campos
+            if (!ModelState.IsValid)
+            {
+                ViewBag.Empresas = GetEmpresasSelect();
+                ViewBag.ReturnUrl = returnUrl ?? Url.Action("GestionarWebinar", "Lider");
+                return View("~/Views/Lider/EditarWebinar.cshtml", model);
+            }
+
+            // Recupera original para conservar campos no editables
             var original = await _db.Webinars.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.WebinarID == id);
             if (original == null) return NotFound();
 
-            // Preserva estos campos
+            // Preservar metadatos
             model.UsuarioCreadorID = original.UsuarioCreadorID;
             model.FechaCreacion = original.FechaCreacion;
 
-            // Imagen
+            // Imagen 
             var nuevaRuta = await GuardarImagenAsync(imagenFile);
             model.Imagen = !string.IsNullOrWhiteSpace(nuevaRuta) ? nuevaRuta : original.Imagen;
 
-            
-
-            
+            // Persistir cambios del webinar
             _db.Update(model);
             _db.Entry(model).Property(x => x.UsuarioCreadorID).IsModified = false;
             _db.Entry(model).Property(x => x.FechaCreacion).IsModified = false;
             await _db.SaveChangesAsync();
 
-            // Reasignar empresas 
+            // Reasignar empresas
             var actuales = _db.WebinarsEmpresas.Where(we => we.WebinarID == id);
             _db.WebinarsEmpresas.RemoveRange(actuales);
             if (!model.EsPublico && empresasSeleccionadas is { Length: > 0 })
             {
-                var relaciones = empresasSeleccionadas.Select(eid => new WebinarEmpresa
+                var relaciones = empresasSeleccionadas.Distinct().Select(eid => new WebinarEmpresa
                 {
                     WebinarID = id,
                     EmpresaID = eid
@@ -550,42 +618,37 @@ namespace ProyectoMatrix.Controllers
             }
             await _db.SaveChangesAsync();
 
-
+            // Bitácora
             try
             {
                 var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
                 var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
                 var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
 
-                int? idUsuario = GetUsuarioId();
-                int? idEmpresa = GetEmpresaId();
-
                 await _bitacoraService.RegistrarAsync(
-
-                       idUsuario: idUsuario,
-                idEmpresa: idEmpresa,
-                accion: "WEBINAR_EDITADO",
-                mensaje: model.EsPublico
-                 ? "Webinar público editado"
-                 : $"Webinar privado editado para {(empresasSeleccionadas?.Distinct().Count() ?? 0)} empresas",
-             modulo: "LIDER",
-    entidad: "Webinar",
-    entidadId: model.WebinarID.ToString(),
-    resultado: "OK",
-    severidad: 4,               // sugerencia: 4 = auditoría
-    solicitudId: solicitudId,
-    ip: direccionIp,
-    AgenteUsuario: agenteUsuario
-
-                    );
+                    idUsuario: GetUsuarioId(),
+                    idEmpresa: GetEmpresaId(),
+                    accion: "WEBINAR_EDITADO",
+                    mensaje: model.EsPublico
+                        ? "Webinar público editado"
+                        : $"Webinar privado editado para {(empresasSeleccionadas?.Distinct().Count() ?? 0)} empresas",
+                    modulo: "LIDER",
+                    entidad: "Webinar",
+                    entidadId: model.WebinarID.ToString(),
+                    resultado: "OK",
+                    severidad: 4,
+                    solicitudId: solicitudId,
+                    ip: direccionIp,
+                    AgenteUsuario: agenteUsuario
+                );
             }
-            catch
-            {
-
-            }
+            catch {  }
 
             return Redirect(returnUrl ?? Url.Action("GestionarWebinar", "Lider")!);
         }
+
+
+
 
         [HttpGet]
         public async Task<IActionResult> Entrar()
@@ -627,6 +690,7 @@ namespace ProyectoMatrix.Controllers
                     FechaInicio = w.FechaInicio,
                     FechaFin = w.FechaFin,
                     UrlTeams = w.UrlTeams,
+
                     Imagen = w.Imagen,
                     DirigidoA = w.EsPublico? "Todas" : ""
                 })
@@ -775,16 +839,15 @@ namespace ProyectoMatrix.Controllers
 
             return Redirect (returnUrl ?? Url.Action("GestionarWebinar", "Lider")!);
         }
+
+
+
+
     }
 
    
 
-    public class WebinarGestionVm
-    {
-        public Webinar Webinar { get; set; } = default!;
-        public string DirigidoA { get; set; } = "-";
-    }
-
+   
 
 
 

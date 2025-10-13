@@ -1,4 +1,5 @@
-﻿@model IEnumerable<ProyectoMatrix.Models.WebinarListItemVm>
+﻿@using ProyectoMatrix.Servicios
+@model IEnumerable<ProyectoMatrix.Models.WebinarListItemVm>
 
 @using ProyectoMatrix.Models
 
@@ -6,9 +7,20 @@
     ViewData["Title"] = "Webinars";
     Layout = "~/Views/Shared/_LayoutComunicados.cshtml";
 
-  
-    var destacado = ViewBag.Destacado as ProyectoMatrix.Models.WebinarListItemVm; 
+
+    var destacado = ViewBag.Destacado as ProyectoMatrix.Models.WebinarListItemVm;
     var videoDestacado = ViewBag.FeaturedVideo as ProyectoMatrix.Models.FeaturedVideoVm;
+}
+
+
+
+@*Mandar a llamar al servicio de acceso para ocultar o mostrar los botones correspondientes *@
+@inject IServicioAcceso Acceso
+@{
+    var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
+    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Crear webinar", "Crear");
+    
+
 }
 
 <link href="~/css/stylesLiderLista.css" rel="stylesheet" />
@@ -38,7 +50,6 @@
 }
 else if (destacado != null)
 {
-    // --- C# primero ---
     var ahora = DateTime.Now;
     var inicio = destacado.FechaInicio;
     DateTime? fin = destacado.FechaFin;
@@ -51,14 +62,13 @@ else if (destacado != null)
         ? (ahora > fin.Value)
         : (ahora.Date > inicio.Date);
 
-    // --- después HTML/Razor ---
     <div class="lider-hero-container full-bleed">
         <section class="lider-hero">
             <div class="card border-0 shadow-sm">
                 @if (!string.IsNullOrWhiteSpace(destacado.Imagen))
                 {
                     <img class="card-img-top hero-img"
-                         src="@destacado.Imagen" 
+                         src="@destacado.Imagen"
                          alt="Imagen del webinar destacado" />
                     <div class="hero-overlay"></div>
                 }
@@ -71,27 +81,30 @@ else if (destacado != null)
                         <b>Fin:</b> @destacado.FechaFin.ToString("dd 'de' MMMM 'de' yyyy HH:mm")
                     </p>
 
-                  
 
+                    @{
+                        bool esAsamblea = !string.IsNullOrWhiteSpace(destacado?.UrlEnVivoEmbed);
+                    }
                     <div>
-                        @if (enCurso && !string.IsNullOrWhiteSpace(destacado.UrlTeams))
+                        @if (enCurso)
                         {
+                            if (!string.IsNullOrWhiteSpace(destacado.UrlEnVivoEmbed))
+                            {
+                                <button type="button" class="btn btn-primary"
+                                        onclick="abrirEnKiosko('@destacado.UrlEnVivoEmbed')">
+                                    Ver en vivo
+                                </button>
+                            }
 
-                            @*
-                                  <button type="button" class="btn btn-primary"
-                                    onclick="abrirEnKiosko('@destacado.UrlTeams')">
-                                Unirse por Teams
-                            </button>
-
-                            *@
-
-                            <button type="button" class="btn btn-primary"
-                                    onclick="abrirTeamsTopLevel('@destacado.UrlTeams')">
-                                Unirse por Teams
-                            </button>
-
-                       
+                            @if (puedeCrear && !string.IsNullOrWhiteSpace(destacado.UrlTeams))
+                            {
+                                <button type="button" class="btn btn-outline-light ms-2"
+                                        onclick="abrirTeamsTopLevel('@destacado.UrlTeams')">
+                                    Unirse por Teams (presentador)
+                                </button>
+                            }
                         }
+
                         else if (yaPaso && !string.IsNullOrWhiteSpace(destacado.UrlGrabacion))
                         {
                             <button type="button" class="btn btn-outline-secondary"
@@ -114,8 +127,11 @@ else if (destacado != null)
                         {
                             <span class="badge bg-secondary">Próximamente</span>
                         }
-
                     </div>
+
+
+
+
                 </div>
             </div>
         </section>
@@ -141,14 +157,14 @@ else if (destacado != null)
                 DateTime? fin = w.FechaFin;
 
                 bool enCurso = fin.HasValue
-                    ? (ahora >= inicio && ahora <= fin.Value)
-                    : (ahora >= inicio && ahora.Date == inicio.Date);
+                ? (ahora >= inicio && ahora <= fin.Value)
+                : (ahora >= inicio && ahora.Date == inicio.Date);
 
                 bool yaPaso = fin.HasValue
-                    ? (ahora > fin.Value)
-                    : (ahora.Date > inicio.Date);
+                ? (ahora > fin.Value)
+                : (ahora.Date > inicio.Date);
 
-             
+
 
                 <div class="col-md-4 mb-3">
                     <div class="card h-100">
@@ -170,14 +186,29 @@ else if (destacado != null)
                             }
 
 
+                            @{
+                                bool esAsamblea = !string.IsNullOrWhiteSpace(w?.UrlEnVivoEmbed);
+                            }
                             <div class="mt-auto">
-                                @if (enCurso && !string.IsNullOrWhiteSpace(w.UrlTeams))
+                                @if (enCurso)
                                 {
-                                    <button type="button" class="btn btn-primary w-100"
-                                            onclick="abrirEnKiosko('@w.UrlTeams')">
-                                        Unirse por Teams
-                                    </button>
+                                    if (!string.IsNullOrWhiteSpace(w.UrlEnVivoEmbed))
+                                    {
+                                        <button type="button" class="btn btn-primary w-100"
+                                                onclick="abrirEnKiosko('@w.UrlEnVivoEmbed')">
+                                            Ver en vivo
+                                        </button>
+                                    }
+
+                                    @if (puedeCrear && !string.IsNullOrWhiteSpace(w.UrlTeams))
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary w-100 mt-2"
+                                                onclick="abrirTeamsTopLevel('@w.UrlTeams')">
+                                            Unirse por Teams (presentador)
+                                        </button>
+                                    }
                                 }
+
                                 else if (yaPaso && !string.IsNullOrWhiteSpace(w.UrlGrabacion))
                                 {
                                     <button type="button" class="btn btn-outline-secondary w-100"
@@ -200,8 +231,10 @@ else if (destacado != null)
                                 {
                                     <span class="badge bg-secondary w-100 text-center">Próximamente</span>
                                 }
-
                             </div>
+
+
+
                         </div>
                     </div>
                 </div>
@@ -218,20 +251,18 @@ else if (destacado != null)
     <link href="~/css/stylesLiderIndex.css" rel="stylesheet" />
     <div class="lider-container">
         <p class="lider-title">
-            Videoteca de liderazgo y desarrollo profesional. Aprende de los mejores líderes y expertos en management.
+            Videoteca 
         </p>
     </div>
 
 
 
 
-    <!-- Filtros y Búsqueda (solo 2 categorías) -->
+ 
     <div class="filters-section">
         <div class="filters-container">
             <div class="filter-tags">
                 <button class="filter-tag active" onclick="filtrarPor(event,'todos')">Todos</button>
-                <button class="filter-tag" onclick="filtrarPor(event,'estrategico')">Liderazgo Estratégico</button>
-                <button class="filter-tag" onclick="filtrarPor(event,'equipos')">Gestión de Equipos</button>
             </div>
             <div class="search-container">
                 <input type="text" class="search-input" placeholder="Buscar videos, speakers, temas..."
@@ -248,24 +279,14 @@ else if (destacado != null)
             <div class="category-header">
                 <h2 class="category-title">
                     <i class="fas fa-chess-king"></i>
-                    Liderazgo Estratégico
+                    Videos Ns Group
                 </h2>
                 <a href="#" class="view-all-btn">Ver todos</a>
             </div>
             <div class="videos-grid" id="estrategico-grid"></div>
         </div>
 
-        <!-- Gestión de Equipos -->
-        <div class="category-section" data-category="equipos">
-            <div class="category-header">
-                <h2 class="category-title">
-                    <i class="fas fa-users-cog"></i>
-                    Gestión de Equipos
-                </h2>
-                <a href="#" class="view-all-btn">Ver todos</a>
-            </div>
-            <div class="videos-grid" id="equipos-grid"></div>
-        </div>
+        
     </div>
 
     <!-- Modal de Video -->
@@ -297,364 +318,411 @@ else if (destacado != null)
 </div>
 
 
-<script>
-    /* 
-        Datos y rendering Videoteca*/
-    const videosData = {
-      estrategico: [
-        { id: 1, titulo: "Visión Estratégica para CEOs", speaker: "Carlos Mendoza", descripcion: "Cómo desarrollar una visión a largo plazo y comunicarla efectivamente", duracion: "52 min", nivel: "Avanzado", rating: 4.8, views: 856, videoId: "WRgDEFqrYl0", thumbnail: "" },
-        { id: 2, titulo: "Toma de Decisiones Estratégicas", speaker: "Ana García", descripcion: "Frameworks y metodologías para decisiones de alto impacto", duracion: "38 min", nivel: "Intermedio", rating: 4.7, views: 623, videoId: "WRgDEFqrYl0", thumbnail: "" },
-        { id: 3, titulo: "Liderazgo en Crisis", speaker: "Roberto Silva", descripcion: "Estrategias probadas para liderar en momentos de incertidumbre", duracion: "41 min", nivel: "Avanzado", rating: 4.9, views: 1243, videoId: "WRgDEFqrYl0", thumbnail: "" }
-      ],
-      equipos: [
-        { id: 4, titulo: "Motivación de Equipos Remotos", speaker: "Laura Martínez", descripcion: "Técnicas efectivas para mantener la motivación en equipos distribuidos", duracion: "35 min", nivel: "Intermedio", rating: 4.6, views: 789, videoId: "WRgDEFqrYl0", thumbnail: "" },
-        { id: 5, titulo: "Feedback Constructivo", speaker: "Miguel Torres", descripcion: "El arte de dar y recibir feedback para el crecimiento del equipo", duracion: "28 min", nivel: "Básico", rating: 4.5, views: 567, videoId: "WRgDEFqrYl0", thumbnail: "" },
-        { id: 6, titulo: "Delegación Efectiva", speaker: "Patricia López", descripcion: "Cómo delegar tareas manteniendo la calidad y desarrollando talento", duracion: "33 min", nivel: "Intermedio", rating: 4.7, views: 445, videoId: "WRgDEFqrYl0", thumbnail: "" }
-      ]
-    };
-
-    let filtroActual = 'todos';
-    let todosLosVideos = [];
-
-    document.addEventListener('DOMContentLoaded', function () {
-      Object.values(videosData).forEach(cat => todosLosVideos.push(...cat));
-      cargarVideosPorCategoria();
-
-      // Animación de entrada
-      setTimeout(() => {
-        const categorySections = document.querySelectorAll('.category-section');
-        categorySections.forEach((section, index) => {
-          section.style.opacity = '0';
-          section.style.transform = 'translateY(30px)';
-          setTimeout(() => {
-            section.style.transition = 'all 0.6s ease';
-            section.style.opacity = '1';
-            section.style.transform = 'translateY(0)';
-          }, index * 200);
-        });
-      }, 300);
-    });
-
-    function cargarVideosPorCategoria() {
-      Object.keys(videosData).forEach(categoria => {
-        const grid = document.getElementById(categoria + '-grid');
-        if (grid) grid.innerHTML = videosData[categoria].map(video => crearVideoCard(video)).join('');
-      });
-    }
-
-    function crearVideoCard(video) {
-      return `
-        <div class="video-card" onclick="reproducirVideo('${video.videoId}', '${video.titulo.replace(/'/g,"\\'")}')">
-          <div class="video-thumbnail">
-            <div class="video-level">${video.nivel}</div>
-            <div class="video-duration">${video.duracion}</div>
-            <div class="video-play-overlay">
-              <div class="video-play-btn"><i class="fas fa-play"></i></div>
-            </div>
-          </div>
-          <div class="video-info">
-            <h3 class="video-title">${video.titulo}</h3>
-            <div class="video-speaker"><i class="fas fa-user-tie"></i> ${video.speaker}</div>
-            <p class="video-description">${video.descripcion}</p>
-            <div class="video-stats">
-              <div class="video-rating"><i class="fas fa-star" style="color: #ffd700;"></i> ${video.rating}</div>
-              <div class="video-views"><i class="fas fa-eye"></i> ${Number(video.views).toLocaleString()}</div>
-            </div>
-          </div>
-        </div>`;
-    }
-
-    function filtrarPor(e, categoria) {
-      document.querySelectorAll('.filter-tag').forEach(btn => btn.classList.remove('active'));
-      if (e && e.target) e.target.classList.add('active');
-
-      filtroActual = categoria;
-      const secciones = document.querySelectorAll('.category-section');
-      secciones.forEach(seccion => {
-        if (categoria === 'todos') seccion.style.display = 'block';
-        else seccion.style.display = seccion.dataset.category === categoria ? 'block' : 'none';
-      });
-
-      if (categoria !== 'todos') {
-        const seccionVisible = document.querySelector(`[data-category="${categoria}"]`);
-        if (seccionVisible) seccionVisible.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }
-
-    function buscarVideos(termino) {
-      if (termino.length < 2) { cargarVideosPorCategoria(); return; }
-      const t = termino.toLowerCase();
-      const videosFiltrados = todosLosVideos.filter(v =>
-        v.titulo.toLowerCase().includes(t) ||
-        v.speaker.toLowerCase().includes(t) ||
-        v.descripcion.toLowerCase().includes(t)
-      );
-
-      Object.keys(videosData).forEach(categoria => {
-        const grid = document.getElementById(categoria + '-grid');
-        if (grid) grid.innerHTML = '';
-      });
-
-      const primeraGrid = document.querySelector('.videos-grid');
-      if (!primeraGrid) return;
-      primeraGrid.innerHTML = videosFiltrados.length
-        ? videosFiltrados.map(v => crearVideoCard(v)).join('')
-        : `
-          <div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #888;">
-            <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-            <h3>No se encontraron videos</h3>
-            <p>Intenta con otros términos de búsqueda</p>
-          </div>`;
-    }
-
-    /*  Modal YouTube simple*/
-    function reproducirVideo(videoId, titulo) {
-      const modal = document.getElementById('videoModal');
-      const player = document.getElementById('videoPlayer');
-      if (!modal || !player) return;
-
-      player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
-      modal.classList.add('show');
-      document.body.style.overflow = 'hidden';
-      console.log(`Reproduciendo: ${titulo}`);
-    }
-
-    function cerrarModal() {
-      const modal = document.getElementById('videoModal');
-      const player = document.getElementById('videoPlayer');
-      if (!modal || !player) return;
-
-      player.src = '';
-      modal.classList.remove('show');
-      document.body.style.overflow = 'auto';
-    }
-
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModal(); });
-    document.getElementById('videoModal')?.addEventListener('click', function (e) {
-      if (e.target === this) cerrarModal();
-    });
-
-    /*  Animaciones on scroll  */
-    const observerOptions = { threshold: 0.1, rootMargin: '0px 0px -50px 0px' };
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.style.opacity = '1';
-          entry.target.style.transform = 'translateY(0)';
-        }
-      });
-    }, observerOptions);
-    setTimeout(() => {
-      document.querySelectorAll('.category-section').forEach(section => {
-        section.style.opacity = '0';
-        section.style.transform = 'translateY(30px)';
-        observer.observe(section);
-      });
-    }, 500);
-
-    // Carga asíncrona de la API de YouTube
-    (function loadYT(){
-      if (window.YT && window.YT.Player) return;
-      const s = document.createElement('script');
-      s.src = "https://www.youtube.com/iframe_api";
-      document.head.appendChild(s);
-    })();
-
-    let heroPlayer = null;
-    let heroObserver = null;
-
-    function onYouTubeIframeAPIReady() {
-      const wrap = document.getElementById('heroVideoWrap');
-      const target = document.getElementById('heroPlayer');
-      if (!wrap || !target) return;
-
-      const videoId = wrap.getAttribute('data-video-id');
-      if (!videoId) return;
-
-      heroPlayer = new YT.Player('heroPlayer', {
-        videoId,
-        playerVars: { autoplay: 0, mute: 1, controls: 1, rel: 0, modestbranding: 1, playsinline: 1 },
-        events: { onReady: setupHeroVisibilityControl }
-      });
-    }
-
-    function setupHeroVisibilityControl() {
-      const host = document.getElementById('heroVideoWrap');
-      if (!host) return;
-
-      if ('IntersectionObserver' in window) {
-        heroObserver = new IntersectionObserver((entries) => {
-          entries.forEach(entry => {
-            if (!heroPlayer) return;
-            if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-              try { heroPlayer.playVideo(); } catch(e){}
-            } else {
-              try { heroPlayer.pauseVideo(); } catch(e){}
-            }
-          });
-        }, { threshold: [0, 0.5, 1] });
-        heroObserver.observe(host);
-      } else {
-        try { heroPlayer.playVideo(); } catch(e){}
-      }
-
-      document.addEventListener('visibilitychange', () => {
-        if (!heroPlayer) return;
-        if (document.hidden) {
-          try { heroPlayer.pauseVideo(); } catch(e){}
-        } else {
-          const r = host.getBoundingClientRect();
-          const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
-          const visible = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
-          const ratio = visible / Math.max(1, r.height);
-          if (ratio >= 0.5) { try { heroPlayer.playVideo(); } catch(e){} }
-        }
-      });
-    }
-
-    // Pausar héroe si se abre el modal de videoteca
-    const _origReproducirVideo = window.reproducirVideo;
-    window.reproducirVideo = function(videoId, titulo) {
-      try { if (heroPlayer && heroPlayer.pauseVideo) heroPlayer.pauseVideo(); } catch(e){}
-      _origReproducirVideo(videoId, titulo);
-    };
-
-    // Fallback si la API de YT no responde
-    setTimeout(() => {
-      const target = document.querySelector('#heroPlayer iframe');
-      const wrap = document.getElementById('heroVideoWrap');
-      if (!target && wrap) {
-        const videoId = wrap.getAttribute('data-video-id');
-        if (!videoId) return;
-        const iframe = document.createElement('iframe');
-        iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1`;
-        iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
-        iframe.allowFullscreen = true;
-        document.getElementById('heroPlayer').appendChild(iframe);
-      }
-    }, 2500);
-
-    /* Helpers de embebido (SharePoint/YouTube/Vimeo)*/
-    function esUrlStream(u){
-      try{
-        const url = new URL(u);
-        const host = url.host.toLowerCase();
-        const path = url.pathname.toLowerCase();
-        const hasEmbedParam = [...url.searchParams.keys()].some(k => k.includes('embed'));
-        return host.includes('.sharepoint.com') || host.includes('1drv.ms') ||
-               path.includes('videoembedhost.aspx') || hasEmbedParam;
-      } catch { return false; }
-    }
-    function normalizarStreamEmbed(u){
-      try{
-        const url = new URL(u);
-        if (url.pathname.toLowerCase().includes('videoembedhost.aspx')) return url.toString();
-        if (!url.searchParams.has('web'))   url.searchParams.set('web','1');
-        if (!url.searchParams.has('embed')) url.searchParams.set('embed','1');
-        return url.toString();
-      } catch { return u; }
-    }
-    function esYouTube(u){ return /youtube\.com|youtu\.be/i.test(u); }
-    function aEmbedYouTube(u){
-      try{
-        const y = new URL(u);
-        if (y.hostname.includes('youtu.be')) {
-          const id = y.pathname.replace('/','');
-          return `https://www.youtube.com/embed/${id}?rel=0`;
-        }
-        if (y.hostname.includes('youtube.com')) {
-          const id = y.searchParams.get('v');
-          if (id) return `https://www.youtube.com/embed/${id}?rel=0`;
-        }
-        return u;
-      } catch { return u; }
-    }
-    function esVimeo(u){ return /vimeo\.com/i.test(u); }
-    function aEmbedVimeo(u){
-      try{
-        const v = new URL(u);
-        if (v.hostname === 'vimeo.com') {
-          const id = v.pathname.split('/').filter(Boolean)[0];
-          if (id) return `https://player.vimeo.com/video/${id}`;
-        }
-        return u;
-      } catch { return u; }
-    }
-
-    /*   Kiosko (abrir dentro + fallback)   */
-    function esTeamsJoin(u){
-      try{
-        const x = new URL(u);
-        return x.host.toLowerCase() === 'teams.microsoft.com'
-               && x.pathname.toLowerCase().startsWith('/l/meetup-join');
-      }catch{ return false; }
-    }
-    function abrirTeamsTopLevel(url){
-      window.location.href = url; // Teams join no se puede embeber
-    }
-
-    function abrirEnKiosko(url){
-      // Si es un enlace de unirse de Teams, abrimos top-level
-      if (esTeamsJoin(url)) { abrirTeamsTopLevel(url); return; }
-
-      const wrap  = document.getElementById('kioskoWrap');
-      const frame = document.getElementById('kioskoFrame');
-      if (!wrap || !frame) return;
-
-      let cargado = false;
-      const onload = () => { cargado = true; };
-      frame.removeEventListener('load', onload);
-      frame.addEventListener('load', onload, { once:true });
-
-      frame.src = url;
-      wrap.style.display = 'block';
-      document.body.classList.add('kiosko-open');
-
-      // Si no carga (X-Frame-Options/CSP), fallback a top-level
-      setTimeout(() => { if (!cargado) window.location.href = url; }, 6000);
-    }
-
-    function abrirGrabacionKiosko(url){
-      console.log('Grabación a abrir:', url); // debug útil
-      let embed = url;
-      if (esUrlStream(url))        embed = normalizarStreamEmbed(url);
-      else if (esYouTube(url))     embed = aEmbedYouTube(url);
-      else if (esVimeo(url))       embed = aEmbedVimeo(url);
-      abrirEnKiosko(embed);
-    }
-
-    function cerrarKiosko(){
-      const wrap  = document.getElementById('kioskoWrap');
-      const frame = document.getElementById('kioskoFrame');
-      if (frame) frame.src = 'about:blank';
-      if (wrap)  wrap.style.display = 'none';
-      document.body.classList.remove('kiosko-open');
-    }
-
-   
-      const scope = e.target.closest('.lider-hero, .lider-container'); // limita el alcance
-      if (!scope) return;
-
-      const a = e.target.closest('a');
-      if (!a) return;
-
-      const href = a.getAttribute('href');
-      if (!href || href.startsWith('#') || a.hasAttribute('download')) return;
-
-      e.preventDefault();
-      abrirEnKiosko(href);
-    });
-</script>
-
-
-
-
 
 
 
 
 @section Scripts {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+
+
+    <script>
+
+            const videosData = {
+          estrategico: [
+            { id: 1, titulo: "NS GROUP LO MEJOR DEL MUNDO PARA TU GRANJA", speaker: "", descripcion: "", duracion: "", nivel: "", videoId: "WRgDEFqrYl0", thumbnail: "" },
+            { id: 2, titulo: "Export CAT NS Rotecna",                          speaker: "", descripcion: "", duracion: "", nivel: "", videoId: "hZx4m9MqTPk", thumbnail: "" },
+            { id: 3, titulo: "NS Group - Lo Mejor del Mundo para tu Granja",    speaker: "", descripcion: "", duracion: "", nivel: "", videoId: "do63QyncqWM", thumbnail: "" },
+            { id: 4, titulo: "Silos NS Group - Conoce sus ventajas",            speaker: "", descripcion: "", duracion: "", nivel: "", videoId: "n42FKBU5fhI", thumbnail: "" },
+            { id: 5, titulo: "PUEBLA NS HYPOR",                               speaker: "", descripcion: "", duracion: "", nivel: "", videoId: "_Ig060pL37c", thumbnail: "" }
+          ],
+        };
+
+
+        let filtroActual = 'todos';
+        let todosLosVideos = [];
+
+        document.addEventListener('DOMContentLoaded', function () {
+          Object.values(videosData).forEach(cat => todosLosVideos.push(...cat));
+          cargarVideosPorCategoria();
+
+          // Animación de entrada
+          setTimeout(() => {
+            const categorySections = document.querySelectorAll('.category-section');
+            categorySections.forEach((section, index) => {
+              section.style.opacity = '0';
+              section.style.transform = 'translateY(30px)';
+              setTimeout(() => {
+                section.style.transition = 'all 0.6s ease';
+                section.style.opacity = '1';
+                section.style.transform = 'translateY(0)';
+              }, index * 200);
+            });
+          }, 300);
+        });
+
+        function cargarVideosPorCategoria() {
+          Object.keys(videosData).forEach(categoria => {
+            const grid = document.getElementById(categoria + '-grid');
+            if (grid) grid.innerHTML = videosData[categoria].map(video => crearVideoCard(video)).join('');
+          });
+        }
+
+            function getYouTubeThumb(id, quality = 'hqdefault') {
+          // opciones: default, mqdefault, hqdefault, sddefault, maxresdefault
+          return `https://img.youtube.com/vi/${id}/${quality}.jpg`;
+        }
+
+        function resolveThumb(video) {
+          // Usa la que traiga el objeto; si viene vacía, usa la de YouTube
+          if (video.thumbnail && video.thumbnail.trim() !== '') return video.thumbnail;
+          if (video.videoId && video.videoId.trim() !== '') return getYouTubeThumb(video.videoId, 'hqdefault');
+          return ''; // último recurso (no debería pasar si hay videoId)
+        }
+
+        function crearVideoCard(video) {
+          const thumb = resolveThumb(video);
+          // Usa <img> para asegurar carga inmediata y accesibilidad
+          return `
+            <div class="video-card" onclick="reproducirVideo('${video.videoId}', '${video.titulo.replace(/'/g,"\\'")}')">
+              <div class="video-thumbnail">
+                ${thumb ? `<img src="${thumb}" alt="Miniatura de ${video.titulo}" loading="lazy">` : ''}
+                <div class="video-level">${video.nivel ?? ''}</div>
+                <div class="video-duration">${video.duracion ?? ''}</div>
+                <div class="video-play-overlay">
+                  <div class="video-play-btn"><i class="fas fa-play"></i></div>
+                </div>
+              </div>
+              <div class="video-info">
+                <h3 class="video-title">${video.titulo}</h3>
+                <div class="video-speaker"><i class="fas fa-user-tie"></i> ${video.speaker}</div>
+                <p class="video-description">${video.descripcion}</p>
+               @* <div class="video-stats">
+              <div class="video-rating"><i class="fas fa-star"></i> ${video.rating!= null}</div>
+              <div class="video-views"><i class="fas fa-eye"></i> ${Number(video.views!= null).toLocaleString()}</div>
+            </div>*@
+              </div>
+            </div>`;
+        }
+
+        function filtrarPor(e, categoria) {
+          document.querySelectorAll('.filter-tag').forEach(btn => btn.classList.remove('active'));
+          if (e && e.target) e.target.classList.add('active');
+
+          filtroActual = categoria;
+          const secciones = document.querySelectorAll('.category-section');
+          secciones.forEach(seccion => {
+            if (categoria === 'todos') seccion.style.display = 'block';
+            else seccion.style.display = seccion.dataset.category === categoria ? 'block' : 'none';
+          });
+
+          if (categoria !== 'todos') {
+            const seccionVisible = document.querySelector(`[data-category="${categoria}"]`);
+            if (seccionVisible) seccionVisible.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+
+        function buscarVideos(termino) {
+          if (termino.length < 2) { cargarVideosPorCategoria(); return; }
+          const t = termino.toLowerCase();
+          const videosFiltrados = todosLosVideos.filter(v =>
+            v.titulo.toLowerCase().includes(t) ||
+            v.speaker.toLowerCase().includes(t) ||
+            v.descripcion.toLowerCase().includes(t)
+          );
+
+          Object.keys(videosData).forEach(categoria => {
+            const grid = document.getElementById(categoria + '-grid');
+            if (grid) grid.innerHTML = '';
+          });
+
+          const primeraGrid = document.querySelector('.videos-grid');
+          if (!primeraGrid) return;
+          primeraGrid.innerHTML = videosFiltrados.length
+            ? videosFiltrados.map(v => crearVideoCard(v)).join('')
+            : `
+              <div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #888;">
+                <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                <h3>No se encontraron videos</h3>
+                <p>Intenta con otros términos de búsqueda</p>
+              </div>`;
+        }
+
+        /*  Modal YouTube simple*/
+        function reproducirVideo(videoId, titulo) {
+          const modal = document.getElementById('videoModal');
+          const player = document.getElementById('videoPlayer');
+          if (!modal || !player) return;
+
+          player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+          modal.classList.add('show');
+          document.body.style.overflow = 'hidden';
+          console.log(`Reproduciendo: ${titulo}`);
+        }
+
+        function cerrarModal() {
+          const modal = document.getElementById('videoModal');
+          const player = document.getElementById('videoPlayer');
+          if (!modal || !player) return;
+
+          player.src = '';
+          modal.classList.remove('show');
+          document.body.style.overflow = 'auto';
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModal(); });
+        document.getElementById('videoModal')?.addEventListener('click', function (e) {
+          if (e.target === this) cerrarModal();
+        });
+
+        /*  Animaciones on scroll  */
+        const observerOptions = { threshold: 0.1, rootMargin: '0px 0px -50px 0px' };
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.style.opacity = '1';
+              entry.target.style.transform = 'translateY(0)';
+            }
+          });
+        }, observerOptions);
+        setTimeout(() => {
+          document.querySelectorAll('.category-section').forEach(section => {
+            section.style.opacity = '0';
+            section.style.transform = 'translateY(30px)';
+            observer.observe(section);
+          });
+        }, 500);
+
+        // Carga asíncrona de la API de YouTube
+        (function loadYT(){
+          if (window.YT && window.YT.Player) return;
+          const s = document.createElement('script');
+          s.src = "https://www.youtube.com/iframe_api";
+          document.head.appendChild(s);
+        })();
+
+        let heroPlayer = null;
+        let heroObserver = null;
+
+        function onYouTubeIframeAPIReady() {
+          const wrap = document.getElementById('heroVideoWrap');
+          const target = document.getElementById('heroPlayer');
+          if (!wrap || !target) return;
+
+          const videoId = wrap.getAttribute('data-video-id');
+          if (!videoId) return;
+
+          heroPlayer = new YT.Player('heroPlayer', {
+            videoId,
+            playerVars: { autoplay: 0, mute: 1, controls: 1, rel: 0, modestbranding: 1, playsinline: 1 },
+            events: { onReady: setupHeroVisibilityControl }
+          });
+        }
+
+        function setupHeroVisibilityControl() {
+          const host = document.getElementById('heroVideoWrap');
+          if (!host) return;
+
+          if ('IntersectionObserver' in window) {
+            heroObserver = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (!heroPlayer) return;
+                if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+                  try { heroPlayer.playVideo(); } catch(e){}
+                } else {
+                  try { heroPlayer.pauseVideo(); } catch(e){}
+                }
+              });
+            }, { threshold: [0, 0.5, 1] });
+            heroObserver.observe(host);
+          } else {
+            try { heroPlayer.playVideo(); } catch(e){}
+          }
+
+          document.addEventListener('visibilitychange', () => {
+            if (!heroPlayer) return;
+            if (document.hidden) {
+              try { heroPlayer.pauseVideo(); } catch(e){}
+            } else {
+              const r = host.getBoundingClientRect();
+              const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+              const visible = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+              const ratio = visible / Math.max(1, r.height);
+              if (ratio >= 0.5) { try { heroPlayer.playVideo(); } catch(e){} }
+            }
+          });
+        }
+
+        // Pausar héroe si se abre el modal de videoteca
+        const _origReproducirVideo = window.reproducirVideo;
+        window.reproducirVideo = function(videoId, titulo) {
+          try { if (heroPlayer && heroPlayer.pauseVideo) heroPlayer.pauseVideo(); } catch(e){}
+          _origReproducirVideo(videoId, titulo);
+        };
+
+        // Fallback si la API de YT no responde
+        setTimeout(() => {
+          const target = document.querySelector('#heroPlayer iframe');
+          const wrap = document.getElementById('heroVideoWrap');
+          if (!target && wrap) {
+            const videoId = wrap.getAttribute('data-video-id');
+            if (!videoId) return;
+            const iframe = document.createElement('iframe');
+            iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1`;
+            iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+            iframe.allowFullscreen = true;
+            document.getElementById('heroPlayer').appendChild(iframe);
+          }
+        }, 2500);
+
+        /* Helpers de embebido (SharePoint/YouTube/Vimeo)*/
+        function esUrlStream(u){
+          try{
+            const url = new URL(u);
+            const host = url.host.toLowerCase();
+            const path = url.pathname.toLowerCase();
+            const hasEmbedParam = [...url.searchParams.keys()].some(k => k.includes('embed'));
+            return host.includes('.sharepoint.com') || host.includes('1drv.ms') ||
+                   path.includes('videoembedhost.aspx') || hasEmbedParam;
+          } catch { return false; }
+        }
+        function normalizarStreamEmbed(u){
+          try{
+            const url = new URL(u);
+            if (url.pathname.toLowerCase().includes('videoembedhost.aspx')) return url.toString();
+            if (!url.searchParams.has('web'))   url.searchParams.set('web','1');
+            if (!url.searchParams.has('embed')) url.searchParams.set('embed','1');
+            return url.toString();
+          } catch { return u; }
+        }
+        function esYouTube(u){ return /youtube\.com|youtu\.be/i.test(u); }
+        function aEmbedYouTube(u){
+          try{
+            const y = new URL(u);
+            if (y.hostname.includes('youtu.be')) {
+              const id = y.pathname.replace('/','');
+              return `https://www.youtube.com/embed/${id}?rel=0`;
+            }
+            if (y.hostname.includes('youtube.com')) {
+              const id = y.searchParams.get('v');
+              if (id) return `https://www.youtube.com/embed/${id}?rel=0`;
+            }
+            return u;
+          } catch { return u; }
+        }
+        function esVimeo(u){ return /vimeo\.com/i.test(u); }
+        function aEmbedVimeo(u){
+          try{
+            const v = new URL(u);
+            if (v.hostname === 'vimeo.com') {
+              const id = v.pathname.split('/').filter(Boolean)[0];
+              if (id) return `https://player.vimeo.com/video/${id}`;
+            }
+            return u;
+          } catch { return u; }
+        }
+
+        /*   Kiosko (abrir dentro + fallback)   */
+        function esTeamsJoin(u){
+          try{
+            const x = new URL(u);
+            return x.host.toLowerCase() === 'teams.microsoft.com'
+                   && x.pathname.toLowerCase().startsWith('/l/meetup-join');
+          }catch{ return false; }
+        }
+        function abrirTeamsTopLevel(url){
+          window.location.href = url; // Teams join no se puede embeber
+        }
+
+         function esTeamsJoin(u){
+          try{
+            const x = new URL(u);
+            return x.host.toLowerCase() === 'teams.microsoft.com'
+                   && x.pathname.toLowerCase().startsWith('/l/meetup-join');
+          }catch{ return false; }
+        }
+
+        function abrirTeamsTopLevel(url){
+          window.location.href = url; // Teams join no se puede embeber
+        }
+
+                function abrirEnKiosko(url){
+          if (esTeamsJoin(url)) { abrirTeamsTopLevel(url); return; } // por si pegaron el join aquí
+
+          const wrap  = document.getElementById('kioskoWrap');
+          const frame = document.getElementById('kioskoFrame');
+          if (!wrap || !frame) return;
+
+          frame.setAttribute('allow',
+            'autoplay; camera; microphone; clipboard-write; encrypted-media; fullscreen; display-capture; screen-wake-lock'
+          );
+
+                frame.setAttribute('allowfullscreen', 'true');
+        frame.removeAttribute('sandbox');
+
+          let cargado = false;
+          const onload = () => { cargado = true; };
+          frame.removeEventListener('load', onload);
+          frame.addEventListener('load', onload, { once:true });
+
+          frame.src = url;
+          wrap.style.display = 'block';
+          document.body.classList.add('kiosko-open');
+
+           setTimeout(() => { if (!cargado) window.location.href = url; }, 6000);
+
+          
+          
+        }
+
+
+        function abrirGrabacionKiosko(url){
+          let embed = url;
+          // (tus normalizadores de Stream/YouTube/Vimeo pueden quedar donde ya estaban)
+          abrirEnKiosko(embed);
+        }
+
+        function cerrarKiosko(){
+          const wrap  = document.getElementById('kioskoWrap');
+          const frame = document.getElementById('kioskoFrame');
+          if (frame) frame.src = 'about:blank';
+          if (wrap)  wrap.style.display = 'none';
+          document.body.classList.remove('kiosko-open');
+        }
+        function abrirGrabacionKiosko(url){
+          console.log('Grabación a abrir:', url); // debug útil
+          let embed = url;
+          if (esUrlStream(url))        embed = normalizarStreamEmbed(url);
+          else if (esYouTube(url))     embed = aEmbedYouTube(url);
+          else if (esVimeo(url))       embed = aEmbedVimeo(url);
+          abrirEnKiosko(embed);
+        }
+
+        function cerrarKiosko(){
+          const wrap  = document.getElementById('kioskoWrap');
+          const frame = document.getElementById('kioskoFrame');
+          if (frame) frame.src = 'about:blank';
+          if (wrap)  wrap.style.display = 'none';
+          document.body.classList.remove('kiosko-open');
+        }
+
+
+            document.addEventListener('click', function (e) {
+          const scope = e.target.closest('.lider-hero, .lider-container'); // limita el alcance
+          if (!scope) return;
+
+          const a = e.target.closest('a');
+          if (!a) return;
+
+          const href = a.getAttribute('href');
+          if (!href || href.startsWith('#') || a.hasAttribute('download')) return;
+
+          e.preventDefault();
+          abrirEnKiosko(href);
+        });
+    </script>
+
 
 
 

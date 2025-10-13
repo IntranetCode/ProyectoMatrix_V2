@@ -4,7 +4,6 @@
 @{
     ViewData["Title"] = "Editar Webinar";
     Layout = "~/Views/Shared/_LayoutComunicados.cshtml";
-    
 }
 
 <h2 class="mb-3">Editar Webinar</h2>
@@ -14,14 +13,13 @@
 <form asp-action="Editar" method="post" enctype="multipart/form-data">
     @Html.AntiForgeryToken()
 
-  
     <input type="hidden" asp-for="WebinarID" />
-   
     <input type="hidden" asp-for="FechaCreacion" />
 
     <div class="row g-3">
+        
         <div class="col-md-8">
-             <div class="mb-3">
+            <div class="mb-3">
                 <label asp-for="Titulo" class="form-label"></label>
                 <input asp-for="Titulo" class="form-control" />
                 <span asp-validation-for="Titulo" class="text-danger"></span>
@@ -39,7 +37,7 @@
                     <input asp-for="FechaInicio" type="datetime-local" class="form-control" />
                     <span asp-validation-for="FechaInicio" class="text-danger"></span>
                 </div>
-                      <div class="col-md-6">
+                <div class="col-md-6">
                     <label asp-for="FechaFin" class="form-label"></label>
                     <input asp-for="FechaFin" type="datetime-local" class="form-control" />
                     <span asp-validation-for="FechaFin" class="text-danger"></span>
@@ -55,27 +53,66 @@
 
             <div id="empresasSelect" class="mb-3">
                 <label class="form-label">Dirigido a (selecciona empresas)</label>
-                
                 <select name="empresasSeleccionadas"
                         asp-items="@(ViewBag.Empresas as MultiSelectList ?? new MultiSelectList(Enumerable.Empty<SelectListItem>()))"
                         multiple class="form-control" size="6">
                 </select>
                 <small class="text-muted d-block mt-1">Mantén presionada la tecla Ctrl/⌘ para seleccionar varias.</small>
-                </div>
-
-            <div class="mb-3">
-                <label asp-for="UrlTeams" class="form-label">URL de Teams</label>
-                <input asp-for="UrlTeams" class="form-control" placeholder="https://teams.microsoft.com/l/meetup-join/..." />
-                <span asp-validation-for="UrlTeams" class="text-danger"></span>
             </div>
 
+            
+            
+            <div class="mb-3">
+                <label class="form-label">Formato</label>
+
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="EsAsamblea"
+                           id="fmtAsamblea" value="true" @(Model?.EsAsamblea == true ? "checked" : null) />
+                    <label class="form-check-label" for="fmtAsamblea">Asamblea </label>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="EsAsamblea"
+                           id="fmtWebinar" value="false" @(Model?.EsAsamblea == false ? "checked" : null) />
+                    <label class="form-check-label" for="fmtWebinar">Webinar </label>
+                </div>
+            </div>
+
+
+            @*Asamblea*@
+            <div id="wrapEmbed" class="mb-3">
+                <label class="form-label">URL de inserción (SRC del en vivo)</label>
+                <input asp-for="UrlEnVivoEmbed" class="form-control"
+                       placeholder='Pega el SRC del iframe de Asamblea. Si pegas el <iframe> completo, se limpiará.'>
+                <small class="text-muted">Ej.: https://teams.microsoft.com/convene/townhall </small>
+                <span asp-validation-for="UrlEnVivoEmbed" class="text-danger"></span>
+            </div>
+
+          @*join*@
+            <div id="wrapJoin" class="mb-3">
+                <label class="etiqueta form-label" for="UrlTeams">URL para unirse en vivo (Teams)</label>
+                <input type="url" id="UrlTeams" name="UrlTeams" class="entrada form-control"
+                       placeholder="https://teams.microsoft.com/l/meetup-join/..." value="@Model?.UrlTeams" />
+                <small class="texto-ayuda form-text">Formato: teams.microsoft.com/l/meetup-join/…</small>
+                <span class="texto-error text-danger" asp-validation-for="UrlTeams"></span>
+            </div>
+
+            @*Registro solo dispobible para webinar y ademas es opciona*@
+            <div id="wrapRegistro" class="mb-3">
+                <label class="etiqueta form-label" for="UrlRegistro">URL de registro (opcional)</label>
+                <input type="url" id="UrlRegistro" name="UrlRegistro" class="entrada form-control"
+                       placeholder="https://events.teams.microsoft.com/..." value="@Model?.UrlRegistro" />
+                <small class="texto-ayuda form-text">Solo si usas registro de Teams.</small>
+                <span class="texto-error text-danger" asp-validation-for="UrlRegistro"></span>
+            </div>
+
+            @*Grabacion *@
             <div class="mb-3">
                 <label for="UrlGrabacion" class="form-label">URL de Grabación</label>
-                <input asp-for="UrlGrabacion" class="form-control" placeholder="https:// (Stream/SharePoint/YouTube/Vimeo)" />
+                <input asp-for="UrlGrabacion" class="form-control" placeholder="Pega el SRC . Si pegas el <iframe> completo, se limpiará automáticamente." />
                 <small class="text-muted">Se mostrará “Volver a ver” cuando el evento haya pasado.</small>
                 <span asp-validation-for="UrlGrabacion" class="text-danger"></span>
             </div>
-
 
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-success">Guardar cambios</button>
@@ -83,12 +120,13 @@
             </div>
         </div>
 
+       
         <div class="col-md-4">
             <label class="form-label">Imagen del webinar</label>
             <input type="file" name="imagenFile" class="form-control" accept="image/*" id="imagenFileInput" />
             <small class="text-muted d-block mt-1">Si seleccionas una nueva, reemplazará la actual.</small>
 
-       @if (!string.IsNullOrWhiteSpace(Model?.Imagen))
+            @if (!string.IsNullOrWhiteSpace(Model?.Imagen))
             {
                 <div class="mt-3">
                     <div class="form-text mb-1">Imagen actual:</div>
@@ -100,16 +138,16 @@
             <div class="mt-3" id="previewWrap" style="display:none;">
                 <div class="form-text mb-1">Vista previa:</div>
                 <img id="previewImg" style="max-width:100%; height:auto; border:1px solid #eee; border-radius:6px;" />
-       </div>
+            </div>
         </div>
-      </div>
+    </div>
 </form>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 
     <script>
-      
+        // Mostrar/ocultar selector de empresas según EsPublico
         (function () {
             const check = document.getElementById("esPublicoCheck");
             const empresasDiv = document.getElementById("empresasSelect");
@@ -117,7 +155,7 @@
             if (check) { check.addEventListener("change", toggleEmpresas); toggleEmpresas(); }
         })();
 
-    
+        // Preview de imagen
         (function () {
             const input = document.getElementById("imagenFileInput");
             const wrap = document.getElementById("previewWrap");
@@ -131,5 +169,77 @@
                 reader.readAsDataURL(file);
             });
         })();
+
+        // Alternar UI por formato + requisitos (se inicializa con el valor del modelo)
+        (function(){
+            const wrapEmbed    = document.getElementById('wrapEmbed');
+            const wrapJoin     = document.getElementById('wrapJoin');
+            const wrapRegistro = document.getElementById('wrapRegistro');
+
+            const urlEmbedInput = document.getElementById('UrlEnVivoEmbedInput');
+            const urlTeamsInput = document.getElementById('UrlTeams');
+            const urlTeamsLabel = document.getElementById('UrlTeamsLabel');
+            const urlTeamsHelp  = document.getElementById('UrlTeamsHelp');
+
+            function toggleFormato(){
+                // Lee el valor actual del modelo desde los radios
+                const esAsamblea = document.querySelector('input[name="EsAsamblea"]:checked')?.value === 'true';
+
+                // Visibilidad
+                wrapEmbed.style.display     = esAsamblea ? '' : 'none';
+                wrapRegistro.style.display  = esAsamblea ? 'none' : '';
+                wrapJoin.style.display      = ''; // Join se muestra en ambos
+
+                // Requisitos
+                if (urlEmbedInput) urlEmbedInput.required = esAsamblea;      // embed requerido en Asamblea
+                if (urlTeamsInput) urlTeamsInput.required = !esAsamblea;     // join requerido en Webinar, opcional en Asamblea
+
+                // Copy del label/ayuda del Join
+                if (urlTeamsLabel && urlTeamsHelp){
+                    if (esAsamblea){
+                        urlTeamsLabel.textContent = 'URL presentador (join)';
+                        urlTeamsHelp.textContent  = 'Solo para presentadores. Formato: teams.microsoft.com/l/meetup-join/...';
+                    } else {
+                        urlTeamsLabel.textContent = 'URL para unirse en vivo (Teams)';
+                        urlTeamsHelp.textContent  = 'Obligatoria para Webinar. Formato: teams.microsoft.com/l/meetup-join/...';
+                    }
+                }
+            }
+
+            // Enlaza a los radios generados por asp-for (mismo name: EsAsamblea)
+            document.getElementById('fmtAsamblea')?.addEventListener('change', toggleFormato);
+            document.getElementById('fmtWebinar') ?.addEventListener('change', toggleFormato);
+
+            // Inicializa según el valor actual del modelo
+            document.addEventListener('DOMContentLoaded', toggleFormato);
+            toggleFormato();
+        })();
     </script>
+
+
+
+    <script>
+        (function () {
+          const rAsamblea = document.getElementById('fmtAsamblea');
+          const rWebinar  = document.getElementById('fmtWebinar');
+          const wrapEmbed = document.getElementById('wrapEmbed');
+          const wrapJoin  = document.getElementById('wrapJoin');
+          const wrapReg   = document.getElementById('wrapRegistro');
+
+          function toggleFormato() {
+            const esAsamblea = document.querySelector('input[name="EsAsamblea"]:checked')?.value === 'true';
+            wrapEmbed.style.display = esAsamblea ? '' : 'none';
+            wrapJoin .style.display = esAsamblea ? 'none' : '';
+            wrapReg  .style.display = esAsamblea ? 'none' : '';
+          }
+
+          rAsamblea?.addEventListener('change', toggleFormato);
+          rWebinar ?.addEventListener('change', toggleFormato);
+          document.addEventListener('DOMContentLoaded', toggleFormato);
+          toggleFormato(); // al cargar
+        })();
+    </script>
+
+
+
 }

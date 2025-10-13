@@ -4,154 +4,160 @@
 @{
     ViewData["Title"] = "Agregar Webinar";
     Layout = "~/Views/Shared/_LayoutComunicados.cshtml";
-   
 }
 
 <link href="~/css/StylesLiderCrear.css" rel="stylesheet" />
 
 <div class="webinar-create">
+    <h2 class="mb-3">Agregar Webinar</h2>
 
-<h2 class="mb-3">Agregar Webinar</h2>
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
+    <form asp-action="CrearWebinar" method="post" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
 
-<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="row g-3">
+            
+            <div class="col-md-8">
 
-<form asp-action="CrearWebinar" method="post" enctype="multipart/form-data">
-    @Html.AntiForgeryToken()
-
-    <div class="row g-3">
-        <div class="col-md-8">
-            <div class="mb-3">
-                <label asp-for="Titulo" class="form-label"></label>
-                <input asp-for="Titulo" class="form-control" />
-                <span asp-validation-for="Titulo" class="text-danger"></span>
-            </div>
-
-            <div class="mb-3">
-                <label asp-for="Descripcion" class="form-label"></label>
-                <textarea asp-for="Descripcion" class="form-control" rows="4"></textarea>
-                <span asp-validation-for="Descripcion" class="text-danger"></span>
-            </div>
-
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label asp-for="FechaInicio" class="form-label"></label>
-                    <input asp-for="FechaInicio" type="datetime-local" class="form-control" />
-                    <span asp-validation-for="FechaInicio" class="text-danger"></span>
+                <div class="mb-3">
+                    <label asp-for="Titulo" class="form-label"></label>
+                    <input asp-for="Titulo" class="form-control" />
+                    <span asp-validation-for="Titulo" class="text-danger"></span>
                 </div>
-                <div class="col-md-6">
-                    <label asp-for="FechaFin" class="form-label"></label>
-                    <input asp-for="FechaFin" type="datetime-local" class="form-control" />
-                    <span asp-validation-for="FechaFin" class="text-danger"></span>
+
+                <div class="mb-3">
+                    <label asp-for="Descripcion" class="form-label"></label>
+                    <textarea asp-for="Descripcion" class="form-control" rows="4"></textarea>
+                    <span asp-validation-for="Descripcion" class="text-danger"></span>
                 </div>
-            </div>
 
-            <div class="form-check my-3">
-                <input asp-for="EsPublico" class="form-check-input" id="esPublicoCheck" />
-                <label class="form-check-label" for="esPublicoCheck">
-                    Es público (visible para todas las empresas)
-                </label>
-            </div>
-
-            <div id="empresasSelect" class="mb-3">
-                <label class="form-label">Dirigido a (selecciona empresas)</label>
-                <select name="empresasSeleccionadas"
-                        asp-items="@(ViewBag.Empresas as List<SelectListItem> ?? new List<SelectListItem>())"
-                        multiple class="form-control" size="6">
-                </select>
-                <small class="text-muted d-block mt-1">Mantén presionada la tecla Ctrl/⌘ para seleccionar varias.</small>
-            </div>
-
-
-                <div class="col-md-8">
-                   @*Url para el registro*@
-                    <div class="mb-3">
-                        <label class="etiqueta form-label" for="UrlRegistro">URL de registro (opcional)</label>
-                        <input type="url"
-                               id="UrlRegistro"
-                               name="UrlRegistro"
-                               class="entrada form-control"
-                               placeholder="https://events.teams.microsoft.com/..."
-                               value="@Model?.UrlRegistro" />
-                        <small class="texto-ayuda form-text">
-                            Si usas registro de Teams, pega aquí el enlace de <em>events.teams.microsoft.com</em>.
-                        </small>
-                        <span class="texto-error text-danger" asp-validation-for="UrlRegistro"></span>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="FechaInicio" class="form-label"></label>
+                        <input asp-for="FechaInicio" type="datetime-local" class="form-control" />
+                        <span asp-validation-for="FechaInicio" class="text-danger"></span>
                     </div>
-
-
-                    @*URL para Unirse en vivo*@
-                    <div class="mb-3">
-                        <label class="etiqueta form-label" for="UrlTeams">URL para unirse en vivo (obligatoria)</label>
-                        <input type="url"
-                               id="UrlTeams"
-                               name="UrlTeams"
-                               class="entrada form-control"
-                               placeholder="https://teams.microsoft.com/l/meetup-join/..."
-                               value="@Model?.UrlTeams" />
-                        <small class="texto-ayuda form-text">
-                            Enlace de Teams para unirse al webinar (formato <em>teams.microsoft.com/l/meetup-join/...</em>).
-                        </small>
-                        <span class="texto-error text-danger" asp-validation-for="UrlTeams"></span>
-                    </div>
-
-
-                    @*Url para la grabacion del webinar, pero solo se pueden ingresar datos al momento de editar*@
-                    <div class="mb-3">
-                        <label class="etiqueta form-label" for="UrlGrabacion">URL de grabación (se agrega después)</label>
-                        <input type="url"
-                               id="UrlGrabacion"
-                               name="UrlGrabacion"
-                               class="entrada form-control"
-                               placeholder="(Se habilita al editar)"
-                               value="@Model?.UrlGrabacion"
-                               readonly />
-                        <small class="texto-ayuda form-text">
-                            Este enlace se añade cuando la grabación esté disponible (SharePoint/OneDrive/YouTube/Vimeo).
-                        </small>
-                        <span class="texto-error text-danger" asp-validation-for="UrlGrabacion"></span>
+                    <div class="col-md-6">
+                        <label asp-for="FechaFin" class="form-label"></label>
+                        <input asp-for="FechaFin" type="datetime-local" class="form-control" />
+                        <span asp-validation-for="FechaFin" class="text-danger"></span>
                     </div>
                 </div>
 
+                <div class="form-check my-3">
+                    <input asp-for="EsPublico" class="form-check-input" id="esPublicoCheck" />
+                    <label class="form-check-label" for="esPublicoCheck">
+                        Es público (visible para todas las empresas)
+                    </label>
+                </div>
 
+                <div id="empresasSelect" class="mb-3">
+                    <label class="form-label">Dirigido a (selecciona empresas)</label>
+                    <select name="empresasSeleccionadas"
+                            asp-items="@(ViewBag.Empresas as List<SelectListItem> ?? new List<SelectListItem>())"
+                            multiple class="form-control" size="6">
+                    </select>
+                    <small class="text-muted d-block mt-1">Mantén presionada la tecla Ctrl/⌘ para seleccionar varias.</small>
+                </div>
 
-
-                <div class="col-md-4">
-                    <label class="form-label">Imagen del webinar</label>
-                    <input type="file" name="imagenFile" class="form-control" accept="image/*" id="imagenFileInput" />
-                    <small class="text-muted d-block mt-1">Se guardará en /uploads/webinars/</small>
-
-                    @* Si viniera con imagen (por ejemplo al reintentar por validación) *@
-                    @if (!string.IsNullOrWhiteSpace(Model?.Imagen))
-                    {
-                        <div class="mt-3">
-                            <div class="form-text mb-1">Imagen actual:</div>
-                            <img src="@Model.Imagen" alt="Imagen actual" style="max-width:100%; height:auto; border:1px solid #eee; border-radius:6px;" />
-                        </div>
-                    }
-
-                    <div class="mt-3" id="previewWrap" style="display:none;">
-                        <div class="form-text mb-1">Vista previa:</div>
-                        <img id="previewImg" style="max-width:100%; height:auto; border:1px solid #eee; border-radius:6px;" />
+             
+                <div class="mb-3">
+                    <label class="form-label">Formato</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="EsAsamblea" id="fmtAsamblea" value="true" checked>
+                        <label class="form-check-label" for="fmtAsamblea">Asamblea (solo vista)</label>
                     </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="EsAsamblea" id="fmtWebinar" value="false">
+                        <label class="form-check-label" for="fmtWebinar">Webinar (reunión interactiva)</label>
+                    </div>
+                </div>
 
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-success">Guardar</button>
-                <a asp-controller="Lider" asp-action="Index" class="btn btn-secondary">Cancelar</a>
+              @*  //Cuando es asamblea*@
+                <div id="wrapEmbed" class="mb-3">
+                    <label class="form-label">URL de inserción (SRC del en vivo)</label>
+                    <input asp-for="UrlEnVivoEmbed" class="form-control" id="UrlEnVivoEmbedInput"
+                           placeholder='Pega el SRC del iframe de Asamblea. Si pegas el <iframe> completo, se limpiará automáticamente.'>
+                    <small class="text-muted">Ej.: https://teams.microsoft.com/convene/townhall</small>
+                    <span asp-validation-for="UrlEnVivoEmbed" class="text-danger"></span>
+                </div>
+
+             @*   //Jpoin en teams*@
+                <div id="wrapJoin" class="mb-3">
+                    <label class="etiqueta form-label" id="UrlTeamsLabel" for="UrlTeams">URL presentador (join)</label>
+                    <input type="url" id="UrlTeams" name="UrlTeams" class="entrada form-control"
+                           placeholder="https://teams.microsoft.com/l/meetup-join/..." value="@Model?.UrlTeams" />
+                    <small class="texto-ayuda form-text" id="UrlTeamsHelp">
+                        Formato: teams.microsoft.com/l/meetup-join/…
+                    </small>
+                    <span class="texto-error text-danger" asp-validation-for="UrlTeams"></span>
+                </div>
+
+              @*  //Registro en caso de que sea webinar con registro*@
+                <div id="wrapRegistro" class="mb-3">
+                    <label class="etiqueta form-label" for="UrlRegistro">URL de registro (opcional)</label>
+                    <input type="url"
+                           id="UrlRegistro"
+                           name="UrlRegistro"
+                           class="entrada form-control"
+                           placeholder="https://events.teams.microsoft.com/..."
+                           value="@Model?.UrlRegistro" />
+                    <small class="texto-ayuda form-text">
+                        Si usas registro de Teams, pega aquí el enlace de <em>events.teams.microsoft.com</em>.
+                    </small>
+                    <span class="texto-error text-danger" asp-validation-for="UrlRegistro"></span>
+                </div>
+
+               @* //Grabacion pero solo se activa al editar *@
+                <div class="mb-3">
+                    <label class="etiqueta form-label" for="UrlGrabacion">URL de grabación (se agrega después)</label>
+                    <input type="url"
+                           id="UrlGrabacion"
+                           name="UrlGrabacion"
+                           class="entrada form-control"
+                           placeholder="(Se habilita al editar)"
+                           value="@Model?.UrlGrabacion"
+                           readonly />
+                    <small class="texto-ayuda form-text">
+                        Este enlace se añade cuando la grabación esté disponible (SharePoint/OneDrive/YouTube/Vimeo).
+                    </small>
+                    <span class="texto-error text-danger" asp-validation-for="UrlGrabacion"></span>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Imagen del webinar</label>
+                <input type="file" name="imagenFile" class="form-control" accept="image/*" id="imagenFileInput" />
+                <small class="text-muted d-block mt-1">Se guardará en /uploads/webinars/</small>
+
+                @if (!string.IsNullOrWhiteSpace(Model?.Imagen))
+                {
+                    <div class="mt-3">
+                        <div class="form-text mb-1">Imagen actual:</div>
+                        <img src="@Model.Imagen" alt="Imagen actual" style="max-width:100%; height:auto; border:1px solid #eee; border-radius:6px;" />
+                    </div>
+                }
+
+                <div class="mt-3" id="previewWrap" style="display:none;">
+                    <div class="form-text mb-1">Vista previa:</div>
+                    <img id="previewImg" style="max-width:100%; height:auto; border:1px solid #eee; border-radius:6px;" />
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" class="btn btn-success">Guardar</button>
+                    <a asp-controller="Lider" asp-action="Index" class="btn btn-secondary">Cancelar</a>
+                </div>
             </div>
         </div>
-
-    </div>
-</form>
+    </form>
 </div>
-
-
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 
     <script>
-        
+        // Mostrar/ocultar selector de empresas según EsPublico
         (function () {
             const check = document.getElementById("esPublicoCheck");
             const empresasDiv = document.getElementById("empresasSelect");
@@ -159,7 +165,7 @@
             if (check) { check.addEventListener("change", toggleEmpresas); toggleEmpresas(); }
         })();
 
-        
+        // Preview de imagen
         (function () {
             const input = document.getElementById("imagenFileInput");
             const wrap = document.getElementById("previewWrap");
@@ -173,59 +179,77 @@
                 reader.readAsDataURL(file);
             });
         })();
-    </script>
 
-    <script>
+        // Validación simple de fechas
         (function(){
-                    const ini = document.getElementById('FechaInicio');
-                            const fin = document.getElementById('FechaFin');
-function validarFechas(){
-    if(!ini || !fin) return;
-                    const vIni = ini.value? new Date(ini.value) : null;
-                            const vFin = fin.value? new Date(fin.value) : null;
-if(ini.value) fin.min = ini.value;
-            if(vIni && vFin && vFin < vIni) {
-fin.setCustomValidity("La fecha fin que se esta ingresando es menor a la de inicio.");
-if (window.jQuery){
-        const form = jQuery(fin).closest('form');
-form.data("validator")?.element(jQuery(fin));
-}
-                    } else {
-        fin.setCustomValidity("");
-        if (window.jQuery){
-                    const form = jQuery(fin).closest('form');
-        form.data("validator")?.element(jQuery(fin));
-
-
-}
-
-}
-
-
-}
-ini?.addEventListener('change', validarFechas);
+            const ini = document.getElementById('FechaInicio');
+            const fin = document.getElementById('FechaFin');
+            function validarFechas(){
+                if(!ini || !fin) return;
+                const vIni = ini.value? new Date(ini.value) : null;
+                const vFin = fin.value? new Date(fin.value) : null;
+                if(ini.value) fin.min = ini.value;
+                if(vIni && vFin && vFin < vIni) {
+                    fin.setCustomValidity("La fecha fin que se está ingresando es menor a la de inicio.");
+                    if (window.jQuery){
+                        const form = jQuery(fin).closest('form');
+                        form.data("validator")?.element(jQuery(fin));
+                    }
+                } else {
+                    fin.setCustomValidity("");
+                    if (window.jQuery){
+                        const form = jQuery(fin).closest('form');
+                        form.data("validator")?.element(jQuery(fin));
+                    }
+                }
+            }
+            ini?.addEventListener('change', validarFechas);
             fin?.addEventListener('change', validarFechas);
-        validarFechas();
+            validarFechas();
+        })();
+
+        // Alternar UI por formato + requisitos
+        (function(){
+            const rAsamblea = document.getElementById('fmtAsamblea');
+            const rWebinar  = document.getElementById('fmtWebinar');
+
+            const wrapEmbed = document.getElementById('wrapEmbed');
+            const wrapJoin  = document.getElementById('wrapJoin');
+            const wrapRegistro = document.getElementById('wrapRegistro');
+
+            const urlEmbedInput = document.getElementById('UrlEnVivoEmbedInput');
+            const urlTeamsInput = document.getElementById('UrlTeams');
+            const urlTeamsLabel = document.getElementById('UrlTeamsLabel');
+            const urlTeamsHelp  = document.getElementById('UrlTeamsHelp');
+
+            function toggleFormato(){
+                const esAsamblea = document.querySelector('input[name="EsAsamblea"]:checked')?.value === 'true';
+
+                // Visibilidad
+                wrapEmbed.style.display   = esAsamblea ? '' : 'none';
+                wrapRegistro.style.display= esAsamblea ? 'none' : '';
+                wrapJoin.style.display    = ''; // Join se usa en ambos, cambia el texto
+
+                // Requisitos
+                if (urlEmbedInput) urlEmbedInput.required = esAsamblea;      // embed requerido en Asamblea
+                if (urlTeamsInput) urlTeamsInput.required = !esAsamblea;     // join requerido en Webinar, opcional en Asamblea
+
+                // Texto del label/ayuda de Join
+                if (urlTeamsLabel && urlTeamsHelp){
+                    if (esAsamblea){
+                        urlTeamsLabel.textContent = 'URL presentador (join)';
+                        urlTeamsHelp.textContent  = 'Solo para presentadores. Formato: teams.microsoft.com/l/meetup-join/...';
+                    } else {
+                        urlTeamsLabel.textContent = 'URL para unirse en vivo (Teams)';
+                        urlTeamsHelp.textContent  = 'Obligatoria para Webinar. Formato: teams.microsoft.com/l/meetup-join/...';
+                    }
+                }
+            }
+
+            rAsamblea?.addEventListener('change', toggleFormato);
+            rWebinar ?.addEventListener('change', toggleFormato);
+            document.addEventListener('DOMContentLoaded', toggleFormato);
+            toggleFormato();
         })();
     </script>
-
-    <script>
-        function toggleAcceso() {
-          const t = document.querySelector('input[name="tipoAcceso"]:checked')?.value;
-          const reg = document.getElementById('wrapUrlRegistro');
-          const teams = document.getElementById('wrapUrlTeams');
-          if (t === 'directo') {
-            reg.style.display = 'none';
-            teams.style.display = '';
-          } else {
-            reg.style.display = '';
-            teams.style.display = 'none';
-          }
-        }
-        document.querySelectorAll('input[name="tipoAcceso"]').forEach(r => {
-          r.addEventListener('change', toggleAcceso);
-        });
-        document.addEventListener('DOMContentLoaded', toggleAcceso);
-    </script>
-
 }
