@@ -69,11 +69,14 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     position: sticky;
     top: 0;
-    z-index: 1000;
+    z-index: 1050;
     height: var(--navbar-height);
+    overflow: visible;
 }
 
 .navbar-container {
+    position: relative;
+    overflow: visible;
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 2rem;
@@ -173,6 +176,8 @@
     display: flex;
     align-items: center;
     gap: 1rem;
+    position: relative;
+    overflow:visible;
 }
 
 .quick-actions {
@@ -296,11 +301,12 @@
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     min-width: 250px;
     display: none;
-    z-index: 1000;
+    z-index: 2000;
     overflow: hidden;
+    display: none;
 }
 
-    .user-dropdown.show {
+    .user-dropdown.is-open {
         display: block;
         animation: dropdownFadeIn 0.2s ease;
     }
@@ -516,3 +522,34 @@
 }
 
 
+/* overlay de carga: que no capture clics cuando desaparece */
+#loadingOverlay {
+    z-index: 4000; /* alto mientras carga */
+    transition: opacity .3s ease;
+}
+
+    #loadingOverlay.fade-out {
+        opacity: 0;
+        pointer-events: none; /* clave para no bloquear */
+    }
+
+/* overlay de panel: por debajo del dropdown y sin clics por defecto */
+.panel-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.25);
+    opacity: 0;
+    pointer-events: none; /* no bloquea mientras está oculto */
+    z-index: 900; /* < 1050 navbar, < 2000 dropdown */
+    transition: opacity .2s ease;
+}
+
+    .panel-overlay.is-active {
+        opacity: 1;
+        pointer-events: auto; /* solo cuando lo actives explícitamente */
+    }
+
+.navbar-navigation,
+.nav-links {
+    overflow: visible;
+}

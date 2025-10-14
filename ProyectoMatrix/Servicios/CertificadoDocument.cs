@@ -63,22 +63,28 @@ namespace ProyectoMatrix.Servicios
                         .FontSize(18).FontColor(Colors.Grey.Medium);
 
                     // Firmas
-                    column.Item().Row(row =>
+
+                    column.Item().Height(40);
+
+                    column.Item().AlignCenter().Column(c =>
                     {
-                        row.RelativeItem().AlignLeft().Column(c =>
-                        {
-                            c.Item().Text("_________________________");
-                            c.Item().Text("YADIRA I. OLGUÍN MIJARES").Bold();
-                            c.Item().Text("Directora de Recursos Humanos").FontSize(12);
+                            c.Item().Text("_________________________").AlignCenter();
+                            c.Item().Text("YADIRA I. OLGUÍN MIJARES").Bold().AlignCenter();
+                            c.Item().Text("Directora de Recursos Humanos").FontSize(12).AlignCenter();
                         });
 
-                        row.RelativeItem().AlignRight().Column(c =>
-                        {
-                            c.Item().Text("_________________________");
-                            c.Item().Text("FIRMA #2").Bold();
-                            c.Item().Text("Cargo").FontSize(12);
-                        });
-                    });
+
+                       
+
+                        //ESTA FIRMA SE AGREGARA DESPUES Y SE HARÁ DINAMUICA
+
+                        //  row.RelativeItem().AlignRight().Column(c =>
+                        //   {
+                        //      c.Item().Text("_________________________");
+                        //     c.Item().Text("FIRMA #2").Bold();
+                        //      c.Item().Text("Cargo").FontSize(12);
+                        //  });
+                    
 
                     column.Item().AlignRight().Text(FormatearFecha(_fecha))
                         .FontSize(12).FontColor(Colors.Grey.Medium);
