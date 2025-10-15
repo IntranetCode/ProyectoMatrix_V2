@@ -21,6 +21,7 @@ namespace ProyectoMatrix.Controllers
             return RedirectToAction("Login", "Login");
         }
 
+
         [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public async Task<IActionResult> Index()
         {
@@ -34,70 +35,69 @@ namespace ProyectoMatrix.Controllers
             if (usuarioID == null)
                 return RedirectToAction("Login", "Login");
 
-            string connectionString = _configuration.GetConnectionString("DefaultConnection");
-            var menuItems = new List<MenuItemViewModel>();
-            string rol = HttpContext.Session.GetString("Rol") ?? "";
+            // Empresa actual (puede ser null => global)
+            var empresaIdStr = HttpContext.Session.GetString("EmpresaId");
+            int? empresaId = int.TryParse(empresaIdStr, out var tmp) ? tmp : (int?)null;
 
-            using SqlConnection conn = new(connectionString);
+            var menuRaiz = new List<MenuModel>();
+            string cnn = _configuration.GetConnectionString("DefaultConnection");
+            await using var conn = new SqlConnection(cnn);
             await conn.OpenAsync();
 
-            // ✅ INICIO: CONSULTA SQL CORREGIDA CON UNION
-            string query = @"
-                -- Parte 1: Obtiene los menús permitidos por el ROL del usuario
-                SELECT m.MenuID, m.Nombre AS NombreMenu, sm.UrlEnlace
-                FROM Menus m
-                INNER JOIN SubMenus sm ON m.MenuID = sm.MenuID
-                INNER JOIN SubMenuAcciones sma ON sm.SubMenuID = sma.SubMenuID
-                INNER JOIN PermisosPorRol pr ON sma.SubMenuAccionID = pr.SubMenuAccionID
-                INNER JOIN Usuarios u ON pr.RolID = u.RolID
-                WHERE u.UsuarioID = @UsuarioID AND sm.Activo = 1 AND sma.Activo = 1
+            // Trae los menús cuyo SubMenu tenga permiso efectivo (rol + overrides)
+            const string sql = @"
+WITH Perms AS (
+  SELECT SubMenuID
+  FROM dbo.fn_PermisosEfectivosUsuario(@UsuarioID, @EmpresaID)
+  WHERE TienePermiso = 1
+)
+SELECT DISTINCT m.MenuID, m.Nombre AS NombreMenu, sm.UrlEnlace
+FROM Menus m
+JOIN SubMenus sm ON sm.MenuID = m.MenuID
+JOIN Perms    p  ON p.SubMenuID = sm.SubMenuID
+WHERE sm.Activo = 1
+ORDER BY m.MenuID;";
 
-                UNION
-
-                -- Parte 2: Obtiene los menús permitidos por asignación DIRECTA (checkboxes)
-                SELECT m.MenuID, m.Nombre AS NombreMenu, sm.UrlEnlace
-                FROM Menus m
-                INNER JOIN SubMenus sm ON m.MenuID = sm.MenuID
-                INNER JOIN Permisos p ON sm.SubMenuID = p.SubMenuID
-                WHERE p.UsuarioID = @UsuarioID AND sm.Activo = 1;
-            ";
-            // ✅ FIN: CONSULTA SQL CORREGIDA
-
-            using SqlCommand cmd = new(query, conn);
-            cmd.Parameters.AddWithValue("@UsuarioID", usuarioID.Value);
-
-            using SqlDataReader reader = await cmd.ExecuteReaderAsync();
-            var menusPlanos = new List<MenuModel>();
-
-            while (await reader.ReadAsync())
+            await using (var cmd = new SqlCommand(sql, conn))
             {
-                var nombreMenu = reader.GetString("NombreMenu");
-                var urlEnlace = reader.IsDBNull("UrlEnlace") ? null : reader.GetString("UrlEnlace");
+                cmd.Parameters.AddWithValue("@UsuarioID", usuarioID.Value);
+                var pEmp = cmd.Parameters.Add("@EmpresaID", SqlDbType.Int);
+                pEmp.Value = (object?)empresaId ?? DBNull.Value;
 
-                menusPlanos.Add(new MenuModel
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
                 {
-                    MenuID = reader.GetInt32("MenuID"),
-                    Nombre = nombreMenu,
-                    Url = urlEnlace ?? GetUrlPorDefecto(nombreMenu),
-                    Icono = GetIconoParaMenu(nombreMenu),
-                    Descripcion = GetDescripcionParaMenu(nombreMenu),
-                    Orden = 0,
-                    MenuPadreID = null,
-                    SubMenus = new List<MenuModel>()
-                });
+                    var nombreMenu = rd.GetString(rd.GetOrdinal("NombreMenu"));
+                    var url = rd.IsDBNull(rd.GetOrdinal("UrlEnlace"))
+                                ? null
+                                : rd.GetString(rd.GetOrdinal("UrlEnlace"));
+
+                    menuRaiz.Add(new MenuModel
+                    {
+                        MenuID = rd.GetInt32(rd.GetOrdinal("MenuID")),
+                        Nombre = nombreMenu,
+                        Url = url ?? GetUrlPorDefecto(nombreMenu),
+                        Icono = GetIconoParaMenu(nombreMenu),
+                        Descripcion = GetDescripcionParaMenu(nombreMenu),
+                        Orden = 0,
+                        MenuPadreID = null,
+                        SubMenus = new List<MenuModel>()
+                    });
+                }
             }
 
-            var menuRaiz = menusPlanos
-                .GroupBy(m => m.MenuID)
-                .Select(g => g.First())
-                .OrderBy(m => m.MenuID)
-                .ToList();
+            // por si vinieran duplicados
+            menuRaiz = menuRaiz.GroupBy(m => m.MenuID).Select(g => g.First()).OrderBy(m => m.MenuID).ToList();
 
-            HttpContext.Session.SetString("MenuItems", JsonSerializer.Serialize(menuRaiz));
+            // guardado opcional en sesión (si lo usas después)
+            HttpContext.Session.SetString("MenuItems", System.Text.Json.JsonSerializer.Serialize(menuRaiz));
 
-           
             return View(menuRaiz);
         }
+
+
+
+
 
         // --- Tus métodos Helper (GetUrlPorDefecto, GetIconoParaMenu, etc.) van aquí sin cambios ---
         private string GetUrlPorDefecto(string nombreMenu)

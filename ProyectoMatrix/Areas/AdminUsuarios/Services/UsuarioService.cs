@@ -47,7 +47,7 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
             return await query.OrderBy(u => u.Nombre).ToListAsync();
         }
 
-        // ✅ ESTE ES EL MÉTODO CON LA LÓGICA ACTUALIZADA
+        // ========= NUEVO: sin usar tabla Permisos; usa la TVF para armar SubMenuIDs efectivos (global/NULL) =========
         public async Task<UsuarioEdicionDTO?> ObtenerParaEditarAsync(int usuarioId)
         {
             var usuario = await _context.Usuarios
@@ -57,33 +57,17 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
 
             if (usuario == null || usuario.Persona == null) return null;
 
-            // 1. Obtiene los SubMenuID que vienen del ROL del usuario.
-            var permisosDelRolIds = await _context.PermisosPorRol
-                .Where(pr => pr.RolID == usuario.RolID)
-                .Join(_context.SubMenuAcciones,
-                      pr => pr.SubMenuAccionID,
-                      sma => sma.SubMenuAccionID,
-                      (pr, sma) => sma.SubMenuID)
-                .Distinct()
-                .ToListAsync();
-
-            // 2. Obtiene los SubMenuID asignados DIRECTAMENTE al usuario en la tabla Permisos.
-            var permisosDirectosIds = await _context.Permisos
-                .Where(p => p.UsuarioID == usuarioId)
-                .Select(p => p.SubMenuID)
-                .Distinct()
-                .ToListAsync();
-
-            // 3. Combina ambas listas para obtener los permisos efectivos.
-            var permisosEfectivosIds = permisosDelRolIds.Union(permisosDirectosIds).ToList();
-
-            // Se obtiene el resto de la información como antes
+            // Empresas del usuario
             var empresasIds = await _context.UsuariosEmpresas
                 .Where(ue => ue.UsuarioID == usuarioId)
                 .Select(ue => ue.EmpresaID)
                 .ToListAsync();
 
+            // Historial
             var historial = await ObtenerHistorialAsync(usuarioId);
+
+            // Submenus EFECTIVOS (global = NULL) desde TVF
+            var subMenusEfectivos = await ObtenerSubMenusEfectivosAsync(usuarioId, null);
 
             return new UsuarioEdicionDTO
             {
@@ -96,14 +80,41 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
                 RolID = usuario.RolID,
                 Activo = usuario.Activo,
                 EmpresasIDs = empresasIds,
-                SubMenuIDs = permisosEfectivosIds, // Se usa la lista combinada.
+                SubMenuIDs = subMenusEfectivos,   // <- ya NO viene de tabla Permisos
                 HistorialDeCambios = historial
             };
+        }
+
+        // Lee SubMenuIDs efectivos usando la TVF fn_PermisosEfectivosUsuario
+        private async Task<List<int>> ObtenerSubMenusEfectivosAsync(int usuarioId, int? empresaId)
+        {
+            var lista = new List<int>();
+            var conn = _context.Database.GetDbConnection();
+            if (conn.State != ConnectionState.Open)
+                await conn.OpenAsync();
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT fe.SubMenuID
+FROM dbo.fn_PermisosEfectivosUsuario(@UsuarioID, @EmpresaID) AS fe
+WHERE fe.TienePermiso = 1;";
+            cmd.CommandType = CommandType.Text;
+
+            var pU = cmd.CreateParameter(); pU.ParameterName = "@UsuarioID"; pU.Value = usuarioId; cmd.Parameters.Add(pU);
+            var pE = cmd.CreateParameter(); pE.ParameterName = "@EmpresaID"; pE.Value = (object?)empresaId ?? DBNull.Value; cmd.Parameters.Add(pE);
+
+            using var rd = await cmd.ExecuteReaderAsync();
+            while (await rd.ReadAsync())
+            {
+                lista.Add(rd.GetInt32(0));
+            }
+            return lista.Distinct().OrderBy(x => x).ToList();
         }
 
         public async Task RegistrarAsync(UsuarioRegistroDTO nuevoUsuario)
         {
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(nuevoUsuario.Password);
+
             var empresasTable = new DataTable();
             empresasTable.Columns.Add("ID", typeof(int));
             if (nuevoUsuario.EmpresasIDs != null)
@@ -117,6 +128,9 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
                 Value = empresasTable,
                 TypeName = "dbo.ListaDeEnteros"
             };
+
+            // NOTA: mantenemos SubMenuIDs para no romper el SP existente;
+            // si luego deprecamos el parámetro en el SP, quitamos esta sección.
             var subMenusTable = new DataTable();
             subMenusTable.Columns.Add("ID", typeof(int));
             if (nuevoUsuario.SubMenuIDs != null)
@@ -130,6 +144,7 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
                 Value = subMenusTable,
                 TypeName = "dbo.ListaDeEnteros"
             };
+
             var parameters = new object[]
             {
                 new SqlParameter("@Nombre", nuevoUsuario.Nombre),
@@ -143,6 +158,7 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
                 empresasParam,
                 subMenusParam
             };
+
             await _context.Database.ExecuteSqlRawAsync(
                 "EXEC sp_RegistrarUsuario @Nombre, @ApellidoPaterno, @Correo, @Username, @ContrasenaHash, @RolID, @ApellidoMaterno, @Telefono, @EmpresasIDs, @SubMenuIDs",
                 parameters);
@@ -163,6 +179,8 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
                 Value = empresasTable,
                 TypeName = "dbo.ListaDeEnteros"
             };
+
+            // Igual que arriba: mantenemos por compatibilidad con el SP actual
             var subMenusTable = new DataTable();
             subMenusTable.Columns.Add("ID", typeof(int));
             if (usuario.SubMenuIDs != null)
@@ -176,6 +194,7 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
                 Value = subMenusTable,
                 TypeName = "dbo.ListaDeEnteros"
             };
+
             var parameters = new object[]
             {
                 new SqlParameter("@UsuarioID", usuario.UsuarioID),
@@ -189,6 +208,7 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
                 empresasParam,
                 subMenusParam
             };
+
             await _context.Database.ExecuteSqlRawAsync(
                 "EXEC sp_ActualizarUsuario @UsuarioID, @Nombre, @ApellidoPaterno, @Correo, @RolID, @Activo, @ApellidoMaterno, @Telefono, @EmpresasIDs, @SubMenuIDs",
                 parameters);
@@ -209,6 +229,7 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
             return historial ?? new List<AuditoriaUsuario>();
         }
 
+        // Puedes mantener esta función si tu FN_UsuarioTienePermiso ya usa la lógica nueva.
         public async Task<bool> TienePermisoAsync(int usuarioId, string nombreAccion)
         {
             var usuarioIdParam = new SqlParameter("@UsuarioID", usuarioId);
@@ -236,59 +257,116 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
         }
 
         public async Task<bool> VerificarPermisoAsync(int usuarioId, int subMenuId)
+            => await VerificarPermisoAsync(usuarioId, null, subMenuId);  // global por defecto
+
+        public async Task<bool> VerificarPermisoAsync(int usuarioId, int? empresaId, int subMenuId)
         {
-            // 1. Primero, busca un permiso DIRECTO en la tabla Permisos.
-            //    Si existe, el usuario tiene acceso y no necesitamos buscar más.
-            bool tienePermisoDirecto = await _context.Permisos
-                .AnyAsync(p => p.UsuarioID == usuarioId && p.SubMenuID == subMenuId);
+            var conn = _context.Database.GetDbConnection();
+            if (conn.State != ConnectionState.Open)
+                await conn.OpenAsync();
 
-            if (tienePermisoDirecto)
-            {
-                return true; // Permiso concedido por asignación directa
-            }
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT TOP 1 fe.TienePermiso
+FROM dbo.fn_PermisosEfectivosUsuario(@UsuarioID, @EmpresaID) AS fe
+WHERE fe.SubMenuID = @SubMenuID;";
+            cmd.CommandType = CommandType.Text;
 
-            // 2. Si no hay permiso directo, busca el permiso heredado del ROL.
-            var usuario = await _context.Usuarios.FindAsync(usuarioId);
-            if (usuario == null)
-            {
-                return false; // El usuario no existe
-            }
+            var pU = cmd.CreateParameter(); pU.ParameterName = "@UsuarioID"; pU.Value = usuarioId; cmd.Parameters.Add(pU);
+            var pE = cmd.CreateParameter(); pE.ParameterName = "@EmpresaID"; pE.Value = (object?)empresaId ?? DBNull.Value; cmd.Parameters.Add(pE);
+            var pS = cmd.CreateParameter(); pS.ParameterName = "@SubMenuID"; pS.Value = subMenuId; cmd.Parameters.Add(pS);
 
-            bool tienePermisoPorRol = await _context.PermisosPorRol
-                .Where(pr => pr.RolID == usuario.RolID)
-                .Join(_context.SubMenuAcciones,
-                      pr => pr.SubMenuAccionID,
-                      sma => sma.SubMenuAccionID,
-                      (pr, sma) => sma.SubMenuID)
-                .AnyAsync(id => id == subMenuId);
-
-            return tienePermisoPorRol; // Devuelve true si el rol lo permite, sino false
+            var resultObj = await cmd.ExecuteScalarAsync();
+            return (resultObj is bool b && b);
         }
 
-        public async Task<bool> VerificarPermisoParaMenuAsync(int usuarioId, int menuId)
+        // ========================= OVERRIDES =========================
+
+        public async Task<List<OverrideItemDto>> ListarOverridesAsync(int usuarioId, int? empresaId)
         {
-            // Obtiene todos los SubMenuID que pertenecen al Menu principal
+            var result = new List<OverrideItemDto>();
+            var conn = _context.Database.GetDbConnection();
+
+            if (conn.State != ConnectionState.Open)
+                await conn.OpenAsync();
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "dbo.sp_Overrides_ListarUsuario";
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            var pU = cmd.CreateParameter(); pU.ParameterName = "@UsuarioID"; pU.Value = usuarioId; cmd.Parameters.Add(pU);
+            var pE = cmd.CreateParameter(); pE.ParameterName = "@EmpresaID"; pE.Value = (object?)empresaId ?? DBNull.Value; cmd.Parameters.Add(pE);
+
+            using var rd = await cmd.ExecuteReaderAsync();
+            while (await rd.ReadAsync())
+            {
+                var item = new OverrideItemDto
+                {
+                    SubMenuID = rd.GetInt32(rd.GetOrdinal("SubMenuID")),
+                    Nombre = rd.GetString(rd.GetOrdinal("Nombre")),
+                    Estado = rd.GetInt32(rd.GetOrdinal("Estado")),          // -1, 0, 1
+                    PermisoEfectivo = rd.GetBoolean(rd.GetOrdinal("PermisoEfectivo"))
+                };
+                result.Add(item);
+            }
+            return result;
+        }
+
+        public async Task GuardarOverridesAsync(int usuarioId, int? empresaId, IEnumerable<OverrideItemDto> items)
+        {
+            var conn = _context.Database.GetDbConnection();
+            if (conn.State != ConnectionState.Open)
+                await conn.OpenAsync();
+
+            using var tx = await (conn as SqlConnection)!.BeginTransactionAsync();
+
+            try
+            {
+                foreach (var it in items ?? Enumerable.Empty<OverrideItemDto>())
+                {
+                    using var cmd = conn.CreateCommand();
+                    cmd.Transaction = tx as SqlTransaction;
+                    cmd.CommandText = "dbo.sp_Override_Upsert";
+                    cmd.CommandType = CommandType.StoredProcedure;
+
+                    var pU = cmd.CreateParameter(); pU.ParameterName = "@UsuarioID"; pU.Value = usuarioId; cmd.Parameters.Add(pU);
+                    var pE = cmd.CreateParameter(); pE.ParameterName = "@EmpresaID"; pE.Value = (object?)empresaId ?? DBNull.Value; cmd.Parameters.Add(pE);
+                    var pS = cmd.CreateParameter(); pS.ParameterName = "@SubMenuID"; pS.Value = it.SubMenuID; cmd.Parameters.Add(pS);
+                    var pT = cmd.CreateParameter(); pT.ParameterName = "@Estado"; pT.Value = it.Estado; cmd.Parameters.Add(pT);
+
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                await (tx as SqlTransaction)!.CommitAsync();
+            }
+            catch
+            {
+                await (tx as SqlTransaction)!.RollbackAsync();
+                throw;
+            }
+        }
+
+        // ========= Chequeo de menú con empresaId =========
+        public async Task<bool> VerificarPermisoParaMenuAsync(int usuarioId, int? empresaId, int menuId)
+        {
             var subMenuIdsDelMenu = await _context.SubMenus
                 .Where(sm => sm.MenuID == menuId)
                 .Select(sm => sm.SubMenuID)
                 .ToListAsync();
 
             if (!subMenuIdsDelMenu.Any())
-            {
-                return false; // El menú no tiene submenús, no se puede dar acceso
-            }
+                return false;
 
-            // Comprueba si el usuario tiene permiso para CUALQUIERA de esos submenús
             foreach (var subMenuId in subMenuIdsDelMenu)
             {
-                if (await VerificarPermisoAsync(usuarioId, subMenuId))
-                {
-                    return true; // Encontramos un permiso, concedemos acceso al menú principal
-                }
+                if (await VerificarPermisoAsync(usuarioId, empresaId, subMenuId))
+                    return true;
             }
-
-            return false; // No se encontró ningún permiso para ningún submenú
+            return false;
         }
 
+        // Wrapper para compatibilidad (global)
+        public async Task<bool> VerificarPermisoParaMenuAsync(int usuarioId, int menuId)
+            => await VerificarPermisoParaMenuAsync(usuarioId, (int?)null, menuId);
     }
 }

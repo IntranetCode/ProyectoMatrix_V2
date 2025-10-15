@@ -33,6 +33,15 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Interfaces
 
         Task<bool> VerificarPermisoParaMenuAsync(int usuarioId, int menuId);
 
+
+
+        //Agregando metodos para los overrides
+
+        Task<List<OverrideItemDto>> ListarOverridesAsync(int usuarioId, int? empresaId);
+        Task GuardarOverridesAsync(int usuarioId, int? empresaId, IEnumerable<OverrideItemDto> items);
+
+        Task<bool> VerificarPermisoParaMenuAsync(int usuarioId, int? empresaId, int menuId); // NUEVA
+
     }
 }
 

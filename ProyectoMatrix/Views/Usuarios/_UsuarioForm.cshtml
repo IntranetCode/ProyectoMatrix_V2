@@ -1,4 +1,5 @@
-﻿@model UsuarioFormViewModel
+﻿@using ProyectoMatrix.Areas.AdminUsuarios.DTOs
+@model UsuarioFormViewModel
 
 @{
     var accion = Model.EsModoCrear ? "Crear" : "Editar";
@@ -12,6 +13,9 @@
         }
     }
     var nombreCompleto = Model.EsModoCrear ? "Nuevo Usuario" : $"{Model.Nombre} {Model.ApellidoPaterno}";
+
+    // Overrides que trae el controlador Editar() con sp_Overrides_ListarUsuario (GLOBAL):
+    var overrideItems = ViewBag.Overrides as List<OverrideItemDto>; // puede ser null
 }
 
 <div class="panel-header-new">
@@ -48,6 +52,7 @@
 
     <div class="tab-content flex-grow-1 overflow-auto" id="userTabContent">
 
+        <!-- ================== CUENTA ================== -->
         <div class="tab-pane fade show active p-4" id="cuenta" role="tabpanel" aria-labelledby="cuenta-tab">
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
             @if (!Model.EsModoCrear)
@@ -58,75 +63,232 @@
             <h5>Datos Personales</h5>
             <hr class="mt-2 mb-3" />
             <div class="row">
-                <div class="col-md-6 mb-3"><label asp-for="Nombre" class="form-label"></label><input asp-for="Nombre" class="form-control" /><span asp-validation-for="Nombre" class="text-danger"></span></div>
-                <div class="col-md-6 mb-3"><label asp-for="ApellidoPaterno" class="form-label"></label><input asp-for="ApellidoPaterno" class="form-control" /><span asp-validation-for="ApellidoPaterno" class="text-danger"></span></div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Nombre" class="form-label"></label>
+                    <input asp-for="Nombre" class="form-control" />
+                    <span asp-validation-for="Nombre" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="ApellidoPaterno" class="form-label"></label>
+                    <input asp-for="ApellidoPaterno" class="form-control" />
+                    <span asp-validation-for="ApellidoPaterno" class="text-danger"></span>
+                </div>
             </div>
             <div class="row">
-                <div class="col-md-6 mb-3"><label asp-for="ApellidoMaterno" class="form-label"></label><input asp-for="ApellidoMaterno" class="form-control" /></div>
-                <div class="col-md-6 mb-3"><label asp-for="Telefono" class="form-label"></label><input asp-for="Telefono" class="form-control" /></div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="ApellidoMaterno" class="form-label"></label>
+                    <input asp-for="ApellidoMaterno" class="form-control" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Telefono" class="form-label"></label>
+                    <input asp-for="Telefono" class="form-control" />
+                </div>
             </div>
-            <div class="mb-3"><label asp-for="Correo" class="form-label"></label><input asp-for="Correo" class="form-control" /><span asp-validation-for="Correo" class="text-danger"></span></div>
+            <div class="mb-3">
+                <label asp-for="Correo" class="form-label"></label>
+                <input asp-for="Correo" class="form-control" />
+                <span asp-validation-for="Correo" class="text-danger"></span>
+            </div>
 
             <h5 class="mt-4">Datos de la Cuenta</h5>
             <hr class="mt-2 mb-3" />
             @if (Model.EsModoCrear)
             {
                 <div class="row">
-                    <div class="col-md-6 mb-3"><label asp-for="Username" class="form-label"></label><input asp-for="Username" class="form-control" /><span asp-validation-for="Username" class="text-danger"></span></div>
-                    <div class="col-md-6 mb-3"><label asp-for="Password" class="form-label"></label><input asp-for="Password" type="password" class="form-control" /><span asp-validation-for="Password" class="text-danger"></span></div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Username" class="form-label"></label>
+                        <input asp-for="Username" class="form-control" />
+                        <span asp-validation-for="Username" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Password" class="form-label"></label>
+                        <input asp-for="Password" type="password" class="form-control" />
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                    </div>
                 </div>
             }
             <div class="row">
-                <div class="col-md-6 mb-3"><label asp-for="RolID" class="form-label"></label><input asp-for="RolID" type="number" class="form-control" /><span asp-validation-for="RolID" class="text-danger"></span></div>
-                <div class="col-md-6 mb-3"><label asp-for="EmpresasIDs" class="form-label">Empresa(s)</label><select asp-for="EmpresasIDs" asp-items="@ViewBag.Empresas" class="form-control" multiple></select><span asp-validation-for="EmpresasIDs" class="text-danger"></span></div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="RolID" class="form-label"></label>
+                    <input asp-for="RolID" type="number" class="form-control" />
+                    <span asp-validation-for="RolID" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="EmpresasIDs" class="form-label">Empresa(s)</label>
+                    <select asp-for="EmpresasIDs" asp-items="@ViewBag.Empresas" class="form-control" multiple></select>
+                    <span asp-validation-for="EmpresasIDs" class="text-danger"></span>
+                </div>
             </div>
             @if (!Model.EsModoCrear)
             {
-                <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" role="switch" asp-for="Activo" /><label class="form-check-label" asp-for="Activo"></label></div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" asp-for="Activo" />
+                    <label class="form-check-label" asp-for="Activo"></label>
+                </div>
             }
         </div>
 
+        <!-- ================== PERMISOS ================== -->
         <div class="tab-pane fade p-4" id="permisos" role="tabpanel" aria-labelledby="permisos-tab">
+            <!-- A) Asignar Acceso a Menús -->
             <h5>Asignar Acceso a Menús</h5>
             <hr class="mt-2 mb-3" />
             <div class="accordion" id="accordionMenus">
-                @foreach (var menu in Model.MenusDisponibles)
+                @if (Model.MenusDisponibles != null)
                 {
-                    var collapseId = $"collapse-{menu.MenuID}";
-                    var headingId = $"heading-{menu.MenuID}";
+                    foreach (var menu in Model.MenusDisponibles)
+                    {
+                        var collapseId = $"collapse-{menu.MenuID}";
+                        var headingId = $"heading-{menu.MenuID}";
 
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="@headingId">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId">
-                                @menu.Nombre
-                            </button>
-                        </h2>
-                        <div id="@collapseId" class="accordion-collapse collapse" aria-labelledby="@headingId" data-bs-parent="#accordionMenus">
-                            <div class="accordion-body">
-                                @foreach (var subMenu in menu.SubMenus)
-                                {
-                                    <div class="form-check">
-                                        <input type="checkbox"
-                                               name="SubMenuIDs"
-                                               value="@subMenu.SubMenuID"
-                                               class="form-check-input"
-                                               @(Model.SubMenuIDs.Contains(subMenu.SubMenuID) ? "checked" : "") />
-                                        <label class="form-check-label">@subMenu.Nombre</label>
-                                    </div>
-                                }
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="@headingId">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId">
+                                    @menu.Nombre
+                                </button>
+                            </h2>
+                            <div id="@collapseId" class="accordion-collapse collapse" aria-labelledby="@headingId" data-bs-parent="#accordionMenus">
+                                <div class="accordion-body">
+                                    @foreach (var subMenu in menu.SubMenus)
+                                    {
+                                        <div class="form-check">
+                                            <input type="checkbox"
+                                                   name="SubMenuIDs"
+                                                   value="@subMenu.SubMenuID"
+                                                   class="form-check-input"
+                                                   @(Model.SubMenuIDs != null && Model.SubMenuIDs.Contains(subMenu.SubMenuID) ? "checked" : "") />
+                                            <label class="form-check-label">@subMenu.Nombre</label>
+                                        </div>
+                                    }
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-muted">No hay menús disponibles.</div>
                 }
             </div>
-        </div>
-                
 
+            <!-- B) Overrides (Global) -->
+            @if (!Model.EsModoCrear && Model.UsuarioID.HasValue)
+            {
+                <h5 class="mt-4">Overrides (Global)</h5>
+                <div class="text-muted small mb-2">
+                    <strong>Permitir</strong>/<strong>Denegar</strong> crean/actualizan override. <strong>Limpiar</strong> quita el override (vuelve a heredar).<br />
+                    El permiso real se muestra en <strong>Efectivo</strong>.
+                </div>
+
+                @if (overrideItems == null)
+                {
+                    <div class="alert alert-warning">No hay datos de overrides. (Asegúrate de que Editar() cargue ViewBag.Overrides con el SP.)</div>
+                }
+                else
+                {
+                    <input type="hidden" name="UsuarioID" value="@Model.UsuarioID" />
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:110px;">SubMenuID</th>
+                                    <th>Submenú</th>
+                                    <th class="text-center" style="width:360px;">Override</th>
+                                    <th class="text-center" style="width:110px;">Efectivo</th>
+                                    <th class="text-center" style="width:100px;">&nbsp;</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < overrideItems.Count; i++)
+                                {
+                                    var it = overrideItems[i];
+                                    var hidId = $"estado_{i}";
+                                    var rPer = $"per_{i}";
+                                    var rDen = $"den_{i}";
+                                    <tr>
+                                        <td>@it.SubMenuID</td>
+                                        <td>
+                                            @it.Nombre
+                                            <input type="hidden" name="Items[@i].SubMenuID" value="@it.SubMenuID" />
+                                            <input type="hidden" name="Items[@i].Nombre" value="@it.Nombre" />
+                                            <input type="hidden" id="@hidId" name="Items[@i].Estado" value="@it.Estado" />
+                                            <input type="hidden" name="Items[@i].PermisoEfectivo" value="@(it.PermisoEfectivo)" />
+                                            @{
+                                                var nameEstado = $"Items[{i}].Estado";
+                                            }
+                                        <td class="text-center">
+                                            <div class="btn-group" role="group" aria-label="Override">
+                                                <!-- Permitir -->
+                                                <input class="btn-check ov-radio"
+                                                       type="radio"
+                                                       id="@rPer"
+                                                       name="@nameEstado"
+                                                       value="1"
+                                                       @(it.Estado == 1 ? "checked" : "")>
+                                                <label class="btn btn-outline-success" for="@rPer">Permitir</label>
+
+                                                <!-- Denegar -->
+                                                <input class="btn-check ov-radio"
+                                                       type="radio"
+                                                       id="@rDen"
+                                                       name="@nameEstado"
+                                                       value="0"
+                                                       @(it.Estado == 0 ? "checked" : "")>
+                                                <label class="btn btn-outline-danger" for="@rDen">Denegar</label>
+                                            </div>
+
+                                            <!-- Este hidden solo se habilita si el usuario pulsa "Limpiar".
+                                                 Por defecto va DESHABILITADO para que no se postee. -->
+                                            <input type="hidden"
+                                                   id="@hidId"
+                                                   name="@nameEstado"
+                                                   value="-1"
+                                                   disabled
+                                                   class="estado-limpiar" />
+                                        </td>
+
+                                        <td class="text-center">
+                                            @(it.PermisoEfectivo ? "<i class=\"bi bi-check-lg text-success\"></i>" : "<span class=\"text-muted\">—</span>")
+                                            @Html.Raw("")
+                                        </td>
+
+                                        <td class="text-center">
+                                            <button type="button"
+                                                    class="btn btn-link btn-sm ov-limpiar"
+                                                    data-per="@rPer"
+                                                    data-den="@rDen"
+                                                    data-hid="@hidId">
+                                                Limpiar
+                                            </button>
+                                        </td>
+
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Sin forms anidados: este botón usa el form principal y postea al action correcto -->
+                    <div class="mt-3">
+                        <button type="submit"
+                                class="btn btn-primary"
+                                formmethod="post"
+                                formaction="@Url.Action("GuardarOverrides", "Usuarios")">
+                            <i class="bi bi-save"></i> Guardar overrides
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- ================== AUDITORÍA ================== -->
         @if (!Model.EsModoCrear && Model.HistorialDeCambios != null && Model.HistorialDeCambios.Any())
         {
             <div class="tab-pane fade p-4" id="auditoria" role="tabpanel" aria-labelledby="auditoria-tab">
                 <table class="table table-sm table-striped">
-                    <thead class="thead-light"><tr><th>Fecha</th><th>Cambio Realizado</th><th>Modificado Por</th></tr></thead>
+                    <thead class="thead-light">
+                        <tr><th>Fecha</th><th>Cambio Realizado</th><th>Modificado Por</th></tr>
+                    </thead>
                     <tbody>
                         @foreach (var item in Model.HistorialDeCambios)
                         {
@@ -149,16 +311,49 @@
 </form>
 
 <script>
-    (function() {
-        // Lógica para "Seleccionar todo" por menú
+    (function () {
+        // Radios UI -> actualizan el hidden Estado
+        document.querySelectorAll('.ov-permitir').forEach(el=>{
+            el.addEventListener('change', ()=>{
+                const target = document.querySelector(el.dataset.target);
+                if (target) target.value = 1;
+            });
+        });
+        document.querySelectorAll('.ov-denegar').forEach(el=>{
+            el.addEventListener('change', ()=>{
+                const target = document.querySelector(el.dataset.target);
+                if (target) target.value = 0;
+            });
+        });
+        // Limpiar = heredar (-1)
+            document.querySelectorAll('.ov-limpiar').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const per = document.getElementById(btn.dataset.per);
+          const den = document.getElementById(btn.dataset.den);
+          const hid = document.getElementById(btn.dataset.hid);
+          if (per) { per.checked = false; per.disabled = false; }
+          if (den) { den.checked = false; den.disabled = false; }
+          if (hid)  { hid.disabled = false; hid.value = -1; }
+        });
+      });
+
+      // Si el usuario elige Permitir o Denegar, nos aseguramos de que el hidden -1 NO se postee
+      document.querySelectorAll('.ov-radio').forEach(r => {
+        r.addEventListener('change', () => {
+          const tr = r.closest('tr');
+          const hid = tr?.querySelector('input.estado-limpiar');
+          if (hid) hid.disabled = true; // anulamos el -1
+        });
+      });
+    })();
+
+        // (Opcional) seleccionar todo por menú si usas checkboxes con clases padre/hijo
         const parentCheckboxes = document.querySelectorAll('.menu-parent-checkbox');
         parentCheckboxes.forEach(parent => {
             parent.addEventListener('change', function() {
                 const menuId = this.dataset.menuId;
                 const childCheckboxes = document.querySelectorAll(`.submenu-checkbox-${menuId}`);
-                childCheckboxes.forEach(child => {
-                    child.checked = this.checked;
-                });
+                childCheckboxes.forEach(child => { child.checked = this.checked; });
             });
         });
     })();

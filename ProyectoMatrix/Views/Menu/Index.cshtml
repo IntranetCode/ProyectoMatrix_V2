@@ -1,16 +1,26 @@
 ﻿@model List<ProyectoMatrix.Models.MenuModel>
 @using System.Security.Claims
 @using ProyectoMatrix.Areas.AdminUsuarios.Interfaces
-@inject IUsuarioService UsuarioService
+
 
 @{
     Layout = null;
     ViewData["Title"] = "Intranet - NS Group";
+
+    // Datos de sesión
     var nombreUsuario = Context.Session.GetString("Username") ?? "Invitado";
     var nombreEmpresa = Context.Session.GetString("EmpresaNombre") ?? "NS Group";
     var logoEmpresa = Context.Session.GetString("EmpresaLogo") ?? "default-logo.png";
+    var empresaIdStr = Context.Session.GetString("EmpresaId");
     var empresaId = Context.Session.GetString("EmpresaId") ?? "1";
 
+    // ✅ SIEMPRE desde sesión
+    var currentUserId = Context.Session.GetInt32("UsuarioID") ?? 0;
+
+    // Empresa como nullable (null = global)
+    int? empresaIdInt = int.TryParse(empresaIdStr, out var tmpEmp) ? tmpEmp : (int?)null;
+
+    // CSS por empresa
     var cssEmpresaFile = empresaId switch
     {
         "1" => "LoginNutriservicios.css",
@@ -20,6 +30,7 @@
         _ => "site.css"
     };
 
+    // Enlaces externos
     var enlacesMejoraContina = "https://nsgroupmx.sharepoint.com/sites/ProcesosyMejoraContinua";
     var enlacesCompras = "https://forms.office.com/r/K7u3UMVVKi";
     var enlacesLogistica = "https://forms.office.com/r/77fwUyxuE0";
@@ -27,10 +38,10 @@
     var enlacesHelpDesk = "https://forms.office.com/r/nBWtdqGsUm";
 
     var currentUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}";
-
-    var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-    int.TryParse(userIdString, out int currentUserId);
 }
+
+
+
 
 <!DOCTYPE html>
 <html lang="es">
@@ -49,6 +60,9 @@
     <link rel="preload" href="~/js/dashboard.js" as="script" />
     <link rel="preload" href="~/Imagenes/logo-universidad-ns.png" as="image" />
 </head>
+
+
+
 <body data-empresa="@empresaId">
     <a href="#main-content" class="skip-link visually-hidden">Saltar al contenido principal</a>
     <div class="main-wrapper">
@@ -116,7 +130,7 @@
                     @foreach (var menu in Model)
                     {
                         // ✅ ESTA ES LA ÚNICA LÍNEA AÑADIDA: El @if que envuelve la tarjeta
-                        if (currentUserId > 0 && await UsuarioService.VerificarPermisoParaMenuAsync(currentUserId, menu.MenuID))
+                        
                         {
                             var cssClass = GetCssClassForMenu(menu.Nombre);
                             var isUniversidad = menu.Nombre.Contains("Universidad", StringComparison.OrdinalIgnoreCase);
@@ -129,14 +143,7 @@
                                     <i class="fas @menu.Icono"></i>
                                 </div>
                                 <h2 class="action-title">@menu.Nombre</h2>
-                                @if (!string.IsNullOrEmpty(menu.Descripcion))
-                                {
-                                    <p class="action-description">@menu.Descripcion</p>
-                                }
-                                else
-                                {
-                                    <p class="action-description">Accede a @menu.Nombre</p>
-                                }
+                                <p class="action-description">@(!string.IsNullOrEmpty(menu.Descripcion) ? menu.Descripcion : $"Accede a {menu.Nombre}")</p>
                             </article>
                         }
                     }
