@@ -1,16 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using ProyectoMatrix.Areas.AdminUsuarios.DTOs;
 using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Models.ModelUsuarios;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
-using System.Linq;
-using System.Threading.Tasks;
+using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -18,16 +13,13 @@ namespace ProyectoMatrix.Controllers
     {
         private readonly IUsuarioService _usuarioService;
         private readonly ApplicationDbContext _context;
-        private readonly string _connectionString;
 
         public UsuariosController(
             IUsuarioService usuarioService,
-            ApplicationDbContext context,
-            IConfiguration configuration)
+            ApplicationDbContext context)
         {
             _usuarioService = usuarioService;
             _context = context;
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
 
         public async Task<IActionResult> Index(bool? activos, string? filtroCampo, string? busqueda)
@@ -51,6 +43,11 @@ namespace ProyectoMatrix.Controllers
                 EsModoCrear = true,
                 MenusDisponibles = await _usuarioService.ObtenerMenusConSubMenusAsync()
             };
+
+            // Evita NullReference en la vista parcial
+            ViewBag.OverrideGrupos = new List<OverridesVm>();
+            ViewBag.Overrides = new List<OverrideItemDto>();
+
             return PartialView("_UsuarioForm", viewModel);
         }
 
@@ -72,7 +69,7 @@ namespace ProyectoMatrix.Controllers
                     Password = viewModel.Password,
                     RolID = viewModel.RolID,
                     EmpresasIDs = viewModel.EmpresasIDs,
-                    SubMenuIDs = viewModel.SubMenuIDs
+                    SubMenuIDs = viewModel.SubMenuIDs ?? new List<int>()
                 };
 
                 await _usuarioService.RegistrarAsync(nuevoUsuarioDto);
@@ -82,6 +79,8 @@ namespace ProyectoMatrix.Controllers
 
             ViewBag.Empresas = new SelectList(_context.Empresas, "EmpresaID", "Nombre", viewModel.EmpresasIDs);
             viewModel.MenusDisponibles = await _usuarioService.ObtenerMenusConSubMenusAsync();
+            ViewBag.OverrideGrupos = new List<OverridesVm>();
+            ViewBag.Overrides = new List<OverrideItemDto>();
             return PartialView("_UsuarioForm", viewModel);
         }
 
@@ -95,7 +94,6 @@ namespace ProyectoMatrix.Controllers
 
             var viewModel = new UsuarioFormViewModel
             {
-                EsModoCrear = false,
                 UsuarioID = usuarioDto.UsuarioID,
                 Nombre = usuarioDto.Nombre,
                 ApellidoPaterno = usuarioDto.ApellidoPaterno,
@@ -104,33 +102,64 @@ namespace ProyectoMatrix.Controllers
                 Telefono = usuarioDto.Telefono,
                 RolID = usuarioDto.RolID,
                 Activo = usuarioDto.Activo,
-                EmpresasIDs = usuarioDto.EmpresasIDs,
-                SubMenuIDs = usuarioDto.SubMenuIDs,
-                HistorialDeCambios = usuarioDto.HistorialDeCambios,
+                EmpresasIDs = usuarioDto.EmpresasIDs ?? new List<int>(),
+                SubMenuIDs = usuarioDto.SubMenuIDs ?? new List<int>(),
+                HistorialDeCambios = await _usuarioService.ObtenerHistorialAsync(id),
                 MenusDisponibles = await _usuarioService.ObtenerMenusConSubMenusAsync()
             };
 
-            // ⚠️ Cargar overrides desde SP (GLOBAL), para que la vista siempre tenga el mismo formato
-            var overridesItems = new List<OverrideItemDto>();
-            using (var cn = new SqlConnection(_connectionString))
+            // CARGA DE OVERRIDES usando el servicio (más limpio y consistente)
+            List<OverrideItemDto> overridesItems;
+            try
             {
-                await cn.OpenAsync();
-                using var cmd = new SqlCommand("dbo.sp_Overrides_ListarUsuario", cn);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.AddWithValue("@UsuarioID", id);
-                cmd.Parameters.AddWithValue("@EmpresaID", DBNull.Value); // GLOBAL
-                using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
+                // Usa el método del servicio que ya tienes
+                overridesItems = await _usuarioService.ListarOverridesAsync(id, null); // null = global
+            }
+            catch (Exception ex)
+            {
+                TempData["WarningMessage"] = "No se pudieron cargar los overrides: " + ex.Message;
+                overridesItems = new List<OverrideItemDto>();
+            }
+
+            // Si no hay items, construir catálogo base desde menús
+            if (overridesItems.Count == 0)
+            {
+                var menus = await _usuarioService.ObtenerMenusConSubMenusAsync();
+                foreach (var menu in menus)
                 {
-                    overridesItems.Add(new OverrideItemDto
+                    foreach (var subMenu in menu.SubMenus)
                     {
-                        SubMenuID = rd.GetInt32(0),
-                        Nombre = rd.GetString(1),
-                        Estado = rd.GetInt32(2),
-                        PermisoEfectivo = rd.GetBoolean(3)
-                    });
+                        // Calcular permiso efectivo del rol base
+                        bool permisoEfectivo = await _usuarioService.VerificarPermisoAsync(id, subMenu.SubMenuID);
+
+                        overridesItems.Add(new OverrideItemDto
+                        {
+                            MenuID = menu.MenuID,
+                            MenuNombre = menu.Nombre,
+                            SubMenuID = subMenu.SubMenuID,
+                            Nombre = subMenu.Nombre,
+                            Estado = -1, // heredar
+                            PermisoEfectivo = permisoEfectivo
+                        });
+                    }
                 }
             }
+
+            // Agrupar por menú
+            var grupos = overridesItems
+                .GroupBy(x => new { x.MenuID, x.MenuNombre })
+                .Select(g => new OverridesVm
+                {
+                    UsuarioID = id,
+                    EmpresaID = null, // global
+                    MenuID = g.Key.MenuID,
+                    MenuNombre = g.Key.MenuNombre,
+                    Items = g.OrderBy(it => it.Nombre).ToList()
+                })
+                .OrderBy(g => g.MenuNombre)
+                .ToList();
+
+            ViewBag.OverrideGrupos = grupos;
             ViewBag.Overrides = overridesItems;
 
             return PartialView("_UsuarioForm", viewModel);
@@ -166,8 +195,8 @@ namespace ProyectoMatrix.Controllers
                     Telefono = viewModel.Telefono,
                     RolID = viewModel.RolID,
                     Activo = viewModel.Activo,
-                    EmpresasIDs = viewModel.EmpresasIDs,
-                    SubMenuIDs = viewModel.SubMenuIDs
+                    EmpresasIDs = viewModel.EmpresasIDs ?? new List<int>(),
+                    SubMenuIDs = viewModel.SubMenuIDs ?? new List<int>()
                 };
 
                 await _usuarioService.ActualizarAsync(usuarioEditadoDto);
@@ -178,6 +207,11 @@ namespace ProyectoMatrix.Controllers
             ViewBag.Empresas = new SelectList(_context.Empresas, "EmpresaID", "Nombre", viewModel.EmpresasIDs);
             viewModel.HistorialDeCambios = await _usuarioService.ObtenerHistorialAsync(id);
             viewModel.MenusDisponibles = await _usuarioService.ObtenerMenusConSubMenusAsync();
+
+            // Recargar overrides
+            ViewBag.OverrideGrupos = new List<OverridesVm>();
+            ViewBag.Overrides = new List<OverrideItemDto>();
+
             return PartialView("_UsuarioForm", viewModel);
         }
 
@@ -226,93 +260,118 @@ namespace ProyectoMatrix.Controllers
             return existe ? Json($"El correo '{correo}' ya está en uso.") : Json(true);
         }
 
-        // GET: /Usuarios/Overrides (pantalla aparte si la usas)
-        [HttpGet]
-        public async Task<IActionResult> Overrides(int usuarioId, int rolId, bool? mostrarTodo = null)
-        {
-            ViewBag.RolId = rolId;
-
-            var vm = new OverridesVm
-            {
-                UsuarioID = usuarioId,
-                EmpresaID = null, // GLOBAL
-                Items = new List<OverrideItemDto>()
-            };
-
-            using var cn = new SqlConnection(_connectionString);
-            await cn.OpenAsync();
-
-            using var cmd = new SqlCommand("dbo.sp_Overrides_ListarUsuario", cn);
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
-            cmd.Parameters.AddWithValue("@EmpresaID", DBNull.Value); // GLOBAL
-
-            using var rd = await cmd.ExecuteReaderAsync();
-            while (await rd.ReadAsync())
-            {
-                vm.Items.Add(new OverrideItemDto
-                {
-                    SubMenuID = rd.GetInt32(0),
-                    Nombre = rd.GetString(1),
-                    Estado = rd.GetInt32(2),
-                    PermisoEfectivo = rd.GetBoolean(3)
-                });
-            }
-
-            return View(vm);
-        }
-
-        // POST: /Usuarios/GuardarOverrides  (único POST de overrides)
-
-        [HttpPost, ValidateAntiForgeryToken]
+        // POST: /Usuarios/GuardarOverrides - MÉTODO UNIFICADO
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> GuardarOverrides(int UsuarioID, List<OverrideItemDto> Items)
         {
-            Items ??= new();
-
-            await using var conn = new SqlConnection(_connectionString);
-            await conn.OpenAsync();
-
-            foreach (var it in Items)
+            try
             {
-                // Estado:  1=Permitir, 0=Denegar, -1=Heredar(Limpiar)
-                switch (it.Estado)
-                {
-                    case 1:
-                    case 0:
-                        await using (var cmd = new SqlCommand("sp_Overrides_Upsert", conn))
-                        {
-                            cmd.CommandType = CommandType.StoredProcedure;
-                            cmd.Parameters.AddWithValue("@UsuarioID", UsuarioID);
-                            cmd.Parameters.AddWithValue("@SubMenuID", it.SubMenuID);
-                            cmd.Parameters.Add("@Estado", SqlDbType.Bit).Value = it.Estado == 1 ? 1 : 0;
-                            await cmd.ExecuteNonQueryAsync();
-                        }
-                        break;
+                Items ??= new List<OverrideItemDto>();
 
-                    default: // -1 o null => limpiar
-                        await using (var cmd = new SqlCommand("sp_Overrides_Limpiar", conn))
-                        {
-                            cmd.CommandType = CommandType.StoredProcedure;
-                            cmd.Parameters.AddWithValue("@UsuarioID", UsuarioID);
-                            cmd.Parameters.AddWithValue("@SubMenuID", it.SubMenuID);
-                            await cmd.ExecuteNonQueryAsync();
-                        }
-                        break;
-                }
+                // Usa el servicio que ya maneja la lógica correctamente
+                await _usuarioService.GuardarOverridesAsync(UsuarioID, null, Items);
+
+                TempData["SuccessMessage"] = "Permisos actualizados correctamente.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Error al guardar permisos: {ex.Message}";
             }
 
-            TempData["Ok"] = "Overrides guardados.";
             return RedirectToAction("Editar", new { id = UsuarioID, tab = "permisos" });
         }
 
 
-        public class OverrideItemDto
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetOverride(int usuarioId, int subMenuId, int? estado, string? returnUrl)
         {
-            public int SubMenuID { get; set; }
-            public string? Nombre { get; set; }
-            public int? Estado { get; set; }          // 1, 0, -1
-            public bool PermisoEfectivo { get; set; } // solo display
+            try
+            {
+                var item = new OverrideItemDto
+                {
+                    SubMenuID = subMenuId,
+                    Estado = estado ?? -1
+                };
+
+                await _usuarioService.GuardarOverridesAsync(usuarioId, null, new[] { item });
+
+                // ✅ CRÍTICO: Limpiar caché del menú SIEMPRE
+                HttpContext.Session.Remove("MenuItems");
+                HttpContext.Session.Remove("MenuUsuario");
+
+                // ✅ Si el usuario está editando SU PROPIO perfil, forzar recarga INMEDIATA
+                var usuarioActualId = HttpContext.Session.GetInt32("UsuarioID");
+
+                if (usuarioActualId.HasValue && usuarioActualId.Value == usuarioId)
+                {
+                    // Recargar el menú AHORA para el usuario actual
+                    var empresaId = HttpContext.Session.GetInt32("EmpresaID");
+                    var menuActualizado = await ObtenerMenuActualizadoAsync(usuarioId, empresaId);
+                    HttpContext.Session.SetString("MenuUsuario", System.Text.Json.JsonSerializer.Serialize(menuActualizado));
+
+                    TempData["RefreshMenu"] = "true";
+                    TempData["SuccessMessage"] = "⚠️ Permiso actualizado. Recarga la página para ver los cambios en el menú.";
+                }
+                else
+                {
+                    TempData["SuccessMessage"] = "✓ Permiso actualizado correctamente.";
+                }
+
+                if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+                    return Redirect(returnUrl);
+
+                return RedirectToAction("Editar", new { id = usuarioId, tab = "permisos" });
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Error: {ex.Message}";
+                return RedirectToAction("Editar", new { id = usuarioId, tab = "permisos" });
+            }
         }
 
+        // ✅ AGREGAR ESTE MÉTODO AUXILIAR
+        private async Task<List<MenuModel>> ObtenerMenuActualizadoAsync(int usuarioId, int? empresaId)
+        {
+            var lista = new List<MenuModel>();
+            string cnn = _context.Database.GetConnectionString();
+
+            using var conn = new Microsoft.Data.SqlClient.SqlConnection(cnn);
+            await conn.OpenAsync();
+
+            const string sql = @"
+WITH Perms AS (
+  SELECT SubMenuID
+  FROM dbo.fn_PermisosEfectivosUsuario(@UsuarioID, @EmpresaID)
+  WHERE TienePermiso = 1
+)
+SELECT DISTINCT m.MenuID, m.Nombre AS NombreMenu, sm.UrlEnlace
+FROM Menus m
+JOIN SubMenus sm ON sm.MenuID = m.MenuID
+JOIN Perms p ON p.SubMenuID = sm.SubMenuID
+WHERE sm.Activo = 1
+ORDER BY m.MenuID;";
+
+            using var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+            var pEmp = cmd.Parameters.Add("@EmpresaID", System.Data.SqlDbType.Int);
+            pEmp.Value = (object?)empresaId ?? DBNull.Value;
+
+            using var rd = await cmd.ExecuteReaderAsync();
+            while (await rd.ReadAsync())
+            {
+                lista.Add(new MenuModel
+                {
+                    MenuID = rd.GetInt32(0),
+                    Nombre = rd.GetString(1),
+                    Url = rd.IsDBNull(2) ? "" : rd.GetString(2)
+                });
+            }
+
+            return lista;
+        }
     }
+    
 }

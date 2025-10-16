@@ -22,6 +22,7 @@ namespace ProyectoMatrix.Controllers
         }
 
 
+
         [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public async Task<IActionResult> Index()
         {
@@ -35,6 +36,15 @@ namespace ProyectoMatrix.Controllers
             if (usuarioID == null)
                 return RedirectToAction("Login", "Login");
 
+            // ✅ FORZAR RECARGA SI HUBO CAMBIOS DE PERMISOS
+            bool forzarRecarga = (TempData["RefreshMenu"] as string) == "true";
+
+            if (forzarRecarga)
+            {
+                HttpContext.Session.Remove("MenuItems");
+                HttpContext.Session.Remove("MenuUsuario");
+            }
+
             // Empresa actual (puede ser null => global)
             var empresaIdStr = HttpContext.Session.GetString("EmpresaId");
             int? empresaId = int.TryParse(empresaIdStr, out var tmp) ? tmp : (int?)null;
@@ -44,7 +54,6 @@ namespace ProyectoMatrix.Controllers
             await using var conn = new SqlConnection(cnn);
             await conn.OpenAsync();
 
-            // Trae los menús cuyo SubMenu tenga permiso efectivo (rol + overrides)
             const string sql = @"
 WITH Perms AS (
   SELECT SubMenuID
@@ -54,7 +63,7 @@ WITH Perms AS (
 SELECT DISTINCT m.MenuID, m.Nombre AS NombreMenu, sm.UrlEnlace
 FROM Menus m
 JOIN SubMenus sm ON sm.MenuID = m.MenuID
-JOIN Perms    p  ON p.SubMenuID = sm.SubMenuID
+JOIN Perms p ON p.SubMenuID = sm.SubMenuID
 WHERE sm.Activo = 1
 ORDER BY m.MenuID;";
 
@@ -86,14 +95,12 @@ ORDER BY m.MenuID;";
                 }
             }
 
-            // por si vinieran duplicados
             menuRaiz = menuRaiz.GroupBy(m => m.MenuID).Select(g => g.First()).OrderBy(m => m.MenuID).ToList();
-
-            // guardado opcional en sesión (si lo usas después)
             HttpContext.Session.SetString("MenuItems", System.Text.Json.JsonSerializer.Serialize(menuRaiz));
 
             return View(menuRaiz);
         }
+
 
 
 

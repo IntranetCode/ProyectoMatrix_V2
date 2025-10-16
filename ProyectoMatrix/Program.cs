@@ -46,6 +46,7 @@ builder.WebHost.ConfigureKestrel(options =>
 // options.ListenAnyIP(500);
 //});
 
+
 // Obtener la cadena de conexión desde appsettings.json
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -115,6 +116,11 @@ builder.Services.AddScoped<RutaNas>();
 
 
 builder.Services.AddDistributedMemoryCache();
+
+
+
+builder.Services.AddHttpContextAccessor();
+
 
 //Registrando el nuevo servicio creado que es sobre acceso
 

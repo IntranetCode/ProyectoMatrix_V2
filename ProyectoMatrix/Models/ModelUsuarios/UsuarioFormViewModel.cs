@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
@@ -22,6 +23,8 @@ namespace ProyectoMatrix.Models.ModelUsuarios
 
     public class UsuarioFormViewModel : IValidatableObject
     {
+        [ValidateNever]
+
         public IEnumerable<AuditoriaUsuario> HistorialDeCambios { get; set; } = new List<AuditoriaUsuario>();
         public int? UsuarioID { get; set; }
 
@@ -55,8 +58,9 @@ namespace ProyectoMatrix.Models.ModelUsuarios
 
         public bool EsModoCrear { get; set; }
 
-    
+        [ValidateNever]
         public List<int> SubMenuIDs { get; set; } = new List<int>();
+        [ValidateNever]
         public List<MenuViewModel> MenusDisponibles { get; set; } = new List<MenuViewModel>();
        
         
@@ -75,5 +79,8 @@ namespace ProyectoMatrix.Models.ModelUsuarios
                 }
             }
         }
-    }
+
+
+
+    } 
 }

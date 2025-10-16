@@ -1,15 +1,16 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using ProyectoMatrix.Models;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using ProyectoMatrix.Models;
+using ProyectoMatrix.Servicios;
+using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using Newtonsoft.Json;
-using Microsoft.AspNetCore.Http;
-using ProyectoMatrix.Servicios;
 
 public class LoginController : Controller
 {
@@ -204,7 +205,7 @@ public class LoginController : Controller
         HttpContext.Session.SetInt32("RolID", rolId);                    // ← NUEVO
         HttpContext.Session.SetInt32("EmpresaSeleccionada", empresa.EmpresaID); // ← NUEVO
         // Cargar menú
-        var menuUsuario = await ObtenerMenuPorUsuarioAsync(usuario.UsuarioID);
+        var menuUsuario = await ObtenerMenuEfectivoPorUsuarioAsync(usuario.UsuarioID, empresa.EmpresaID);
         HttpContext.Session.SetString("MenuUsuario", JsonConvert.SerializeObject(menuUsuario));
 
         // Autenticación por cookies
@@ -348,44 +349,45 @@ public class LoginController : Controller
     }
 
     // ---------- OBTENER MENÚ POR USUARIO ----------
-    private async Task<List<MenuModel>> ObtenerMenuPorUsuarioAsync(int usuarioId)
+    // En LoginController, reemplaza ObtenerMenuPorUsuarioAsync por esto:
+    private async Task<List<MenuModel>> ObtenerMenuEfectivoPorUsuarioAsync(int usuarioId, int? empresaId)
     {
-        var listaMenu = new List<MenuModel>();
+        var lista = new List<MenuModel>();
         using var conn = new SqlConnection(_connectionString);
         await conn.OpenAsync();
 
-        string sql = @"
-            SELECT DISTINCT 
-                m.MenuID, 
-                m.Nombre AS NombreMenu,
-                sm.UrlEnlace
-            FROM Menus m
-            INNER JOIN SubMenus sm ON m.MenuID = sm.MenuID
-            INNER JOIN SubMenuAcciones sma ON sm.SubMenuID = sma.SubMenuID
-            INNER JOIN PermisosPorRol pr ON sma.SubMenuAccionID = pr.SubMenuAccionID
-            INNER JOIN Roles r ON pr.RolID = r.RolID
-            INNER JOIN Usuarios u ON r.RolID = u.RolID
-            INNER JOIN UsuariosEmpresas ue ON u.UsuarioID = ue.UsuarioID
-            INNER JOIN Empresas e ON ue.EmpresaID = e.EmpresaID
-            WHERE u.UsuarioID = @UsuarioID
-            ORDER BY m.Nombre;";
+        const string sql = @"
+    WITH Perms AS (
+      SELECT SubMenuID
+      FROM dbo.fn_PermisosEfectivosUsuario(@UsuarioID, @EmpresaID)
+      WHERE TienePermiso = 1
+    )
+    SELECT DISTINCT m.MenuID, m.Nombre AS NombreMenu, sm.UrlEnlace
+    FROM Menus m
+    JOIN SubMenus sm ON sm.MenuID = m.MenuID
+    JOIN Perms    p  ON p.SubMenuID = sm.SubMenuID
+    WHERE sm.Activo = 1
+    ORDER BY m.Nombre;";
 
         using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+        var pEmp = cmd.Parameters.Add("@EmpresaID", SqlDbType.Int);
+        pEmp.Value = (object?)empresaId ?? DBNull.Value;
 
-        using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        using var rd = await cmd.ExecuteReaderAsync();
+        while (await rd.ReadAsync())
         {
-            listaMenu.Add(new MenuModel
+            lista.Add(new MenuModel
             {
-                MenuID = reader.GetInt32(0),
-                Nombre = reader.GetString(1),
-                Icono = "", // Ajustar si luego agregas el campo
-                Url = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                MenuID = rd.GetInt32(0),
+                Nombre = rd.GetString(1),
+                Icono = "",
+                Url = rd.IsDBNull(2) ? "" : rd.GetString(2),
             });
         }
-        return listaMenu;
+        return lista;
     }
+
 
     // ---------- LOGOUT ----------
     [HttpGet]

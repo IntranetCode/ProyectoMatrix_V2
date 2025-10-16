@@ -5,24 +5,49 @@
     ViewData["Title"] = "Administración de Usuarios";
     var busquedaActual = ViewData["BusquedaActual"] as string;
     var filtroCampoActual = ViewData["FiltroCampoActual"] as string;
+
+    string Safe(string? s) => string.IsNullOrWhiteSpace(s) ? "" : s.Trim();
+
+    string NombreCompleto(ProyectoMatrix.Models.V_InformacionUsuarioCompleta u)
+    {
+        var nombre = Safe(u?.Nombre);
+        var apePat = Safe(u?.ApellidoPaterno);
+        var apeMat = Safe(u?.ApellidoMaterno);
+
+        var partes = new[] { nombre, apePat, apeMat }.Where(x => !string.IsNullOrWhiteSpace(x));
+        var full = string.Join(" ", partes);
+        return string.IsNullOrWhiteSpace(full) ? "(Sin nombre)" : full;
+    }
+
+    // Si deseas mostrar avatar con iniciales, usa esta helper:
+    string Iniciales(string? nombre, string? apePat)
+    {
+        var n = Safe(nombre);
+        var a = Safe(apePat);
+        var i1 = n.Length > 0 ? n.Substring(0, 1).ToUpper() : "";
+        var i2 = a.Length > 0 ? a.Substring(0, 1).ToUpper() : "";
+        var ini = i1 + i2;
+        return string.IsNullOrEmpty(ini) ? "NA" : ini;
+    }
 }
 
-
-<a asp-controller="Menu" asp-action="Index" class="btn btn-primary">
-    Volver al menú principal
-</a>
+<a asp-action="Index" asp-controller="Menu" class="btn btn-secondary">Volver a menú principal</a>
 
 <div class="page-container">
     <div class="page-header-static">
         <div class="page-header mb-4">
             <h1 class="h2">@ViewData["Title"]</h1>
         </div>
+
         <div class="card shadow-sm mb-3">
             <div class="card-header bg-light p-3">
                 <div class="d-flex flex-wrap align-items-center justify-content-between">
                     <div class="d-flex gap-2 mb-2 mb-md-0">
-                        <a id="btn-crear-usuario" asp-action="Crear" asp-controller="Usuarios" class="btn btn-primary"><i class="fas fa-plus me-1"></i> Agregar un usuario</a>
+                        <a id="btn-crear-usuario" asp-action="Crear" asp-controller="Usuarios" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i> Agregar un usuario
+                        </a>
                     </div>
+
                     <div>
                         <form asp-action="Index" method="get" class="d-flex">
                             <input type="hidden" name="activos" value="@Context.Request.Query["activos"]" />
@@ -35,10 +60,17 @@
                                     <option value="Username" selected="@(filtroCampoActual == "Username")">Username</option>
                                 </select>
                                 <input type="text" name="busqueda" class="form-control" placeholder="Buscar..." value="@busquedaActual" />
-                                <button class="btn btn-outline-secondary" type="submit" title="Buscar"><i class="fas fa-search"></i></button>
+                                <button class="btn btn-outline-secondary" type="submit" title="Buscar">
+                                    <i class="fas fa-search"></i>
+                                </button>
                                 @if (!string.IsNullOrEmpty(busquedaActual))
                                 {
-                                    <a asp-action="Index" asp-route-activos="@Context.Request.Query["activos"]" class="btn btn-outline-danger" title="Limpiar filtro"><i class="fas fa-times"></i></a>
+                                    <a asp-action="Index"
+                                       asp-route-activos="@Context.Request.Query["activos"]"
+                                       class="btn btn-outline-danger"
+                                       title="Limpiar filtro">
+                                        <i class="fas fa-times"></i>
+                                    </a>
                                 }
                             </div>
                         </form>
@@ -47,6 +79,7 @@
             </div>
         </div>
     </div>
+
     <div class="scrollable-content">
         <div class="card shadow-sm">
             <div class="card-body p-0">
@@ -63,28 +96,53 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var item in Model)
+                            @if (Model != null && Model.Any())
+                            {
+                                foreach (var item in Model)
+                                {
+                                    <tr>
+                                        <td class="ps-4"><strong>@Safe(item?.Username)</strong></td>
+
+                                        <td>
+                                            @* Si quieres mostrar iniciales tipo avatar, descomenta:
+                                        <span class="me-2 badge rounded-circle bg-secondary text-white" style="width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;">
+                                            @Iniciales(item?.Nombre, item?.ApellidoPaterno)
+                                        </span>
+                                        *@
+                                            @NombreCompleto(item)
+                                        </td>
+
+                                        <td>@Safe(item?.Correo)</td>
+                                        <td>@Safe(item?.Rol)</td>
+
+                                        <td class="text-center">
+                                            @if (item?.Activo == true)
+                                            {
+                                                <span class="badge bg-success">Activo</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger">Inactivo</span>
+                                            }
+                                        </td>
+
+                                        <td class="text-center">
+                                            <a class="btn-editar-usuario btn btn-warning btn-sm"
+                                               asp-action="Editar"
+                                               asp-controller="Usuarios"
+                                               asp-route-id="@(item?.UsuarioID ?? 0)"
+                                               title="Editar">
+                                                <i class="fas fa-pencil-alt"></i> Editar
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
                             {
                                 <tr>
-                                    <td class="ps-4"><strong>@item.Username</strong></td>
-                                    <td>@item.Nombre @item.ApellidoPaterno</td>
-                                    <td>@item.Correo</td>
-                                    <td>@item.Rol</td>
-                                    <td class="text-center">
-                                        @if (item.Activo)
-                                        {
-                                            <span class="badge bg-success">Activo</span>
-                                        }
-                                        else
-                                        {
-
-                                            <span class="badge bg-danger">Inactivo</span>
-                                        }
-                                    </td>
-                                    <td class="text-center">
-                                        <a class="btn-editar-usuario btn btn-warning btn-sm" asp-action="Editar" asp-controller="Usuarios" asp-route-id="@item.UsuarioID" title="Editar">
-                                            <i class="fas fa-pencil-alt"></i> Editar
-                                        </a>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        No hay usuarios para mostrar.
                                     </td>
                                 </tr>
                             }

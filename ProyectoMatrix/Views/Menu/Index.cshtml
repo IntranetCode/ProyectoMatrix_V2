@@ -282,6 +282,23 @@
         }
     </script>
     @Html.AntiForgeryToken()
+
+    <script>
+        // ✅ Auto-reload si hay cambios de permisos
+        @if (TempData["RefreshMenu"] as string == "true")
+        {
+                <text>
+                console.log('🔄 Permisos actualizados - Recargando menú...');
+                setTimeout(() => {
+                    if (window.Notificaciones && typeof window.Notificaciones.actualizarContador === 'function') {
+                        window.Notificaciones.actualizarContador();
+                    }
+                }, 1000);
+                </text>
+        }
+    </script>
+
+
     <script>
         // ... (Tu script de notificaciones sin cambios) ...
         (function () {
