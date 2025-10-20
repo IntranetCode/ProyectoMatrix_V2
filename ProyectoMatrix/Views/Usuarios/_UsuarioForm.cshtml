@@ -1,4 +1,5 @@
-﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+﻿@using System.Linq
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @using ProyectoMatrix.Models.ModelUsuarios
 @model UsuarioFormViewModel
 
@@ -15,9 +16,16 @@
     }
     var nombreCompleto = Model.EsModoCrear ? "Nuevo Usuario" : $"{Model.Nombre} {Model.ApellidoPaterno}";
     var overrideGrupos = (ViewBag.OverrideGrupos as List<OverridesVm>) ?? new List<OverridesVm>();
+
+    // ⚙️ EmpresaID para overrides: primero sesión, si no existe toma el primero seleccionado
+    int? empresaId = ViewContext.HttpContext.Session.GetInt32("EmpresaID");
+    if (empresaId == null && Model.EmpresasIDs != null && Model.EmpresasIDs.Any())
+    {
+        empresaId = Model.EmpresasIDs.First();
+    }
 }
 
-<!-- ENCABEZADO DEL PANEL -->
+<!-- ENCABEZADO -->
 <div class="panel-header-modern">
     <div class="user-profile-section">
         <div class="user-avatar-circle">@iniciales</div>
@@ -41,822 +49,864 @@
     </button>
 </div>
 
-<!-- PESTAÑAS -->
+<!-- Tokens / IDs ocultos para AJAX -->
+<input type="hidden" id="__RequestVerificationToken" value="@Antiforgery.GetAndStoreTokens(Context).RequestToken" />
+<input type="hidden" id="UsuarioID" value="@Model.UsuarioID" />
+<input type="hidden" id="EmpresaID" value="@(empresaId?.ToString() ?? "")" />
+
+<!-- TABS -->
 <ul class="nav nav-tabs nav-tabs-modern" id="userTab" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="cuenta-tab" data-bs-toggle="tab"
-                data-bs-target="#tab-cuenta" type="button" role="tab">
+        <button class="nav-link active" id="cuenta-tab" data-bs-toggle="tab" data-bs-target="#tab-cuenta" type="button" role="tab">
             <i class="fas fa-user me-2"></i>Cuenta
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="permisos-tab" data-bs-toggle="tab"
-                data-bs-target="#tab-permisos" type="button" role="tab">
+        <button class="nav-link" id="permisos-tab" data-bs-toggle="tab" data-bs-target="#tab-permisos" type="button" role="tab">
             <i class="fas fa-shield-alt me-2"></i>Permisos
         </button>
     </li>
     @if (!Model.EsModoCrear && Model.HistorialDeCambios != null && Model.HistorialDeCambios.Any())
     {
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="auditoria-tab" data-bs-toggle="tab"
-                    data-bs-target="#tab-auditoria" type="button" role="tab">
+            <button class="nav-link" id="auditoria-tab" data-bs-toggle="tab" data-bs-target="#tab-auditoria" type="button" role="tab">
                 <i class="fas fa-history me-2"></i>Auditoría
             </button>
         </li>
     }
 </ul>
 
-<!-- CONTENIDO DE PESTAÑAS -->
+<!-- CONTENIDO -->
 <div class="tab-content tab-content-modern" id="userTabContent">
-
-    <!-- ==================== PESTAÑA: CUENTA ==================== -->
+    <!-- CUENTA -->
     <div class="tab-pane fade show active" id="tab-cuenta" role="tabpanel">
-        <form id="user-form" asp-action="@accion" asp-controller="Usuarios"
-              asp-route-id="@Model.UsuarioID" method="post" class="form-modern">
+        <div class="pane-scroll">
+            <form id="user-form" asp-action="@accion" asp-controller="Usuarios" asp-route-id="@Model.UsuarioID" method="post" class="form-modern">
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
-            @Html.AntiForgeryToken()
+                @if (!Model.EsModoCrear)
+                {
+                    <input type="hidden" asp-for="UsuarioID" />
+                }
 
-            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
-
-            @if (!Model.EsModoCrear)
-            {
-                <input type="hidden" asp-for="UsuarioID" />
-            }
-
-            <!-- Sección: Datos Personales -->
-            <div class="form-section">
-                <div class="section-header">
-                    <i class="fas fa-user-circle section-icon"></i>
-                    <h5 class="section-title">Datos Personales</h5>
-                </div>
-
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label asp-for="Nombre" class="form-label-modern"></label>
-                        <input asp-for="Nombre" class="form-control form-control-modern" placeholder="Ingrese el nombre" />
-                        <span asp-validation-for="Nombre" class="text-danger small"></span>
-                    </div>
-                    <div class="col-md-6">
-                        <label asp-for="ApellidoPaterno" class="form-label-modern"></label>
-                        <input asp-for="ApellidoPaterno" class="form-control form-control-modern" placeholder="Ingrese el apellido paterno" />
-                        <span asp-validation-for="ApellidoPaterno" class="text-danger small"></span>
-                    </div>
-                    <div class="col-md-6">
-                        <label asp-for="ApellidoMaterno" class="form-label-modern"></label>
-                        <input asp-for="ApellidoMaterno" class="form-control form-control-modern" placeholder="Ingrese el apellido materno" />
-                    </div>
-                    <div class="col-md-6">
-                        <label asp-for="Telefono" class="form-label-modern"></label>
-                        <input asp-for="Telefono" class="form-control form-control-modern" placeholder="+52 000 000 0000" />
-                    </div>
-                    <div class="col-12">
-                        <label asp-for="Correo" class="form-label-modern"></label>
-                        <input asp-for="Correo" type="email" class="form-control form-control-modern" placeholder="correo@ejemplo.com" />
-                        <span asp-validation-for="Correo" class="text-danger small"></span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sección: Credenciales (solo en crear) -->
-            @if (Model.EsModoCrear)
-            {
                 <div class="form-section">
                     <div class="section-header">
-                        <i class="fas fa-lock section-icon"></i>
-                        <h5 class="section-title">Credenciales de Acceso</h5>
+                        <i class="fas fa-user-circle section-icon"></i>
+                        <h5 class="section-title">Datos Personales</h5>
                     </div>
-
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label asp-for="Username" class="form-label-modern"></label>
-                            <input asp-for="Username" class="form-control form-control-modern" placeholder="usuario123" />
-                            <span asp-validation-for="Username" class="text-danger small"></span>
+                            <label asp-for="Nombre" class="form-label-modern"></label>
+                            <input asp-for="Nombre" class="form-control form-control-modern" placeholder="Ingrese el nombre" />
+                            <span asp-validation-for="Nombre" class="text-danger small"></span>
                         </div>
                         <div class="col-md-6">
-                            <label asp-for="Password" class="form-label-modern"></label>
-                            <input asp-for="Password" type="password" class="form-control form-control-modern" placeholder="••••••••" />
-                            <span asp-validation-for="Password" class="text-danger small"></span>
+                            <label asp-for="ApellidoPaterno" class="form-label-modern"></label>
+                            <input asp-for="ApellidoPaterno" class="form-control form-control-modern" placeholder="Ingrese el apellido paterno" />
+                            <span asp-validation-for="ApellidoPaterno" class="text-danger small"></span>
                         </div>
-                    </div>
-                </div>
-            }
-
-            <!-- Sección: Configuración de Cuenta -->
-            <div class="form-section">
-                <div class="section-header">
-                    <i class="fas fa-cogs section-icon"></i>
-                    <h5 class="section-title">Configuración de Cuenta</h5>
-                </div>
-
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label asp-for="RolID" class="form-label-modern"></label>
-                        <input asp-for="RolID" type="number" class="form-control form-control-modern" min="1" />
-                        <span asp-validation-for="RolID" class="text-danger small"></span>
-                    </div>
-                    <div class="col-md-6">
-                        <label asp-for="EmpresasIDs" class="form-label-modern"></label>
-                        <select asp-for="EmpresasIDs" asp-items="@ViewBag.Empresas"
-                                class="form-select form-control-modern" multiple size="4">
-                        </select>
-                        <span asp-validation-for="EmpresasIDs" class="text-danger small"></span>
-                        <small class="text-muted d-block mt-1">Mantén Ctrl para seleccionar varias</small>
-                    </div>
-
-                    @if (!Model.EsModoCrear)
-                    {
+                        <div class="col-md-6">
+                            <label asp-for="ApellidoMaterno" class="form-label-modern"></label>
+                            <input asp-for="ApellidoMaterno" class="form-control form-control-modern" placeholder="Ingrese el apellido materno" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Telefono" class="form-label-modern"></label>
+                            <input asp-for="Telefono" class="form-control form-control-modern" placeholder="+52 000 000 0000" />
+                        </div>
                         <div class="col-12">
-                            <div class="form-check form-switch form-switch-modern">
-                                <input class="form-check-input" type="checkbox" role="switch" asp-for="Activo" id="switchActivo" />
-                                <label class="form-check-label" for="switchActivo">
-                                    <strong>Usuario Activo</strong>
-                                    <small class="d-block text-muted">Desactiva para suspender el acceso</small>
-                                </label>
-                            </div>
+                            <label asp-for="Correo" class="form-label-modern"></label>
+                            <input asp-for="Correo" type="email" class="form-control form-control-modern" placeholder="correo@ejemplo.com" />
+                            <span asp-validation-for="Correo" class="text-danger small"></span>
                         </div>
-                    }
+                    </div>
                 </div>
-            </div>
 
-            <!-- Botones de acción -->
-            <div class="form-actions">
-                <button type="button" class="btn btn-outline-secondary btn-modern" id="cancel-btn">
-                    <i class="fas fa-times me-2"></i>Cancelar
-                </button>
-                <button type="submit" class="btn btn-primary btn-modern">
-                    <i class="fas fa-save me-2"></i>@(Model.EsModoCrear ? "Crear Usuario" : "Guardar Cambios")
-                </button>
-            </div>
-        </form>
-    </div>
-
-    
-
-   
-
-
-
-@* ====== PERMISOS (COMPLETO, DENTRO DE SU TAB) ====== *@
-    <div class="tab-pane fade" id="tab-permisos" role="tabpanel" aria-labelledby="permisos-tab">
-        <div class="permissions-container">
-            <div class="permissions-header">
-                <div>
-                    <h5 class="mb-1">Permisos Personalizados</h5>
-                    <p class="text-muted small mb-0">
-                        Configura permisos específicos para este usuario. Por defecto hereda los del rol.
-                    </p>
-                </div>
-            </div>
-
-            @if (!(ViewBag.OverrideGrupos is List<OverridesVm> grupos) || grupos.Count == 0)
-            {
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    No hay información de permisos disponible.
-                </div>
-            }
-            else
-            {
-                <input type="hidden" id="UsuarioID" value="@Model.UsuarioID" />
-                @* IMPORTANTE: necesitas tener @inject IAntiforgery Antiforgery en _ViewImports o en esta vista *@
-                <input type="hidden" id="__afToken" value="@Antiforgery.GetAndStoreTokens(Context).RequestToken" />
-
-                @foreach (var grupo in grupos)
+                @if (Model.EsModoCrear)
                 {
-                    <div class="permission-group mb-3">
-                        <div class="permission-group-header">
-                            <i class="fas fa-folder-open me-2"></i>
-                            <strong>@grupo.MenuNombre</strong>
-                            <span class="badge bg-light text-dark ms-2">@grupo.Items.Count permisos</span>
+                    <div class="form-section">
+                        <div class="section-header">
+                            <i class="fas fa-lock section-icon"></i>
+                            <h5 class="section-title">Credenciales de Acceso</h5>
                         </div>
-
-                        <div class="table-responsive">
-                            <table class="table table-permissions align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 60px;">ID</th>
-                                        <th>Permiso</th>
-                                        <th class="text-center" style="width: 300px;">Acciones</th>
-                                        <th class="text-center" style="width: 120px;">Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var it in grupo.Items)
-                                    {
-                                        var badge = it.Estado switch
-                                        {
-                                            1 => "Override: Permitido",
-                                            0 => "Override: Denegado",
-                                            _ => null
-                                        };
-                                        <tr data-submenu="@it.SubMenuID">
-                                            <td class="text-muted">@it.SubMenuID</td>
-                                            <td>
-                                                <strong>@it.Nombre</strong>
-                                                <span class="ms-2 ov-badge small @(badge == null ? "d-none" : "")">
-                                                    <span class="badge @(it.Estado == 1 ? "bg-success" : "bg-warning text-dark")">
-                                                        @(badge ?? "")
-                                                    </span>
-                                                </span>
-                                            </td>
-                                            <td class="text-center">
-                                                <div class="btn-group btn-group-sm" role="group">
-                                                    <button type="button" class="btn btn-outline-success ov-btn" data-estado="1" title="Permitir acceso">
-                                                        <i class="fas fa-check me-1"></i> Permitir
-                                                    </button>
-                                                    <button type="button" class="btn btn-outline-danger ov-btn" data-estado="0" title="Denegar acceso">
-                                                        <i class="fas fa-times me-1"></i> Denegar
-                                                    </button>
-                                                    <button type="button" class="btn btn-outline-secondary ov-reset" title="Heredar del rol">
-                                                        <i class="fas fa-undo-alt"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                            <td class="text-center ov-estado">
-                                                @if (it.PermisoEfectivo)
-                                                {
-                                                    <span class="text-success" title="Efectivo: Sí">
-                                                        <i class="fas fa-check-circle fa-lg"></i>
-                                                    </span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted" title="Efectivo: No">
-                                                        <i class="fas fa-times-circle fa-lg"></i>
-                                                    </span>
-                                                }
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="Username" class="form-label-modern"></label>
+                                <input asp-for="Username" class="form-control form-control-modern" placeholder="usuario123" />
+                                <span asp-validation-for="Username" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Password" class="form-label-modern"></label>
+                                <input asp-for="Password" type="password" class="form-control form-control-modern" placeholder="••••••••" />
+                                <span asp-validation-for="Password" class="text-danger small"></span>
+                            </div>
                         </div>
                     </div>
                 }
 
-                <script>
-                    (function () {
-                        const url = '@Url.Action("SetOverride", "Usuarios")';
-                        const usuarioId = document.getElementById('UsuarioID')?.value;
-                        const token = document.getElementById('__afToken')?.value;
+                <div class="form-section">
+                    <div class="section-header">
+                        <i class="fas fa-cogs section-icon"></i>
+                        <h5 class="section-title">Configuración de Cuenta</h5>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="RolID" class="form-label-modern"></label>
+                            <input asp-for="RolID" type="number" class="form-control form-control-modern" min="1" />
+                            <span asp-validation-for="RolID" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="EmpresasIDs" class="form-label-modern"></label>
+                            <select asp-for="EmpresasIDs" asp-items="@ViewBag.Empresas" class="form-select form-control-modern" multiple size="4"></select>
+                            <span asp-validation-for="EmpresasIDs" class="text-danger small"></span>
+                            <small class="text-muted d-block mt-1">Mantén Ctrl para seleccionar varias</small>
+                        </div>
 
-                        async function postSet(subMenuId, estado) {
-                            const body = new URLSearchParams({
-                                '__RequestVerificationToken': token,
-                                'usuarioId': usuarioId,
-                                'subMenuId': subMenuId,
-                                'estado': estado
-                            });
-
-                            const res = await fetch(url, {
-                                method: 'POST',
-                                credentials: 'same-origin',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                                    'RequestVerificationToken': token
-                                },
-                                body
-                            });
-
-                            const raw = await res.text();
-                            let data;
-                            try { data = JSON.parse(raw); } catch { throw new Error('Respuesta no JSON: ' + raw.slice(0, 150)); }
-                            if (!res.ok || !data.ok) throw new Error(data?.message || 'Error al guardar');
-                            return data; // { ok:true, estado, efectivo }
+                        @if (!Model.EsModoCrear)
+                        {
+                            <div class="col-12">
+                                <div class="form-check form-switch form-switch-modern">
+                                    <input class="form-check-input" type="checkbox" role="switch" asp-for="Activo" id="switchActivo" />
+                                    <label class="form-check-label" for="switchActivo">
+                                        <strong>Usuario Activo</strong>
+                                        <small class="d-block text-muted">Desactiva para suspender el acceso</small>
+                                    </label>
+                                </div>
+                            </div>
                         }
+                    </div>
+                </div>
 
-                        function setEstadoUI(tr, estado, efectivo) {
-                            // badge override
-                            const badgeWrap = tr.querySelector('.ov-badge');
-                            if (estado === -1) {
-                                badgeWrap?.classList.add('d-none');
-                            } else {
-                                const b = badgeWrap?.querySelector('.badge');
-                                if (b) {
-                                    b.className = 'badge ' + (estado === 1 ? 'bg-success' : 'bg-warning text-dark');
-                                    b.textContent = (estado === 1 ? 'Override: Permitido' : 'Override: Denegado');
-                                }
-                                badgeWrap?.classList.remove('d-none');
-                            }
-
-                            // icono efectivo
-                            const est = tr.querySelector('.ov-estado');
-                            if (est) {
-                                est.innerHTML = efectivo
-                                    ? '<span class="text-success" title="Efectivo: Sí"><i class="fas fa-check-circle fa-lg"></i></span>'
-                                    : '<span class="text-muted" title="Efectivo: No"><i class="fas fa-times-circle fa-lg"></i></span>';
-                            }
-                        }
-
-                        // Delegación de eventos solo dentro del tab de permisos
-                        document.getElementById('tab-permisos')?.addEventListener('click', async (ev) => {
-                            const btn = ev.target.closest('.ov-btn, .ov-reset');
-                            if (!btn) return;
-
-                            const tr = btn.closest('tr');
-                            const subMenuId = tr?.dataset.submenu;
-                            const estado = btn.classList.contains('ov-reset') ? -1 : parseInt(btn.dataset.estado);
-
-                            btn.disabled = true;
-                            const originalHtml = btn.innerHTML;
-                            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Guardando…';
-
-                            try {
-                                const r = await postSet(subMenuId, estado);
-                                setEstadoUI(tr, r.estado, !!r.efectivo);
-                            } catch (e) {
-                                console.error(e);
-                                alert('No se pudo guardar: ' + (e.message || e));
-                            } finally {
-                                btn.disabled = false;
-                                btn.innerHTML = originalHtml;
-                            }
-                        });
-                    })();
-                </script>
-            }
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline-secondary btn-modern" id="cancel-btn">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-modern">
+                        <i class="fas fa-save me-2"></i>@(Model.EsModoCrear ? "Crear Usuario" : "Guardar Cambios")
+                    </button>
+                </div>
+            </form>
         </div>
+    </div>
 
+    <!-- PERMISOS -->
+    <div class="tab-pane fade" id="tab-permisos" role="tabpanel" aria-labelledby="permisos-tab">
+        <div class="pane-scroll">
+            <div class="permissions-container">
+                <div class="permissions-header">
+                    <div>
+                        <h5 class="mb-1">Permisos Personalizados</h5>
+                        <p class="text-muted small mb-0">Configura permisos específicos para este usuario. Por defecto hereda los del rol.</p>
+                    </div>
 
+                    @if ((ViewBag.OverrideGrupos is List<OverridesVm> _gr) && _gr.Count > 0 && !Model.EsModoCrear)
+                    {
+                        <div class="d-flex align-items-center gap-2">
+                            <span id="ov-dirty-indicator" class="badge bg-warning text-dark d-none">Cambios sin guardar</span>
+                          
+                        </div>
+                    }
+                </div>
 
+                @if (!(ViewBag.OverrideGrupos is List<OverridesVm> grupos) || grupos.Count == 0)
+                {
+                    <div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>No hay información de permisos disponible.</div>
+                }
+                else
+                {
+                    <form id="ov-form" asp-action="GuardarOverrides" asp-controller="Usuarios" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="UsuarioID" value="@Model.UsuarioID" />
+                        @{
+                            var idx = 0;
+                        }
 
+                        @foreach (var grupo in grupos)
+                        {
+                            <div class="permission-group mb-3">
+                                <div class="permission-group-header sticky-top">
+                                    <i class="fas fa-folder-open me-2"></i>
+                                    <strong>@grupo.MenuNombre</strong>
+                                    <span class="badge bg-light text-dark ms-2">@grupo.Items.Count permisos</span>
+                                </div>
 
+                                <div class="table-responsive ov-table-scroll">
+                                    <table class="table table-permissions align-middle mb-0">
+                                        <thead class="sticky-top">
+                                            <tr>
+                                                <th style="width:60px;">ID</th>
+                                                <th>Permiso</th>
+                                                <th class="text-center" style="width:200px;">Acceso</th>
+                                                <th class="text-center" style="width:100px;">Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var it in grupo.Items)
+                                            {
+                                                <tr data-submenu="@it.SubMenuID" data-estado-inicial="@(it.Estado >= -1 ? it.Estado : -1)">
+                                                    <td class="text-muted">@it.SubMenuID</td>
+                                                    <td>
+                                                        <strong>@it.Nombre</strong>
+                                                        <div class="ov-badge mt-1 @(it.Estado == -1 ? "d-none" : "")">
+                                                            <span class="badge @(it.Estado == 1 ? "bg-success" : "bg-warning text-dark")">
+                                                                @(it.Estado == 1 ? "Override: Permitido" : "Override: Denegado")
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <!-- Radio buttons para selección -->
+                                                        <div class="btn-group-vertical btn-group-sm" role="group">
+                                                            <div class="form-check">
+                                                                <input class="form-check-input ov-radio" type="radio"
+                                                                       name="Items[@idx].Estado" value="1"
+                                                                       id="perm_@it.SubMenuID"
+                                                                       @(it.Estado == 1 ? "checked" : "")>
+                                                                <label class="form-check-label text-success" for="perm_@it.SubMenuID">
+                                                                    <i class="fas fa-check me-1"></i> Permitir
+                                                                </label>
+                                                            </div>
+                                                            <div class="form-check">
+                                                                <input class="form-check-input ov-radio" type="radio"
+                                                                       name="Items[@idx].Estado" value="0"
+                                                                       id="deny_@it.SubMenuID"
+                                                                       @(it.Estado == 0 ? "checked" : "")>
+                                                                <label class="form-check-label text-danger" for="deny_@it.SubMenuID">
+                                                                    <i class="fas fa-times me-1"></i> Denegar
+                                                                </label>
+                                                            </div>
+                                                            <div class="form-check">
+                                                                <input class="form-check-input ov-radio" type="radio"
+                                                                       name="Items[@idx].Estado" value="-1"
+                                                                       id="inherit_@it.SubMenuID"
+                                                                       @(it.Estado == -1 ? "checked" : "")>
+                                                                <label class="form-check-label text-muted" for="inherit_@it.SubMenuID">
+                                                                    <i class="fas fa-undo me-1"></i> Heredar
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center ov-estado">
+                                                        @if (it.PermisoEfectivo)
+                                                        {
+                                                            <span class="text-success" title="Efectivo: Sí"><i class="fas fa-check-circle fa-lg"></i></span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted" title="Efectivo: No"><i class="fas fa-times-circle fa-lg"></i></span>
+                                                        }
+                                                    </td>
+                                                    <td class="d-none">
+                                                        <input type="hidden" name="Items[@idx].SubMenuID" value="@it.SubMenuID" />
+                                                    </td>
+                                                </tr>
+                                                idx++;
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        }
 
+                        <div class="ov-sticky-footer">
+                            <div class="d-flex align-items-center gap-2">
+                                <span id="ov-dirty-indicator-bottom" class="badge bg-warning text-dark d-none">Cambios sin guardar</span>
+                                <button type="submit" class="btn btn-primary btn-modern" id="ov-save">
+                                    <i class="fas fa-save me-2"></i>Guardar overrides
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-modern" id="ov-reset-all">
+                                    <i class="fas fa-undo me-2"></i>Revertir cambios
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
 
-
-
-
-
-
-    <!-- ==================== PESTAÑA: AUDITORÍA ==================== -->
+    <!-- AUDITORÍA -->
     @if (!Model.EsModoCrear && Model.HistorialDeCambios != null && Model.HistorialDeCambios.Any())
     {
         <div class="tab-pane fade" id="tab-auditoria" role="tabpanel">
-            <div class="audit-container">
-                <div class="audit-header">
-                    <h5 class="mb-1">Historial de Cambios</h5>
-                    <p class="text-muted small mb-0">Registro completo de modificaciones</p>
-                </div>
-
-                <div class="timeline">
-                    @foreach (var item in Model.HistorialDeCambios.OrderByDescending(x => x.FechaModificacion))
-                    {
-                        <div class="timeline-item">
-                            <div class="timeline-marker"></div>
-                            <div class="timeline-content">
-                                <div class="timeline-date">
-                                    <i class="fas fa-clock me-1"></i>
-                                    @item.FechaModificacion.ToString("dd/MM/yyyy HH:mm")
-                                </div>
-                                <div class="timeline-description">@item.DescripcionDelCambio</div>
-                                <div class="timeline-user">
-                                    <i class="fas fa-user me-1"></i>
-                                    @item.ModificadoPor
+            <div class="pane-scroll">
+                <div class="audit-container">
+                    <div class="audit-header">
+                        <h5 class="mb-1">Historial de Cambios</h5>
+                        <p class="text-muted small mb-0">Registro completo de modificaciones</p>
+                    </div>
+                    <div class="timeline">
+                        @foreach (var item in Model.HistorialDeCambios.OrderByDescending(x => x.FechaModificacion))
+                        {
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <div class="timeline-date"><i class="fas fa-clock me-1"></i>@item.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</div>
+                                    <div class="timeline-description">@item.DescripcionDelCambio</div>
+                                    <div class="timeline-user"><i class="fas fa-user me-1"></i>@item.ModificadoPor</div>
                                 </div>
                             </div>
-                        </div>
-                    }
+                        }
+                    </div>
                 </div>
             </div>
         </div>
     }
 </div>
 
-<!-- ESTILOS MODERNOS -->
+<!-- ESTILOS -->
 <style>
-    /* ========== HEADER MODERNO ========== */
+    :root {
+        --pm-indigo: #667eea;
+        --pm-purple: #764ba2;
+        --pm-muted: #f6f7fb;
+        --pm-surface: #ffffff;
+        --pm-border: #e7e9ef;
+        --pm-text: #283046;
+        --pm-text-muted: #6b7280;
+    }
+
     .panel-header-modern {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
+        background: linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+        padding: 1.5rem 2rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        color: white;
-        border-radius: 12px 12px 0 0;
+        color: #fff;
+        border-radius: 12px 12px 0 0
     }
 
     .user-profile-section {
         display: flex;
         align-items: center;
-        gap: 1.5rem;
+        gap: 1.25rem
     }
 
     .user-avatar-circle {
-        width: 70px;
-        height: 70px;
+        width: 64px;
+        height: 64px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(10px);
+        background: rgba(255,255,255,.2);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.5rem;
         font-weight: 700;
-        border: 3px solid rgba(255, 255, 255, 0.3);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        border: 2px solid rgba(255,255,255,.35);
+        box-shadow: 0 4px 12px rgba(0,0,0,.15)
     }
 
     .user-name {
         margin: 0;
-        font-size: 1.5rem;
-        font-weight: 600;
+        font-size: 1.35rem;
+        font-weight: 700
     }
 
     .user-meta {
         display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-top: 0.5rem;
+        gap: .75rem;
+        margin-top: .25rem
     }
 
     .reset-password-link {
-        color: rgba(255, 255, 255, 0.9);
-        text-decoration: none;
-        font-size: 0.875rem;
-        transition: all 0.3s;
+        color: #fff;
+        opacity: .92;
+        text-decoration: none
     }
 
-    .reset-password-link:hover {
-        color: white;
-    }
+        .reset-password-link:hover {
+            opacity: 1;
+            text-decoration: underline
+        }
 
     .btn-close-modern {
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
+        background: rgba(255,255,255,.22);
+        border: 0;
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        color: white;
-        cursor: pointer;
-        transition: all 0.3s;
+        color: #fff
     }
 
-    .btn-close-modern:hover {
-        background: rgba(255, 255, 255, 0.3);
-        transform: rotate(90deg);
-    }
+        .btn-close-modern:hover {
+            background: rgba(255,255,255,.32);
+            transform: rotate(90deg)
+        }
 
-    /* ========== PESTAÑAS MODERNAS ========== */
     .nav-tabs-modern {
-        background: #f8f9fa;
-        border-bottom: 2px solid #dee2e6;
-        padding: 0 2rem;
+        background: var(--pm-muted);
+        border-bottom: 1px solid var(--pm-border);
+        padding: 0 1rem
     }
 
-    .nav-tabs-modern .nav-link {
-        border: none;
-        color: #6c757d;
-        font-weight: 500;
-        padding: 1rem 1.5rem;
-        transition: all 0.3s;
-        position: relative;
-    }
+        .nav-tabs-modern .nav-link {
+            border: 0;
+            color: var(--pm-text-muted);
+            font-weight: 600;
+            padding: 1rem 1.2rem;
+            border-radius: .5rem .5rem 0 0
+        }
 
-    .nav-tabs-modern .nav-link:hover {
-        color: #495057;
-        background: rgba(102, 126, 234, 0.1);
-    }
+            .nav-tabs-modern .nav-link.active {
+                color: #667eea;
+                background: var(--pm-surface)
+            }
 
-    .nav-tabs-modern .nav-link.active {
-        color: #667eea;
-        background: white;
-    }
+                .nav-tabs-modern .nav-link.active::after {
+                    content: "";
+                    position: absolute;
+                    left: 0;
+                    right: 0;
+                    bottom: -1px;
+                    height: 2px;
+                    background: linear-gradient(90deg,#667eea,#764ba2)
+                }
 
-    .nav-tabs-modern .nav-link.active::after {
-        content: '';
-        position: absolute;
-        bottom: -2px;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    }
-
-    /* ========== CONTENIDO MODERNO ========== */
     .tab-content-modern {
-        background: white;
-        padding: 2rem;
+        background: var(--pm-surface);
+        padding: 0;
         border-radius: 0 0 12px 12px;
+        height: calc(100vh - 180px);
+        overflow: hidden
+    }
+
+    .tab-pane {
+        height: 100%
+    }
+
+    .pane-scroll {
+        height: 100%;
+        overflow: auto;
+        padding: 1.5rem
     }
 
     .form-modern {
-        max-width: 900px;
-        margin: 0 auto;
+        max-width: 1000px;
+        margin: 0 auto
     }
 
     .form-section {
-        margin-bottom: 2.5rem;
-        padding: 1.5rem;
-        background: #f8f9fa;
+        margin-bottom: 1.5rem;
+        padding: 1.1rem;
+        background: var(--pm-muted);
         border-radius: 12px;
-        border-left: 4px solid #667eea;
+        border: 1px solid var(--pm-border)
     }
 
     .section-header {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 1.5rem;
+        gap: .6rem;
+        margin-bottom: 1rem
     }
 
     .section-icon {
-        color: #667eea;
-        font-size: 1.25rem;
+        color: #667eea
     }
 
     .section-title {
         margin: 0;
-        font-size: 1.125rem;
-        font-weight: 600;
-        color: #495057;
+        font-weight: 700;
+        color: var(--pm-text)
     }
 
     .form-label-modern {
-        font-weight: 500;
-        color: #495057;
-        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--pm-text);
+        margin-bottom: .4rem
     }
 
     .form-control-modern, .form-select {
-        border: 2px solid #e9ecef;
-        border-radius: 8px;
-        padding: 0.625rem 1rem;
-        transition: all 0.3s;
+        border: 2px solid var(--pm-border);
+        border-radius: 10px;
+        padding: .62rem .9rem
     }
 
-    .form-control-modern:focus, .form-select:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
-    }
-
-    .form-switch-modern .form-check-input {
-        width: 3rem;
-        height: 1.5rem;
-        cursor: pointer;
-    }
-
-    .form-switch-modern .form-check-input:checked {
-        background-color: #667eea;
-        border-color: #667eea;
-    }
+        .form-control-modern:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 .2rem rgba(102,126,234,.15)
+        }
 
     .form-actions {
         display: flex;
         justify-content: flex-end;
-        gap: 1rem;
-        padding-top: 1.5rem;
-        border-top: 2px solid #e9ecef;
+        gap: .75rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--pm-border)
     }
 
-    .btn-modern {
-        padding: 0.625rem 1.5rem;
-        border-radius: 8px;
-        font-weight: 500;
-        transition: all 0.3s;
-    }
-
-    /* ========== PERMISOS ========== */
     .permissions-container {
-        max-width: 1200px;
-        margin: 0 auto;
+        max-width: 1280px;
+        margin: 0 auto
     }
 
     .permissions-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 1rem;
+        padding-bottom: .75rem;
+        border-bottom: 1px solid var(--pm-border)
     }
 
     .permission-group {
-        margin-bottom: 2rem;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
+        margin-bottom: 1rem;
+        border: 1px solid var(--pm-border);
+        border-radius: 14px;
         overflow: hidden;
+        background: #fff
     }
 
     .permission-group-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem 1.5rem;
-        font-size: 1.125rem;
+        background: linear-gradient(135deg,#667eea,#764ba2);
+        color: #fff;
+        padding: .85rem 1.1rem;
+        font-weight: 700;
         display: flex;
         align-items: center;
+        gap: .5rem;
+        z-index: 3
+    }
+
+    .ov-table-scroll {
+        max-height: 56vh;
+        overflow: auto;
+        border-top: 1px solid var(--pm-border)
     }
 
     .table-permissions {
-        margin-bottom: 0;
+        margin: 0;
+        border-collapse: separate;
+        border-spacing: 0
     }
 
-    .table-permissions thead {
-        background: #f8f9fa;
+        .table-permissions thead {
+            background: var(--pm-muted);
+            position: sticky;
+            top: 0;
+            z-index: 2
+        }
+
+        .table-permissions th, .table-permissions td {
+            padding: .85rem .9rem;
+            vertical-align: middle
+        }
+
+        .table-permissions th {
+            font-weight: 700;
+            color: var(--pm-text);
+            border-bottom: 1px solid var(--pm-border)
+        }
+
+        .table-permissions tbody tr {
+            border-bottom: 1px solid var(--pm-border)
+        }
+
+            .table-permissions tbody tr:hover {
+                background: #fafbff
+            }
+
+        .table-permissions th:first-child, .table-permissions td:first-child {
+            position: sticky;
+            left: 0;
+            background: #fff;
+            z-index: 3;
+            box-shadow: 1px 0 0 var(--pm-border)
+        }
+
+        .table-permissions .btn-group {
+            flex-wrap: wrap;
+            gap: .4rem;
+            justify-content: center
+        }
+
+            .table-permissions .btn-group .btn {
+                min-width: 108px
+            }
+
+    @@media (max-width:640px) {
+        .table-permissions .btn-group .btn {
+            min-width: auto;
+            padding: .45rem .6rem
+        }
+
+        .table-permissions .btn i {
+            margin-right: 0
+        }
+
+        .table-permissions .btn {
+            font-size: 0
+        }
+
+            .table-permissions .btn i {
+                font-size: 14px
+            }
+
+        .table-permissions th:first-child, .table-permissions td:first-child {
+            display: none
+        }
     }
 
-    .table-permissions th {
-        font-weight: 600;
-        color: #495057;
-        border-bottom: 2px solid #dee2e6;
-        padding: 1rem;
-    }
-
-    .table-permissions td {
-        padding: 1rem;
-        vertical-align: middle;
-    }
-
-    .badge-custom {
-        background: #fff3cd;
-        color: #856404;
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
-
-    .status-badge {
-        font-size: 1.5rem;
-    }
-
-    .status-active {
-        color: #28a745;
-    }
-
-    .status-inactive {
-        color: #6c757d;
-    }
-
-    /* ========== AUDITORÍA ========== */
-    .audit-container {
-        max-width: 900px;
-        margin: 0 auto;
-    }
-
-    .audit-header {
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #e9ecef;
-    }
-
-    .timeline {
-        position: relative;
-        padding-left: 2rem;
-    }
-
-    .timeline::before {
-        content: '';
-        position: absolute;
-        left: 0.5rem;
-        top: 0;
+    .ov-sticky-footer {
+        position: sticky;
         bottom: 0;
-        width: 2px;
-        background: #e9ecef;
+        z-index: 4;
+        background: linear-gradient(0deg,rgba(255,255,255,1) 70%,rgba(255,255,255,0) 100%);
+        padding: .8rem 0 0;
+        margin-top: .5rem;
+        border-top: 1px solid var(--pm-border)
     }
 
-    .timeline-item {
-        position: relative;
-        margin-bottom: 1.5rem;
+    /* Estilos para los radio buttons de permisos */
+    .form-check-input.ov-radio {
+        margin-right: 0.5rem;
     }
 
-    .timeline-marker {
-        position: absolute;
-        left: -1.5rem;
-        top: 0.25rem;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: #667eea;
-        border: 3px solid white;
-        box-shadow: 0 0 0 2px #e9ecef;
+    .form-check-label {
+        cursor: pointer;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        transition: all 0.2s;
     }
 
-    .timeline-content {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 3px solid #667eea;
+    .form-check-input:checked + .form-check-label {
+        font-weight: bold;
     }
 
-    .timeline-date {
-        font-size: 0.875rem;
-        color: #6c757d;
-        margin-bottom: 0.5rem;
+    .form-check-input[value="1"]:checked + .form-check-label {
+        background-color: rgba(40, 167, 69, 0.1);
+        border: 1px solid #28a745;
     }
 
-    .timeline-description {
-        font-weight: 500;
-        color: #495057;
-        margin-bottom: 0.5rem;
+    .form-check-input[value="0"]:checked + .form-check-label {
+        background-color: rgba(220, 53, 69, 0.1);
+        border: 1px solid #dc3545;
     }
 
-    .timeline-user {
-        font-size: 0.875rem;
-        color: #6c757d;
+    .form-check-input[value="-1"]:checked + .form-check-label {
+        background-color: rgba(108, 117, 125, 0.1);
+        border: 1px solid #6c757d;
     }
 
-    /* ========== ESTADO VACÍO ========== */
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
+    .btn-group-vertical .form-check {
+        margin-bottom: 0.25rem;
     }
-
-    .empty-state-icon {
-        font-size: 4rem;
-        color: #dee2e6;
-        margin-bottom: 1rem;
-    }
-
-    .empty-state h5 {
-        color: #495057;
-        margin-bottom: 0.5rem;
-    }
-
-    
 </style>
 
-<!-- JAVASCRIPT -->
+<!-- JS -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Cerrar panel
-        const closeBtn = document.getElementById('close-panel-btn');
-        const cancelBtn = document.getElementById('cancel-btn');
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('🚀 Iniciando gestor de permisos (Radio Buttons)...');
 
-        if (closeBtn) {
-            closeBtn.addEventListener('click', function() {
-                window.location.href = '@Url.Action("Index", "Usuarios")';
-            });
+        // ===== Referencias =====
+        const ovForm = document.getElementById('ov-form');
+        const ovSave = document.getElementById('ov-save');
+        const ovSaveTop = document.getElementById('ov-save-top');
+        const dirtyTop = document.getElementById('ov-dirty-indicator');
+        const dirtyBot = document.getElementById('ov-dirty-indicator-bottom');
+        const resetAllBtn = document.getElementById('ov-reset-all');
+
+        if (!ovForm) {
+            console.log('⚠️ Formulario de permisos no encontrado');
+            return;
         }
 
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', function() {
-                window.location.href = '@Url.Action("Index", "Usuarios")';
-            });
-        }
+        console.log('✅ Formulario encontrado, configurando...');
 
-        // Activar validación
-        const form = document.getElementById('user-form');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                if (!form.checkValidity()) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-                form.classList.add('was-validated');
-            });
-        }
+        let isDirty = false;
 
-        // Feedback visual en botones de permisos
-        const permissionForms = document.querySelectorAll('#tab-permisos form');
-        permissionForms.forEach(form => {
-            form.addEventListener('submit', function() {
-                const btn = this.querySelector('button[type="submit"]');
-                if (btn) {
-                    btn.disabled = true;
-                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
-                }
-            });
-        });
-
-        // Activar pestaña desde query string
-        const urlParams = new URLSearchParams(window.location.search);
-        const tab = urlParams.get('tab');
-        if (tab) {
-            const tabButton = document.getElementById(tab + '-tab');
-            if (tabButton) {
-                const bsTab = new bootstrap.Tab(tabButton);
-                bsTab.show();
+        // ===== FUNCIONES AUXILIARES =====
+        function markDirty() {
+            if (!isDirty) {
+                isDirty = true;
+                dirtyTop?.classList.remove('d-none');
+                dirtyBot?.classList.remove('d-none');
+                console.log('📝 Cambios marcados como pendientes');
             }
         }
-    });
 
-        document.querySelectorAll('#tab-permisos form').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const btn = this.querySelector('button[type="submit"]');
-            if (btn && !btn.disabled) {
-                btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+        function clearDirty() {
+            isDirty = false;
+            dirtyTop?.classList.add('d-none');
+            dirtyBot?.classList.add('d-none');
+            console.log('✨ Cambios limpiados');
+        }
+
+        function updateBadge(tr, estado) {
+            const badgeWrap = tr.querySelector('.ov-badge');
+            const badge = badgeWrap?.querySelector('.badge');
+
+            if (estado === -1) {
+                badgeWrap?.classList.add('d-none');
+            } else {
+                if (badge) {
+                    badge.className = 'badge ' + (estado === 1 ? 'bg-success' : 'bg-warning text-dark');
+                    badge.textContent = estado === 1 ? 'Override: Permitido' : 'Override: Denegado';
+                }
+                badgeWrap?.classList.remove('d-none');
             }
-        });
-    });
+        }
 
-    // Mostrar notificación si hubo éxito
-    @if (TempData["SuccessMessage"] != null)
-    {
-            <text>
+        // ===== CAMBIO EN RADIO BUTTONS =====
+        document.getElementById('tab-permisos')?.addEventListener('change', (ev) => {
+            if (!ev.target.classList.contains('ov-radio')) return;
+
+            console.log('🖱️ Radio cambiado:', ev.target.value);
+
+            const tr = ev.target.closest('tr');
+            const subMenuId = tr.dataset.submenu;
+            const estado = parseInt(ev.target.value);
+
+            console.log(`  SubMenuID: ${subMenuId}, Nuevo estado: ${estado}`);
+
+            updateBadge(tr, estado);
+            markDirty();
+        });
+
+        // ===== GUARDAR SUPERIOR =====
+        ovSaveTop?.addEventListener('click', (e) => {
+            console.log('💾 Click en botón superior');
+            e.preventDefault();
+            guardarOverrides(ovSaveTop);
+        });
+
+        // ===== SUBMIT DEL FORMULARIO =====
+        ovForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log('📤 Submit del formulario interceptado');
+            await guardarOverrides(ovSave);
+        });
+
+        // ===== FUNCIÓN PRINCIPAL DE GUARDADO =====
+        async function guardarOverrides(btnClicked) {
+            console.log('🔄 Iniciando guardado de overrides...');
+
+            const btn = btnClicked || ovSave;
+            const originalHtml = btn.innerHTML;
+
+            // Deshabilitar ambos botones
+            [ovSave, ovSaveTop].forEach(b => {
+                if (b) b.disabled = true;
+            });
+
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+
+            try {
+                // Serializar formulario
+                const fd = new FormData(ovForm);
+
+                // DEBUG: Mostrar qué se está enviando
+                console.log('📦 Datos a enviar:');
+                for (let [key, value] of fd.entries()) {
+                    console.log(`  ${key}: ${value}`);
+                }
+
+                // Petición AJAX
+                const url = '@Url.Action("GuardarOverrides", "Usuarios")';
+                console.log('🌐 URL:', url);
+
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: fd,
+                    credentials: 'same-origin'
+                });
+
+                console.log('📡 Respuesta HTTP:', res.status, res.statusText);
+
+                let data;
+                try {
+                    data = await res.json();
+                    console.log('✅ JSON parseado:', data);
+                } catch (jsonError) {
+                    console.error('❌ Error parseando JSON:', jsonError);
+                    const text = await res.text();
+                    console.error('📄 Respuesta como texto:', text.substring(0, 500));
+                    throw new Error('Respuesta del servidor no es JSON válido');
+                }
+
+                if (!res.ok || !data?.ok) {
+                    throw new Error(data?.message || `Error HTTP ${res.status}`);
+                }
+
+                // ÉXITO
+                clearDirty();
+                showToast('success', data.message || 'Permisos actualizados correctamente');
+
+                // Actualizar estados iniciales
+                document.querySelectorAll('#tab-permisos tr[data-submenu]').forEach(tr => {
+                    const radioChecked = tr.querySelector('.ov-radio:checked');
+                    if (radioChecked) {
+                        tr.setAttribute('data-estado-inicial', radioChecked.value);
+                    }
+                });
+
+                console.log('✅ Guardado exitoso');
+
+            } catch (err) {
+                console.error('❌ Error al guardar:', err);
+                showToast('error', err.message || 'Error al guardar los cambios');
+            } finally {
+                // Rehabilitar botones
+                [ovSave, ovSaveTop].forEach(b => {
+                    if (b) {
+                        b.disabled = false;
+                        b.innerHTML = originalHtml;
+                    }
+                });
+            }
+        }
+
+        // ===== DESHACER CAMBIOS =====
+        resetAllBtn?.addEventListener('click', () => {
+            if (!isDirty) {
+                showToast('info', 'No hay cambios para deshacer');
+                return;
+            }
+
+            if (!confirm('¿Descartar todos los cambios no guardados?')) return;
+
+            console.log('↩️ Deshaciendo cambios...');
+
+            document.querySelectorAll('#ov-form tr[data-submenu]').forEach(tr => {
+                const estadoInicial = parseInt(tr.getAttribute('data-estado-inicial') ?? "-1");
+                const radio = tr.querySelector(`.ov-radio[value="${estadoInicial}"]`);
+
+                if (radio) {
+                    radio.checked = true;
+                    updateBadge(tr, estadoInicial);
+                }
+            });
+
+            clearDirty();
+        });
+
+        // ===== TOAST HELPER =====
+        function showToast(type, message) {
+            // Remover toasts anteriores
+            document.querySelectorAll('.alert.position-fixed').forEach(alert => {
+                alert.remove();
+            });
+
+            const alertClass = type === 'success' ? 'alert-success' :
+                              type === 'error' ? 'alert-danger' : 'alert-info';
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ';
+
+            const alert = document.createElement('div');
+            alert.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+            alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 350px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+            alert.innerHTML = `
+                <strong>${icon} ${type === 'success' ? 'Éxito' : type === 'error' ? 'Error' : 'Info'}:</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            document.body.appendChild(alert);
+
+            const timeout = type === 'success' ? 4000 : type === 'error' ? 7000 : 5000;
             setTimeout(() => {
-                const alert = document.createElement('div');
-                alert.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 end-0 m-3';
-                alert.style.zIndex = '9999';
-                alert.innerHTML = `
-                    <strong>✓ Éxito:</strong> @TempData["SuccessMessage"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                document.body.appendChild(alert);
-                setTimeout(() => alert.remove(), 4000);
-            }, 500);
-            </text>
-    }
+                if (alert.parentNode) {
+                    alert.classList.remove
 
 
-</script>
-
-
+            </script>

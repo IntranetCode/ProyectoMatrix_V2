@@ -87,11 +87,19 @@
                             <div class="col-md-6">
                                 <label for="archivoVideo" class="form-label fw-semibold">
                                     <i class="fas fa-video text-primary me-1"></i>
-                                    Video del SubCurso
+                                    Video del SubCurso <span class="text-muted">(opcional)</span>
                                 </label>
                                 <input type="file" class="form-control" id="archivoVideo" name="archivoVideo"
                                        accept="video/*" onchange="previewVideo(this)">
-                                <div class="form-text">Formatos: MP4, AVI, MOV (máximo 500MB)</div>
+                                <!-- Conservar ruta existente en edición -->
+                                <input type="hidden" asp-for="ArchivoVideo" />
+                                @if (!string.IsNullOrWhiteSpace(Model.ArchivoVideo))
+                                {
+                                    <div class="form-text">
+                                        Video actual: <a href="~/contenidos/@Model.ArchivoVideo" target="_blank">ver</a>
+                                    </div>
+                                }
+                                <span asp-validation-for="ArchivoVideo" class="text-danger small"></span>
 
                                 <!-- Preview Video -->
                                 <div id="videoPreview" class="mt-3" style="display: none;">
@@ -105,27 +113,41 @@
                                     </div>
                                 </div>
                             </div>
+
                             <div class="col-md-6">
                                 <label for="archivoPDF" class="form-label fw-semibold">
                                     <i class="fas fa-file-pdf text-primary me-1"></i>
-                                    Material de Apoyo (PDF)
+                                    Material de Apoyo (PDF) <span class="text-muted">(opcional)</span>
                                 </label>
                                 <input type="file" class="form-control" id="archivoPDF" name="archivoPDF"
                                        accept=".pdf" onchange="previewPDF(this)">
-                                <div class="form-text">Material complementario en PDF</div>
+                                <!-- Conservar ruta existente en edición -->
+                                <input type="hidden" asp-for="ArchivoPDF" />
+                                @if (!string.IsNullOrWhiteSpace(Model.ArchivoPDF))
+                                {
+                                    <div class="form-text">
+                                        PDF actual: <a href="~/contenidos/@Model.ArchivoPDF" target="_blank">ver</a>
+                                    </div>
+                                }
+                                <span asp-validation-for="ArchivoPDF" class="text-danger small"></span>
 
                                 <!-- Preview PDF -->
                                 <div id="pdfPreview" class="mt-3" style="display: none;">
-                                    <div class="alert alert-info py-2">
+                                    <div class="alert alert-info py-2 d-flex align-items-center">
                                         <i class="fas fa-file-pdf me-2"></i>
-                                        <span id="pdfName"></span>
-                                        <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removePDF()">
+                                        <span id="pdfName" class="me-2"></span>
+                                        <button type="button" class="btn btn-sm btn-outline-danger ms-auto" onclick="removePDF()">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        <p class="text-muted">
+                            Sube <strong>video o PDF</strong> (al menos uno). Ambos son opcionales.
+                        </p>
+
 
                         <!-- Duración del Video -->
                         <div class="row mb-4">

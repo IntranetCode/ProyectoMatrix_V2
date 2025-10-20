@@ -20,17 +20,20 @@ namespace ProyectoMatrix.Controllers
         private readonly ILogger<UniversidadController> _logger;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly BitacoraService _bitacora;
+        private readonly IServicioAcceso _acceso;
 
         public UniversidadController(
             UniversidadServices universidadServices,
             ILogger<UniversidadController> logger,
             IWebHostEnvironment webHostEnvironment,
-            BitacoraService bitacora)
+            BitacoraService bitacora,
+            IServicioAcceso acceso)
         {
             _universidadServices = universidadServices;
             _logger = logger;
             _webHostEnvironment = webHostEnvironment;
             _bitacora = bitacora;
+            _acceso = acceso;
         }
 
         // Helpers de contexto para bitácora
@@ -91,6 +94,12 @@ namespace ProyectoMatrix.Controllers
 
                 _logger.LogInformation("Valores finales - RolId: {RolId}, EmpresaId: {EmpresaId}", rolIdFinal, empresaIdFinal);
 
+                // Calcula permisos de gestión desde BD (usa EXACTAMENTE los nombres de SubMenú)
+                var tCrear = _acceso.TienePermisoAsync(usuarioId.Value, "Crear curso", "Crear");
+                var tEditar = _acceso.TienePermisoAsync(usuarioId.Value, "Editar curso", "Editar");
+                var tEliminar = _acceso.TienePermisoAsync(usuarioId.Value, "Eliminar curso", "Eliminar");
+                await Task.WhenAll(tCrear, tEditar, tEliminar);
+                var puedeGestionarCursos = tCrear.Result || tEditar.Result || tEliminar.Result;
                 var viewModel = new UniversidadDashboardViewModel
                 {
                     UsuarioId = usuarioId.Value,
@@ -98,18 +107,20 @@ namespace ProyectoMatrix.Controllers
                     EmpresaId = empresaIdFinal,
                     NombreUsuario = nombreUsuario ?? "Usuario",
                     NombreEmpresa = nombreEmpresa ?? "NS Group",
-                    PuedeCrearCursos = UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolIdFinal),
-                    PuedeAsignarCursos = UniversidadPermisosHelper.PermisosUniversidad.PuedeAsignarCursos(rolIdFinal),
-                    PuedeVerReportes = UniversidadPermisosHelper.PermisosUniversidad.PuedeVerReportes(rolIdFinal),
-                    PuedeConfiguracion = UniversidadPermisosHelper.PermisosUniversidad.PuedeConfigurarSistema(rolIdFinal)
+                    PuedeCrearCursos = puedeGestionarCursos,   // <- ya lo tenías
+                    PuedeAsignarCursos = puedeGestionarCursos,   // <- CAMBIO: quita helper
+                    PuedeVerReportes = UniversidadPermisosHelper.PermisosUniversidad.PuedeVerReportes(rolIdFinal), // o cámbialo después
+                    PuedeConfiguracion = puedeGestionarCursos    // <- CAMBIO: quita helper
                 };
+
+
 
                 await CargarDatosDashboard(viewModel);
                 viewModel.MenuItems = GenerarMenuItems(viewModel);
 
                 _logger.LogInformation("Dashboard cargado exitosamente para usuario {UsuarioId}", usuarioId);
 
-                // Bitácora: ver dashboard (info)
+                // Bitácora
                 try
                 {
                     var (idUsuarioBit, idEmpresaBit) = (usuarioId, empresaIdFinal);
@@ -140,6 +151,7 @@ namespace ProyectoMatrix.Controllers
                 return RedirectToAction("Index", "Menu");
             }
         }
+
 
         private async Task CargarDatosDashboard(UniversidadDashboardViewModel viewModel)
         {
@@ -307,6 +319,8 @@ namespace ProyectoMatrix.Controllers
         // =====================================================
         // MIS CURSOS
         // =====================================================
+
+        [AutorizarAccion("Ver cursos", "Ver")]
         [HttpGet]
         public async Task<IActionResult> MisCursos()
         {
@@ -357,29 +371,47 @@ namespace ProyectoMatrix.Controllers
                 TempData["Error"] = "Error al cargar tus cursos";
                 return View(new List<CursoAsignadoViewModel>());
             }
-        }  
+        }
 
+        [AutorizarAccion("Ver cursos", "Ver")]
         public async Task<IActionResult> GestionCursos()
         {
             try
             {
-                var rolId = HttpContext.Session.GetInt32("RolID") ??
-                            HttpContext.Session.GetInt32("RolId") ?? 4;
+                var uid = HttpContext.Session.GetInt32("UsuarioID") ?? 0;
+                var rolId = HttpContext.Session.GetInt32("RolID")
+                           ?? HttpContext.Session.GetInt32("RolId") ?? 4;
 
-                if (!UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId))
+                // ---- Permisos desde BD (OR de Crear/Editar/Eliminar) ----
+                var tCrear = _acceso.TienePermisoAsync(uid, "Crear curso", "Crear");
+                var tEditar = _acceso.TienePermisoAsync(uid, "Editar curso", "Editar");
+                var tEliminar = _acceso.TienePermisoAsync(uid, "Eliminar curso", "Eliminar");
+                await Task.WhenAll(tCrear, tEditar, tEliminar);
+
+                var puedeCrear = tCrear.Result;
+                var puedeEditar = tEditar.Result;
+                var puedeEliminar = tEliminar.Result;
+                var puedeGestionar = puedeCrear || puedeEditar || puedeEliminar;
+
+                if (!puedeGestionar)
                 {
                     TempData["Error"] = "No tiene permisos para acceder a esta sección.";
                     return RedirectToAction("Index");
                 }
+                // ----------------------------------------------------------
 
                 var niveles = await _universidadServices.GetNivelesEducativosViewModelAsync();
 
                 var viewModel = new GestionCursosViewModel
                 {
                     RolId = rolId,
+                    // Si quieres que “aprobar” también dependa de BD, usa: PuedeAprobar = puedeGestionar;
                     PuedeAprobar = UniversidadPermisosHelper.PermisosUniversidad.PuedeAprobarCursos(rolId),
-                    PuedeCrear = true,
-                    PuedeEditar = true,
+                    PuedeCrear = puedeCrear,
+                    PuedeEditar = puedeEditar,
+                   // PuedeEliminar = puedeEliminar,
+                   // PuedeGestionar = puedeGestionar,
+
                     Niveles = niveles ?? new List<NivelEducativoViewModel>(),
                     Cursos = new List<CursoCompleto>(),
                     CursosPorNivel = new Dictionary<int, int>()
@@ -389,31 +421,15 @@ namespace ProyectoMatrix.Controllers
                 var cursosObtenidos = await _universidadServices.GetTodosCursosAsync();
                 _logger.LogInformation("📊 Cursos obtenidos del servicio: {Count}", cursosObtenidos?.Count ?? 0);
 
-                viewModel.Cursos = cursosObtenidos ?? new List<CursoCompleto>();
-                _logger.LogInformation("📊 Cursos asignados al ViewModel: {Count}", viewModel.Cursos.Count);
-
-                var idsUnicos = viewModel.Cursos.Select(c => c.CursoID).Distinct().Count();
-                var totalCursos = viewModel.Cursos.Count;
-
-                _logger.LogInformation("🔍 IDs únicos: {Unicos}, Total cursos: {Total}", idsUnicos, totalCursos);
-
-                if (idsUnicos != totalCursos)
-                {
-                    _logger.LogWarning("⚠️ DUPLICADOS DETECTADOS - Eliminando...");
-                    viewModel.Cursos = viewModel.Cursos
-                        .GroupBy(c => c.CursoID)
-                        .Select(g => g.First())
-                        .ToList();
-                    _logger.LogInformation("✅ Después de eliminar duplicados: {Count}", viewModel.Cursos.Count);
-                }
+                viewModel.Cursos = (cursosObtenidos ?? new List<CursoCompleto>())
+                    .GroupBy(c => c.CursoID)            // evita duplicados
+                    .Select(g => g.First())
+                    .ToList();
 
                 foreach (var nivel in viewModel.Niveles)
-                {
-                    var cursosDelNivel = viewModel.Cursos.Where(c => c.NivelID == nivel.NivelID);
-                    viewModel.CursosPorNivel[nivel.NivelID] = cursosDelNivel.Count();
-                }
+                    viewModel.CursosPorNivel[nivel.NivelID] = viewModel.Cursos.Count(c => c.NivelID == nivel.NivelID);
 
-                // Bitácora: ver gestión (info)
+                // Bitácora
                 try
                 {
                     var (idUsuario, idEmpresa) = LeerIdsSesion();
@@ -444,6 +460,9 @@ namespace ProyectoMatrix.Controllers
                 return RedirectToAction("Index");
             }
         }
+
+
+
 
         // =====================================================
         // TOMAR CURSO - VER SUBCURSOS
@@ -703,24 +722,15 @@ namespace ProyectoMatrix.Controllers
 
         // =====================================================
         // CREAR CURSO
-        // =====================================================
-
+        [HttpGet]
+        [AutorizarAccion("Crear curso", "Crear")]
         public async Task<IActionResult> CrearCurso()
         {
-            var rolId = HttpContext.Session.GetInt32("RolID") ??
-                        HttpContext.Session.GetInt32("RolId") ?? 4;
-
-            if (!UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId))
-            {
-                TempData["Error"] = "No tiene permisos para crear cursos.";
-                return RedirectToAction("Index");
-            }
-
             var niveles = await _universidadServices.GetNivelesEducativosViewModelAsync();
             ViewBag.Niveles = niveles;
-
             return View(new CrearCursoRequest());
         }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -730,14 +740,9 @@ namespace ProyectoMatrix.Controllers
             try
             {
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var rolId = HttpContext.Session.GetInt32("RolID") ??
-                            HttpContext.Session.GetInt32("RolId");
+               
 
-                if (!usuarioId.HasValue || !UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId ?? 0))
-                {
-                    TempData["Error"] = "No tiene permisos para crear cursos.";
-                    return RedirectToAction("Index");
-                }
+              
 
                 if (!ModelState.IsValid)
                 {
@@ -929,14 +934,7 @@ namespace ProyectoMatrix.Controllers
         {
             try
             {
-                var rolId = HttpContext.Session.GetInt32("RolID") ??
-                           HttpContext.Session.GetInt32("RolId") ?? 4;
-
-                if (!UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId))
-                {
-                    TempData["Error"] = "No tiene permisos para editar cursos.";
-                    return RedirectToAction("Index");
-                }
+             
 
                 var curso = await _universidadServices.GetCursoPorIdAsync(id);
                 if (curso == null)
@@ -1000,14 +998,7 @@ namespace ProyectoMatrix.Controllers
         {
             try
             {
-                var rolId = HttpContext.Session.GetInt32("RolID") ??
-                           HttpContext.Session.GetInt32("RolId") ?? 4;
-
-                if (!UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId))
-                {
-                    TempData["Error"] = "No tiene permisos para crear subcursos.";
-                    return RedirectToAction("Index");
-                }
+               
 
                 var curso = await _universidadServices.GetCursoPorIdAsync(cursoId);
                 if (curso == null)
@@ -1045,16 +1036,9 @@ namespace ProyectoMatrix.Controllers
             try
             {
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var rolId = HttpContext.Session.GetInt32("RolID") ??
-                           HttpContext.Session.GetInt32("RolId") ?? 4;
+             
 
-                if (!usuarioId.HasValue || !UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId))
-                {
-                    TempData["Error"] = "No tiene permisos para crear subcursos.";
-                    return RedirectToAction("Index");
-                }
-
-                // Archivos
+                // Mapear archivos si vienen
                 if (archivoVideo != null && archivoVideo.Length > 0)
                 {
                     var rutaVideo = await GuardarArchivoAsync(archivoVideo, "videos");
@@ -1067,6 +1051,14 @@ namespace ProyectoMatrix.Controllers
                     request.ArchivoPDF = rutaPDF;
                 }
 
+                // ✅ Regla: al menos uno (video o PDF)
+                if (string.IsNullOrWhiteSpace(request.ArchivoVideo) &&
+                    string.IsNullOrWhiteSpace(request.ArchivoPDF))
+                {
+                    ModelState.AddModelError(nameof(request.ArchivoVideo), "Sube al menos un Video o un PDF.");
+                    ModelState.AddModelError(nameof(request.ArchivoPDF), "Sube al menos un Video o un PDF.");
+                }
+
                 if (!ModelState.IsValid)
                 {
                     var curso = await _universidadServices.GetCursoPorIdAsync(request.CursoID);
@@ -1077,7 +1069,7 @@ namespace ProyectoMatrix.Controllers
 
                 var subCursoId = await _universidadServices.CrearSubCursoAsync(request);
 
-                // Bitácora: crear subcurso
+                // Bitácora: crear subcurso (silenciar errores)
                 try
                 {
                     var (sol, ip, ag) = LeerCtxMiddleware();
@@ -1112,6 +1104,7 @@ namespace ProyectoMatrix.Controllers
                 return View(request);
             }
         }
+
 
         // =====================================================
         // EDITAR SUBCURSO
@@ -1179,7 +1172,6 @@ namespace ProyectoMatrix.Controllers
                 return RedirectToAction("GestionCursos");
             }
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         [AutorizarAccion("Editar curso", "Editar")]
@@ -1188,17 +1180,41 @@ namespace ProyectoMatrix.Controllers
             try
             {
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-               
+
+                // Traer existente para preservar rutas si no suben nuevas
+                var existente = await _universidadServices.GetSubCursoPorIdAsync(id);
+
+                // Video
                 if (archivoVideo != null && archivoVideo.Length > 0)
                 {
                     var rutaVideo = await GuardarArchivoAsync(archivoVideo, "videos");
                     request.ArchivoVideo = rutaVideo;
                 }
+                else
+                {
+                    // Conservar la ruta previa si el form no mandó nada
+                    if (string.IsNullOrWhiteSpace(request.ArchivoVideo) && !string.IsNullOrWhiteSpace(existente?.ArchivoVideo))
+                        request.ArchivoVideo = existente.ArchivoVideo;
+                }
 
+                // PDF
                 if (archivoPDF != null && archivoPDF.Length > 0)
                 {
                     var rutaPDF = await GuardarArchivoAsync(archivoPDF, "documentos");
                     request.ArchivoPDF = rutaPDF;
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(request.ArchivoPDF) && !string.IsNullOrWhiteSpace(existente?.ArchivoPDF))
+                        request.ArchivoPDF = existente.ArchivoPDF;
+                }
+
+                // ✅ Regla: al menos uno (video o PDF) después de preservar existentes
+                if (string.IsNullOrWhiteSpace(request.ArchivoVideo) &&
+                    string.IsNullOrWhiteSpace(request.ArchivoPDF))
+                {
+                    ModelState.AddModelError(nameof(request.ArchivoVideo), "Sube al menos un Video o un PDF.");
+                    ModelState.AddModelError(nameof(request.ArchivoPDF), "Sube al menos un Video o un PDF.");
                 }
 
                 if (!ModelState.IsValid)
@@ -1211,7 +1227,7 @@ namespace ProyectoMatrix.Controllers
 
                 var resultado = await _universidadServices.ActualizarSubCursoAsync(id, request);
 
-                // Bitácora: editar subcurso
+                // Bitácora: editar subcurso (silenciar errores)
                 try
                 {
                     var (sol, ip, ag) = LeerCtxMiddleware();
@@ -1257,6 +1273,7 @@ namespace ProyectoMatrix.Controllers
                 return View("CrearSubCurso", request);
             }
         }
+
 
         // =====================================================
         // EVALUACIONES

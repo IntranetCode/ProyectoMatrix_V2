@@ -8,26 +8,45 @@
 <link href="~/css/stylesLiderLista.css" rel="stylesheet" />
 
 @*Mandar a llamar al servicio de acceso para ocultar o mostrar los botones correspondientes *@
-@inject IServicioAcceso Acceso
+@inject ProyectoMatrix.Servicios.IServicioAcceso Acceso
 @{
-    var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
-    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Crear webinar", "Crear");
-    var puedeVer = await Acceso.TienePermisoAsync(usuarioId, "Ver Webinars", "Ver");
-    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Eliminar webinar", "Eliminar");
+    var userId = int.Parse(User.FindFirst("UsuarioID")!.Value);
 
+    // Lanza en paralelo para que no sean 3 viajes secuenciales a BD
+    var tCrear = Acceso.TienePermisoAsync(userId, "Crear webinar", "Crear");
+    var tEditar = Acceso.TienePermisoAsync(userId, "Editar webinar", "Editar");
+    var tEliminar = Acceso.TienePermisoAsync(userId, "Eliminar webinar", "Eliminar");
+
+    await Task.WhenAll(tCrear, tEditar, tEliminar);
+
+    var puedeCrear = tCrear.Result;
+    var puedeEditar = tEditar.Result;
+    var puedeEliminar = tEliminar.Result;
+
+    var puedeGestionar = puedeCrear || puedeEditar || puedeEliminar; // ← OR
 }
 
 <h2 class="mb-3">Webinars</h2>
 
-@if (puedeCrear)
+@if (puedeGestionar)
 {
-    
     <div class="webinar-actions-container my-4 p-4">
         <div class="d-flex justify-content-center gap-3 flex-wrap">
-            <a class="btn btn-primary custom-btn" asp-controller="Lider" asp-action="CrearWebinar">➕ Agregar webinar</a>
-            <a class="btn btn-warning custom-btn" asp-controller="Lider" asp-action="Lista">🖥️ Mis webinars</a>
-            <a class="btn btn-primary custom-btn" asp-controller="Lider" asp-action="GestionarWebinar">⚙️ Gestionar webinars</a>
+            @if (puedeCrear)
+            {
+                <a class="btn btn-primary custom-btn"
+                   asp-controller="Lider" asp-action="CrearWebinar">➕ Agregar webinar</a>
+            }
+
+         
+            <a class="btn btn-warning custom-btn"
+               asp-controller="Lider" asp-action="Lista">🖥️ Mis webinars</a>
+
+            @if (puedeEditar || puedeEliminar)
+            {
+                <a class="btn btn-primary custom-btn"
+                   asp-controller="Lider" asp-action="GestionarWebinar">⚙️ Gestionar webinars</a>
+            }
         </div>
     </div>
-} 
-
+}

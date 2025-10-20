@@ -260,77 +260,150 @@ namespace ProyectoMatrix.Controllers
             return existe ? Json($"El correo '{correo}' ya está en uso.") : Json(true);
         }
 
-        // POST: /Usuarios/GuardarOverrides - MÉTODO UNIFICADO
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> GuardarOverrides(int UsuarioID, List<OverrideItemDto> Items)
         {
+
+            Console.WriteLine($"🔵 UsuarioID recibido: {UsuarioID}");
+            Console.WriteLine($"🔵 Items count: {Items?.Count ?? 0}");
+
+            if (Items != null)
+            {
+                foreach (var item in Items)
+                {
+                    Console.WriteLine($"🔵 Item - SubMenuID: {item.SubMenuID}, Estado: {item.Estado}");
+                }
+            }
+
+            // Log inicial
+            System.Diagnostics.Debug.WriteLine($"🔵 GuardarOverrides llamado: UsuarioID={UsuarioID}, Items={Items?.Count ?? 0}");
+
+            // Detectar AJAX de forma robusta
+            bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest"
+                          || Request.Headers.Accept.ToString().Contains("application/json")
+                          || Request.ContentType?.Contains("application/x-www-form-urlencoded") == true;
+
+            System.Diagnostics.Debug.WriteLine($"🔵 Es AJAX: {isAjax}");
+            System.Diagnostics.Debug.WriteLine($"🔵 Headers: X-Requested-With={Request.Headers["X-Requested-With"]}, Accept={Request.Headers.Accept}");
+
             try
             {
                 Items ??= new List<OverrideItemDto>();
 
-                // Usa el servicio que ya maneja la lógica correctamente
-                await _usuarioService.GuardarOverridesAsync(UsuarioID, null, Items);
+                System.Diagnostics.Debug.WriteLine($"🔵 Items recibidos: {Items.Count}");
+                foreach (var item in Items.Take(3)) // Log solo los primeros 3
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - SubMenuID: {item.SubMenuID}, Estado: {item.Estado}");
+                }
 
-                TempData["SuccessMessage"] = "Permisos actualizados correctamente.";
+                // Guardar en BD
+                await _usuarioService.GuardarOverridesAsync(UsuarioID, null, Items);
+                System.Diagnostics.Debug.WriteLine("✅ Guardado en BD exitoso");
+
+                // CRÍTICO: Invalidar caché del menú
+                HttpContext.Session.Remove("MenuItems");
+                HttpContext.Session.Remove("MenuUsuario");
+                System.Diagnostics.Debug.WriteLine("🗑️ Caché de menú limpiado");
+
+                // Si el usuario editado es el actual, reconstruir menú AHORA
+                var usuarioActualId = HttpContext.Session.GetInt32("UsuarioID");
+                string mensajeExtra = "";
+
+                if (usuarioActualId.HasValue && usuarioActualId.Value == UsuarioID)
+                {
+                    System.Diagnostics.Debug.WriteLine("🔄 Usuario editado es el actual, reconstruyendo menú...");
+
+                    var empresaId = HttpContext.Session.GetInt32("EmpresaID");
+                    var menuActualizado = await ObtenerMenuActualizadoAsync(UsuarioID, empresaId);
+                    HttpContext.Session.SetString("MenuUsuario", System.Text.Json.JsonSerializer.Serialize(menuActualizado));
+
+                    TempData["RefreshMenu"] = "true";
+                    mensajeExtra = " ⚠️ Recarga la página para ver los cambios en el menú.";
+
+                    System.Diagnostics.Debug.WriteLine($"✅ Menú reconstruido: {menuActualizado.Count} items");
+                }
+
+                // Respuesta AJAX vs redirect
+                if (isAjax)
+                {
+                    var response = new
+                    {
+                        ok = true,
+                        message = "✓ Permisos actualizados correctamente." + mensajeExtra
+                    };
+
+                    System.Diagnostics.Debug.WriteLine($"📤 Devolviendo JSON: {System.Text.Json.JsonSerializer.Serialize(response)}");
+
+                    return Json(response);
+                }
+
+                // Fallback para POST tradicional
+                TempData["SuccessMessage"] = "Permisos actualizados correctamente." + mensajeExtra;
+                return RedirectToAction("Editar", new { id = UsuarioID, tab = "permisos" });
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error al guardar permisos: {ex.Message}";
-            }
+                System.Diagnostics.Debug.WriteLine($"❌ ERROR: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Stack: {ex.StackTrace}");
 
-            return RedirectToAction("Editar", new { id = UsuarioID, tab = "permisos" });
+                if (isAjax)
+                {
+                    var errorResponse = new { ok = false, message = $"Error: {ex.Message}" };
+                    System.Diagnostics.Debug.WriteLine($"📤 Devolviendo error JSON: {System.Text.Json.JsonSerializer.Serialize(errorResponse)}");
+
+                    Response.StatusCode = 500;
+                    return Json(errorResponse);
+                }
+
+                TempData["ErrorMessage"] = $"Error al guardar permisos: {ex.Message}";
+                return RedirectToAction("Editar", new { id = UsuarioID, tab = "permisos" });
+            }
         }
 
 
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SetOverride(int usuarioId, int subMenuId, int? estado, string? returnUrl)
+        public async Task<IActionResult> SetOverride(ProyectoMatrix.Areas.AdminUsuarios.DTOs.SetOverrideRequest req)
         {
             try
             {
-                var item = new OverrideItemDto
+                // Normaliza estado nulo a heredar
+                var estado = req.Estado;
+
+                var item = new ProyectoMatrix.Areas.AdminUsuarios.DTOs.OverrideItemDto
                 {
-                    SubMenuID = subMenuId,
-                    Estado = estado ?? -1
+                    SubMenuID = req.SubMenuID,
+                    Estado = estado
                 };
 
-                await _usuarioService.GuardarOverridesAsync(usuarioId, null, new[] { item });
+                // Guarda 1 solo override
+                await _usuarioService.GuardarOverridesAsync(req.UsuarioID, req.EmpresaID, new[] { item });
 
-                // ✅ CRÍTICO: Limpiar caché del menú SIEMPRE
+                // 🔥 Invalidar caché de menú en sesión
                 HttpContext.Session.Remove("MenuItems");
                 HttpContext.Session.Remove("MenuUsuario");
 
-                // ✅ Si el usuario está editando SU PROPIO perfil, forzar recarga INMEDIATA
-                var usuarioActualId = HttpContext.Session.GetInt32("UsuarioID");
+                // Recalcular permiso efectivo de esa fila (usa tu servicio)
+                var efectivo = await _usuarioService.VerificarPermisoAsync(req.UsuarioID, req.SubMenuID);
 
-                if (usuarioActualId.HasValue && usuarioActualId.Value == usuarioId)
+                // Responder JSON para que la vista marque selección y ✔️/✖️
+                return Json(new
                 {
-                    // Recargar el menú AHORA para el usuario actual
-                    var empresaId = HttpContext.Session.GetInt32("EmpresaID");
-                    var menuActualizado = await ObtenerMenuActualizadoAsync(usuarioId, empresaId);
-                    HttpContext.Session.SetString("MenuUsuario", System.Text.Json.JsonSerializer.Serialize(menuActualizado));
-
-                    TempData["RefreshMenu"] = "true";
-                    TempData["SuccessMessage"] = "⚠️ Permiso actualizado. Recarga la página para ver los cambios en el menú.";
-                }
-                else
-                {
-                    TempData["SuccessMessage"] = "✓ Permiso actualizado correctamente.";
-                }
-
-                if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
-                    return Redirect(returnUrl);
-
-                return RedirectToAction("Editar", new { id = usuarioId, tab = "permisos" });
+                    ok = true,
+                    estado = estado,
+                    efectivo = efectivo,
+                    refreshMenu = true,
+                    message = "Override guardado correctamente."
+                });
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error: {ex.Message}";
-                return RedirectToAction("Editar", new { id = usuarioId, tab = "permisos" });
+                return Json(new { ok = false, message = ex.Message });
             }
         }
+
 
         // ✅ AGREGAR ESTE MÉTODO AUXILIAR
         private async Task<List<MenuModel>> ObtenerMenuActualizadoAsync(int usuarioId, int? empresaId)
@@ -373,5 +446,5 @@ ORDER BY m.MenuID;";
             return lista;
         }
     }
-    
-}
+
+    }

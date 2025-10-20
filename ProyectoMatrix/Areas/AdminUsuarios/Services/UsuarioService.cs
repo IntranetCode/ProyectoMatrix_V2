@@ -314,6 +314,8 @@ WHERE fe.SubMenuID = @SubMenuID;";
 
         public async Task GuardarOverridesAsync(int usuarioId, int? empresaId, IEnumerable<OverrideItemDto> items)
         {
+
+
             var conn = _context.Database.GetDbConnection();
             if (conn.State != ConnectionState.Open)
                 await conn.OpenAsync();
@@ -365,8 +367,37 @@ WHERE fe.SubMenuID = @SubMenuID;";
             return false;
         }
 
+        public async Task<string> GetMenuHomeUrlAsync(int menuId)
+        {
+            // 1) Preferir el SubMenú cuyo Nombre empiece por "Ver ..."
+            var url = await _context.SubMenus
+                .Where(sm => sm.MenuID == menuId && sm.Nombre.StartsWith("Ver"))
+                .OrderBy(sm => sm.SubMenuID)
+                .Select(sm => sm.UrlEnlace)
+                .FirstOrDefaultAsync();
+
+            // 2) Fallback por convención: /Index o /Entrada
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                url = await _context.SubMenus
+                    .Where(sm => sm.MenuID == menuId &&
+                        (sm.UrlEnlace.EndsWith("/Index") || sm.UrlEnlace.EndsWith("/Entrada")))
+                    .Select(sm => sm.UrlEnlace)
+                    .FirstOrDefaultAsync();
+            }
+
+            // 3) Último fallback
+            return string.IsNullOrWhiteSpace(url) ? "/" : url;
+        }
+
+
+
+
         // Wrapper para compatibilidad (global)
         public async Task<bool> VerificarPermisoParaMenuAsync(int usuarioId, int menuId)
             => await VerificarPermisoParaMenuAsync(usuarioId, (int?)null, menuId);
     }
+
+
+
 }

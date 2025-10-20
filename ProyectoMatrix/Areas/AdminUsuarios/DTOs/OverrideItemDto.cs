@@ -13,4 +13,16 @@
 
 
     }
+
+
+    public class SetOverrideRequest
+    {
+        public int UsuarioID { get; set; }
+        public int SubMenuID { get; set; }
+        /// -1 = Heredar, 0 = Denegar, 1 = Permitir
+        public int Estado { get; set; }
+        public int? EmpresaID { get; set; } // opcional
+    }
+
+
 }

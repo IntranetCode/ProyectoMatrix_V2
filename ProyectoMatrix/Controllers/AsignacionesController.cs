@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Models;
+using ProyectoMatrix.Seguridad;
 using ProyectoMatrix.Servicios;
 
 namespace ProyectoMatrix.Controllers
@@ -16,28 +17,39 @@ namespace ProyectoMatrix.Controllers
         private readonly UniversidadServices _universidadServices;
         private readonly ILogger<AsignacionesController> _logger;
         private readonly ServicioNotificaciones _notif;
+        private readonly IServicioAcceso _acceso;
 
         public AsignacionesController(
             UniversidadServices universidadServices,
             ILogger<AsignacionesController> logger,
-            ServicioNotificaciones notif)
+            ServicioNotificaciones notif,
+            IServicioAcceso acceso)
         {
             _universidadServices = universidadServices;
             _logger = logger;
             _notif = notif;
+            _acceso = acceso;
         }
 
         // =====================================================
         // ASIGNACIÓN MASIVA - GET
         // =====================================================
+        [HttpGet]
+        [AutorizarAccion("Ver cursos", "Ver")] // puerta neutral
         public async Task<IActionResult> AsignacionMasiva()
         {
             try
             {
-                var rolId = HttpContext.Session.GetInt32("RolID") ??
-                           HttpContext.Session.GetInt32("RolId") ?? 4;
+                var uid = HttpContext.Session.GetInt32("UsuarioID") ?? 0;
 
-                if (!UniversidadPermisosHelper.PermisosUniversidad.PuedeAsignarCursos(rolId))
+                // OR de gestión desde BD (como acordamos: si puede gestionar, puede asignar)
+                var tCrear = _acceso.TienePermisoAsync(uid, "Crear curso", "Crear");
+                var tEditar = _acceso.TienePermisoAsync(uid, "Editar curso", "Editar");
+                var tEliminar = _acceso.TienePermisoAsync(uid, "Eliminar curso", "Eliminar");
+                await Task.WhenAll(tCrear, tEditar, tEliminar);
+
+                var puedeGestionar = tCrear.Result || tEditar.Result || tEliminar.Result;
+                if (!puedeGestionar)
                 {
                     TempData["Error"] = "No tiene permisos para asignar cursos.";
                     return RedirectToAction("Index", "Universidad");
@@ -58,6 +70,7 @@ namespace ProyectoMatrix.Controllers
                 return RedirectToAction("Index", "Universidad");
             }
         }
+
 
         // =====================================================
         // OBTENER DEPARTAMENTOS POR EMPRESA - AJAX
@@ -182,14 +195,21 @@ namespace ProyectoMatrix.Controllers
         // =====================================================
         // VER ASIGNACIONES RECIENTES
         // =====================================================
+        [HttpGet]
+        [AutorizarAccion("Ver cursos", "Ver")]
         public async Task<IActionResult> VerAsignaciones()
         {
             try
             {
-                var rolId = HttpContext.Session.GetInt32("RolID") ??
-                           HttpContext.Session.GetInt32("RolId") ?? 4;
+                var uid = HttpContext.Session.GetInt32("UsuarioID") ?? 0;
 
-                if (!UniversidadPermisosHelper.PermisosUniversidad.PuedeVerReportes(rolId))
+                var tCrear = _acceso.TienePermisoAsync(uid, "Crear curso", "Crear");
+                var tEditar = _acceso.TienePermisoAsync(uid, "Editar curso", "Editar");
+                var tEliminar = _acceso.TienePermisoAsync(uid, "Eliminar curso", "Eliminar");
+                await Task.WhenAll(tCrear, tEditar, tEliminar);
+
+                var puedeGestionar = tCrear.Result || tEditar.Result || tEliminar.Result;
+                if (!puedeGestionar)
                 {
                     TempData["Error"] = "No tiene permisos para ver asignaciones.";
                     return RedirectToAction("Index", "Universidad");
@@ -205,6 +225,7 @@ namespace ProyectoMatrix.Controllers
                 return RedirectToAction("Index", "Universidad");
             }
         }
+
     }
 
     // =====================================================

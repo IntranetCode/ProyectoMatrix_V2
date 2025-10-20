@@ -1,17 +1,25 @@
-﻿@{
+﻿@inject ProyectoMatrix.Servicios.IServicioAcceso Acceso
+
+@{
     var nombreUsuario = Context.Session.GetString("Username") ?? "Usuario";
     var nombreEmpresa = Context.Session.GetString("EmpresaNombre") ?? "NS Group";
-    var logoEmpresa = Context.Session.GetString("EmpresaLogo") ?? "default-logo.png";
     var empresaId = Context.Session.GetString("EmpresaId") ?? "1";
-    var rolId = Context.Session.GetInt32("RolID") ?? 5;
+    var rolId = Context.Session.GetInt32("RolID") ?? 5; // solo para mostrar texto de rol si quieres
     var usuarioId = Context.Session.GetInt32("UsuarioID") ?? 0;
 
-    // Usar el helper de permisos
-    var puedeCrearCursos = ProyectoMatrix.Helpers.UniversidadPermisosHelper.PermisosUniversidad.PuedeCrearCursos(rolId);
-    var puedeAsignarCursos = ProyectoMatrix.Helpers.UniversidadPermisosHelper.PermisosUniversidad.PuedeAsignarCursos(rolId);
-    //var puedeVerReportes = ProyectoMatrix.Helpers.UniversidadPermisosHelper.PermisosUniversidad.PuedeVerReportes(rolId);
-    var puedeConfigurar = ProyectoMatrix.Helpers.UniversidadPermisosHelper.PermisosUniversidad.PuedeConfigurarSistema(rolId);
+    // === Permisos de gestión (BD): OR de Crear/Editar/Eliminar curso ===
+    var tCrear = Acceso.TienePermisoAsync(usuarioId, "Crear curso", "Crear");
+    var tEditar = Acceso.TienePermisoAsync(usuarioId, "Editar curso", "Editar");
+    var tEliminar = Acceso.TienePermisoAsync(usuarioId, "Eliminar curso", "Eliminar");
+    await Task.WhenAll(tCrear, tEditar, tEliminar);
+    var puedeGestionarCursos = tCrear.Result || tEditar.Result || tEliminar.Result;
+
+    // Como acordamos: si puede gestionar, también puede asignar y configurar
+    var puedeAsignarCursos = puedeGestionarCursos;
+    var puedeConfigurar = puedeGestionarCursos;
 }
+
+
 
 <!DOCTYPE html>
 <html lang="es">
@@ -85,19 +93,19 @@
                         <span>Certificados</span>
                     </a>
 
-                    @if (puedeCrearCursos)
+                    @if (puedeGestionarCursos)
                     {
-                        <a href="/Universidad/GestionCursos" class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "GestionCursos" ? "active" : "")">
-                            <i class="fas fa-book"></i>
-                            <span>Gestionar</span>
+                        <a asp-controller="Universidad" asp-action="GestionCursos"
+                           class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "GestionCursos" ? "active" : "")">
+                            <i class="fas fa-book"></i><span>Gestionar</span>
                         </a>
                     }
 
                     @if (puedeAsignarCursos)
                     {
-                        <a href="/Asignaciones/AsignacionMasiva" class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Asignaciones" ? "active" : "")">
-                            <i class="fas fa-users"></i>
-                            <span>Asignar</span>
+                        <a asp-controller="Asignaciones" asp-action="AsignacionMasiva"
+                           class="nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Asignaciones" ? "active" : "")">
+                            <i class="fas fa-users"></i><span>Asignar</span>
                         </a>
                     }
 
@@ -119,13 +127,12 @@
             <div class="navbar-user-section">
                 <!-- Quick Actions -->
                 <div class="quick-actions">
-                    @if (puedeCrearCursos)
+                    @if (puedeGestionarCursos)
                     {
-                        <a href="/Universidad/CrearCurso" class="quick-action-btn" title="Crear Curso">
+                        <a asp-controller="Universidad" asp-action="CrearCurso" class="quick-action-btn" title="Crear Curso">
                             <i class="fas fa-plus"></i>
                         </a>
                     }
-                 
 
                     <a asp-controller="Menu" asp-action="Index" class="quick-action-btn" title="Volver a Intranet">
                         <i class="fas fa-home"></i>

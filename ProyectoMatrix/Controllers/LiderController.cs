@@ -65,7 +65,7 @@ namespace ProyectoMatrix.Controllers
             var esGestor =
                 await _acceso.TienePermisoAsync(userId, "Crear webinar", "Crear") ||
                 await _acceso.TienePermisoAsync(userId, "Editar webinar", "Editar") ||
-                await _acceso.TienePermisoAsync(userId, "Eliminar Proyectos", "Eliminar");
+                await _acceso.TienePermisoAsync(userId, "Eliminar webinar", "Eliminar");
 
             // Seguridad real: el controlador de Index/Lista debe tener su propia autorización.
             return esGestor
@@ -671,43 +671,61 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        [AutorizarAccion("Crear webinar", "Crear")]
+        [AutorizarAccion("Ver Webinars", "Ver")] // ← ya no exiges "Crear" para entrar
         [HttpGet]
         public async Task<IActionResult> GestionarWebinar()
         {
-             var userId = GetUsuarioId();
+            var userId = GetUsuarioId();
             if (!userId.HasValue) return Forbid();
 
-           var lista = await _db.Webinars
-                .AsNoTracking()
-                .Where(w => w.UsuarioCreadorID== userId.Value )
+            // Permisos a nivel SubMenú (usa EXACTAMENTE los nombres de tus SubMenus)
+            var puedeCrear = await _acceso.TienePermisoAsync(userId.Value, "Crear webinar", "Crear");
+            var puedeEditar = await _acceso.TienePermisoAsync(userId.Value, "Editar webinar", "Editar");
+            var puedeEliminar = await _acceso.TienePermisoAsync(userId.Value, "Eliminar webinar", "Eliminar");
+
+            // Si no tiene ningún permiso de gestión, bloquea
+            if (!(puedeCrear || puedeEditar || puedeEliminar))
+                return Forbid();
+
+            // Regla: Editar o Eliminar => ve TODOS; solo Crear => ve solo los suyos
+            var puedeVerTodos = puedeEditar || puedeEliminar;
+
+            var q = _db.Webinars.AsNoTracking();
+            if (!puedeVerTodos)
+                q = q.Where(w => w.UsuarioCreadorID == userId.Value);
+
+            var lista = await q
                 .OrderByDescending(w => w.FechaCreacion)
                 .Select(w => new WebinarListItemVm
                 {
-                    WebinarID= w.WebinarID,
+                    WebinarID = w.WebinarID,
                     Titulo = w.Titulo,
                     Descripcion = w.Descripcion,
                     FechaInicio = w.FechaInicio,
                     FechaFin = w.FechaFin,
                     UrlTeams = w.UrlTeams,
-
                     Imagen = w.Imagen,
-                    DirigidoA = w.EsPublico? "Todas" : ""
+                    DirigidoA = w.EsPublico ? "Todas" : ""
                 })
                 .ToListAsync();
-            var  idsNoPublicos = lista.Where(x => x.DirigidoA == "").Select(  x => x.WebinarID).ToList();
+
+            // Completar "DirigidoA" con empresas cuando no es público
+            var idsNoPublicos = lista.Where(x => x.DirigidoA == "").Select(x => x.WebinarID).ToList();
             if (idsNoPublicos.Count > 0)
             {
                 var empresasPorWebinar = await _db.WebinarsEmpresas
                     .Where(we => idsNoPublicos.Contains(we.WebinarID))
-                    .Join(_db.Empresas, we => we.EmpresaID, e => e.EmpresaID, (we, e) => new {we.WebinarID, e.Nombre})
+                    .Join(_db.Empresas, we => we.EmpresaID, e => e.EmpresaID, (we, e) => new { we.WebinarID, e.Nombre })
                     .GroupBy(x => x.WebinarID)
-                    .ToDictionaryAsync(g  => g .Key, g => string.Join(",", g.Select(x => x.Nombre).OrderBy(n  => n)));
+                    .ToDictionaryAsync(g => g.Key, g => string.Join(",", g.Select(x => x.Nombre).OrderBy(n => n)));
+
                 foreach (var item in lista.Where(x => x.DirigidoA == ""))
                     item.DirigidoA = empresasPorWebinar.TryGetValue(item.WebinarID, out var nombres) ? nombres : "-";
             }
-            return View("~/Views/Lider/GestionarWebinar.cshtml",lista);
+
+            return View("~/Views/Lider/GestionarWebinar.cshtml", lista);
         }
+
 
         [AutorizarAccion("Ver Webinars", "Ver")]
         [HttpGet]

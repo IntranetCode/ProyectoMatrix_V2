@@ -3,16 +3,19 @@ using Microsoft.Data.SqlClient;
 using ProyectoMatrix.Models;
 using System.Data;
 using System.Text.Json;
+using ProyectoMatrix.Servicios;
 
 namespace ProyectoMatrix.Controllers
 {
     public class MenuController : Controller
     {
         private readonly IConfiguration _configuration;
+        private readonly IServicioAcceso _acceso;
 
-        public MenuController(IConfiguration configuration)
+        public MenuController(IConfiguration configuration, IServicioAcceso acceso)
         {
             _configuration = configuration;
+            _acceso = acceso;
         }
 
         public IActionResult Logout()
@@ -26,6 +29,10 @@ namespace ProyectoMatrix.Controllers
         [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public async Task<IActionResult> Index()
         {
+
+         
+
+
             ViewBag.MostrarBienvenida = (TempData["MostrarBienvenida"] as string) == "true";
 
             Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
@@ -46,8 +53,10 @@ namespace ProyectoMatrix.Controllers
             }
 
             // Empresa actual (puede ser null => global)
-            var empresaIdStr = HttpContext.Session.GetString("EmpresaId");
+            var empresaIdStr = HttpContext.Session.GetString("EmpresaID");
             int? empresaId = int.TryParse(empresaIdStr, out var tmp) ? tmp : (int?)null;
+
+
 
             var menuRaiz = new List<MenuModel>();
             string cnn = _configuration.GetConnectionString("DefaultConnection");
@@ -60,12 +69,24 @@ WITH Perms AS (
   FROM dbo.fn_PermisosEfectivosUsuario(@UsuarioID, @EmpresaID)
   WHERE TienePermiso = 1
 )
-SELECT DISTINCT m.MenuID, m.Nombre AS NombreMenu, sm.UrlEnlace
+SELECT  m.MenuID,
+        m.Nombre AS NombreMenu,
+        ca.HomeUrl
 FROM Menus m
-JOIN SubMenus sm ON sm.MenuID = m.MenuID
-JOIN Perms p ON p.SubMenuID = sm.SubMenuID
-WHERE sm.Activo = 1
+CROSS APPLY (
+    SELECT TOP 1 sm.UrlEnlace AS HomeUrl
+    FROM SubMenus sm
+    JOIN Perms p ON p.SubMenuID = sm.SubMenuID
+    WHERE sm.MenuID = m.MenuID
+      AND sm.Activo = 1
+      AND sm.UrlEnlace IS NOT NULL
+    ORDER BY
+      CASE WHEN sm.Nombre LIKE N'Ver %' THEN 1 ELSE 2 END,
+      CASE WHEN sm.UrlEnlace LIKE '%/Index' OR sm.UrlEnlace LIKE '%/Entrada' THEN 1 ELSE 2 END,
+      sm.SubMenuID
+) ca
 ORDER BY m.MenuID;";
+
 
             await using (var cmd = new SqlCommand(sql, conn))
             {
@@ -77,15 +98,15 @@ ORDER BY m.MenuID;";
                 while (await rd.ReadAsync())
                 {
                     var nombreMenu = rd.GetString(rd.GetOrdinal("NombreMenu"));
-                    var url = rd.IsDBNull(rd.GetOrdinal("UrlEnlace"))
-                                ? null
-                                : rd.GetString(rd.GetOrdinal("UrlEnlace"));
+                    var homeUrl = rd.IsDBNull(rd.GetOrdinal("HomeUrl"))
+                                    ? null
+                                    : rd.GetString(rd.GetOrdinal("HomeUrl"));
 
                     menuRaiz.Add(new MenuModel
                     {
                         MenuID = rd.GetInt32(rd.GetOrdinal("MenuID")),
                         Nombre = nombreMenu,
-                        Url = url ?? GetUrlPorDefecto(nombreMenu),
+                        Url = string.IsNullOrWhiteSpace(homeUrl) ? GetUrlPorDefecto(nombreMenu) : homeUrl,
                         Icono = GetIconoParaMenu(nombreMenu),
                         Descripcion = GetDescripcionParaMenu(nombreMenu),
                         Orden = 0,
@@ -93,6 +114,7 @@ ORDER BY m.MenuID;";
                         SubMenus = new List<MenuModel>()
                     });
                 }
+
             }
 
             menuRaiz = menuRaiz.GroupBy(m => m.MenuID).Select(g => g.First()).OrderBy(m => m.MenuID).ToList();
@@ -119,7 +141,7 @@ ORDER BY m.MenuID;";
                 var x when x.Contains("líder") || x.Contains("lider") => "/Lider/Entrada",
                 var x when x.Contains("proyectos") => "/Proyectos/Index",
                 var x when x.Contains("comunicado") => "/Comunicados/Index",
-                _ => "#"
+                _ => "/"
             };
         }
         private string GetIconoParaMenu(string nombreMenu)
