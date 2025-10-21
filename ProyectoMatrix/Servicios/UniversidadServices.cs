@@ -3,7 +3,6 @@
 // PROPÓSITO: Servicios para módulo Universidad NS
 // =====================================================
 
-using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
@@ -3332,22 +3331,5 @@ WHEN NOT MATCHED THEN
             };
             return await ActualizarProgresoVideoAsync(req);
         }
-
-        public async Task<bool> RegistrarProgresoVideoAsync(int usuarioId, int empresaId, int subCursoId, int porcentaje, int segundosVistos)
-        {
-            using var con = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("dbo.Uni_RegistrarProgresoVideo", con);
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.Parameters.AddWithValue("@UsuarioId", usuarioId);
-            cmd.Parameters.AddWithValue("@EmpresaId", empresaId);
-            cmd.Parameters.AddWithValue("@SubCursoId", subCursoId);
-            cmd.Parameters.AddWithValue("@Porcentaje", porcentaje);
-            cmd.Parameters.AddWithValue("@SegundosVistos", segundosVistos);
-
-            await con.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
-            return true;
-        }
-
-    }
+    } 
 } // <-- FIN namespace ProyectoMatrix.Servicios

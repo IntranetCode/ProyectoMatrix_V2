@@ -285,7 +285,6 @@
                                     </div>
                                 </div>
                             </div>
-                            @*
                             @if (Model.PuedeCrearCursos || Model.PuedeAsignarCursos)
                             {
                                 <div class="mt-4 pt-4 border-top">
@@ -314,7 +313,7 @@
                                                 </a>
                                             </div>
                                         }
-                                        
+                                        @*
                                              @if (Model.PuedeVerReportes)
                                         {
                                             <div class="col-md-6">
@@ -324,11 +323,11 @@
                                             </div>
                                         }
 
-                                       
+                                        *@
                                        
                                     </div>
                                 </div>
-                            } *@
+                            }
 
                         </div>
                     </div>
@@ -412,139 +411,3 @@
 </div>
 
 
-<style>
-
-
-    .content-card {
-        /* Priorizar estilos de caja modernos */
-        background-color: #ffffff;
-        border-radius: 16px; /* Esquinas más redondeadas */
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); /* Sombra suave y elevada */
-        padding: 30px;
-        margin-bottom: 25px;
-        border: 1px solid #e0e0e0; /* Borde sutil */
-    }
-
-    .content-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding-bottom: 15px;
-        margin-bottom: 20px;
-        border-bottom: 2px solid #f0f0f0;
-    }
-
-    .content-card-title {
-        font-size: 1.75rem; /* Título más grande */
-        font-weight: 700;
-        color: #343a40;
-        margin: 0;
-    }
-
-
-    .metric-item {
-        display: flex;
-        align-items: center;
-        padding: 20px;
-        border-radius: 12px;
-        background-color: #fff;
-        /* Sombra y transición para efecto de "pop" */
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        height: 100%; /* Asegura que todas las métricas tengan la misma altura */
-        border-left: 5px solid transparent; /* Borde izquierdo dinámico */
-    }
-
-        .metric-item:hover {
-            transform: translateY(-4px); /* Pequeña elevación al pasar el mouse */
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-        }
-
-    .metric-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        color: #ffffff;
-        font-size: 1.5rem;
-        margin-right: 15px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    }
-
-    .metric-content h4 {
-        font-size: 1.8rem;
-        font-weight: 800; /* Números muy prominentes */
-        color: #212529;
-        margin-bottom: 2px;
-    }
-
-    .metric-content p {
-        font-size: 0.9rem;
-        color: #6c757d !important; /* Asegura la prioridad del color para el texto 'muted' */
-        margin: 0;
-    }
-
-   
-
-    /* Adaptar el borde izquierdo a los colores de fondo */
-    .metric-icon.bg-primary {
-        background-color: #0d6efd;
-    }
-
-    .col-md-6:nth-child(1) .metric-item { /* Targeting the first metric item in the row */
-        border-left-color: #0d6efd;
-    }
-
-    .metric-icon.bg-success {
-        background-color: #198754;
-    }
-
-    .col-md-6:nth-child(2) .metric-item { /* Targeting the second metric item in the row */
-        border-left-color: #198754;
-    }
-
-    .metric-icon.bg-warning {
-        background-color: #ffc107;
-        color: #212529; /* Cambiar color de icono si el fondo es claro */
-    }
-
-    .col-md-6:nth-child(3) .metric-item { /* Targeting the third metric item in the row */
-        border-left-color: #ffc107;
-    }
-
-    .metric-icon.bg-info {
-        background-color: #0dcaf0;
-    }
-
-    .col-md-6:nth-child(4) .metric-item { /* Targeting the fourth metric item in the row */
-        border-left-color: #0dcaf0;
-    }
-
-    /* Estilo para el enlace 'Gestionar' dentro de la métrica de Cursos */
-    .metric-content a {
-        color: #0dcaf0 !important; /* Usar el color info para este enlace específico */
-        text-decoration: none;
-        font-weight: 600;
-    }
-
-        .metric-content a:hover {
-            text-decoration: underline;
-        }
-
-
-    /* Mejora del botón "Gestionar Cursos" en el header */
-    .btn-outline-primary {
-        border-color: #0d6efd;
-        color: #0d6efd;
-        font-weight: 600;
-        transition: background-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-        .btn-outline-primary:hover {
-            background-color: #0d6efd;
-            color: #ffffff;
-            box-shadow: 0 2px 8px rgba(13, 110, 253, 0.4);
-        }
-</style>

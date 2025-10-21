@@ -8,11 +8,6 @@
     var empresaId = ViewBag.EmpresaId ?? 0;
 }
 
-
-<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-
 <div class="subcurso-container">
     <!-- Header de navegación -->
     <div class="subcurso-header">
@@ -76,13 +71,10 @@
                                    data-empresa-id="@empresaId"
                                    controlslist="nodownload noplaybackrate noremoteplayback"
                                    playsinline
-                                   disablepictureinpicture
-                                   tabindex="0"
-                                   oncontextmenu="return false">
-                                <source src="~/contenidos/@Model.ArchivoVideo" type="video/mp4" />
+                                   disablepictureinpicture>
+                                <source src="~/contenidos/@Model.ArchivoVideo" type="video/mp4">
                                 Tu navegador no soporta video HTML5.
                             </video>
-
 
                             <!-- Controles personalizados -->
                             <div class="ns-controls">
@@ -257,17 +249,13 @@
                             </small>
                         </div>
 
+                        <!-- Botón para tomar evaluación -->
                         <a class="btn btn-warning w-100" id="startEvaluationBtn"
-                           href="@Url.RouteUrl("Uni_TomarEvaluacion", new { subCursoId = Model.SubCursoID })"
+                           href="/Universidad/TomarEvaluacion/@Model.SubCursoID"
                            data-subcurso-id="@Model.SubCursoID">
                             <i class="fas fa-play-circle me-2"></i>
                             @(Model.UltimoIntento?.Aprobado == true ? "Repetir Evaluación" : "Tomar Evaluación")
                         </a>
-
-
-
-                       
-
                     </div>
                 }
 
@@ -619,460 +607,186 @@
             font-size: 0.8rem;
         }
     }
-
-    .ns-progress,
-    .video-progress-overlay {
-        pointer-events: none;
-    }
-
-    .ns-controls {
-        z-index: 2;
-    }
-
-    .ns-video-el {
-        z-index: 1;
-    }
-
 </style>
 
 @section Scripts {
     @Html.AntiForgeryToken()
     <script>
-        const CONFIG = {
-            subCursoId: @Model.SubCursoID,
-            usuarioId: @ViewBag.UsuarioId,
-            empresaId: @ViewBag.EmpresaId,
-            requiereEvaluacion: @Model.RequiereEvaluacion.ToString().ToLower(),
-            tieneVideo: @((!string.IsNullOrEmpty(Model.ArchivoVideo)).ToString().ToLower()),
-            tienePDF: @((!string.IsNullOrEmpty(Model.ArchivoPDF)).ToString().ToLower()),
-            initialTimeWatched: @Model.TiempoTotalVisto,
-            initialProgress: @Model.PorcentajeVisto
+        // ===== Utilidades =====
+        function getCsrf() {
+          const el = document.querySelector('input[name="__RequestVerificationToken"]');
+          return el ? el.value : '';
+        }
+        async function postJson(url, payload) {
+          const headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
+          const token = getCsrf();
+          if (token) headers['RequestVerificationToken'] = token;     // si el endpoint valida CSRF
+          const r = await fetch(url, { method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify(payload) });
+          if (!r.ok) {
+            const t = await r.text(); console.error('POST', url, r.status, t);
+            throw new Error('HTTP ' + r.status);
+          }
+          return r.json();
+        }
+
+        // ===== Estado inicial =====
+        const videoConfig = {
+          subCursoId: @Model.SubCursoID,
+          usuarioId: @usuarioId,
+          empresaId: @empresaId,
+          progresoPrevio: Number(@Model.PorcentajeVisto) || 0,
+          tiempoVistoPrevio: Number(@Model.TiempoTotalVisto) || 0,
+          requiereEvaluacion: @Model.RequiereEvaluacion.ToString().ToLower(),
+          completado: @Model.Completado.ToString().ToLower()
         };
 
-        const LS_KEY = `uni:vid:${CONFIG.usuarioId}:${CONFIG.empresaId}:${CONFIG.subCursoId}`;
-        const LS_TIME_KEY = `uni:time:${CONFIG.usuarioId}:${CONFIG.empresaId}:${CONFIG.subCursoId}`;
-
-        function getCsrfToken() {
-            const el = document.querySelector('input[name="__RequestVerificationToken"]');
-            return el ? el.value : '';
-        }
-
-        async function postJson(url, payload) {
-            const headers = {
-                'Content-Type': 'application/json',
-                'RequestVerificationToken': getCsrfToken()
-            };
-            const response = await fetch(url, {
-                method: 'POST',
-                headers,
-                credentials: 'same-origin',
-                body: JSON.stringify(payload)
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return response.json();
-        }
-
-        let prerrequisitosEstado = { videoCompleto: false, pdfVisto: false };
-
-        // --- Prerrequisitos / botón evaluación ---
-        async function verificarPrerequisitos() {
-            if (!CONFIG.requiereEvaluacion) return;
+        // ===== PDF: marcar como visto =====
+        (function(){
+          const linkPdf = document.getElementById('btnVerPdf');
+          if (!linkPdf) return;
+          linkPdf.addEventListener('click', async () => {
             try {
-                const resp = await postJson('@Url.Action("PrereqEstado", "Universidad")', {
-                    subCursoId: CONFIG.subCursoId
-                });
-
-                const cumple = !!resp.ok;
-                prerrequisitosEstado.videoCompleto = cumple || !CONFIG.tieneVideo;
-                prerrequisitosEstado.pdfVisto = cumple || !CONFIG.tienePDF;
-
-                actualizarBotonEvaluacion(resp.message);
-            } catch (error) {
-                console.error('Error verificando prerrequisitos:', error);
-            }
-        }
-
-        function actualizarBotonEvaluacion(serverMsg) {
-            const btn = document.getElementById('startEvaluationBtn');
-            if (!btn) return;
-
-            const cumple = prerrequisitosEstado.videoCompleto && prerrequisitosEstado.pdfVisto;
-
-            if (cumple) {
-                btn.classList.remove('btn-secondary', 'disabled');
-                btn.classList.add('btn-warning');
-                btn.removeAttribute('disabled');
-                btn.style.cursor = 'pointer';
-                btn.setAttribute('title', 'Iniciar evaluación');
-            } else {
-                btn.classList.remove('btn-warning');
-                btn.classList.add('btn-secondary', 'disabled');
-                btn.setAttribute('disabled', 'disabled');
-                btn.style.cursor = 'not-allowed';
-
-                let pendientes = [];
-                if (CONFIG.tieneVideo && !prerrequisitosEstado.videoCompleto) {
-                    pendientes.push('ver el video (95%)');
-                }
-                if (CONFIG.tienePDF && !prerrequisitosEstado.pdfVisto) {
-                    pendientes.push('abrir el PDF');
-                }
-
-                const msg = serverMsg && serverMsg.length
-                    ? serverMsg
-                    : ('Requisitos pendientes: ' + pendientes.join(' y '));
-                btn.setAttribute('title', msg);
-            }
-        }
-
-        // --- Persistencia monótona ---
-        async function registrarProgresoVideo(porcentaje, segundosVistos) {
-            if (!CONFIG.tieneVideo) return;
-
-            const currentModelPct = CONFIG.initialProgress;
-            const currentModelSecs = CONFIG.initialTimeWatched;
-
-            const pct = Math.min(100, Math.max(0, Math.round(porcentaje)));
-            const prevPct = parseInt(localStorage.getItem(LS_KEY) || String(currentModelPct), 10);
-            const nextPct = Math.max(prevPct, pct);
-
-            const prevSecs = parseInt(localStorage.getItem(LS_TIME_KEY) || String(currentModelSecs), 10);
-            const nextSecs = Math.max(prevSecs, Math.max(0, Math.floor(segundosVistos || 0)));
-
-            if (nextPct <= currentModelPct && nextSecs <= currentModelSecs) return;
-
-            try {
-                const resp = await postJson('@Url.Action("RegistrarProgresoVideo", "Universidad")', {
-                    subCursoId: CONFIG.subCursoId,
-                    porcentaje: nextPct
-                });
-
-                if (resp && resp.success) {
-                    localStorage.setItem(LS_KEY, String(nextPct));
-                    localStorage.setItem(LS_TIME_KEY, String(nextSecs));
-                    CONFIG.initialProgress = nextPct;
-                    CONFIG.initialTimeWatched = nextSecs;
-
-                    if (nextPct >= 95 && !prerrequisitosEstado.videoCompleto) {
-                        prerrequisitosEstado.videoCompleto = true;
-                        actualizarBotonEvaluacion();
-                    }
-                }
-            } catch (error) {
-                console.error('Error al registrar progreso:', error);
-            }
-        }
-
-        // --- Inicialización del reproductor (UNA SOLA VEZ) ---
-        (function initPlayerAndProgress() {
-            const video = document.getElementById('videoPlayer');
-            if (!video || video.dataset.bound === '1') return;
-            video.dataset.bound = '1';
-
-            const btnPlay = document.getElementById('btnPlay');
-            const iconPlay = document.getElementById('iconPlay');
-            const btnBack = document.getElementById('btnBack');
-            const btnFwd = document.getElementById('btnFwd');
-            const timeCurrentEl = document.getElementById('timeCurrent');
-            const timeDurationEl = document.getElementById('timeDuration');
-            const progressFillEl = document.getElementById('progressFill');
-            const timeWatchedEl = document.getElementById('timeWatched') || document.getElementById('displayTimeWatched');
-
-            video.controls = false;
-
-            let lastAllowedTime = Math.max(
-                0,
-                Math.floor(CONFIG.initialTimeWatched || 0),
-                parseInt(localStorage.getItem(LS_TIME_KEY) || '0', 10)
-            );
-
-            let accSecs = Math.max(
-                CONFIG.initialTimeWatched,
-                parseInt(localStorage.getItem(LS_TIME_KEY) || '0', 10)
-            );
-
-            let lastBeat = 0;
-            let lastPlayingStamp = 0;
-            let currentPlayingSecs = 0;
-
-            // === BLOQUEO DE ADELANTAR ===
-
-            // 1) Bloquear cambio de velocidad
-            video.addEventListener('ratechange', function() {
-                if (video.playbackRate !== 1) {
-                    video.playbackRate = 1;
-                }
-            });
-
-            // 2) Bloquear menú contextual
-            video.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-            });
-
-            // 3) Bloquear atajos de teclado (flecha derecha, fin, etc.)
-            document.addEventListener('keydown', function(e) {
-                const isAdvanceKey = ['ArrowRight', 'End', 'PageDown', '.', 'l', 'L'].includes(e.key);
-                if (!isAdvanceKey) return;
-
-                const withinPlayer = e.target === video ||
-                                   (e.target.closest && e.target.closest('.ns-video')) ||
-                                   (e.target.closest && e.target.closest('.ns-controls'));
-                if (withinPlayer) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-            }, { capture: true });
-
-            // 4) Actualizar tiempo permitido durante reproducción
-            video.addEventListener('timeupdate', function() {
-                if (!video.seeking && !video.paused) {
-                    lastAllowedTime = Math.max(lastAllowedTime, Math.floor(video.currentTime), accSecs || 0);
-                }
-            }, { passive: true });
-
-            // 5) Impedir seek hacia adelante
-            video.addEventListener('seeking', function() {
-                const allowed = Math.max(lastAllowedTime, accSecs || 0);
-                if (video.currentTime > allowed + 0.25) {
-                    video.currentTime = allowed;
-                }
-            });
-
-            // 6) Deshabilitar botón de adelantar
-            if (btnFwd) {
-                btnFwd.setAttribute('disabled', 'disabled');
-                btnFwd.classList.add('ns-btn-disabled');
-                btnFwd.addEventListener('click', function(e) {
-                    e.preventDefault();
-                });
-            }
-
-            // === UTILIDADES ===
-
-            const fmtMS = function(s) {
-                const totalSeconds = Math.floor(s);
-                const minutes = Math.floor(totalSeconds / 60);
-                const seconds = totalSeconds % 60;
-                return minutes + ':' + seconds.toString().padStart(2, '0');
-            };
-
-            function setIcon(isPlaying) {
-                if (!iconPlay) return;
-
-                iconPlay.classList.remove('ns-icon-play', 'ns-icon-pause');
-                iconPlay.classList.add(isPlaying ? 'ns-icon-pause' : 'ns-icon-play');
-
-                // ✅ FIX: Verificar que btnPlay existe antes de manipularlo
-                if (btnPlay) {
-                    if (isPlaying) {
-                        btnPlay.classList.remove('ns-btn-primary');
-                    } else {
-                        btnPlay.classList.add('ns-btn-primary');
-                    }
-                }
-            }
-
-            function uiPush(percentage) {
-                const pInt = Math.max(0, Math.min(100, Math.round(percentage)));
-
-                const progressPercentageEl = document.getElementById('progressPercentage');
-                if (progressPercentageEl) progressPercentageEl.textContent = pInt;
-
-                const displayProgressEl = document.getElementById('displayProgress');
-                if (displayProgressEl) displayProgressEl.textContent = pInt.toFixed(1) + '%';
-
-                const bar = document.getElementById('overallProgressBar');
-                if (bar) bar.style.width = pInt + '%';
-
-                if (timeWatchedEl) timeWatchedEl.textContent = fmtMS(accSecs);
-            }
-
-            function updateControls() {
-                const duration = video.duration || 0;
-                if (duration === 0) return;
-
-                const currentTime = video.currentTime;
-                const progressPct = (currentTime / duration) * 100;
-
-                if (timeCurrentEl) timeCurrentEl.textContent = fmtMS(currentTime);
-                if (progressFillEl) progressFillEl.style.width = progressPct + '%';
-            }
-
-            function throttleBeat() {
-                const now = performance.now();
-                if (now - lastBeat < 2500) return false;
-                lastBeat = now;
-                return true;
-            }
-
-            async function safePlay() {
-                try {
-                    await video.play();
-                } catch (err) {
-                    console.error('Error al reproducir:', err);
-                }
-            }
-
-            function safePause() {
-                try {
-                    video.pause();
-                } catch (e) {
-                    console.error('Error al pausar:', e);
-                }
-            }
-
-            // === EVENT LISTENERS DEL VIDEO ===
-
-            video.addEventListener('play', function() {
-                lastPlayingStamp = performance.now();
-                currentPlayingSecs = video.currentTime;
-                setIcon(true);
-            });
-
-            video.addEventListener('pause', function() {
-                if (lastPlayingStamp) {
-                    if (video.currentTime > currentPlayingSecs) {
-                        accSecs = Math.max(accSecs, Math.floor(video.currentTime));
-                    }
-                    localStorage.setItem(LS_TIME_KEY, String(accSecs));
-                    lastPlayingStamp = 0;
-                }
-                const duration = video.duration || 0;
-                const pct = duration ? (accSecs / duration) * 100 : 0;
-                registrarProgresoVideo(pct, accSecs);
-                uiPush(pct);
-                setIcon(false);
-            });
-
-            video.addEventListener('timeupdate', function() {
-                if (!video.paused && lastPlayingStamp) {
-                    accSecs = Math.max(accSecs, Math.floor(video.currentTime));
-                }
-
-                const duration = video.duration || 0;
-                const pct = duration ? (accSecs / duration) * 100 : 0;
-
-                updateControls();
-
-                if (throttleBeat()) {
-                    registrarProgresoVideo(pct, accSecs);
-                }
-
-                uiPush(pct);
-            });
-
-            video.addEventListener('ended', function() {
-                if (lastPlayingStamp) {
-                    accSecs = Math.floor(video.duration);
-                    localStorage.setItem(LS_TIME_KEY, String(accSecs));
-                    lastPlayingStamp = 0;
-                }
-                registrarProgresoVideo(100, accSecs);
-                updateControls();
-                uiPush(100);
-                setIcon(false);
-            });
-
-            video.addEventListener('loadedmetadata', function() {
-                const duration = video.duration || 0;
-
-                if (timeDurationEl) timeDurationEl.textContent = fmtMS(duration);
-
-                const cachedTime = Math.min(accSecs, duration);
-                if (cachedTime > 0) {
-                    video.currentTime = cachedTime;
-                }
-
-                const cachedPct = Math.max(CONFIG.initialProgress, duration ? (cachedTime / duration) * 100 : 0);
-                uiPush(cachedPct);
-                updateControls();
-                setIcon(!video.paused);
-            });
-
-            // === CONTROLES PERSONALIZADOS ===
-
-            if (btnPlay) {
-                btnPlay.addEventListener('click', function(ev) {
-                    ev.preventDefault();
-                    if (video.paused) {
-                        safePlay();
-                    } else {
-                        safePause();
-                    }
-                });
-            }
-
-            if (btnBack) {
-                btnBack.addEventListener('click', function(ev) {
-                    ev.preventDefault();
-                    video.currentTime = Math.max(0, video.currentTime - 10);
-                });
-            }
-
-            // Clic en contenedor del video (no en el <video> directamente)
-            const nsVideoContainer = document.querySelector('.ns-video');
-            if (nsVideoContainer) {
-                nsVideoContainer.addEventListener('click', function(ev) {
-                    if (ev.target.closest('.ns-controls')) return;
-                    if (video.paused) {
-                        safePlay();
-                    } else {
-                        safePause();
-                    }
-                });
-            }
+              await postJson('@Url.Action("MarcarPdfVisto", "Universidad")', { subCursoId: videoConfig.subCursoId });
+            } catch { /* no bloquear UX */ }
+          });
         })();
 
-        // === PDF ===
-        async function marcarPdfVisto() {
-            if (!CONFIG.tienePDF) return;
-            try {
-                if (!prerrequisitosEstado.pdfVisto) {
-                    await postJson('@Url.Action("MarcarPdfVisto", "Universidad")', {
-                        subCursoId: CONFIG.subCursoId
-                    });
-                    prerrequisitosEstado.pdfVisto = true;
-                    await verificarPrerequisitos();
-                }
-            } catch (error) {
-                console.error('Error al marcar PDF visto:', error);
+        // ===== Video: progreso + anti-adelantar =====
+        (function(){
+          const v = document.getElementById('videoPlayer');
+          if (!v) return;
+
+          v.setAttribute('controlsList','nodownload noplaybackrate noremoteplayback');
+          v.disablePictureInPicture = true;
+
+          let lastAllowed = videoConfig.tiempoVistoPrevio || 0;
+          const EPS = 0.35;
+          let ultimoEnviado = 0, ultimoTs = 0;
+
+          v.addEventListener('loadedmetadata', () => {
+            if (lastAllowed > 0 && lastAllowed < (v.duration || Infinity)) {
+              v.currentTime = lastAllowed;
             }
-        }
+            if (v.playbackRate !== 1) v.playbackRate = 1;
+            document.getElementById('timeDuration').textContent = fmt(v.duration || 0);
+          });
 
-        const btnVerPdf = document.getElementById('btnVerPdf');
-        if (btnVerPdf) {
-            btnVerPdf.addEventListener('click', marcarPdfVisto);
-        }
+          v.addEventListener('ratechange', () => { if (v.playbackRate !== 1) v.playbackRate = 1; });
 
-        // === BOTÓN TOMAR EVALUACIÓN ===
-        const btnEvaluacion = document.getElementById('startEvaluationBtn');
-        if (btnEvaluacion) {
-            btnEvaluacion.addEventListener('click', async function(e) {
-                if (this.disabled || this.classList.contains('disabled')) {
-                    e.preventDefault();
-                    alert(this.getAttribute('title') || 'Debes completar los requisitos antes de la evaluación.');
-                    return;
-                }
+          function clampIfForward(){
+            if (v.currentTime > lastAllowed + EPS) { v.currentTime = lastAllowed; }
+          }
+          v.addEventListener('seeking', () => {
+            clampIfForward();
+            const until = performance.now() + 700;
+            (function guard(){
+              clampIfForward();
+              if (performance.now() < until) requestAnimationFrame(guard);
+            })();
+          });
+          v.addEventListener('seeked', clampIfForward);
 
-                e.preventDefault();
+          v.addEventListener('timeupdate', async () => {
+            if (v.currentTime > lastAllowed) lastAllowed = v.currentTime;
 
-                try {
-                    const resp = await postJson('@Url.Action("PrereqEstado", "Universidad")', {
-                        subCursoId: CONFIG.subCursoId
-                    });
-                    if (resp.ok) {
-                        window.location.href = this.getAttribute('href');
-                    } else {
-                        alert(resp.message || 'Debes completar los requisitos antes de la evaluación.');
-                    }
-                } catch (error) {
-                    console.error('Error al verificar prerrequisitos:', error);
-                    alert('No se pudo verificar los requisitos. Inténtalo de nuevo.');
-                }
-            });
-        }
+            const dur = v.duration || 0;
+            const cur = v.currentTime || 0;
+            const pct = dur ? (cur / dur) * 100 : 0;
+            const now = Date.now();
 
-        // === INICIALIZACIÓN ===
-        document.addEventListener('DOMContentLoaded', verificarPrerequisitos);
+            updateProgressDisplay(pct, Math.floor(cur));
+
+            if (pct - ultimoEnviado >= 5 || (now - ultimoTs) > 5000) {
+              ultimoEnviado = pct; ultimoTs = now;
+              await enviarPct(pct);
+            }
+          });
+
+          v.addEventListener('ended', async () => enviarPct(100));
+
+          async function enviarPct(pct){
+            try {
+              await postJson('@Url.Action("RegistrarProgresoVideo", "Universidad")', {
+                subCursoId: videoConfig.subCursoId,
+                porcentaje: Math.round(pct)
+              });
+            } catch { /* silencioso */ }
+          }
+
+          // UI play/pause/back y tiempos
+          const btnPlay = document.getElementById('btnPlay');
+          const iconPlay = document.getElementById('iconPlay');
+          const btnBack = document.getElementById('btnBack');
+          const fill = document.getElementById('progressFill');
+          const tCur = document.getElementById('timeCurrent');
+          const tDur = document.getElementById('timeDuration');
+
+          btnPlay?.addEventListener('click', async () => { if (v.paused) { try { await v.play(); } catch {} } else { v.pause(); }});
+          v.addEventListener('play',  () => swapIcon('pause'));
+          v.addEventListener('pause', () => swapIcon('play'));
+          btnBack?.addEventListener('click', () => { v.currentTime = Math.max(0, v.currentTime - 10); });
+
+          function swapIcon(state){
+            if (state === 'pause') { iconPlay.classList.remove('ns-icon-play'); iconPlay.classList.add('ns-icon-pause'); }
+            else { iconPlay.classList.remove('ns-icon-pause'); iconPlay.classList.add('ns-icon-play'); }
+          }
+          function fmt(s){ s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), sec=s%60; return `${m}:${String(sec).padStart(2,'0')}`; }
+          function updateProgressDisplay(progress, curSec){
+            const dur = v.duration || 0;
+            document.getElementById('progressPercentage').textContent = Math.round(progress);
+            document.getElementById('displayProgress').textContent = progress.toFixed(1) + '%';
+            const timeString = fmt(curSec);
+            document.getElementById('timeWatched').textContent = timeString;
+            document.getElementById('displayTimeWatched').textContent = timeString;
+            document.getElementById('overallProgressBar').style.width = progress + '%';
+            if (progress >= 95) {
+              const b = document.getElementById('displayStatus');
+              b.className = 'badge bg-success'; b.textContent = 'Completado';
+              document.getElementById('completeModuleBtn').style.display = 'block';
+            } else if (progress > 0) {
+              const b = document.getElementById('displayStatus');
+              b.className = 'badge bg-primary'; b.textContent = 'En Progreso';
+            }
+            fill.style.width = (dur ? (curSec / dur) * 100 : 0) + '%';
+            tCur.textContent = fmt(curSec);
+            if (dur) tDur.textContent = fmt(dur);
+          }
+        })();
+
+        // ===== Botón evaluación: verificar prerrequisitos =====
+        (function(){
+          const btn = document.getElementById('startEvaluationBtn');
+          if (!btn) return;
+          btn.addEventListener('click', async function(ev){
+            ev.preventDefault();
+            const subCursoId = parseInt(btn.dataset.subcursoId, 10);
+            try {
+              const resp = await postJson('@Url.Action("PrereqEstado", "Universidad")', { subCursoId });
+              if (resp.ok) {
+                window.location = `/Universidad/TomarEvaluacion/${subCursoId}`;
+              } else {
+                alert(resp.message || 'Primero completa el contenido requerido (video y/o PDF).');
+              }
+            } catch {
+              alert('No se pudo verificar los requisitos. Inténtalo de nuevo.');
+            }
+          });
+        })();
+
+        // ===== Notas locales =====
+        (function(){
+          const saveBtn = document.getElementById('saveNotesBtn');
+          if (!saveBtn) return;
+          const key = 'notes_' + @Model.SubCursoID;
+          const txt = document.getElementById('moduleNotes');
+          txt.value = localStorage.getItem(key) || '';
+          saveBtn.addEventListener('click', () => {
+            localStorage.setItem(key, txt.value || '');
+            const original = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Guardado';
+            saveBtn.classList.add('btn-success');
+            setTimeout(()=>{ saveBtn.innerHTML = original; saveBtn.classList.remove('btn-success'); }, 1500);
+          });
+        })();
     </script>
 }
