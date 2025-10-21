@@ -461,18 +461,217 @@
     </script>
 
 
-    <style>
-        .hover-bg-light:hover {
-            background-color: #f8f9fa !important;
-        }
-
-        .form-check-label {
-            cursor: pointer;
-        }
-
-        .form-check-input:checked + .form-check-label .p-2 {
-            background-color: #e3f2fd;
-            border-left: 4px solid #2196f3;
-        }
-    </style>
+    
 }
+
+<style>
+    .hover-bg-light:hover {
+        background-color: #f8f9fa !important;
+    }
+
+    .form-check-label {
+        cursor: pointer;
+    }
+
+    .form-check-input:checked + .form-check-label .p-2 {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196f3;
+    }
+
+    @@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+    body {
+        font-family: 'Poppins', sans-serif;
+        background-color: #f8f9fa; /* Gris claro */
+        color: #495057; /* Gris oscuro */
+    }
+
+   
+    .header-card {
+        background: linear-gradient(135deg, #3B71CA, #325f9d); /* Gradiente azul */
+        border-radius: 0.5rem;
+        color: white;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+        .header-card h2 {
+            font-weight: 600;
+        }
+
+        .header-card .opacity-75 {
+            opacity: 0.85 !important;
+        }
+
+    #cronometro {
+        font-family: monospace;
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: orangered;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .timer-box {
+        background-color: rgba(255, 255, 255, 0.15);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        backdrop-filter: blur(5px);
+    }
+
+    /* --- Tarjetas de Información --- */
+    .alert {
+        border-radius: 0.5rem;
+        border-width: 0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 1rem 1.25rem;
+    }
+
+    .alert-info {
+        background-color: #e2f3ff;
+        color: #0c5460;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .alert-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    /* --- Tarjetas de Preguntas --- */
+    .question-card {
+        border: none;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        overflow: hidden; /* Para que el header se ajuste a los bordes redondeados */
+    }
+
+        .question-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .question-card .card-header {
+            background-color: #ffffff;
+            border-bottom: 1px solid #e9ecef; /* Gris medio */
+        }
+
+        .question-card .card-title {
+            font-weight: 600;
+            color: #325f9d; /* Azul oscuro */
+        }
+
+        .question-card .card-body h6 {
+            font-size: 1.1rem;
+            font-weight: 500;
+            line-height: 1.6;
+        }
+
+    /* --- Estilos para Opciones de Respuesta --- */
+    .form-check {
+        padding-left: 0; /* Reseteamos padding para control total */
+    }
+
+    .form-check-input {
+        display: none; /* Ocultamos el radio button real */
+    }
+
+    .form-check-label {
+        display: block;
+        width: 100%;
+        padding: 0.75rem 1.25rem;
+        border: 1px solid #e9ecef; /* Gris medio */
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        margin-bottom: 0.5rem;
+    }
+
+        /* Estado Hover */
+        .form-check-label:hover {
+            background-color: #f8f9fa; /* Gris claro */
+            border-color: #3B71CA; /* Azul primario */
+        }
+
+    /* Estado Seleccionado */
+    .form-check-input:checked + .form-check-label {
+        background-color: #eaf2ff;
+        border-color: #3B71CA; /* Azul primario */
+        color: #325f9d; /* Azul oscuro */
+        font-weight: 500;
+        box-shadow: 0 0 0 2px rgba(59, 113, 202, 0.25);
+    }
+
+    /* Estilos para Verdadero/Falso */
+    .vf-label .badge {
+        font-size: 0.9rem;
+        padding: 0.4em 0.6em;
+        font-weight: 600;
+    }
+
+    .form-check-input:checked + .vf-label {
+        font-weight: 600;
+    }
+
+
+    /* --- Área de texto para preguntas abiertas --- */
+    textarea.form-control {
+        border-radius: 0.5rem;
+        border-color: #e9ecef; /* Gris medio */
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+        textarea.form-control:focus {
+            border-color: #3B71CA; /* Azul primario */
+            box-shadow: 0 0 0 2px rgba(59, 113, 202, 0.25);
+        }
+
+    /* --- Botones de Acción --- */
+    .action-card {
+        border: none;
+        background-color: transparent;
+        box-shadow: none;
+    }
+
+    .btn {
+        border-radius: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+
+    .btn-warning {
+        color: #333333;
+        font-weight: 600;
+    }
+
+    /* --- Estilos del Modal --- */
+    .modal-content {
+        border: none;
+        border-radius: 0.5rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    .modal-header {
+        border-bottom: 1px solid #e9ecef; /* Gris medio */
+    }
+
+        .modal-header .modal-title {
+            font-weight: 600;
+        }
+
+    .modal-footer {
+        border-top: 1px solid #e9ecef; /* Gris medio */
+    }
+
+
+
+</style>

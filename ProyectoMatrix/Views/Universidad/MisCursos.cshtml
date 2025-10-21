@@ -222,11 +222,16 @@
 
                                     @if (curso.Estado == "Completado")
                                     {
-                                        <button class="btn btn-outline-success ms-2"
-                                                onclick="verCertificado(@curso.CursoID)"
-                                                title="Ver certificado">
+                                        <a class="btn btn-outline-success ms-2"
+                                           asp-controller="Universidad"
+                                           asp-action="MisCertificados"
+                                           asp-route-cursoId="@curso.CursoID"
+                                           title="Ver certificado">
                                             <i class="fas fa-certificate"></i>
-                                        </button>
+                                        </a>
+
+
+                                        
                                     }
                                 </div>
                             </div>
@@ -268,7 +273,7 @@
             </div>
         }
     </div>
-
+    @*
     <!-- Modal para Certificado (Mantenido para funcionalidad) -->
     <div class="modal fade" id="certificadoModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
@@ -290,7 +295,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div>*@
 </div>
 
 
