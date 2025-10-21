@@ -13,6 +13,7 @@ using ProyectoMatrix.Servicios;
 using static ProyectoMatrix.Servicios.UniversidadServices;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 
 namespace ProyectoMatrix.Controllers
@@ -484,15 +485,13 @@ namespace ProyectoMatrix.Controllers
 
             try
             {
-                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
-                                ?? HttpContext.Session.GetInt32("EmpresaID") ?? 1;
-
-                if (!usuarioId.HasValue)
-                    return RedirectToAction("Index");
+                var (usuarioId, empresaId) = LeerIdsSesion();
+                if (!usuarioId.HasValue || !empresaId.HasValue)
+                    return RedirectToAction("Login", "Login");
 
                 var subCursos = await _universidadServices.GetSubCursosPorCursoAsync(
-                    cursoId, usuarioId.Value, empresaId);
+                    cursoId, usuarioId.Value, empresaId.Value);
+
 
                 if (!subCursos.Any())
                 {
@@ -521,8 +520,8 @@ namespace ProyectoMatrix.Controllers
                 {
                     var (sol, ip, ag) = LeerCtxMiddleware();
                     await _bitacora.RegistrarAsync(
-                        idUsuario: usuarioId,
-                        idEmpresa: empresaId,
+    idUsuario: usuarioId.Value,
+    idEmpresa: empresaId.Value,
                         accion: "VER_DETALLE",
                         mensaje: $"Usuario abrió curso {cursoId}",
                         modulo: "UNIVERSIDAD",
@@ -547,25 +546,21 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
-        // =====================================================
-        // VER VIDEO/SUBCURSO
-        // =====================================================
 
         [HttpGet]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public async Task<IActionResult> TomarSubCurso(int subCursoId)
         {
             try
             {
-                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
-                               ?? HttpContext.Session.GetInt32("EmpresaID") ?? 1;
+                var (usuarioId, empresaId) = LeerIdsSesion();
+                if (!usuarioId.HasValue || !empresaId.HasValue)
+                    return RedirectToAction("Login", "Login");
 
-                if (!usuarioId.HasValue)
-                {
-                    return RedirectToAction("Index");
-                }
+                _logger.LogInformation("TomarSubCurso U={U} E={E} S={S}", usuarioId, empresaId, subCursoId);
 
-                var subCurso = await _universidadServices.ObtenerSubCursoConCursoAsync(subCursoId, usuarioId.Value, empresaId);
+                var subCurso = await _universidadServices.ObtenerSubCursoConCursoAsync(
+                    subCursoId, usuarioId.Value, empresaId.Value);
 
                 if (subCurso == null)
                 {
@@ -580,16 +575,16 @@ namespace ProyectoMatrix.Controllers
                 }
 
                 ViewBag.UsuarioId = usuarioId.Value;
-                ViewBag.EmpresaId = empresaId;
+                ViewBag.EmpresaId = empresaId.Value;
                 ViewBag.SubCursoId = subCursoId;
 
-                // Bitácora: ver subcurso (info)
+                // Bitácora (silenciar errores)
                 try
                 {
                     var (sol, ip, ag) = LeerCtxMiddleware();
                     await _bitacora.RegistrarAsync(
-                        idUsuario: usuarioId,
-                        idEmpresa: empresaId,
+                        idUsuario: usuarioId.Value,
+                        idEmpresa: empresaId.Value,
                         accion: "VER_DETALLE",
                         mensaje: $"Usuario abrió subcurso {subCursoId}",
                         modulo: "UNIVERSIDAD",
@@ -597,9 +592,7 @@ namespace ProyectoMatrix.Controllers
                         entidadId: subCursoId.ToString(),
                         resultado: "OK",
                         severidad: 1,
-                        solicitudId: sol,
-                        ip: ip,
-                        AgenteUsuario: ag
+                        solicitudId: sol, ip: ip, AgenteUsuario: ag
                     );
                 }
                 catch { }
@@ -608,13 +601,15 @@ namespace ProyectoMatrix.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al cargar subcurso {SubCursoId}", subCursoId);
-                TempData["Error"] = "Error al cargar el contenido. Intente nuevamente.";
+                _logger.LogError(ex, "Error en TomarSubCurso S={S}", subCursoId);
+                TempData["Error"] = "Error al cargar el subcurso.";
                 return RedirectToAction("MisCursos");
             }
         }
 
-        [HttpPost]
+
+
+            [HttpPost]
         public async Task<IActionResult> CompletarSubCurso([FromBody] CompletarSubCursoRequest request)
         {
             try
@@ -1394,31 +1389,38 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
+
+
         [HttpGet("Universidad/TomarEvaluacion/{subCursoId:int}", Name = "Uni_TomarEvaluacion")]
-        [HttpGet("Universidad/TomarEvaluacion")] // permite ?subCursoId=123
         public async Task<IActionResult> TomarEvaluacion([FromRoute] int subCursoId)
         {
-            _logger.LogInformation("Entrando a TomarEvaluacion para SubCursoID={SubCursoId}", subCursoId);
+            _logger.LogInformation("Entrando a TomarEvaluacion S={S}", subCursoId);
+
+            if (subCursoId <= 0)
+            {
+                TempData["Error"] = "Identificador de subcurso inválido.";
+                return RedirectToAction("MisCursos");
+            }
+
+            var (usuarioId, empresaId) = LeerIdsSesion();
+            if (!usuarioId.HasValue || !empresaId.HasValue)
+                return RedirectToAction("Login", "Login");
 
             try
             {
-                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
-                                ?? HttpContext.Session.GetInt32("EmpresaID") ?? 1;
+                _logger.LogInformation("Prereq check U={U} E={E} S={S}",
+                    usuarioId.Value, empresaId.Value, subCursoId);
 
-                if (!usuarioId.HasValue)
-                    return RedirectToAction("Login", "Login");
-
-                // --- CANDADO: verificar requisitos antes de permitir evaluación ---
                 var prereq = await _universidadServices.GetPrerequisitosEvaluacionAsync(
-                    subCursoId, usuarioId.Value, empresaId
-                );
-                /*
-                   El servicio debe devolver:
-                   (bool TieneVideo, bool TienePDF, int PorcentajeVideoVisto, bool PdfVisto)
-                */
+                    subCursoId, usuarioId.Value, empresaId.Value);
 
-                bool videoOk = !prereq.TieneVideo || prereq.PorcentajeVideoVisto >= 95; // umbral 95%
+                if (prereq == null)
+                {
+                    TempData["Error"] = "No se pudieron consultar los requisitos.";
+                    return RedirectToAction("TomarSubCurso", new { subCursoId });
+                }
+
+                bool videoOk = !prereq.TieneVideo || prereq.PorcentajeVideoVisto >= 95;
                 bool pdfOk = !prereq.TienePDF || prereq.PdfVisto;
 
                 if (!(videoOk && pdfOk))
@@ -1431,7 +1433,7 @@ namespace ProyectoMatrix.Controllers
                 }
 
                 var viewModel = await _universidadServices.GetTomarEvaluacionViewModelAsync(
-                    subCursoId, usuarioId.Value, empresaId);
+                    subCursoId, usuarioId.Value, empresaId.Value);
 
                 if (viewModel == null || viewModel.Preguntas == null || !viewModel.Preguntas.Any())
                 {
@@ -1439,13 +1441,13 @@ namespace ProyectoMatrix.Controllers
                     return RedirectToAction("TomarSubCurso", new { subCursoId });
                 }
 
-                // Bitácora: iniciar evaluación (info)
+                // Bitácora
                 try
                 {
                     var (sol, ip, ag) = LeerCtxMiddleware();
                     await _bitacora.RegistrarAsync(
-                        idUsuario: usuarioId,
-                        idEmpresa: empresaId,
+                        idUsuario: usuarioId.Value,
+                        idEmpresa: empresaId.Value,
                         accion: "TOMAR",
                         mensaje: $"Alumno inició evaluación del SubCurso {subCursoId}",
                         modulo: "UNIVERSIDAD",
@@ -1453,47 +1455,57 @@ namespace ProyectoMatrix.Controllers
                         entidadId: subCursoId.ToString(),
                         resultado: "OK",
                         severidad: 1,
-                        solicitudId: sol,
-                        ip: ip,
-                        AgenteUsuario: ag
+                        solicitudId: sol, ip: ip, AgenteUsuario: ag
                     );
                 }
-                catch { }
+                catch (Exception exLog)
+                {
+                    _logger.LogWarning(exLog, "Bitácora falló al iniciar evaluación.");
+                }
 
                 return View("TomarEvaluacion", viewModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error al cargar evaluación para SubCursoID={SubCursoId}", subCursoId);
+                _logger.LogError(ex, "Error al cargar evaluación S={S}", subCursoId);
                 TempData["Error"] = "Error al cargar la evaluación.";
                 return RedirectToAction("MisCursos");
             }
         }
 
+
+
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> EntregarEvaluacion([FromBody] EntregarEvaluacionRequest request)
         {
             try
             {
-                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
-                               ?? HttpContext.Session.GetInt32("EmpresaID") ?? 1;
-
-                if (!usuarioId.HasValue)
-                {
+                var (usuarioId, empresaId) = LeerIdsSesion();
+                if (!usuarioId.HasValue || !empresaId.HasValue)
                     return Json(new { success = false, message = "Sesión expirada." });
-                }
+
+                if (request is null || request.SubCursoId <= 0)
+                    return Json(new { success = false, message = "Solicitud inválida." });
+
+                // ✅ FIX: usar .Value (no nullables) para evitar conflicto de sobrecargas
+                _logger.LogInformation("EntregarEvaluacion U={U} E={E} S={S}",
+                    usuarioId.Value, empresaId.Value, request.SubCursoId);
 
                 var resultado = await _universidadServices.EntregarEvaluacionAsync(
-                    usuarioId.Value, request.SubCursoId, empresaId, request.Respuestas, request.TiempoEmpleado);
+                    usuarioId.Value,
+                    request.SubCursoId,
+                    empresaId.Value,
+                    request.Respuestas,
+                    request.TiempoEmpleado
+                );
 
-                // Bitácora: entrega evaluación (auditoría)
                 try
                 {
                     var (sol, ip, ag) = LeerCtxMiddleware();
                     await _bitacora.RegistrarAsync(
-                        idUsuario: usuarioId,
-                        idEmpresa: empresaId,
+                        idUsuario: usuarioId.Value,
+                        idEmpresa: empresaId.Value,
                         accion: "ENTREGAR",
                         mensaje: resultado.Success
                             ? $"Evaluación entregada. Calificación {resultado.Calificacion}, Aprobado: {resultado.Aprobado}"
@@ -1503,12 +1515,13 @@ namespace ProyectoMatrix.Controllers
                         entidadId: request.SubCursoId.ToString(),
                         resultado: resultado.Success ? "OK" : "ERROR",
                         severidad: resultado.Success ? (byte)4 : (byte)3,
-                        solicitudId: sol,
-                        ip: ip,
-                        AgenteUsuario: ag
+                        solicitudId: sol, ip: ip, AgenteUsuario: ag
                     );
                 }
-                catch { }
+                catch (Exception exLog)
+                {
+                    _logger.LogWarning(exLog, "Bitácora falló al registrar entrega de evaluación.");
+                }
 
                 if (resultado.Success)
                 {
@@ -1523,17 +1536,21 @@ namespace ProyectoMatrix.Controllers
                         message = "Evaluación entregada exitosamente."
                     });
                 }
-                else
-                {
-                    return Json(new { success = false, message = resultado.Message });
-                }
+
+                return Json(new { success = false, message = resultado.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al entregar evaluación");
+                // ✅ también aquí usa .Value de forma segura
+                _logger.LogError(ex, "Error al entregar evaluación U={U} E={E} S={S}",
+                    LeerIdsSesion().Item1?.ToString() ?? "?", // por si falla antes
+                    LeerIdsSesion().Item2?.ToString() ?? "?",
+                    request?.SubCursoId.ToString() ?? "?"
+                );
                 return Json(new { success = false, message = "Error interno del servidor." });
             }
         }
+
 
         // =====================================================
         // UTILIDADES / DESCARGAS / AJAX
@@ -1901,59 +1918,14 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        // Marca que el usuario abrió/vio el PDF del subcurso (clic en "Ver PDF")
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> MarcarPdfVisto([FromBody] VistoPdfRequest request)
-        {
-            try
-            {
-                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
-                              ?? HttpContext.Session.GetInt32("EmpresaID") ?? 1;
-
-                if (!usuarioId.HasValue)
-                    return Json(new { success = false, message = "Sesión expirada." });
-
-                var ok = await _universidadServices.MarcarPdfVistoAsync(
-                    usuarioId.Value, empresaId, request.SubCursoId
-                );
-                return Json(new { success = ok });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al marcar PDF visto");
-                return Json(new { success = false, message = "Error interno del servidor" });
-            }
-        }
-
-
-
-        // ======================
-        // AJAX DTOs (hacer públicos para evitar CS0051)
-        // ======================
-        public sealed class PrereqRequest
-        {
-            public int SubCursoId { get; set; }
-        }
-
-        public class PdfVistoRequest
-        {
-            public int SubCursoId { get; set; }
-        }
-
-        // Compatibilidad: si en algún lugar del código quedó el nombre antiguo VistoPdfRequest
-        public class VistoPdfRequest : PdfVistoRequest { }
-
+        public sealed class PrereqRequest { public int SubCursoId { get; set; } }
+        public sealed class PdfVistoRequest { public int SubCursoId { get; set; } }
         public sealed class ProgresoVideoRequest
         {
             public int SubCursoId { get; set; }
             public int Porcentaje { get; set; } // 0..100
+            public int? SegundosVistos { get; set; } // NUEVO (opcional, acumulado monótono)
         }
-
-        // ======================
-        // ENDPOINTS AJAX
-        // ======================
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -1964,19 +1936,17 @@ namespace ProyectoMatrix.Controllers
                 if (req == null || req.SubCursoId <= 0)
                     return Json(new { ok = false, message = "Solicitud inválida." });
 
-                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
-                              ?? HttpContext.Session.GetInt32("EmpresaID");
-
+                var (usuarioId, empresaId) = LeerIdsSesion();
                 if (!usuarioId.HasValue || !empresaId.HasValue)
                     return Json(new { ok = false, message = "Sesión expirada." });
+
+                _logger.LogInformation("PrereqEstado U={U} E={E} S={S}", usuarioId, empresaId, req.SubCursoId);
 
                 var dto = await _universidadServices.GetPrerequisitosEvaluacionAsync(
                     req.SubCursoId, usuarioId.Value, empresaId.Value);
 
                 bool ok;
                 string msg;
-
                 if (dto.TieneVideo && dto.TienePDF)
                 {
                     ok = dto.PorcentajeVideoVisto >= 95 && dto.PdfVisto;
@@ -2016,12 +1986,11 @@ namespace ProyectoMatrix.Controllers
                 if (req == null || req.SubCursoId <= 0)
                     return Json(new { success = false, message = "Solicitud inválida." });
 
-                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
-                              ?? HttpContext.Session.GetInt32("EmpresaID");
-
+                var (usuarioId, empresaId) = LeerIdsSesion();
                 if (!usuarioId.HasValue || !empresaId.HasValue)
                     return Json(new { success = false, message = "Sesión expirada." });
+
+                _logger.LogInformation("MarcarPdfVisto U={U} E={E} S={S}", usuarioId, empresaId, req.SubCursoId);
 
                 var ok = await _universidadServices.MarcarPdfVistoAsync(
                     usuarioId.Value, empresaId.Value, req.SubCursoId);
@@ -2044,18 +2013,20 @@ namespace ProyectoMatrix.Controllers
                 if (req == null || req.SubCursoId <= 0)
                     return Json(new { success = false, message = "Solicitud inválida." });
 
-                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
-                              ?? HttpContext.Session.GetInt32("EmpresaID");
-
+                var (usuarioId, empresaId) = LeerIdsSesion();
                 if (!usuarioId.HasValue || !empresaId.HasValue)
                     return Json(new { success = false, message = "Sesión expirada." });
 
                 var pct = Math.Clamp(req.Porcentaje, 0, 100);
-                var ok = await _universidadServices.RegistrarProgresoVideoAsync(
-                    usuarioId.Value, empresaId.Value, req.SubCursoId, pct);
+                var secs = Math.Max(0, req.SegundosVistos ?? 0);
 
-                return Json(new { success = ok });
+                _logger.LogInformation("RegistrarProgresoVideo U={U} E={E} S={S} pct={P} seg={T}",
+                    usuarioId, empresaId, req.SubCursoId, pct, secs);
+
+                var ok = await _universidadServices.RegistrarProgresoVideoAsync(
+                    usuarioId.Value, empresaId.Value, req.SubCursoId, pct, secs); // <-- agrega secs
+
+                return Json(new { success = ok, pct = pct });
             }
             catch (Exception ex)
             {
@@ -2064,13 +2035,15 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
-
-
-
     }
 
 
 
+
 }
+
+
+
+
 
 

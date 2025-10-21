@@ -64,7 +64,7 @@ namespace ProyectoMatrix.Servicios
 
                     // Firmas
 
-                    column.Item().Height(40);
+                    column.Item().Height(60);
 
                     column.Item().AlignCenter().Column(c =>
                     {
