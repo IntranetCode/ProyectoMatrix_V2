@@ -9,6 +9,8 @@ using Microsoft.Extensions.Logging;
 using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Models;
 using System.Data;
+using System.Linq;
+
 
 namespace ProyectoMatrix.Servicios
 {
@@ -406,12 +408,14 @@ ORDER BY sc.Orden";
                     
                     -- Estado del curso
                     CASE
-                        WHEN COUNT(sc.SubCursoID) = COUNT(CASE WHEN asc.Completado = 1 THEN 1 END) 
-                        THEN 'Completado'
-                        WHEN COUNT(CASE WHEN asc.Completado = 1 THEN 1 END) > 0 
-                        THEN 'En Progreso'
-                        ELSE 'Asignado'
-                    END AS Estado
+    WHEN COUNT(sc.SubCursoID) > 0
+         AND COUNT(sc.SubCursoID) = COUNT(CASE WHEN asc.Completado = 1 THEN 1 END)
+         THEN 'Completado'
+    WHEN COUNT(CASE WHEN asc.Completado = 1 THEN 1 END) > 0
+         THEN 'En Progreso'
+    ELSE 'Pendiente'            -- 👈 antes decía 'Asignado'
+END AS Estado
+
                     
                 FROM dbo.AsignacionesCursos ac
                 INNER JOIN dbo.Cursos c ON ac.CursoID = c.CursoID AND c.Activo = 1
@@ -3079,23 +3083,38 @@ WHERE SubCursoID = @Id AND Activo = 1;";
                 return new List<SubCursoDetalle>();
             }
         }
-
         public async Task<int> GetTiempoEstudioUsuarioAsync(int usuarioId, int empresaId)
         {
-            var query = @"SELECT ISNULL(SUM(TiempoEmpleado), 0)
-                  FROM IntentosEvaluacion
-                  WHERE UsuarioID = @UsuarioId AND EmpresaID = @EmpresaId";
+            // Sumamos minutos de estudio en contenidos + minutos de evaluaciones.
+            // ⚠️ Si TU columna AvancesSubCursos.TiempoTotalVisto está en SEGUNDOS,
+            // cambia la primera subconsulta para dividir por 60 (ver versión B más abajo).
+
+            const string sql = @"
+        SELECT
+            ISNULL((
+                SELECT SUM(avs.TiempoTotalVisto)
+                FROM dbo.AvancesSubCursos avs
+                WHERE avs.UsuarioID = @UsuarioID AND avs.EmpresaID = @EmpresaID
+            ), 0)
+            +
+            ISNULL((
+                SELECT SUM(ie.TiempoEmpleado)
+                FROM dbo.IntentosEvaluacion ie
+                WHERE ie.UsuarioID = @UsuarioID AND ie.EmpresaID = @EmpresaID
+            ), 0) AS MinutosTotales;";
 
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
-            using var cmd = new SqlCommand(query, connection);
-            cmd.Parameters.AddWithValue("@UsuarioId", usuarioId);
-            cmd.Parameters.AddWithValue("@EmpresaId", empresaId);
+            using var cmd = new SqlCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+            cmd.Parameters.AddWithValue("@EmpresaID", empresaId);
 
-            var minutos = (int)await cmd.ExecuteScalarAsync();
-            return minutos;
+            var result = await cmd.ExecuteScalarAsync();
+            var minutos = (result == null || result == DBNull.Value) ? 0 : Convert.ToInt32(result);
+            return minutos; // <- Estadisticas.TiempoTotalEstudio usa minutos y se formatea a hh:mm
         }
+
 
 
         private async Task<int> GetCursoIdBySubCursoIdAsync(int subCursoId, SqlConnection connection, SqlTransaction transaction)
@@ -3216,11 +3235,101 @@ WHERE CursoID = @CursoID AND Activo = 1;";
                 return SoftDeleteResult.Error;
             }
         }
+            // using System.Data; using Dapper; etc. según tu capa de datos
 
 
 
+            // ======= Prerrequisitos evaluación (video/pdf) =======
+public async Task<PrereqEvaluacionDto> GetPrerequisitosEvaluacionAsync(int subCursoId, int usuarioId, int empresaId)
+        {
+            var dto = new PrereqEvaluacionDto();
 
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
 
+            // 1) Saber si el subcurso tiene video/pdf
+            var qSub = @"
+        SELECT ArchivoVideo, ArchivoPDF
+        FROM dbo.SubCursos
+        WHERE SubCursoID = @SubCursoID AND Activo = 1";
+            using (var cmd = new SqlCommand(qSub, connection))
+            {
+                cmd.Parameters.AddWithValue("@SubCursoID", subCursoId);
+                using var r = await cmd.ExecuteReaderAsync();
+                if (await r.ReadAsync())
+                {
+                    dto.TieneVideo = !r.IsDBNull(r.GetOrdinal("ArchivoVideo")) && !string.IsNullOrWhiteSpace(r.GetString(r.GetOrdinal("ArchivoVideo")));
+                    dto.TienePDF = !r.IsDBNull(r.GetOrdinal("ArchivoPDF")) && !string.IsNullOrWhiteSpace(r.GetString(r.GetOrdinal("ArchivoPDF")));
+                }
+            }
 
-    }
-}
+            // 2) Leer avance del usuario (video% y PdfVisto)
+            var qAv = @"
+        SELECT TOP 1 
+               ISNULL(PorcentajeVisto,0) AS PorcentajeVisto,
+               ISNULL(PdfVisto, 0)       AS PdfVisto
+        FROM dbo.AvancesSubCursos
+        WHERE UsuarioID = @UsuarioID AND EmpresaID = @EmpresaID AND SubCursoID = @SubCursoID
+        ORDER BY UltimaActividad DESC";
+            using (var cmd2 = new SqlCommand(qAv, connection))
+            {
+                cmd2.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                cmd2.Parameters.AddWithValue("@EmpresaID", empresaId);
+                cmd2.Parameters.AddWithValue("@SubCursoID", subCursoId);
+
+                using var r2 = await cmd2.ExecuteReaderAsync();
+                if (await r2.ReadAsync())
+                {
+                    dto.PorcentajeVideoVisto = Convert.ToInt32(r2["PorcentajeVisto"]);
+                    dto.PdfVisto = Convert.ToBoolean(r2["PdfVisto"]);
+                }
+                else
+                {
+                    dto.PorcentajeVideoVisto = 0;
+                    dto.PdfVisto = false;
+                }
+            }
+
+            return dto;
+        }
+
+        public async Task<bool> MarcarPdfVistoAsync(int usuarioId, int empresaId, int subCursoId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            // UPSERT: si existe, actualiza; si no, inserta
+            var upsert = @"
+MERGE dbo.AvancesSubCursos AS T
+USING (SELECT @UsuarioID AS UsuarioID, @EmpresaID AS EmpresaID, @SubCursoID AS SubCursoID) AS S
+    ON (T.UsuarioID = S.UsuarioID AND T.EmpresaID = S.EmpresaID AND T.SubCursoID = S.SubCursoID)
+WHEN MATCHED THEN
+    UPDATE SET PdfVisto = 1, UltimaActividad = GETDATE()
+WHEN NOT MATCHED THEN
+    INSERT (UsuarioID, EmpresaID, SubCursoID, InicioVisualizacion, TiempoTotalVisto, PorcentajeVisto, PdfVisto, UltimaActividad)
+    VALUES (@UsuarioID, @EmpresaID, @SubCursoID, GETDATE(), 0, 0, 1, GETDATE());";
+
+            using var cmd = new SqlCommand(upsert, connection);
+            cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+            cmd.Parameters.AddWithValue("@EmpresaID", empresaId);
+            cmd.Parameters.AddWithValue("@SubCursoID", subCursoId);
+
+            var rows = await cmd.ExecuteNonQueryAsync();
+            return rows > 0;
+        }
+
+        public async Task<bool> RegistrarProgresoVideoAsync(int usuarioId, int empresaId, int subCursoId, int porcentaje)
+        {
+            porcentaje = Math.Max(0, Math.Min(100, porcentaje));
+            var req = new ActualizarProgresoRequest
+            {
+                UsuarioID = usuarioId,
+                EmpresaID = empresaId,
+                SubCursoID = subCursoId,
+                TiempoTotalVisto = 0,        // si no mides tiempo real aún
+                PorcentajeVisto = porcentaje
+            };
+            return await ActualizarProgresoVideoAsync(req);
+        }
+    } 
+} // <-- FIN namespace ProyectoMatrix.Servicios

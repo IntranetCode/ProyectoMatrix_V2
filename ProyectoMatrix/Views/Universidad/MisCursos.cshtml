@@ -3,6 +3,12 @@
 @{
     ViewData["Title"] = "Mis Cursos - Universidad NS";
     Layout = "_LayoutUniversidad";
+
+    // Totales (unificamos "Asignado" como "Pendiente" para contadores)
+    var total = Model.Count;
+    var completados = Model.Count(x => x.Estado == "Completado");
+    var enProgreso = Model.Count(x => x.Estado == "En Progreso" || x.Estado == "EnProgreso");
+    var pendientes = Model.Count(x => x.Estado == "Pendiente" || x.Estado == "Asignado");
 }
 
 <div class="mis-cursos-container">
@@ -31,15 +37,15 @@
                 <div class="col-md-4 text-end">
                     <div class="header-stats">
                         <div class="stat-item">
-                            <span class="stat-number">@Model.Count</span>
+                            <span class="stat-number">@total</span>
                             <span class="stat-label">Cursos</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-number">@Model.Count(c => c.Estado == "Completado")</span>
+                            <span class="stat-number">@completados</span>
                             <span class="stat-label">Completados</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-number">@Model.Count(c => c.Estado == "En Progreso")</span>
+                            <span class="stat-number">@enProgreso</span>
                             <span class="stat-label">En Progreso</span>
                         </div>
                     </div>
@@ -52,33 +58,21 @@
     <div class="container-fluid mt-4">
         <div class="filters-section">
             <div class="row align-items-center">
-                <div class="col-md-6">
-                    <div class="search-box">
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="fas fa-search"></i>
-                            </span>
-                            <input type="text"
-                                   class="form-control"
-                                   id="searchInput"
-                                   placeholder="Buscar cursos por nombre...">
-                        </div>
-                    </div>
-                </div>
+                
                 <div class="col-md-6">
                     <div class="filter-buttons text-end">
                         <div class="btn-group" role="group">
                             <button class="btn btn-outline-primary active" data-filter="todos">
-                                Todos (@Model.Count)
+                                Todos (@total)
                             </button>
                             <button class="btn btn-outline-success" data-filter="completado">
-                                Completados (@Model.Count(c => c.Estado == "Completado"))
+                                Completados (@completados)
                             </button>
                             <button class="btn btn-outline-warning" data-filter="en-progreso">
-                                En Progreso (@Model.Count(c => c.Estado == "En Progreso"))
+                                En Progreso (@enProgreso)
                             </button>
-                            <button class="btn btn-outline-secondary" data-filter="asignado">
-                                Pendientes (@Model.Count(c => c.Estado == "Asignado"))
+                            <button class="btn btn-outline-secondary" data-filter="pendiente">
+                                Pendientes (@pendientes)
                             </button>
                         </div>
                     </div>
@@ -94,9 +88,22 @@
             <div class="cursos-grid" id="cursosGrid">
                 @foreach (var curso in Model)
                 {
+                    // Normalización de estado para filtro y visualización
+                    var estadoTexto = (curso.Estado ?? string.Empty).Trim();
+                    var isAsignado = string.Equals(estadoTexto, "Asignado", StringComparison.OrdinalIgnoreCase);
+
+                    // "Asignado" cuenta como "pendiente" para el filtro
+                    var estadoFiltro = isAsignado
+                    ? "pendiente"
+                    : estadoTexto.ToLower().Replace(" ", "-"); // "completado" | "en-progreso" | "pendiente"
+
+                    // Texto que se muestra en el chip/etiqueta
+                    var estadoVisual = isAsignado ? "Pendiente" : estadoTexto;
+
                     <div class="curso-card-container"
-                         data-estado="@curso.Estado.ToLower().Replace(" ", "-")"
-                         data-nombre="@curso.NombreCurso.ToLower()">
+                         data-estado="@estadoFiltro"
+                         data-nombre="@((curso.NombreCurso ?? string.Empty).ToLowerInvariant())">
+
                         <div class="curso-card @(curso.ProximoVencimiento ? "border-warning" : "")">
                             <!-- Card Header -->
                             <div class="curso-card-header">
@@ -112,11 +119,10 @@
                                     }
                                 </div>
                                 <div class="curso-header-right">
-                                    <span class="@curso.EstadoClass">@curso.Estado</span>
+                                    <span class="@curso.EstadoClass">@estadoVisual</span>
                                     @if (curso.ProximoVencimiento)
                                     {
-                                        <i class="fas fa-clock text-warning ms-2"
-                                           title="Próximo a vencer"></i>
+                                        <i class="fas fa-clock text-warning ms-2" title="Próximo a vencer"></i>
                                     }
                                 </div>
                             </div>
@@ -175,10 +181,17 @@
                                             <div class="info-item">
                                                 <i class="fas fa-calendar-plus text-muted me-1"></i>
                                                 <small class="text-muted">
-                                                    Asignado: @curso.FechaAsignacion.ToString("dd/MM/yyyy")
-                                                </small>
-                                            </div>
-                                            @if (curso.TieneFechaLimite)
+                                                    @{
+                                                        var fa = curso.FechaAsignacion;
+                                                    }
+                                                                                            Asignado: @(
+                                                                                            (fa is DateTime d && d.Year > 1900)
+                                                                                            ? d.ToString("dd/MM/yyyy")
+                                                                                            : "-"
+                                                                                        )
+                                        </small>
+                                    </div>
+                                    @if (curso.TieneFechaLimite)
                                             {
                                                 <div class="info-item">
                                                     <i class="fas fa-calendar-times @(curso.ProximoVencimiento ? "text-warning" : "text-muted") me-1"></i>
@@ -206,23 +219,19 @@
                                         @if (curso.Estado == "Completado")
                                         {
                                             <i class="fas fa-eye me-2"></i>
-
                                             <text>Revisar Curso</text>
                                         }
                                         else if (curso.Estado == "En Progreso")
                                         {
                                             <i class="fas fa-play me-2"></i>
-
                                             <text>Continuar</text>
                                         }
                                         else
                                         {
                                             <i class="fas fa-play-circle me-2"></i>
-
                                             <text>Comenzar</text>
                                         }
                                     </a>
-
 
                                     @if (curso.Estado == "Completado")
                                     {
@@ -249,7 +258,7 @@
                     </div>
                     <h4 class="text-muted mb-3">No tienes cursos asignados</h4>
                     <p class="text-muted mb-4">
-                        Los cursos que te sean asignados aparecerán aquí.<br>
+                        Los cursos que te sean asignados aparecerán aquí.<br />
                         Contacta a tu administrador para más información.
                     </p>
                     <a href="/Universidad" class="btn btn-universidad">
@@ -284,105 +293,7 @@
     </div>
 </div>
 
-<!-- JavaScript para Funcionalidad -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Filtros de estado
-        const filterButtons = document.querySelectorAll('[data-filter]');
-        const cursoCards = document.querySelectorAll('.curso-card-container');
 
-        filterButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const filter = this.getAttribute('data-filter');
-
-                // Actualizar botones activos
-                filterButtons.forEach(btn => btn.classList.remove('active'));
-                this.classList.add('active');
-
-                // Filtrar cursos
-                cursoCards.forEach(card => {
-                    const estado = card.getAttribute('data-estado');
-
-                    if (filter === 'todos' || estado === filter) {
-                        card.style.display = 'block';
-                        card.style.animation = 'fadeIn 0.3s ease';
-                    } else {
-                        card.style.display = 'none';
-                    }
-                });
-            });
-        });
-
-        // Búsqueda por nombre
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase();
-
-                cursoCards.forEach(card => {
-                    const nombre = card.getAttribute('data-nombre');
-                    const isVisible = card.style.display !== 'none';
-
-                    if (nombre.includes(searchTerm) && isVisible) {
-                        card.style.display = 'block';
-                    } else if (!nombre.includes(searchTerm)) {
-                        card.style.display = 'none';
-                    }
-                });
-            });
-        }
-
-        // Animaciones de hover
-        const cursoCardsElements = document.querySelectorAll('.curso-card');
-        cursoCardsElements.forEach(card => {
-            card.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-4px)';
-                this.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
-            });
-
-            card.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0)';
-                this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-            });
-        });
-    });
-
-    // Función para ver certificado
-    function verCertificado(cursoId) {
-        // Mostrar loading
-        const modal = new bootstrap.Modal(document.getElementById('certificadoModal'));
-        const content = document.getElementById('certificadoContent');
-
-        content.innerHTML = `
-            <div class="text-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Cargando...</span>
-                </div>
-                <p class="mt-3">Cargando certificado...</p>
-            </div>
-        `;
-
-        modal.show();
-
-        // Simular carga de certificado (aquí harías una llamada AJAX real)
-        setTimeout(() => {
-            content.innerHTML = `
-                <div class="text-center">
-                    <div class="certificado-preview">
-                        <i class="fas fa-certificate fa-4x text-warning mb-3"></i>
-                        <h5>Certificado de Finalización</h5>
-                        <p class="text-muted">Has completado exitosamente este curso.</p>
-                        <p><strong>Código:</strong> NSG-2025-001-${cursoId}-001</p>
-                    </div>
-                </div>
-            `;
-
-            document.getElementById('descargarCertificado').onclick = function() {
-                window.open(`/Universidad/DescargarCertificado/${cursoId}`, '_blank');
-            };
-        }, 1500);
-    }
-</script>
 
 <style>
     :root {
@@ -460,21 +371,7 @@
         margin-bottom: 2rem;
     }
 
-    .search-box .input-group-text {
-        background: var(--gray-50);
-        border-right: none;
-    }
-
-    .search-box .form-control {
-        border-left: none;
-        background: var(--gray-50);
-    }
-
-        .search-box .form-control:focus {
-            background: white;
-            box-shadow: none;
-            border-color: var(--primary);
-        }
+   
 
     /* ==== GRID DE CURSOS ==== */
     .cursos-grid {
@@ -567,7 +464,6 @@
         overflow: hidden;
     }
 
-    /* ==== PROGRESO ==== */
     .curso-progress-bar {
         height: 8px;
         border-radius: 4px;
@@ -586,7 +482,6 @@
         color: var(--primary);
     }
 
-    /* ==== FOOTER ==== */
     .curso-card-footer {
         padding: 1rem 1.5rem;
         background: var(--gray-50);
@@ -611,7 +506,6 @@
             transform: translateY(-2px);
         }
 
-    /* ==== ESTADO VACÍO ==== */
     .empty-state {
         background: white;
         border-radius: 14px;
@@ -625,7 +519,6 @@
         opacity: 0.3;
     }
 
-    /* ==== BREADCRUMB ==== */
     .breadcrumb {
         background: none;
         padding: 0;
@@ -641,7 +534,6 @@
         color: var(--gray-600);
     }
 
-    /* ==== CERTIFICADO PREVIEW ==== */
     .certificado-preview {
         padding: 2rem;
         border: 2px dashed var(--gray-300);
@@ -649,7 +541,6 @@
         background: var(--gray-50);
     }
 
-    /* ==== ANIMACIÓN ==== */
     @@keyframes fadeIn {
         from {
             opacity: 0;
@@ -662,7 +553,6 @@
         }
     }
 
-    /* ==== RESPONSIVE ==== */
     @@media (max-width: 768px) {
         .cursos-grid {
             grid-template-columns: 1fr;

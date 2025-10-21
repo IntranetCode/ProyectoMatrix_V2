@@ -9,6 +9,9 @@ using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Seguridad;
 using ProyectoMatrix.Servicios;
+using System.Linq;
+using System.Collections.Generic;
+
 
 namespace ProyectoMatrix.Controllers
 {
@@ -103,8 +106,30 @@ namespace ProyectoMatrix.Controllers
                 switch (request.TipoFiltro?.ToLower())
                 {
                     case "todos":
-                        usuarios = await _universidadServices.GetTodosLosUsuariosActivosAsync(request.IdCurso);
-                        break;
+                        {
+                            // Trae TODAS las empresas activas
+                            var todasEmpresas = await _universidadServices.GetEmpresasActivasAsync();
+
+                            var acumulado = new List<UsuarioAsignacionViewModel>();
+
+                            foreach (var emp in todasEmpresas)
+                            {
+                                // En tu vista, la empresa tiene propiedad "Id" (no EmpresaID)
+                                var lote = await _universidadServices.GetUsuariosPorEmpresaAsync(emp.Id, request.IdCurso);
+                                if (lote != null && lote.Count > 0)
+                                    acumulado.AddRange(lote);
+                            }
+
+                            // Evita duplicados por "Id" (no UsuarioId)
+                            usuarios = acumulado
+                                .GroupBy(u => u.Id)
+                                .Select(g => g.First())
+                                .ToList();
+
+                            break;
+                        }
+
+
                     case "empresa":
                         if (request.IdEmpresa.HasValue)
                             usuarios = await _universidadServices.GetUsuariosPorEmpresaAsync(request.IdEmpresa.Value, request.IdCurso);

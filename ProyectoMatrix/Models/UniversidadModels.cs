@@ -844,6 +844,13 @@ namespace ProyectoMatrix.Models
         public string Estado { get; set; } = "Vigente"; // 🔹 Agregada
     }
 
+    public class PrereqEvaluacionDto
+    {
+        public bool TieneVideo { get; set; }
+        public bool TienePDF { get; set; }
+        public int PorcentajeVideoVisto { get; set; }  // 0..100
+        public bool PdfVisto { get; set; }
+    }
 
 
 

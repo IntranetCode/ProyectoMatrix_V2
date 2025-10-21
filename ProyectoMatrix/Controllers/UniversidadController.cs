@@ -11,6 +11,9 @@ using ProyectoMatrix.Models;
 using ProyectoMatrix.Seguridad;
 using ProyectoMatrix.Servicios;
 using static ProyectoMatrix.Servicios.UniversidadServices;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+
 
 namespace ProyectoMatrix.Controllers
 {
@@ -409,8 +412,8 @@ namespace ProyectoMatrix.Controllers
                     PuedeAprobar = UniversidadPermisosHelper.PermisosUniversidad.PuedeAprobarCursos(rolId),
                     PuedeCrear = puedeCrear,
                     PuedeEditar = puedeEditar,
-                   // PuedeEliminar = puedeEliminar,
-                   // PuedeGestionar = puedeGestionar,
+                    // PuedeEliminar = puedeEliminar,
+                    // PuedeGestionar = puedeGestionar,
 
                     Niveles = niveles ?? new List<NivelEducativoViewModel>(),
                     Cursos = new List<CursoCompleto>(),
@@ -740,9 +743,9 @@ namespace ProyectoMatrix.Controllers
             try
             {
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-               
 
-              
+
+
 
                 if (!ModelState.IsValid)
                 {
@@ -934,7 +937,7 @@ namespace ProyectoMatrix.Controllers
         {
             try
             {
-             
+
 
                 var curso = await _universidadServices.GetCursoPorIdAsync(id);
                 if (curso == null)
@@ -998,7 +1001,7 @@ namespace ProyectoMatrix.Controllers
         {
             try
             {
-               
+
 
                 var curso = await _universidadServices.GetCursoPorIdAsync(cursoId);
                 if (curso == null)
@@ -1036,7 +1039,7 @@ namespace ProyectoMatrix.Controllers
             try
             {
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-             
+
 
                 // Mapear archivos si vienen
                 if (archivoVideo != null && archivoVideo.Length > 0)
@@ -1051,7 +1054,12 @@ namespace ProyectoMatrix.Controllers
                     request.ArchivoPDF = rutaPDF;
                 }
 
-                // ✅ Regla: al menos uno (video o PDF)
+                // Limpia posibles [Required] del modelo para ArchivoVideo/ArchivoPDF (queremos "al menos uno")
+                ModelState.Remove(nameof(request.ArchivoVideo));
+                ModelState.Remove(nameof(request.ArchivoPDF));
+
+
+                // Regla: al menos uno (video o PDF)
                 if (string.IsNullOrWhiteSpace(request.ArchivoVideo) &&
                     string.IsNullOrWhiteSpace(request.ArchivoPDF))
                 {
@@ -1209,7 +1217,12 @@ namespace ProyectoMatrix.Controllers
                         request.ArchivoPDF = existente.ArchivoPDF;
                 }
 
-                // ✅ Regla: al menos uno (video o PDF) después de preservar existentes
+
+                ModelState.Remove(nameof(request.ArchivoVideo));
+                ModelState.Remove(nameof(request.ArchivoPDF));
+
+
+                // Regla: al menos uno (video o PDF) después de preservar existentes
                 if (string.IsNullOrWhiteSpace(request.ArchivoVideo) &&
                     string.IsNullOrWhiteSpace(request.ArchivoPDF))
                 {
@@ -1286,7 +1299,7 @@ namespace ProyectoMatrix.Controllers
                 TempData.Remove("Error");
                 TempData.Remove("Success");
 
-              
+
                 var viewModel = await _universidadServices.GetEvaluacionViewModelAsync(subCursoId);
 
                 if (viewModel == null)
@@ -1335,7 +1348,7 @@ namespace ProyectoMatrix.Controllers
             try
             {
                 var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
-               
+
 
                 if (request.Preguntas == null || !request.Preguntas.Any())
                 {
@@ -1381,7 +1394,8 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
-        [HttpGet("Universidad/TomarEvaluacion/{subCursoId:int}")]
+        [HttpGet("Universidad/TomarEvaluacion/{subCursoId:int}", Name = "Uni_TomarEvaluacion")]
+        [HttpGet("Universidad/TomarEvaluacion")] // permite ?subCursoId=123
         public async Task<IActionResult> TomarEvaluacion([FromRoute] int subCursoId)
         {
             _logger.LogInformation("Entrando a TomarEvaluacion para SubCursoID={SubCursoId}", subCursoId);
@@ -1394,6 +1408,27 @@ namespace ProyectoMatrix.Controllers
 
                 if (!usuarioId.HasValue)
                     return RedirectToAction("Login", "Login");
+
+                // --- CANDADO: verificar requisitos antes de permitir evaluación ---
+                var prereq = await _universidadServices.GetPrerequisitosEvaluacionAsync(
+                    subCursoId, usuarioId.Value, empresaId
+                );
+                /*
+                   El servicio debe devolver:
+                   (bool TieneVideo, bool TienePDF, int PorcentajeVideoVisto, bool PdfVisto)
+                */
+
+                bool videoOk = !prereq.TieneVideo || prereq.PorcentajeVideoVisto >= 95; // umbral 95%
+                bool pdfOk = !prereq.TienePDF || prereq.PdfVisto;
+
+                if (!(videoOk && pdfOk))
+                {
+                    var msg = "Debes completar el contenido antes de la evaluación: ";
+                    if (prereq.TieneVideo && !videoOk) msg += "ver el video completo. ";
+                    if (prereq.TienePDF && !pdfOk) msg += "abrir/ver el PDF.";
+                    TempData["Warning"] = msg.Trim();
+                    return RedirectToAction("TomarSubCurso", new { subCursoId });
+                }
 
                 var viewModel = await _universidadServices.GetTomarEvaluacionViewModelAsync(
                     subCursoId, usuarioId.Value, empresaId);
@@ -1785,7 +1820,7 @@ namespace ProyectoMatrix.Controllers
         // ELIMINAR SUBCURSO
         // =====================================================
         [HttpPost]
-       // [ValidateAntiForgeryToken]
+        // [ValidateAntiForgeryToken]
         [AutorizarAccion("Eliminar curso", "Eliminar")]
         public async Task<IActionResult> EliminarSubCurso(int id, string? motivo = null)
         {
@@ -1866,5 +1901,176 @@ namespace ProyectoMatrix.Controllers
         }
 
 
+        // Marca que el usuario abrió/vio el PDF del subcurso (clic en "Ver PDF")
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarcarPdfVisto([FromBody] VistoPdfRequest request)
+        {
+            try
+            {
+                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
+                              ?? HttpContext.Session.GetInt32("EmpresaID") ?? 1;
+
+                if (!usuarioId.HasValue)
+                    return Json(new { success = false, message = "Sesión expirada." });
+
+                var ok = await _universidadServices.MarcarPdfVistoAsync(
+                    usuarioId.Value, empresaId, request.SubCursoId
+                );
+                return Json(new { success = ok });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al marcar PDF visto");
+                return Json(new { success = false, message = "Error interno del servidor" });
+            }
+        }
+
+
+
+        // ======================
+        // AJAX DTOs (hacer públicos para evitar CS0051)
+        // ======================
+        public sealed class PrereqRequest
+        {
+            public int SubCursoId { get; set; }
+        }
+
+        public class PdfVistoRequest
+        {
+            public int SubCursoId { get; set; }
+        }
+
+        // Compatibilidad: si en algún lugar del código quedó el nombre antiguo VistoPdfRequest
+        public class VistoPdfRequest : PdfVistoRequest { }
+
+        public sealed class ProgresoVideoRequest
+        {
+            public int SubCursoId { get; set; }
+            public int Porcentaje { get; set; } // 0..100
+        }
+
+        // ======================
+        // ENDPOINTS AJAX
+        // ======================
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PrereqEstado([FromBody] PrereqRequest? req)
+        {
+            try
+            {
+                if (req == null || req.SubCursoId <= 0)
+                    return Json(new { ok = false, message = "Solicitud inválida." });
+
+                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
+                              ?? HttpContext.Session.GetInt32("EmpresaID");
+
+                if (!usuarioId.HasValue || !empresaId.HasValue)
+                    return Json(new { ok = false, message = "Sesión expirada." });
+
+                var dto = await _universidadServices.GetPrerequisitosEvaluacionAsync(
+                    req.SubCursoId, usuarioId.Value, empresaId.Value);
+
+                bool ok;
+                string msg;
+
+                if (dto.TieneVideo && dto.TienePDF)
+                {
+                    ok = dto.PorcentajeVideoVisto >= 95 && dto.PdfVisto;
+                    msg = "Debes ver al menos el 95% del video y abrir el PDF.";
+                }
+                else if (dto.TieneVideo)
+                {
+                    ok = dto.PorcentajeVideoVisto >= 95;
+                    msg = "Debes ver al menos el 95% del video.";
+                }
+                else if (dto.TienePDF)
+                {
+                    ok = dto.PdfVisto;
+                    msg = "Debes abrir el PDF desde el botón Ver.";
+                }
+                else
+                {
+                    ok = true; // sin requisitos
+                    msg = "";
+                }
+
+                return Json(new { ok, message = ok ? "" : msg });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en PrereqEstado");
+                return Json(new { ok = false, message = "Error interno del servidor." });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarcarPdfVisto([FromBody] PdfVistoRequest? req)
+        {
+            try
+            {
+                if (req == null || req.SubCursoId <= 0)
+                    return Json(new { success = false, message = "Solicitud inválida." });
+
+                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
+                              ?? HttpContext.Session.GetInt32("EmpresaID");
+
+                if (!usuarioId.HasValue || !empresaId.HasValue)
+                    return Json(new { success = false, message = "Sesión expirada." });
+
+                var ok = await _universidadServices.MarcarPdfVistoAsync(
+                    usuarioId.Value, empresaId.Value, req.SubCursoId);
+
+                return Json(new { success = ok });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en MarcarPdfVisto");
+                return Json(new { success = false, message = "Error interno del servidor." });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RegistrarProgresoVideo([FromBody] ProgresoVideoRequest? req)
+        {
+            try
+            {
+                if (req == null || req.SubCursoId <= 0)
+                    return Json(new { success = false, message = "Solicitud inválida." });
+
+                var usuarioId = HttpContext.Session.GetInt32("UsuarioID");
+                var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada")
+                              ?? HttpContext.Session.GetInt32("EmpresaID");
+
+                if (!usuarioId.HasValue || !empresaId.HasValue)
+                    return Json(new { success = false, message = "Sesión expirada." });
+
+                var pct = Math.Clamp(req.Porcentaje, 0, 100);
+                var ok = await _universidadServices.RegistrarProgresoVideoAsync(
+                    usuarioId.Value, empresaId.Value, req.SubCursoId, pct);
+
+                return Json(new { success = ok });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en RegistrarProgresoVideo");
+                return Json(new { success = false, message = "Error interno del servidor." });
+            }
+        }
+
+
+
+
     }
+
+
+
 }
+
+

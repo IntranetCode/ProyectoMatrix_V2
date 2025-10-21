@@ -6,7 +6,6 @@
 
     var usuarioId = ViewBag.UsuarioId ?? 0;
     var empresaId = ViewBag.EmpresaId ?? 0;
-    var subCursoId = ViewBag.SubCursoId ?? 0;
 }
 
 <div class="subcurso-container">
@@ -81,7 +80,6 @@
                             <div class="ns-controls">
                                 <div class="ns-left">
                                     <button type="button" class="ns-btn ns-btn-primary" id="btnPlay" aria-label="Reproducir/Pausa">
-                                        <!-- ícono play/pause via CSS -->
                                         <span class="ns-icon ns-icon-play" id="iconPlay"></span>
                                     </button>
                                     <button type="button" class="ns-btn" id="btnBack" aria-label="Retroceder 10 segundos" title="Retroceder 10s">
@@ -106,7 +104,6 @@
                                     </div>
                                 </div>
                             </div>
-                     
 
                             <!-- Overlay de progreso -->
                             <div class="video-progress-overlay" id="videoProgressOverlay">
@@ -161,9 +158,7 @@
                             <div class="progress">
                                 <div class="progress-bar bg-primary"
                                      id="overallProgressBar"
-                                     style="width: @Model.PorcentajeVisto%"
-                                     role="progressbar">
-                                </div>
+                                     style="width: @Model.PorcentajeVisto%"></div>
                             </div>
                             <small class="text-muted mt-1 d-block">
                                 Debes ver al menos el 95% del video para completar el módulo
@@ -195,7 +190,6 @@
                 </div>
 
                 <!-- Material adicional -->
-                <!-- Material adicional -->
                 @if (!string.IsNullOrEmpty(Model.ArchivoPDF))
                 {
                     <div class="sidebar-card mb-4">
@@ -211,7 +205,8 @@
                                 </div>
                             </div>
                             <div class="mt-2">
-                                <a href="~/contenidos/@Model.ArchivoPDF"
+                                <a id="btnVerPdf"
+                                   href="~/contenidos/@Model.ArchivoPDF"
                                    target="_blank"
                                    class="btn btn-outline-danger btn-sm me-2">
                                     <i class="fas fa-eye me-1"></i> Ver
@@ -225,7 +220,6 @@
                         </div>
                     </div>
                 }
-
 
                 <!-- Evaluación -->
                 @if (Model.RequiereEvaluacion)
@@ -255,18 +249,18 @@
                             </small>
                         </div>
 
+                        <!-- Botón para tomar evaluación -->
                         <a class="btn btn-warning w-100" id="startEvaluationBtn"
-                           asp-controller="Universidad"
-                           asp-action="TomarEvaluacion"
-                           asp-route-subCursoId="@Model.SubCursoID">
+                           href="/Universidad/TomarEvaluacion/@Model.SubCursoID"
+                           data-subcurso-id="@Model.SubCursoID">
                             <i class="fas fa-play-circle me-2"></i>
                             @(Model.UltimoIntento?.Aprobado == true ? "Repetir Evaluación" : "Tomar Evaluación")
                         </a>
-
-
                     </div>
                 }
 
+
+                @*
                 <!-- Notas personales -->
                 <div class="sidebar-card">
                     <h6 class="sidebar-card-title">
@@ -279,13 +273,15 @@
                     <button class="btn btn-outline-primary btn-sm mt-2" id="saveNotesBtn">
                         <i class="fas fa-save me-1"></i>Guardar
                     </button>
-                </div>
+                </div> 
+                *@
+
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal de evaluación -->
+<!-- Modal de evaluación (si lo usas para futura carga parcial) -->
 <div class="modal fade" id="evaluationModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -305,8 +301,8 @@
 
 <style>
     :root {
-        --primary: #004AAD; /* Azul corporativo */
-        --secondary: #FF6F00; /* Naranja corporativo */
+        --primary: #004AAD;
+        --secondary: #FF6F00;
         --success: #2E7D32;
         --warning: #FFC107;
         --info: #0288D1;
@@ -324,7 +320,6 @@
         font-family: 'Segoe UI', Roboto, sans-serif;
     }
 
-    /* ===== HEADER ===== */
     .subcurso-header {
         background: white;
         padding: 2rem 0;
@@ -353,25 +348,12 @@
         font-size: 0.9rem;
     }
 
-    /* ===== VIDEO PLAYER ===== */
     .video-section {
         background: white;
         border-radius: 14px;
         overflow: hidden;
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         margin-bottom: 2rem;
-    }
-
-    .video-container {
-        position: relative;
-        background: #000;
-    }
-
-    .video-player {
-        width: 100%;
-        height: auto;
-        max-height: 520px;
-        border-bottom: 3px solid var(--primary);
     }
 
     .video-progress-overlay {
@@ -399,7 +381,6 @@
             margin-bottom: 1rem;
         }
 
-    /* ===== PROGRESO Y ESTADÍSTICAS ===== */
     .progress-summary {
         padding: 1.5rem;
     }
@@ -443,7 +424,6 @@
         background-color: var(--secondary);
     }
 
-    /* ===== SIDEBAR ===== */
     .sidebar-card {
         background: white;
         border-radius: 14px;
@@ -461,69 +441,13 @@
         color: var(--primary);
     }
 
-    .sidebar-card > div:not(.sidebar-card-title) {
-        padding: 1.5rem;
-    }
-
-    .material-item {
-        border: 1px solid var(--gray-200);
-        border-radius: 8px;
-        padding: 1rem;
-        background: var(--gray-50);
-        transition: all 0.3s ease;
-    }
-
-        .material-item:hover {
-            background: var(--secondary);
-            color: white;
-            transform: translateY(-2px);
-        }
-
-    /* ===== BOTONES ===== */
     .navigation-buttons .btn {
         border-radius: 8px;
         font-weight: 600;
         padding: 0.6rem 1.2rem;
     }
 
-    .btn-primary {
-        background: var(--primary);
-        border: none;
-    }
-
-        .btn-primary:hover {
-            background: var(--secondary);
-        }
-
-    /* ===== NOTAS Y EVALUACIÓN ===== */
-    #moduleNotes {
-        border-radius: 8px;
-        border: 1px solid var(--gray-200);
-        padding: 0.8rem;
-    }
-
-    .evaluation-info .alert {
-        margin-bottom: 0;
-    }
-
-    /* ===== RESPONSIVE ===== */
-    @@media (max-width: 768px) {
-        .subcurso-title {
-            font-size: 1.6rem;
-        }
-
-        .progress-stats {
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .meta-item {
-            font-size: 0.8rem;
-        }
-    }
-
-
-
+    /* Video + Controles */
     .ns-video {
         position: relative;
         width: 100%;
@@ -539,7 +463,6 @@
         background: #000;
     }
 
-    /* Controles overlay */
     .ns-controls {
         position: absolute;
         left: 0;
@@ -580,10 +503,6 @@
             border-color: rgba(255,255,255,.35);
         }
 
-        .ns-btn:active {
-            transform: translateY(1px);
-        }
-
     .ns-btn-primary {
         width: 44px;
         height: 44px;
@@ -602,7 +521,6 @@
         pointer-events: none;
     }
 
-    /* Iconos con CSS puro */
     .ns-icon {
         width: 0;
         height: 0;
@@ -610,13 +528,13 @@
         display: block;
     }
 
-    .ns-icon-play { /* triángulo play */
+    .ns-icon-play {
         border-left: 10px solid #fff;
         border-top: 6px solid transparent;
         border-bottom: 6px solid transparent;
     }
 
-    .ns-icon-pause { /* pause: dos barras */
+    .ns-icon-pause {
         width: 12px;
         height: 12px;
         box-sizing: content-box;
@@ -640,45 +558,6 @@
             right: 0;
         }
 
-    .ns-icon-back, .ns-icon-fwd {
-        width: 14px;
-        height: 14px;
-        position: relative;
-    }
-
-        .ns-icon-back::before, .ns-icon-back::after,
-        .ns-icon-fwd::before, .ns-icon-fwd::after {
-            content: "";
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 0;
-            height: 0;
-            border-top: 6px solid transparent;
-            border-bottom: 6px solid transparent;
-        }
-
-        .ns-icon-back::before { /* doble triángulo apuntando a la izq */
-            left: 0;
-            border-right: 8px solid #fff;
-        }
-
-        .ns-icon-back::after {
-            left: 6px;
-            border-right: 8px solid #fff;
-        }
-
-        .ns-icon-fwd::before {
-            right: 6px;
-            border-left: 8px solid #fff;
-        }
-
-        .ns-icon-fwd::after {
-            right: 0;
-            border-left: 8px solid #fff;
-        }
-
-    /* Progreso solo visual (no interactivo) */
     .ns-progress {
         display: flex;
         align-items: center;
@@ -694,7 +573,7 @@
         border-radius: 999px;
         background: rgba(255,255,255,.25);
         overflow: hidden;
-        pointer-events: none; /* clave: no clics */
+        pointer-events: none;
     }
 
     .ns-progress-fill {
@@ -714,379 +593,200 @@
         margin: 0 .25rem;
     }
 
-    /* Oculta controles nativos para que se vean solo los personalizados (dejamos accesos mínimos si quieres) */
-    .ns-video-el::-webkit-media-controls-panel {
-        display: none !important;
+    @@media (max-width: 768px) {
+        .subcurso-title {
+            font-size: 1.6rem;
+        }
+
+        .progress-stats {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .meta-item {
+            font-size: 0.8rem;
+        }
     }
-
-    .ns-video-el::-webkit-media-controls {
-        display: none !important;
-    }
-
-
 </style>
 
-@section Scripts{
-
+@section Scripts {
+    @Html.AntiForgeryToken()
     <script>
-        // Variables globales
+        // ===== Utilidades =====
+        function getCsrf() {
+          const el = document.querySelector('input[name="__RequestVerificationToken"]');
+          return el ? el.value : '';
+        }
+        async function postJson(url, payload) {
+          const headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
+          const token = getCsrf();
+          if (token) headers['RequestVerificationToken'] = token;     // si el endpoint valida CSRF
+          const r = await fetch(url, { method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify(payload) });
+          if (!r.ok) {
+            const t = await r.text(); console.error('POST', url, r.status, t);
+            throw new Error('HTTP ' + r.status);
+          }
+          return r.json();
+        }
+
+        // ===== Estado inicial =====
         const videoConfig = {
-            subCursoId: @Model.SubCursoID,
-            usuarioId: @usuarioId,
-            empresaId: @empresaId,
-            progresoPrevio: @Model.PorcentajeVisto,
-            tiempoVistoPrevio: @Model.TiempoTotalVisto,
-            requiereEvaluacion: @Model.RequiereEvaluacion.ToString().ToLower(),
-            completado: @Model.Completado.ToString().ToLower()
+          subCursoId: @Model.SubCursoID,
+          usuarioId: @usuarioId,
+          empresaId: @empresaId,
+          progresoPrevio: Number(@Model.PorcentajeVisto) || 0,
+          tiempoVistoPrevio: Number(@Model.TiempoTotalVisto) || 0,
+          requiereEvaluacion: @Model.RequiereEvaluacion.ToString().ToLower(),
+          completado: @Model.Completado.ToString().ToLower()
         };
 
-        document.addEventListener('DOMContentLoaded', function() {
-            initVideoTracking();
-            initEvaluationButton();
-            initNotesFeature();
-        });
+        // ===== PDF: marcar como visto =====
+        (function(){
+          const linkPdf = document.getElementById('btnVerPdf');
+          if (!linkPdf) return;
+          linkPdf.addEventListener('click', async () => {
+            try {
+              await postJson('@Url.Action("MarcarPdfVisto", "Universidad")', { subCursoId: videoConfig.subCursoId });
+            } catch { /* no bloquear UX */ }
+          });
+        })();
 
-        function initVideoTracking() {
-            const video = document.getElementById('videoPlayer');
-            if (!video) return;
-
-            let lastUpdateTime = 0;
-            let totalWatchTime = videoConfig.tiempoVistoPrevio;
-
-            video.addEventListener('timeupdate', function() {
-                const currentTime = Math.floor(video.currentTime);
-                const duration = Math.floor(video.duration);
-
-                if (currentTime > lastUpdateTime) {
-                    totalWatchTime += (currentTime - lastUpdateTime);
-                    lastUpdateTime = currentTime;
-
-                    const progress = duration > 0 ? Math.min((totalWatchTime / duration) * 100, 100) : 0;
-
-                    updateProgressDisplay(progress, totalWatchTime);
-
-                    // Enviar progreso cada 10 segundos
-                    if (currentTime % 10 === 0) {
-                        sendProgressUpdate(progress, totalWatchTime);
-                    }
-
-                    // Mostrar botón de completar si está cerca del final
-                    if (progress >= 95 && !videoConfig.completado) {
-                        document.getElementById('completeModuleBtn').style.display = 'block';
-                    }
-                }
-            });
-
-            video.addEventListener('pause', function() {
-                lastUpdateTime = Math.floor(video.currentTime);
-            });
-
-            video.addEventListener('play', function() {
-                lastUpdateTime = Math.floor(video.currentTime);
-            });
-        }
-
-        function updateProgressDisplay(progress, timeWatched) {
-            document.getElementById('progressPercentage').textContent = Math.round(progress);
-            document.getElementById('displayProgress').textContent = progress.toFixed(1) + '%';
-
-            const minutes = Math.floor(timeWatched / 60);
-            const seconds = timeWatched % 60;
-            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-
-            document.getElementById('timeWatched').textContent = timeString;
-            document.getElementById('displayTimeWatched').textContent = timeString;
-
-            const progressBar = document.getElementById('overallProgressBar');
-            progressBar.style.width = progress + '%';
-
-            // Actualizar estado
-            const statusBadge = document.getElementById('displayStatus');
-            if (progress >= 95) {
-                statusBadge.className = 'badge bg-success';
-                statusBadge.textContent = 'Completado';
-            } else if (progress > 0) {
-                statusBadge.className = 'badge bg-primary';
-                statusBadge.textContent = 'En Progreso';
-            }
-        }
-
-        function sendProgressUpdate(progress, timeWatched) {
-            fetch('/Universidad/ActualizarProgreso', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    SubCursoID: videoConfig.subCursoId,
-                    UsuarioID: videoConfig.usuarioId,
-                    EmpresaID: videoConfig.empresaId,
-                    TiempoTotalVisto: timeWatched,
-                    PorcentajeVisto: progress
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    console.log('Progreso actualizado');
-                }
-            })
-            .catch(error => console.error('Error actualizando progreso:', error));
-        }
-
-        function initEvaluationButton() {
-            const evaluationBtn = document.getElementById('startEvaluationBtn');
-            if (evaluationBtn) {
-                evaluationBtn.addEventListener('click', function() {
-                    window.location.href = `/Universidad/TomarEvaluacion/${videoConfig.subCursoId}`;
-                });
-            }
-        }
-
-        function initNotesFeature() {
-            const saveBtn = document.getElementById('saveNotesBtn');
-            if (saveBtn) {
-                saveBtn.addEventListener('click', function() {
-                    const notes = document.getElementById('moduleNotes').value;
-                    // Aquí podrías implementar guardar notas en localStorage o enviar al servidor
-                    localStorage.setItem(`notes_${videoConfig.subCursoId}`, notes);
-
-                    // Mostrar confirmación
-                    const originalText = saveBtn.innerHTML;
-                    saveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Guardado';
-                    saveBtn.classList.add('btn-success');
-
-                    setTimeout(() => {
-                        saveBtn.innerHTML = originalText;
-                        saveBtn.classList.remove('btn-success');
-                    }, 2000);
-                });
-
-                // Cargar notas guardadas
-                const savedNotes = localStorage.getItem(`notes_${videoConfig.subCursoId}`);
-                if (savedNotes) {
-                    document.getElementById('moduleNotes').value = savedNotes;
-                }
-            }
-        }
-
-        // Botón completar módulo
-        document.addEventListener('click', function(e) {
-            if (e.target.id === 'completeModuleBtn') {
-                fetch('/Universidad/CompletarSubCurso', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        SubCursoId: videoConfig.subCursoId,
-                        TiempoVisto: videoConfig.tiempoVistoPrevio + Math.floor(document.getElementById('videoPlayer')?.currentTime || 0)
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('¡Módulo completado exitosamente!');
-                        location.reload();
-                    } else {
-                        alert('Error al completar el módulo: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error al completar el módulo');
-                });
-            }
-        });
-    </script>
-
-
-
-    <script>
-        (function () {
+        // ===== Video: progreso + anti-adelantar =====
+        (function(){
           const v = document.getElementById('videoPlayer');
           if (!v) return;
 
-          // Opcional pero recomendado para evitar PiP y cambio de velocidad
-          v.setAttribute('controlsList', 'nodownload noplaybackrate noremoteplayback');
+          v.setAttribute('controlsList','nodownload noplaybackrate noremoteplayback');
           v.disablePictureInPicture = true;
 
-          // Carga el último punto permitido desde el servidor (segundos ya vistos)
-          let lastAllowed = Number(@Model.TiempoTotalVisto) || 0;  // ✅ ajusta si tu propiedad se llama diferente
-          if (lastAllowed < 0) lastAllowed = 0;
-
-          // Pequeño margen para falsos positivos de seeking
+          let lastAllowed = videoConfig.tiempoVistoPrevio || 0;
           const EPS = 0.35;
+          let ultimoEnviado = 0, ultimoTs = 0;
 
-          // Reanudar donde se quedó
           v.addEventListener('loadedmetadata', () => {
             if (lastAllowed > 0 && lastAllowed < (v.duration || Infinity)) {
               v.currentTime = lastAllowed;
             }
-            // Cualquier rate raro se fuerza a 1x
             if (v.playbackRate !== 1) v.playbackRate = 1;
+            document.getElementById('timeDuration').textContent = fmt(v.duration || 0);
           });
 
-          // Mientras ve el video, avanza el límite permitido
-          v.addEventListener('timeupdate', () => {
-            if (v.currentTime > lastAllowed) lastAllowed = v.currentTime;
-          });
-
-          // Evita acelerar la reproducción
-          v.addEventListener('ratechange', () => {
-            if (v.playbackRate !== 1) v.playbackRate = 1;
-          });
-
-          // ——— Núcleo anti-adelanto ———
-          let clampGuardUntil = 0; // tiempo (ms) hasta cuando reforzar el clamp tras un seek
-          function clampIfForward() {
-            if (v.currentTime > lastAllowed + EPS) {
-              // Si intenta ir más allá, lo regresamos al último punto visto
-              v.currentTime = lastAllowed;
-            }
-          }
-
-          // Cuando el usuario busca con la barra o atajos, se dispara seeking/seeked
-          v.addEventListener('seeking', () => {
-            // Permitir ir hacia atrás libremente; solo bloquea si es hacia adelante
-            clampIfForward();
-            // Durante ~700ms después del seek, reforzamos el clamp cada frame
-            clampGuardUntil = performance.now() + 700;
-            requestAnimationFrame(function guard() {
-              clampIfForward();
-              if (performance.now() < clampGuardUntil) requestAnimationFrame(guard);
-            });
-          });
-
-          v.addEventListener('seeked', clampIfForward);
-
-          // Bloquea teclas que adelantan; deja retroceso
-          v.addEventListener('keydown', (e) => {
-            // ArrowRight / End / PageUp suelen adelantar
-            if (['ArrowRight', 'End', 'PageUp'].includes(e.key)) {
-              e.preventDefault();
-              // Si quisieras, podrías permitir salto atrás con ArrowLeft sin tocar nada
-            }
-          });
-
-          // (Opcional) Evita menú contextual (por si alguien intenta hacks)
-          v.addEventListener('contextmenu', e => e.preventDefault());
-        })();
-    </script>
-
-    <script>
-        (function () {
-          const v = document.getElementById('videoPlayer');
-          if (!v) return;
-
-          // ——— elementos UI
-          const btnPlay = document.getElementById('btnPlay');
-          const iconPlay = document.getElementById('iconPlay');
-          const btnBack = document.getElementById('btnBack');
-          const btnFwd  = document.getElementById('btnFwd');
-          const fill    = document.getElementById('progressFill');
-          const tCur    = document.getElementById('timeCurrent');
-          const tDur    = document.getElementById('timeDuration');
-
-          // ——— estado
-          const EPS = 0.35;
-          let lastAllowed = Number(@Model.TiempoTotalVisto) || 0; // reanudar
-          let seekingNow = false;
-
-          // util
-          const fmt = s => {
-            s = Math.max(0, Math.floor(s));
-            const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
-            return h>0 ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
-                       : `${m}:${String(sec).padStart(2,'0')}`;
-          };
-
-          // init
-          v.addEventListener('loadedmetadata', () => {
-            if (v.duration && lastAllowed >= v.duration) lastAllowed = Math.max(0, v.duration - 1);
-            if (lastAllowed > 0) v.currentTime = lastAllowed;
-            tDur.textContent = fmt(v.duration || 0);
-            updateUI();
-          });
-
-          // botones
-          btnPlay.addEventListener('click', async () => {
-            if (v.paused) { try { await v.play(); } catch {} } else { v.pause(); }
-          });
-          v.addEventListener('play',  () => swapIcon('pause'));
-          v.addEventListener('pause', () => swapIcon('play'));
-
-          function swapIcon(state){
-            if (state === 'pause') {
-              iconPlay.classList.remove('ns-icon-play');
-              iconPlay.classList.add('ns-icon-pause');
-            } else {
-              iconPlay.classList.remove('ns-icon-pause');
-              iconPlay.classList.add('ns-icon-play');
-            }
-          }
-
-          btnBack.addEventListener('click', () => {
-            v.currentTime = Math.max(0, v.currentTime - 10);
-          });
-
-          // Adelantar deshabilitado (mostrado solo visual)
-          btnFwd.addEventListener('click', (e) => { e.preventDefault(); });
-
-          // bloquear rate
           v.addEventListener('ratechange', () => { if (v.playbackRate !== 1) v.playbackRate = 1; });
 
-          // bloquear advance
+          function clampIfForward(){
+            if (v.currentTime > lastAllowed + EPS) { v.currentTime = lastAllowed; }
+          }
           v.addEventListener('seeking', () => {
-            seekingNow = true;
-            if (v.currentTime > lastAllowed + EPS) v.currentTime = lastAllowed;
+            clampIfForward();
+            const until = performance.now() + 700;
+            (function guard(){
+              clampIfForward();
+              if (performance.now() < until) requestAnimationFrame(guard);
+            })();
           });
-          v.addEventListener('seeked', () => {
-            if (v.currentTime > lastAllowed + EPS) v.currentTime = lastAllowed;
-            seekingNow = false;
-          });
+          v.addEventListener('seeked', clampIfForward);
 
-          v.addEventListener('timeupdate', () => {
-            if (!v.paused && !seekingNow && v.currentTime > lastAllowed) lastAllowed = v.currentTime;
-            updateUI();
-          });
+          v.addEventListener('timeupdate', async () => {
+            if (v.currentTime > lastAllowed) lastAllowed = v.currentTime;
 
-          // guardia también en pausa (por click en la barra nativa si apareciera)
-          const guard = setInterval(() => {
-            if (v.currentTime > lastAllowed + EPS) v.currentTime = lastAllowed;
-          }, 120);
-
-          window.addEventListener('beforeunload', () => clearInterval(guard));
-
-          // UI
-          function updateUI(){
             const dur = v.duration || 0;
             const cur = v.currentTime || 0;
             const pct = dur ? (cur / dur) * 100 : 0;
-            fill.style.width = `${pct}%`;
-            tCur.textContent = fmt(cur);
-            if (dur) tDur.textContent = fmt(dur);
+            const now = Date.now();
+
+            updateProgressDisplay(pct, Math.floor(cur));
+
+            if (pct - ultimoEnviado >= 5 || (now - ultimoTs) > 5000) {
+              ultimoEnviado = pct; ultimoTs = now;
+              await enviarPct(pct);
+            }
+          });
+
+          v.addEventListener('ended', async () => enviarPct(100));
+
+          async function enviarPct(pct){
+            try {
+              await postJson('@Url.Action("RegistrarProgresoVideo", "Universidad")', {
+                subCursoId: videoConfig.subCursoId,
+                porcentaje: Math.round(pct)
+              });
+            } catch { /* silencioso */ }
           }
 
-          // evitar menú/contexto sobre video
-          v.addEventListener('contextmenu', e => e.preventDefault());
+          // UI play/pause/back y tiempos
+          const btnPlay = document.getElementById('btnPlay');
+          const iconPlay = document.getElementById('iconPlay');
+          const btnBack = document.getElementById('btnBack');
+          const fill = document.getElementById('progressFill');
+          const tCur = document.getElementById('timeCurrent');
+          const tDur = document.getElementById('timeDuration');
+
+          btnPlay?.addEventListener('click', async () => { if (v.paused) { try { await v.play(); } catch {} } else { v.pause(); }});
+          v.addEventListener('play',  () => swapIcon('pause'));
+          v.addEventListener('pause', () => swapIcon('play'));
+          btnBack?.addEventListener('click', () => { v.currentTime = Math.max(0, v.currentTime - 10); });
+
+          function swapIcon(state){
+            if (state === 'pause') { iconPlay.classList.remove('ns-icon-play'); iconPlay.classList.add('ns-icon-pause'); }
+            else { iconPlay.classList.remove('ns-icon-pause'); iconPlay.classList.add('ns-icon-play'); }
+          }
+          function fmt(s){ s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), sec=s%60; return `${m}:${String(sec).padStart(2,'0')}`; }
+          function updateProgressDisplay(progress, curSec){
+            const dur = v.duration || 0;
+            document.getElementById('progressPercentage').textContent = Math.round(progress);
+            document.getElementById('displayProgress').textContent = progress.toFixed(1) + '%';
+            const timeString = fmt(curSec);
+            document.getElementById('timeWatched').textContent = timeString;
+            document.getElementById('displayTimeWatched').textContent = timeString;
+            document.getElementById('overallProgressBar').style.width = progress + '%';
+            if (progress >= 95) {
+              const b = document.getElementById('displayStatus');
+              b.className = 'badge bg-success'; b.textContent = 'Completado';
+              document.getElementById('completeModuleBtn').style.display = 'block';
+            } else if (progress > 0) {
+              const b = document.getElementById('displayStatus');
+              b.className = 'badge bg-primary'; b.textContent = 'En Progreso';
+            }
+            fill.style.width = (dur ? (curSec / dur) * 100 : 0) + '%';
+            tCur.textContent = fmt(curSec);
+            if (dur) tDur.textContent = fmt(dur);
+          }
         })();
-    </script>
 
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        // ===== Botón evaluación: verificar prerrequisitos =====
+        (function(){
           const btn = document.getElementById('startEvaluationBtn');
           if (!btn) return;
-
-          btn.addEventListener('click', () => {
-            const id = btn.getAttribute('data-subcurso-id');
-            // ¡OJO! El parámetro debe llamarse EXACTAMENTE igual que en tu acción: subCursoId
-            window.location.href = '@Url.Action("TomarEvaluacion", "Universidad")' + '?subCursoId=' + encodeURIComponent(id);
+          btn.addEventListener('click', async function(ev){
+            ev.preventDefault();
+            const subCursoId = parseInt(btn.dataset.subcursoId, 10);
+            try {
+              const resp = await postJson('@Url.Action("PrereqEstado", "Universidad")', { subCursoId });
+              if (resp.ok) {
+                window.location = `/Universidad/TomarEvaluacion/${subCursoId}`;
+              } else {
+                alert(resp.message || 'Primero completa el contenido requerido (video y/o PDF).');
+              }
+            } catch {
+              alert('No se pudo verificar los requisitos. Inténtalo de nuevo.');
+            }
           });
-        });
+        })();
+
+        // ===== Notas locales =====
+        (function(){
+          const saveBtn = document.getElementById('saveNotesBtn');
+          if (!saveBtn) return;
+          const key = 'notes_' + @Model.SubCursoID;
+          const txt = document.getElementById('moduleNotes');
+          txt.value = localStorage.getItem(key) || '';
+          saveBtn.addEventListener('click', () => {
+            localStorage.setItem(key, txt.value || '');
+            const original = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Guardado';
+            saveBtn.classList.add('btn-success');
+            setTimeout(()=>{ saveBtn.innerHTML = original; saveBtn.classList.remove('btn-success'); }, 1500);
+          });
+        })();
     </script>
-
-
 }
-
