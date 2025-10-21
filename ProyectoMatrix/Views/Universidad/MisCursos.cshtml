@@ -34,34 +34,19 @@
                         </p>
                     </div>
                 </div>
-                <div class="col-md-4 text-end">
-                    <div class="header-stats">
-                        <div class="stat-item">
-                            <span class="stat-number">@total</span>
-                            <span class="stat-label">Cursos</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-number">@completados</span>
-                            <span class="stat-label">Completados</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-number">@enProgreso</span>
-                            <span class="stat-label">En Progreso</span>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- Filtros y Búsqueda -->
+    <!-- Filtros -->
+    <!-- Se añade un ID al div contenedor del grupo de botones para fácil acceso desde JS -->
     <div class="container-fluid mt-4">
         <div class="filters-section">
             <div class="row align-items-center">
-                
-                <div class="col-md-6">
+                <div class="col-md-6 offset-md-6">
+                    <!-- Alineado a la derecha -->
                     <div class="filter-buttons text-end">
-                        <div class="btn-group" role="group">
+                        <div class="btn-group" role="group" id="filterButtonGroup">
                             <button class="btn btn-outline-primary active" data-filter="todos">
                                 Todos (@total)
                             </button>
@@ -100,6 +85,7 @@
                     // Texto que se muestra en el chip/etiqueta
                     var estadoVisual = isAsignado ? "Pendiente" : estadoTexto;
 
+                    <!-- Cada tarjeta debe tener el atributo data-estado correcto para ser filtrada -->
                     <div class="curso-card-container"
                          data-estado="@estadoFiltro"
                          data-nombre="@((curso.NombreCurso ?? string.Empty).ToLowerInvariant())">
@@ -134,7 +120,8 @@
                                     {
                                         <img src="~/contenidos/@curso.ImagenCurso"
                                              alt="@curso.NombreCurso"
-                                             class="curso-thumbnail">
+                                             class="curso-thumbnail"
+                                             onerror="this.onerror=null; this.src='https://placehold.co/80x80/a0c4ff/ffffff?text=Curso'">
                                     }
                                     else
                                     {
@@ -247,10 +234,23 @@
                     </div>
                 }
             </div>
+
+            <!-- Mensaje de no resultados (oculto por defecto) -->
+            <div id="noResultsMessage" class="empty-state" style="display: none;">
+                <div class="text-center py-5">
+                    <div class="empty-icon mb-4">
+                        <i class="fas fa-box-open fa-4x text-muted"></i>
+                    </div>
+                    <h4 class="text-muted mb-3">No hay cursos en el filtro seleccionado.</h4>
+                    <p class="text-muted mb-4">
+                        Intenta seleccionar el filtro "Todos" para ver todos tus cursos asignados.
+                    </p>
+                </div>
+            </div>
         }
         else
         {
-            <!-- Estado Vacío -->
+            <!-- Estado Vacío Inicial -->
             <div class="empty-state">
                 <div class="text-center py-5">
                     <div class="empty-icon mb-4">
@@ -269,7 +269,7 @@
         }
     </div>
 
-    <!-- Modal para Certificado -->
+    <!-- Modal para Certificado (Mantenido para funcionalidad) -->
     <div class="modal fade" id="certificadoModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -294,7 +294,7 @@
 </div>
 
 
-
+<!-- BLOQUE DE ESTILOS CSS (Mantenido tal cual lo proporcionaste) -->
 <style>
     :root {
         --primary: #004AAD; /* Azul corporativo */
@@ -339,48 +339,116 @@
         font-size: 1rem;
     }
 
-    .header-stats {
-        display: flex;
-        gap: 2rem;
-        justify-content: flex-end;
-    }
-
-    .stat-item {
-        text-align: center;
-    }
-
-    .stat-number {
-        display: block;
-        font-size: 1.6rem;
-        font-weight: 800;
-        color: var(--primary);
-    }
-
-    .stat-label {
-        display: block;
-        font-size: 0.875rem;
-        color: var(--gray-600);
-    }
-
-    /* ==== FILTROS ==== */
+    /* ==== FILTROS (Tus estilos mejorados) ==== */
     .filters-section {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 14px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        background-color: #ffffff;
+        border-radius: 12px;
+        padding: 15px 20px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         margin-bottom: 2rem;
     }
 
-   
-
-    /* ==== GRID DE CURSOS ==== */
-    .cursos-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-        gap: 2rem;
+    .filter-buttons .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px; /* Espaciado entre botones cuando se envuelven */
     }
 
+    @@media (max-width: 767px) {
+        .filter-buttons
+
+    {
+        text-align: center !important;
+    }
+
+    .filter-buttons .btn-group {
+        justify-content: center;
+    }
+
+    }
+
+    .filter-buttons .btn {
+        border-radius: 8px; /* Bordes más redondeados */
+        font-weight: 600;
+        padding: 10px 18px;
+        transition: all 0.3s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+        .filter-buttons .btn:hover {
+            transform: translateY(-2px); /* Pequeño levantamiento */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-buttons .btn.active {
+            color: #ffffff !important;
+            background-color: #0d6efd !important;
+            border-color: #0d6efd !important;
+            box-shadow: 0 5px 15px rgba(13, 110, 253, 0.4) !important;
+            transform: scale(1.03);
+            z-index: 10;
+        }
+
+    /* Colores específicos y hover (Importante mantener !important para la prioridad) */
+    .filter-buttons .btn-outline-primary {
+        color: #0d6efd !important;
+        border-color: #0d6efd !important;
+    }
+
+    .filter-buttons .btn-outline-success {
+        color: #198754 !important;
+        border-color: #198754 !important;
+    }
+
+    .filter-buttons .btn-outline-warning {
+        color: #ffc107 !important;
+        border-color: #ffc107 !important;
+    }
+
+    .filter-buttons .btn-outline-secondary {
+        color: #6c757d !important;
+        border-color: #6c757d !important;
+    }
+
+    .filter-buttons .btn-outline-primary:hover {
+        background-color: #0d6efd !important;
+        color: #ffffff !important;
+    }
+
+    .filter-buttons .btn-outline-success:hover {
+        background-color: #198754 !important;
+        color: #ffffff !important;
+    }
+
+    .filter-buttons .btn-outline-warning:hover {
+        background-color: #ffc107 !important;
+        color: #000000 !important;
+    }
+
+    .filter-buttons .btn-outline-secondary:hover {
+        background-color: #6c757d !important;
+        color: #ffffff !important;
+    }
+
+    /* ==== GRID DE CURSOS ==== (Estilos básicos) */
+    .cursos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); /* Ajustado para mejor layout */
+        gap: 1.5rem;
+    }
+
+    .curso-card-container {
+        /* Añadir animación para cuando aparecen/desaparecen por filtro */
+        transition: all 0.5s ease;
+        overflow: hidden; /* Importante para ocultar */
+    }
+
+        .curso-card-container.hidden {
+            display: none !important; /* Oculta completamente */
+        }
+
     .curso-card {
+        /* ... estilos de tarjeta ... */
         background: white;
         border-radius: 14px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
@@ -389,6 +457,7 @@
         transition: all 0.3s ease;
         display: flex;
         flex-direction: column;
+        height: 100%; /* Asegura que todas las tarjetas tengan la misma altura */
     }
 
         .curso-card:hover {
@@ -405,6 +474,11 @@
         align-items: center;
     }
 
+    .curso-header-left, .curso-header-right {
+        display: flex;
+        align-items: center;
+    }
+
     .curso-nivel {
         color: white;
         padding: 0.25rem 0.75rem;
@@ -413,13 +487,13 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        background: var(--secondary);
     }
 
     .curso-card-body {
         padding: 1.5rem;
         display: flex;
         gap: 1rem;
+        flex-grow: 1;
     }
 
     .curso-image {
@@ -444,6 +518,10 @@
         align-items: center;
         justify-content: center;
         color: var(--gray-400);
+    }
+
+    .curso-content {
+        flex-grow: 1;
     }
 
     .curso-title {
@@ -486,9 +564,17 @@
         padding: 1rem 1.5rem;
         background: var(--gray-50);
         border-top: 1px solid var(--gray-200);
+        margin-top: auto; /* Empuja el footer hacia abajo */
+    }
+
+    .footer-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
 
     .btn-universidad {
+        /* ... estilos del botón ... */
         background: var(--primary);
         color: white;
         border-radius: 8px;
@@ -507,6 +593,7 @@
         }
 
     .empty-state {
+        /* ... estilos de estado vacío ... */
         background: white;
         border-radius: 14px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.08);
@@ -515,62 +602,101 @@
         padding: 3rem 2rem;
     }
 
-    .empty-icon {
-        opacity: 0.3;
-    }
-
-    .breadcrumb {
-        background: none;
-        padding: 0;
-        margin-bottom: 1rem;
-    }
-
-    .breadcrumb-item a {
-        color: var(--primary);
-        text-decoration: none;
-    }
-
-    .breadcrumb-item.active {
-        color: var(--gray-600);
-    }
-
-    .certificado-preview {
-        padding: 2rem;
-        border: 2px dashed var(--gray-300);
-        border-radius: 10px;
-        background: var(--gray-50);
-    }
-
-    @@keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
+    /* Media Queries (Mantenidas) */
     @@media (max-width: 768px) {
-        .cursos-grid {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
+        .cursos-grid
 
-        .header-stats {
-            justify-content: center;
-            margin-top: 1rem;
-        }
+    {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
 
-        .curso-card-body {
-            flex-direction: column;
-            text-align: center;
-        }
+    .curso-card-body {
+        flex-direction: column;
+        text-align: center;
+    }
 
-        .curso-image {
-            align-self: center;
-        }
+    .curso-image {
+        align-self: center;
+    }
+
     }
 </style>
+
+
+<!-- JavaScript para el Filtrado -->
+<script>
+    // Se ejecuta una vez que el DOM (Document Object Model) esté completamente cargado.
+    document.addEventListener('DOMContentLoaded', function () {
+        const filterGroup = document.getElementById('filterButtonGroup');
+        const cursoCards = document.querySelectorAll('.curso-card-container');
+        const noResultsMessage = document.getElementById('noResultsMessage');
+
+        /**
+         * Función principal para aplicar el filtro de cursos.
+         * @@param {string} filterValue - El valor del filtro a aplicar ('todos', 'completado', etc.)
+         */
+        function applyFilter(filterValue) {
+            let visibleCount = 0;
+            const isTodos = filterValue === 'todos';
+
+            cursoCards.forEach(card => {
+                const cardState = card.getAttribute('data-estado');
+
+                // Muestra la tarjeta si el filtro es 'todos' o si el estado coincide
+                if (isTodos || cardState === filterValue) {
+                    card.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            // Muestra u oculta el mensaje de "No hay resultados"
+            if (visibleCount === 0) {
+                noResultsMessage.style.display = 'block';
+            } else {
+                noResultsMessage.style.display = 'none';
+            }
+        }
+
+        // Agrega el listener de eventos al grupo de botones para delegar el click
+        if (filterGroup) {
+            filterGroup.addEventListener('click', function (event) {
+                const clickedButton = event.target.closest('button');
+
+                if (clickedButton && clickedButton.hasAttribute('data-filter')) {
+                    // 1. Obtener el valor del filtro
+                    const filterValue = clickedButton.getAttribute('data-filter');
+
+                    // 2. Remover la clase 'active' de todos los botones
+                    filterGroup.querySelectorAll('button').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+
+                    // 3. Añadir la clase 'active' al botón clickeado
+                    clickedButton.classList.add('active');
+
+                    // 4. Aplicar el filtro a las tarjetas
+                    applyFilter(filterValue);
+                }
+            });
+        }
+
+        // Ejecutar el filtro inicial al cargar la página (para mostrar el estado 'todos')
+        applyFilter('todos');
+    });
+
+    // Función placeholder para el certificado (manteniendo la funcionalidad existente)
+    function verCertificado(cursoId) {
+        // En un escenario real, aquí harías una llamada AJAX para cargar el certificado
+        const modal = new bootstrap.Modal(document.getElementById('certificadoModal'));
+        document.getElementById('certificadoContent').innerHTML = `
+            <div class="text-center certificado-preview">
+                <h5>Cargando Certificado...</h5>
+                <p>Solicitando el certificado digital para el Curso ID: ${cursoId}.</p>
+            </div>
+        `;
+        modal.show();
+    }
+</script>

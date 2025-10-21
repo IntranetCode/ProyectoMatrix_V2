@@ -3,6 +3,7 @@
     ViewData["Title"] = "Evaluación";
     Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
 }
+@Html.AntiForgeryToken()
 
 <div class="container-fluid p-4">
     <!-- Header -->
@@ -69,16 +70,19 @@
         <input type="hidden" id="usuarioId" value="@ViewBag.UsuarioId">
         <input type="hidden" id="empresaId" value="@ViewBag.EmpresaId">
 
-
+        @{
+            var num = 0;
+        }
         @foreach (var pregunta in Model.Preguntas.OrderBy(p => p.Orden))
         {
+            num++;
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card border-0 shadow-sm">
                         <div class="card-header bg-light">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h5 class="card-title mb-0">
-                                    Pregunta @pregunta.Orden
+                                    Pregunta @num
                                 </h5>
                                 <span class="badge bg-primary">@pregunta.PuntajeMaximo pts</span>
                             </div>
@@ -86,9 +90,10 @@
                         <div class="card-body">
                             <h6 class="mb-4">@pregunta.TextoPregunta</h6>
 
+                            @* Múltiple *@
                             @if (pregunta.TipoPregunta == "Multiple")
                             {
-                                @foreach (var opcion in pregunta.Opciones.OrderBy(o => o.Orden))
+                                foreach (var opcion in pregunta.Opciones.OrderBy(o => o.Orden))
                                 {
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="radio"
@@ -96,20 +101,20 @@
                                                id="opcion_@opcion.OpcionID"
                                                value="@opcion.OpcionID">
                                         <label class="form-check-label w-100" for="opcion_@opcion.OpcionID">
-                                            <div class="p-2 rounded hover-bg-light">
-                                                @opcion.TextoOpcion
-                                            </div>
+                                            <div class="p-2 rounded hover-bg-light">@opcion.TextoOpcion</div>
                                         </label>
                                     </div>
                                 }
                             }
                             else if (pregunta.TipoPregunta == "Verdadero/Falso")
                             {
+                                var opV = pregunta.Opciones.First(o => o.TextoOpcion == "Verdadero");
+                                var opF = pregunta.Opciones.First(o => o.TextoOpcion == "Falso");
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="radio"
                                            name="pregunta_@pregunta.PreguntaID"
                                            id="verdadero_@pregunta.PreguntaID"
-                                           value="@pregunta.Opciones.First(o => o.TextoOpcion == "Verdadero").OpcionID">
+                                           value="@opV.OpcionID">
                                     <label class="form-check-label" for="verdadero_@pregunta.PreguntaID">
                                         <span class="badge bg-success me-2">V</span> Verdadero
                                     </label>
@@ -118,7 +123,7 @@
                                     <input class="form-check-input" type="radio"
                                            name="pregunta_@pregunta.PreguntaID"
                                            id="falso_@pregunta.PreguntaID"
-                                           value="@pregunta.Opciones.First(o => o.TextoOpcion == "Falso").OpcionID">
+                                           value="@opF.OpcionID">
                                     <label class="form-check-label" for="falso_@pregunta.PreguntaID">
                                         <span class="badge bg-danger me-2">F</span> Falso
                                     </label>
@@ -135,6 +140,7 @@
                 </div>
             </div>
         }
+
 
         <!-- Botones de acción -->
         <div class="row">
@@ -295,49 +301,7 @@
             new bootstrap.Modal(document.getElementById('modalConfirmacion')).show();
         }
 
-        function entregarEvaluacion() {
-            // 🚫 Quita el aviso justo al entregar
-            unloadGuard.disable();
-
-            const respuestas = recopilarRespuestas();
-            const tiempoEmpleado = Math.floor((tiempoLimite - tiempoRestante) / 60);
-
-            const datos = {
-                subCursoId: parseInt(document.getElementById('subCursoId').value),
-                tiempoEmpleado: tiempoEmpleado,
-                respuestas: respuestas
-            };
-
-            fetch('/Universidad/EntregarEvaluacion', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(datos)
-            })
-            .then(r => r.json())
-            .then(result => {
-                if (result.success) {
-                    let msg = `Evaluación entregada exitosamente.\nCalificación: ${result.calificacion}%\nEstado: ${result.aprobado ? 'APROBADO' : 'REPROBADO'}`;
-
-                    // 👇 Mostrar felicitación si terminó el curso
-                    if (result.cursoCompleto) {
-                        msg += "\n🎉 ¡Felicidades! Has completado el curso. Tu certificado ya está disponible en 'Mis Certificados'.";
-                    }
-
-                    alert(msg);
-                    window.location.href = '/Universidad/MisCursos';
-                } else {
-                    alert('Error: ' + result.message);
-                    unloadGuard.enable();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al entregar la evaluación');
-                unloadGuard.enable();
-            });
-        }
+      
 
                 function recopilarRespuestas() {
             const respuestas = {};
@@ -398,6 +362,104 @@
 
 
     </script>
+    <script>
+        // === Token antiforgery
+        function getCsrf() {
+          return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+        }
+
+        // === Construir DICCIONARIO { [preguntaId]: RespuestaDto }
+        function recopilarRespuestasDict() {
+          const dic = {};
+
+          // Radios (múltiple y V/F)
+          document.querySelectorAll('input[type="radio"]:checked').forEach(input => {
+            const preguntaId = parseInt(input.name.split('_')[1], 10);
+            const opcionId = parseInt(input.value, 10);
+            if (!Number.isNaN(preguntaId) && !Number.isNaN(opcionId)) {
+              dic[preguntaId] = { Tipo: 'opcion', OpcionId: opcionId, Texto: null };
+            }
+          });
+
+          // Abiertas
+          document.querySelectorAll('textarea[name^="pregunta_abierta_"]').forEach(t => {
+            const preguntaId = parseInt(t.name.split('_')[2], 10);
+            const texto = (t.value || '').trim();
+            if (!Number.isNaN(preguntaId) && texto.length) {
+              dic[preguntaId] = { Tipo: 'abierta', OpcionId: null, Texto: texto };
+            }
+          });
+
+          return dic;
+        }
+
+        async function entregarEvaluacion() {
+          // desactiva guard si lo usas
+          window.unloadGuard?.disable?.();
+
+          const subCursoId = parseInt(document.getElementById('subCursoId')?.value || '0', 10);
+          if (!subCursoId) {
+            alert('No se detectó el SubCursoId. Recarga la página.');
+            window.unloadGuard?.enable?.();
+            return;
+          }
+
+          const respuestasDict = recopilarRespuestasDict();
+
+          // ⏱ el modelo espera MINUTOS
+          const tiempoEmpleadoMin = Math.max(0, Math.floor((@Model.TiempoLimiteMinutos * 60 - (typeof tiempoRestante === 'number' ? tiempoRestante : 0)) / 60));
+
+          // ⚠️ Usa **PascalCase** para minimizar riesgos de binding
+          const payload = {
+            SubCursoId: subCursoId,
+            TiempoEmpleado: tiempoEmpleadoMin,
+            Respuestas: respuestasDict
+            // UsuarioId/EmpresaId existen en el DTO, pero no son necesarios: los tomamos de sesión
+          };
+
+          // (Debug) te muestra exactamente lo que se envía
+          console.debug('Payload entrega', payload, JSON.stringify(payload));
+
+          try {
+            const resp = await fetch('/Universidad/EntregarEvaluacion', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getCsrf()
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify(payload)
+            });
+
+            if (!resp.ok) {
+              const txt = await resp.text();
+              const msg = (resp.status === 400 || resp.status === 403)
+                ? 'Sesión expirada o token inválido. Recarga la página.'
+                : `Error ${resp.status}.`;
+              console.error('Respuesta no OK', resp.status, txt);
+              alert('Error al entregar la evaluación: ' + msg);
+              window.unloadGuard?.enable?.();
+              return;
+            }
+
+            const data = await resp.json();
+            if (data?.success) {
+              let msg = `Evaluación entregada.\nCalificación: ${data.calificacion}%\nEstado: ${data.aprobado ? 'APROBADO' : 'REPROBADO'}`;
+              if (data.cursoCompleto) msg += `\n🎉 ¡Curso completado!`;
+              alert(msg);
+              window.location.href = '/Universidad/MisCursos';
+            } else {
+              alert('Error: ' + (data?.message || 'No se pudo entregar.'));
+              window.unloadGuard?.enable?.();
+            }
+          } catch (e) {
+            console.error('Error entregando evaluación', e);
+            alert('Error al entregar la evaluación.');
+            window.unloadGuard?.enable?.();
+          }
+        }
+    </script>
+
 
     <style>
         .hover-bg-light:hover {
