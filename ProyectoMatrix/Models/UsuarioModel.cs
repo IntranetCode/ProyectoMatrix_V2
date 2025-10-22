@@ -13,8 +13,8 @@ namespace ProyectoMatrix.Models
         public int EmpresaID { get; set; }
         public string Username { get; set; }
 
-       
-        
+
+
         // Contraseña hasheada en la base de datos
         public string Password { get; set; } = string.Empty;
 
@@ -39,11 +39,25 @@ namespace ProyectoMatrix.Models
     /// SE LE AGREGO KEY AL EPRESA MODEL
     public class EmpresaModel
     {
-       [Key]
+        [Key]
         public int EmpresaID { get; set; }
         public string Nombre { get; set; } = string.Empty;
         public string Logo { get; set; } = string.Empty;
         public string ColorPrimario { get; set; } = string.Empty;
+    }
+
+    //Esta entidad nos pemrite obtener los datos de mi perfil de 
+    //cada uno de los usuarios, esta acción de usará para que el 
+    //usuario los pueda ver desde el boton Mi Perfil
+    public class UsuarioPerfilViewModel
+    {
+        [Key]
+        public string NombreUsuario { get; set; } = "";
+        public string Username { get; set; } = "";
+        public string? Correo { get; set; }
+        public string? Telefono { get; set; }
+        public string? NombreRol { get; set; }
+        public string? DescripcionRol { get; set; }
     }
 }
 

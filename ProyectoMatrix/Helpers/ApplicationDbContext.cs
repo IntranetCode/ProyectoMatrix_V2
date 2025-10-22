@@ -12,6 +12,10 @@ namespace ProyectoMatrix.Models
         {
         }
 
+        public DbSet<UsuarioPerfilViewModel> PerfilUsuarioResults => Set<UsuarioPerfilViewModel>();
+
+
+
         // --- DbSets para el módulo de Usuarios y Auditoría ---
         public DbSet<Usuario> Usuarios { get; set; }
         public DbSet<Persona> Personas { get; set; }
@@ -110,6 +114,8 @@ namespace ProyectoMatrix.Models
                 .WithMany()
                 .HasForeignKey(x => x.NotificacionId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UsuarioPerfilViewModel>().HasNoKey();
         }
     }
 }

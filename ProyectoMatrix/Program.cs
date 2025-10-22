@@ -17,7 +17,6 @@ using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
 using System.Security.Claims;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 // ? AGREGAR ESTAS LÍNEAS PARA ARCHIVOS GRANDES
@@ -96,6 +95,9 @@ builder.Services.AddAuthorization();
 
 // 4. Registramos todos tus servicios
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+builder.Services.AddScoped<PerfilUsuarioService>();
+
+
 
 
 // ? SERVICIOS Universidad NS
@@ -128,7 +130,7 @@ builder.Services.AddScoped<IServicioAcceso, ServicioAcceso>();
 
 var app = builder.Build();
 
-// Configurar el middleware
+// Configurar el middleware                                             
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -167,7 +169,7 @@ app.MapControllers();
 app.MapControllerRoute(
     name: "universidad",
     pattern: "Universidad/{action=Index}/{id?}",
-    defaults: new { controller = "Universidad" });
+    defaults: new { controller = "Universidad" });  
 
 app.MapControllerRoute(
     name: "default",
