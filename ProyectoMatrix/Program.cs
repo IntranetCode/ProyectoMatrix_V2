@@ -95,6 +95,9 @@ builder.Services.AddAuthorization();
 
 // 4. Registramos todos tus servicios
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+builder.Services.AddScoped<PerfilUsuarioService>();
+
+
 
 
 // ? SERVICIOS Universidad NS
@@ -127,7 +130,7 @@ builder.Services.AddScoped<IServicioAcceso, ServicioAcceso>();
 
 var app = builder.Build();
 
-// Configurar el middleware
+// Configurar el middleware                                             
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");

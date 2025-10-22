@@ -17,17 +17,18 @@ namespace ProyectoMatrix.Controllers
 
         ////////////////////////////////////////////////////
         private readonly PerfilUsuarioService _perfil;
-        public UsuariosController(PerfilUsuarioService perfil) => _perfil = perfil;
-
+        public UsuariosController(PerfilUsuarioService perfil)
+        {
+            _perfil = perfil;
+        }
 
         [HttpGet]
         public async Task<IActionResult> PerfilModal()
         {
-            var username = User.Identity?.Name; // o tu claim
-            if (string.IsNullOrWhiteSpace(username)) return Unauthorized();
-
+            var username = User.Identity?.Name ?? "JMORANS"; // 👈 temporal para pruebas
             var vm = await _perfil.ObtenerPerfilPorUsernameAsync(username);
-            if (vm is null) return Content("<div class='p-3'>No se encontró tu perfil.</div>", "text/html");
+            if (vm == null)
+                return Content("<div class='p-3 text-danger'>No se encontró el perfil.</div>", "text/html");
 
             return PartialView("_PerfilModalContent", vm);
         }

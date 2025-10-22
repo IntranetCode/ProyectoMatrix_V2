@@ -12,6 +12,10 @@ namespace ProyectoMatrix.Models
         {
         }
 
+        public DbSet<UsuarioPerfilViewModel> PerfilUsuarioResults => Set<UsuarioPerfilViewModel>();
+
+
+
         // --- DbSets para el módulo de Usuarios y Auditoría ---
         public DbSet<Usuario> Usuarios { get; set; }
         public DbSet<Persona> Personas { get; set; }
@@ -20,7 +24,6 @@ namespace ProyectoMatrix.Models
         public DbSet<UsuariosEmpresas> UsuariosEmpresas { get; set; }
         public DbSet<AuditoriaUsuario> AuditoriasUsuarios { get; set; }
         public DbSet<V_InformacionUsuarioCompleta> InformacionUsuariosCompletos { get; set; }
-        public DbSet<UsuarioPerfilViewModel> PerfilUsuarioResults { get; set; }
 
         // --- AÑADIDOS PARA EL MÓDULO DE PERMISOS ---
         public DbSet<Menu> Menus { get; set; }
@@ -111,6 +114,8 @@ namespace ProyectoMatrix.Models
                 .WithMany()
                 .HasForeignKey(x => x.NotificacionId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UsuarioPerfilViewModel>().HasNoKey();
         }
     }
 }

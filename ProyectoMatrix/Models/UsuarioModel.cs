@@ -51,6 +51,7 @@ namespace ProyectoMatrix.Models
     //usuario los pueda ver desde el boton Mi Perfil
     public class UsuarioPerfilViewModel
     {
+        [Key]
         public string NombreUsuario { get; set; } = "";
         public string Username { get; set; } = "";
         public string? Correo { get; set; }
