@@ -95,7 +95,7 @@ builder.Services.AddAuthorization();
 
 // 4. Registramos todos tus servicios
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
-builder.Services.AddScoped<PerfilUsuarioService>();
+//builder.Services.AddScoped<PerfilUsuarioService>();
 
 
 

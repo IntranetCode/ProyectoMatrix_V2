@@ -26,10 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Servicios\PerfilUsuarioService.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="bootstrap" Version="5.3.6" />
     <PackageReference Include="Dapper" Version="2.1.66" />
