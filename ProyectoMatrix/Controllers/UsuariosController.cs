@@ -25,10 +25,13 @@ namespace ProyectoMatrix.Controllers
         [HttpGet]
         public async Task<IActionResult> PerfilModal()
         {
-            var username = User.Identity?.Name ?? "JMORANS"; // 👈 temporal para pruebas
+            var username = User.Identity?.Name;
+            if (string.IsNullOrWhiteSpace(username))
+                return Unauthorized();
+
             var vm = await _perfil.ObtenerPerfilPorUsernameAsync(username);
-            if (vm == null)
-                return Content("<div class='p-3 text-danger'>No se encontró el perfil.</div>", "text/html");
+            if (vm is null)
+                return NotFound(); 
 
             return PartialView("_PerfilModalContent", vm);
         }
