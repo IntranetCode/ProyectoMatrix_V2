@@ -5,22 +5,34 @@ using ProyectoMatrix.Areas.AdminUsuarios.DTOs;
 using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Models.ModelUsuarios;
-using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
+using ProyectoMatrix.Servicios;
 
 namespace ProyectoMatrix.Controllers
-{
+{ 
+
     public class UsuariosController : Controller
     {
         private readonly IUsuarioService _usuarioService;
         private readonly ApplicationDbContext _context;
 
-        public UsuariosController(
-            IUsuarioService usuarioService,
-            ApplicationDbContext context)
+        ////////////////////////////////////////////////////
+        private readonly PerfilUsuarioService _perfil;
+        public UsuariosController(PerfilUsuarioService perfil) => _perfil = perfil;
+
+
+        [HttpGet]
+        public async Task<IActionResult> PerfilModal()
         {
-            _usuarioService = usuarioService;
-            _context = context;
+            var username = User.Identity?.Name; // o tu claim
+            if (string.IsNullOrWhiteSpace(username)) return Unauthorized();
+
+            var vm = await _perfil.ObtenerPerfilPorUsernameAsync(username);
+            if (vm is null) return Content("<div class='p-3'>No se encontró tu perfil.</div>", "text/html");
+
+            return PartialView("_PerfilModalContent", vm);
         }
+
+        ///////////////////////////////////////////////////
 
         public async Task<IActionResult> Index(bool? activos, string? filtroCampo, string? busqueda)
         {
