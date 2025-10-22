@@ -167,7 +167,7 @@ app.MapControllers();
 app.MapControllerRoute(
     name: "universidad",
     pattern: "Universidad/{action=Index}/{id?}",
-    defaults: new { controller = "Universidad" });
+    defaults: new { controller = "Universidad" });  
 
 app.MapControllerRoute(
     name: "default",

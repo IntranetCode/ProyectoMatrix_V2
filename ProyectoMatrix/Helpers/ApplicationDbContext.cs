@@ -20,6 +20,7 @@ namespace ProyectoMatrix.Models
         public DbSet<UsuariosEmpresas> UsuariosEmpresas { get; set; }
         public DbSet<AuditoriaUsuario> AuditoriasUsuarios { get; set; }
         public DbSet<V_InformacionUsuarioCompleta> InformacionUsuariosCompletos { get; set; }
+        public DbSet<UsuarioPerfilViewModel> PerfilUsuarioResults { get; set; }
 
         // --- AÑADIDOS PARA EL MÓDULO DE PERMISOS ---
         public DbSet<Menu> Menus { get; set; }
