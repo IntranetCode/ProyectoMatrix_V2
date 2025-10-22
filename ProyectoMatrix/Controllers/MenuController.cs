@@ -43,7 +43,7 @@ namespace ProyectoMatrix.Controllers
             if (usuarioID == null)
                 return RedirectToAction("Login", "Login");
 
-            // ✅ FORZAR RECARGA SI HUBO CAMBIOS DE PERMISOS
+      
             bool forzarRecarga = (TempData["RefreshMenu"] as string) == "true";
 
             if (forzarRecarga)
@@ -141,27 +141,55 @@ ORDER BY m.MenuID;";
                 var x when x.Contains("líder") || x.Contains("lider") => "/Lider/Entrada",
                 var x when x.Contains("proyectos") => "/Proyectos/Index",
                 var x when x.Contains("comunicado") => "/Comunicados/Index",
+                var x when x.Contains("help") => "/HelpDesk/Index",
                 _ => "/"
             };
         }
         private string GetIconoParaMenu(string nombreMenu)
         {
-            if (string.IsNullOrEmpty(nombreMenu)) return "fa-cogs";
-            var menuLower = nombreMenu?.Trim().ToLowerInvariant() ?? "";
-            return menuLower switch
+            if (string.IsNullOrWhiteSpace(nombreMenu)) return "fa-cogs";
+
+           
+            var normalized = RemoveAccents(nombreMenu.Trim().ToLowerInvariant());
+
+            return normalized switch
             {
-                var x when x.Contains("universidad") => "fa-graduation-cap",
-                var x when x.Contains("usuario") => "fa-users",
-                var x when x.Contains("gestión") => "fa-users-cog",
-                var x when x.Contains("líder") || x.Contains("lider") => "fa-user-tie",
-                var x when x.Contains("comunicado") => "fa-bullhorn",
-                var x when x.Contains("mejora") => "fa-chart-line",
-                var x when x.Contains("compra") => "fa-shopping-cart",
-                var x when x.Contains("logística") => "fa-truck",
-                var x when x.Contains("help") => "fa-headset",
+               
+                var s when s.Contains("universidad") || s.Contains("capacitacion") => "fa-graduation-cap",
+                var s when s.Contains("usuario") => "fa-users",
+                var s when s.Contains("gestion") => "fa-user-cog", 
+                var s when s.Contains("lider") => "fa-user-shield",  
+                var s when s.Contains("comunicado") || s.Contains("anuncio") => "fa-bullhorn",
+                var s when s.Contains("mejora") || s.Contains("continua") => "fa-chart-line",
+                var s when s.Contains("compra") => "fa-shopping-cart",
+                var s when s.Contains("logistica") => "fa-truck",
+                var s when s.Contains("embarque") => "fa-ship",
+                var s when s.Contains("help") || s.Contains("soporte") || s.Contains("asistencia") => "fa-circle-question",  // ✅ FA6 FREE
+                var s when s.Contains("ticket") => "fa-ticket",
+                var s when s.Contains("proyecto") => "fa-folder-open",
                 _ => "fa-cogs"
             };
         }
+
+        private string RemoveAccents(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return text;
+
+            var normalizedString = text.Normalize(System.Text.NormalizationForm.FormD);
+            var stringBuilder = new System.Text.StringBuilder();
+
+            foreach (var c in normalizedString)
+            {
+                var unicodeCategory = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != System.Globalization.UnicodeCategory.NonSpacingMark)
+                {
+                    stringBuilder.Append(c);
+                }
+            }
+
+            return stringBuilder.ToString().Normalize(System.Text.NormalizationForm.FormC);
+        }
+
         private string GetDescripcionParaMenu(string nombreMenu)
         {
             if (string.IsNullOrEmpty(nombreMenu)) return "";

@@ -30,6 +30,8 @@
     <meta charset="utf-8" />
     <title>@ViewData["Title"]</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="~/css/overlay.css" asp-append-version="true" />
+
 
     <!-- CSS -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
@@ -39,6 +41,8 @@
     @RenderSection("Estilos", required: false)
 </head>
 <body class="empresa-@empresaId">
+    @await Html.PartialAsync("_Overlay")
+
     <!-- NAVBAR -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom">
         <div class="container-fluid ">
@@ -137,5 +141,7 @@
             crossorigin="anonymous"></script>
 
     @RenderSection("Scripts", required: false)
+    <script src="~/js/overlay.js" asp-append-version="true"></script>
+
 </body>
 </html>

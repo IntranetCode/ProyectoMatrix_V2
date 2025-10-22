@@ -4,9 +4,9 @@
     box-sizing: border-box;
 }
 
-@media(prefers-reduced-motion: reduce){
-    *{
-        animation:none !important;
+@media(prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
         transition: none !important;
     }
 }
@@ -123,6 +123,7 @@ body {
     transition: all 0.25s ease-in-out;
     position: relative;
 }
+
     .quick-action-btn:hover {
         background: linear-gradient(135deg, #04173b, #063f63);
         color: #ffffff;
@@ -248,8 +249,7 @@ body {
         .dropdown-item:last-child:hover {
             background: #fef2f2;
             color: #dc2626;
- 
-            }
+        }
 /*.animate-welcome {
     animation: expandAndReturn 2s ease-out;
 }*/
@@ -269,14 +269,14 @@ body {
     font-size: 2rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
-    color: #fff ;
+    color: #fff;
 }
 
 .welcome-subtitle {
     font-size: 1.1rem;
     opacity: 0.9;
     margin: 0;
-    color: #fff ;
+    color: #fff;
 }
 
 
@@ -523,28 +523,28 @@ body {
         padding: 1rem;
     }
 
-    .navbar-left{
+    .navbar-left {
         flex-direction: column;
         gap: 1rem;
     }
 
-    .navbar-brand{
+    .navbar-brand {
         font-size: 1.1rem;
     }
 
-    .navbar-logo{
+    .navbar-logo {
         width: 60px;
         height: 60px;
     }
 
-    
-    .navbar.user-toggle{
-        display:block;
-        background:none;
-        border:none;
+
+    .navbar.user-toggle {
+        display: block;
+        background: none;
+        border: none;
         color: #fff;
-        font-size:1.5rem;
-        cursor:pointer;
+        font-size: 1.5rem;
+        cursor: pointer;
     }
 
     .navbar-links {
@@ -645,7 +645,6 @@ body {
 
 .welcome-box {
     width: min(90%, 900px);
-    
     padding: 3rem 2rem;
     border-radius: 20px;
     background: linear-gradient(135deg, #04173b 0%, #063f63 50%, #04173b 100%);
@@ -654,28 +653,26 @@ body {
     overflow: auto;
 }
 
-    /*  aparece como overlay (pantalla completa) */
+/*  aparece como overlay (pantalla completa) */
 .welcome-section.as-overlay {
     position: fixed;
     inset: 0;
     z-index: 1050;
-    display:grid;
+    display: grid;
     place-items: center;
     background: rgba(0,0,0,0.2);
-    
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-
-   
     opacity: 1;
     transition: opacity .4s ease;
 }
+
 .welcome-section.is-pinned {
-  position: relative; /* o fixed, según tu intención final */
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: auto; /* si ya no quieres que se sobreponga */
+    position: relative; /* o fixed, según tu intención final */
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: auto; /* si ya no quieres que se sobreponga */
 }
 
 
@@ -701,15 +698,15 @@ body {
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
-/* Reducir el tamaño del "welcome-box" dentro de la versión "pinned" */
-.welcome-section.is-pinned .welcome-box {
-    width: 100%;
-    max-width: 900px; /* Mantener un máximo si lo deseas */
-    padding: 1rem 2rem; /* Reduce el padding para hacerlo más pequeño */
-    border-radius: 0; /* Quitar el borde redondeado si quieres una barra */
-    box-shadow: none; /* Eliminar el box-shadow de la caja interna */
-    background: transparent; /* Fondo transparente para que el color de la sección se vea */
-}
+    /* Reducir el tamaño del "welcome-box" dentro de la versión "pinned" */
+    .welcome-section.is-pinned .welcome-box {
+        width: 100%;
+        max-width: 900px; /* Mantener un máximo si lo deseas */
+        padding: 1rem 2rem; /* Reduce el padding para hacerlo más pequeño */
+        border-radius: 0; /* Quitar el borde redondeado si quieres una barra */
+        box-shadow: none; /* Eliminar el box-shadow de la caja interna */
+        background: transparent; /* Fondo transparente para que el color de la sección se vea */
+    }
 
 /* Estilo opcional una vez “anclada” en su lugar 
 .welcome-section.is-pinned .welcome-title {
@@ -750,9 +747,10 @@ body {
     color: white;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
-#notifCount[hidden] {
-    display: none !important;
-}
+
+    #notifCount[hidden] {
+        display: none !important;
+    }
 
 #notifDropdown {
     display: none;
@@ -822,11 +820,12 @@ body {
         }
 
 
-    .notif-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
+.notif-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
 .notif-item {
     display: flex;
     flex-direction: column;
@@ -838,28 +837,32 @@ body {
 }
 
 
-.notif-item:last-child {
+    .notif-item:last-child {
         border-bottom: 0;
     }
+
     .notif-item:hover {
         background: #f1f5f9;
         cursor: pointer;
     }
-    .notif-title {
-      font-weight: 600;
+
+.notif-title {
+    font-weight: 600;
     color: #1e293b;
     font-size: 0.95rem;
     margin: 0
-    }
-    .notif-date{
-            font-size: 0.75rem;
-      color: #6b7280;
-    }
-    .notif-msg{
-            font-size: 0.9rem;
-      color: #374151;
-     
-    }
+}
+
+.notif-date {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.notif-msg {
+    font-size: 0.9rem;
+    color: #374151;
+}
+
 .notif-new {
     padding: 4px 8px;
     border-radius: 999px;
@@ -867,7 +870,8 @@ body {
     background: #dc2626;
     color: white;
     align-self: start;
-} 
+}
+
 .notif-actions {
     display: flex;
     gap: 8px;
@@ -880,10 +884,11 @@ body {
         border-radius: 8px;
         border: none;
         background: #ffb74d;
-        color:#1a237e;
+        color: #1a237e;
         font-weight: 500;
         transition: all 0.2s ease;
     }
+
     .notif-actions .js-ver {
         padding: 6px 10px;
         font-size: 0.75rem;
@@ -893,20 +898,22 @@ body {
         color: #ffffff;
         font-weight: 500;
         transition: all 0.2s ease;
-    } 
-    .js-marcar.ya-leido{
-        background: #f9fafb;
-        border-color: #e5e7eb;
-        color: #6b7280;
-        cursor:default;
     }
 
-.notif-actions .js-marcar:hover{
-            background: #5ba9f3;
-        }
-        .notif-actions .js-ver:hover {
-            background: #e99d56;
-        }
+.js-marcar.ya-leido {
+    background: #f9fafb;
+    border-color: #e5e7eb;
+    color: #6b7280;
+    cursor: default;
+}
+
+.notif-actions .js-marcar:hover {
+    background: #5ba9f3;
+}
+
+.notif-actions .js-ver:hover {
+    background: #e99d56;
+}
 
 
 
@@ -926,33 +933,99 @@ body {
         transform: translateX(50%);
         width: 95vw;
         max-width: 500px;
-        font-size:0.9rem;
+        font-size: 0.9rem;
     }
-    .notif-item{
+
+    .notif-item {
         padding: 10px 12px;
     }
 }
 
-@media (max-width: 480px){
-    #notifDropdown{
+@media (max-width: 480px) {
+    #notifDropdown {
         width: 100vw;
-        max-height:70vh;
-        border-radius:0;
+        max-height: 70vh;
+        border-radius: 0;
         top: 60px;
     }
-    .notif-header{
+
+    .notif-header {
         padding: 0.5rem 0.75rem;
         font-size: 0.9rem;
     }
 
-    .notif-actions{
-        flex-direction:column;
-        gap:4px;
+    .notif-actions {
+        flex-direction: column;
+        gap: 4px;
     }
-    .notif-actions button,
-    .notif-actions a{
-        width: 100%;
-        text-align: center;
-    }
+
+        .notif-actions button,
+        .notif-actions a {
+            width: 100%;
+            text-align: center;
+        }
 }
 
+/* ✅ FORZAR VISIBILIDAD DE ICONOS */
+.action-icon i.fas,
+.action-icon i.fa {
+    display: inline-block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    font-family: "Font Awesome 6 Free" !important;
+    font-weight: 900 !important; /* Solid = 900 */
+    font-style: normal !important;
+    color: inherit !important;
+}
+
+/* ✅ FORZAR VISIBILIDAD DE ICONOS CON COLORES */
+.action-icon i.fas,
+.action-icon i.fa {
+    display: inline-block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    font-family: "Font Awesome 6 Free" !important;
+    font-weight: 900 !important;
+    font-style: normal !important;
+    color: #fff !important;
+    position: relative;
+    z-index: 2;
+}
+
+/* ✅ Mantener fondos de colores por módulo */
+.action-card .action-icon {
+    position: relative;
+    /* Los backgrounds ya están definidos arriba para cada clase (.universidad, .lider, etc.) */
+}
+
+/* ✅ Asegurar que Universidad mantenga su gradiente azul */
+.action-card.universidad .action-icon {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+    box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.3) !important;
+}
+
+    .action-card.universidad .action-icon i {
+        color: #fff !important;
+    }
+
+/* ✅ Si alguna tarjeta NO tiene clase específica, usar gris genérico */
+.action-card:not(.universidad):not(.lider):not(.comunicados):not(.mejora):not(.compras):not(.logistica):not(.embarques):not(.helpdesk) .action-icon {
+    background: linear-gradient(135deg, #64748b, #475569) !important;
+}
+/* ✅ Estilo para Gestión de Usuarios */
+.action-card.gestion-usuarios::before {
+    background: #64748b; /* Gris/Slate */
+}
+
+.action-card.gestion-usuarios .action-icon {
+    background: linear-gradient(135deg, #64748b, #475569) !important;
+}
+
+/* ✅ Clase genérica para tarjetas sin clasificar */
+.action-card.generico::before {
+    background: #94a3b8;
+}
+
+.action-card.generico .action-icon {
+    background: linear-gradient(135deg, #94a3b8, #64748b) !important;
+}

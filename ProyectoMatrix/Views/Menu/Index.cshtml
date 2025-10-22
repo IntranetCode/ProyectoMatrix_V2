@@ -35,7 +35,7 @@
     var enlacesCompras = "https://forms.office.com/r/K7u3UMVVKi";
     var enlacesLogistica = "https://forms.office.com/r/77fwUyxuE0";
     var enlacesEmbarques = "https://forms.office.com/r/MRjsPtpUrv";
-    var enlacesHelpDesk = "https://forms.office.com/r/nBWtdqGsUm";
+   
 
     var currentUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}";
 }
@@ -59,11 +59,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link rel="preload" href="~/js/dashboard.js" as="script" />
     <link rel="preload" href="~/Imagenes/logo-universidad-ns.png" as="image" />
+    <link rel="stylesheet" href="~/css/overlay.css" asp-append-version="true" />
 </head>
 
 
 
 <body data-empresa="@empresaId">
+    @await Html.PartialAsync("_Overlay")
     <a href="#main-content" class="skip-link visually-hidden">Saltar al contenido principal</a>
     <div class="main-wrapper">
         <nav class="top-navbar" role="navigation" aria-label="Navegación principal">
@@ -123,7 +125,6 @@
                 </div>
             </section>
             <div id="welcome-pinned-container" style="display: none;"></div>
-
             <section class="quick-actions" aria-label="Módulos disponibles">
                 @if (Model != null && Model.Any())
                 {
@@ -173,16 +174,11 @@
                     <h2 class="action-title">Embarques</h2>
                     <p class="action-description">Control de embarques y envíos</p>
                 </article>
-                <article class="action-card helpdesk" data-href-external="@enlacesHelpDesk" role="button" tabindex="0">
-                    <div class="external-link-badge">Forms</div>
-                    <div class="action-icon" aria-hidden="true"><i class="fas fa-headset"></i></div>
-                    <h2 class="action-title">Help Desk</h2>
-                    <p class="action-description">Soporte técnico y asistencia</p>
-                </article>
+                
             </section>
         </main>
     </div>
-
+    <script src="~/js/overlay.js" asp-append-version="true"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/dashboard.js" asp-append-version="true"></script>
     <script type="application/ld+json">
@@ -200,7 +196,7 @@
         window.mostrarBienvenida = '@((ViewBag.MostrarBienvenida == true) ? "true" : "false")';
     </script>
     <script>
-        // ... (Tu script de animación de bienvenida sin cambios) ...
+       
         document.addEventListener("DOMContentLoaded", function () {
             const welcomeSectionOverlay = document.getElementById("welcome-section");
             const mainWrapper = document.querySelector(".main-wrapper");
@@ -230,7 +226,7 @@
         });
     </script>
     <script>
-        // ... (Tu script de clics en tarjetas sin cambios) ...
+    
         document.addEventListener('DOMContentLoaded', function () {
           const cards = document.querySelectorAll('.action-card');
           cards.forEach(function (card) {
@@ -260,7 +256,7 @@
         });
     </script>
     <script>
-        // ... (Tu script de menú de usuario sin cambios) ...
+      
         document.addEventListener('DOMContentLoaded', function () {
             const toggleBtn = document.getElementById('userToggle');
             const dropdown = document.getElementById('userDropdownMenu');
@@ -284,7 +280,7 @@
     @Html.AntiForgeryToken()
 
     <script>
-        // ✅ Auto-reload si hay cambios de permisos
+      
         @if (TempData["RefreshMenu"] as string == "true")
         {
                 <text>
@@ -300,7 +296,7 @@
 
 
     <script>
-        // ... (Tu script de notificaciones sin cambios) ...
+      
         (function () {
           const btn = document.getElementById('btnNotificaciones');
           const badge = document.getElementById('notifCount');

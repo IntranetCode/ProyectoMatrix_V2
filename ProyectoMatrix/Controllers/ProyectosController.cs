@@ -510,7 +510,7 @@ public class ProyectosController : Controller
 
 
     [HttpPost]
-    [AutorizarAccion("Editar proyectos", "Editar")]
+    [AutorizarAccion("Editar proyecto", "Editar")]
     public async Task<IActionResult> CambiarEstado([FromBody] CambiarEstadoModel model)
     {
         try

@@ -13,10 +13,11 @@
 @inject IServicioAcceso Acceso
 @{
     var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
-    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Crear");
-    var puedeEditar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Editar");
-    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Eliminar");
+    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Crear Proyectos", "Crear");
+    var puedeEditar = await Acceso.TienePermisoAsync(usuarioId, "Editar proyecto", "Editar");
+    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Eliminar Proyectos", "Eliminar");
 }
+
 
 
 <div class="container-fluid">

@@ -99,7 +99,7 @@ h1.h3 {
     border-radius: 50px;
     border: 1px solid #8a0000;
     padding: 0.6rem 1.2rem;
-    margin-left : 0.5rem;
+    margin-left: 0.5rem;
     margin-top: 0.4rem;
 }
 
@@ -138,13 +138,17 @@ h1.h3 {
         }
 }
 
+.grafico-container {
+    max-width: 800px; /* Limita el ancho del gráfico */
+    margin: 0 auto; /* Centra el gráfico */
+}
 
 /* --- Sección de Estadísticas --- */
 .estadisticas-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 2rem; /* Añade un espacio antes de los filtros */
 }
 
 .estadistica-card {
@@ -261,7 +265,6 @@ h1.h3 {
 
 .bg-danger {
     background-color: #dc3545 !important;
-   
 }
 
 .bg-secondary {
@@ -336,6 +339,7 @@ h1.h3 {
 .text-center.py-5 .fas {
     color: #6c757d;
 }
+
 .botones {
     margin: 2rem 0; /* + espacio arriba/abajo */
     padding: 1rem 0; /* + aire interno */
@@ -347,7 +351,7 @@ h1.h3 {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        justify-content:flex-end; /* texto a la izq, botones a la der */
+        justify-content: flex-end; /* texto a la izq, botones a la der */
         gap: .75rem 1rem;
     }
 
@@ -358,7 +362,6 @@ h1.h3 {
     .botones .btn-proyectos-principal {
         margin-right: .1rem; /* separa botones entre sí */
         color: azure !important;
-
     }
 
 .proyecto-body {

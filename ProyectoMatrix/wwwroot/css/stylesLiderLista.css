@@ -335,7 +335,6 @@ h2.mb-3 {
 /* Modal oculto por defecto */
 .video-modal {
     display: none;
-
 }
 
     /* Al abrir */
@@ -368,4 +367,3 @@ h2.mb-3 {
 body.kiosko-open {
     overflow: hidden;
 }
-

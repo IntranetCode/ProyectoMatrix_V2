@@ -3,9 +3,10 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using ProyectoMatrix.Areas.AdminUsuarios.DTOs;
 using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
+using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Models.ModelUsuarios;
-using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
+using ProyectoMatrix.Seguridad;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -22,6 +23,8 @@ namespace ProyectoMatrix.Controllers
             _context = context;
         }
 
+
+        [AutorizarAccion("Ver Usuarios", "Ver")]
         public async Task<IActionResult> Index(bool? activos, string? filtroCampo, string? busqueda)
         {
             bool mostrarActivos = activos ?? true;
@@ -35,6 +38,7 @@ namespace ProyectoMatrix.Controllers
         }
 
         // GET: /Usuarios/Crear
+        [AutorizarAccion("Crear Usuario", "Crear")]
         public async Task<IActionResult> Crear()
         {
             ViewBag.Empresas = new SelectList(_context.Empresas, "EmpresaID", "Nombre");
@@ -54,6 +58,7 @@ namespace ProyectoMatrix.Controllers
         // POST: /Usuarios/Crear
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AutorizarAccion("Crear Usuario", "Crear")]
         public async Task<IActionResult> Crear(UsuarioFormViewModel viewModel)
         {
             if (ModelState.IsValid)
@@ -85,6 +90,7 @@ namespace ProyectoMatrix.Controllers
         }
 
         // GET: /Usuarios/Editar/5
+        [AutorizarAccion("Editar Usuario", "Editar")]
         public async Task<IActionResult> Editar(int id)
         {
             var usuarioDto = await _usuarioService.ObtenerParaEditarAsync(id);
@@ -168,6 +174,7 @@ namespace ProyectoMatrix.Controllers
         // POST: /Usuarios/Editar/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AutorizarAccion("Editar Usuario", "Editar")]
         public async Task<IActionResult> Editar(int id, UsuarioFormViewModel viewModel)
         {
             var routeValues = new
@@ -218,6 +225,7 @@ namespace ProyectoMatrix.Controllers
         // POST: /Usuarios/Eliminar/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AutorizarAccion("Eliminar Usuario", "Eliminar")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var routeValues = new
@@ -234,6 +242,7 @@ namespace ProyectoMatrix.Controllers
 
         // VALIDACIÓN REMOTA
         [AcceptVerbs("GET", "POST")]
+        [AutorizarAccion("Editar Usuario", "Editar")]
         public async Task<IActionResult> VerificarUsername(string username, int? usuarioID)
         {
             var query = _context.Usuarios.AsQueryable();

@@ -8,21 +8,21 @@
     var rol = Context.Session.GetString("Rol") ?? "Colaborador";
     Layout = rol == "Administrador" ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_Colaborador.cshtml";
 }
-
+@*SOLO CAMBIAR ESTO*@
 @*Mandar a llamar al servicio de acceso para ocultar o mostrar los botones correspondientes *@
 @inject IServicioAcceso Acceso
 @{
     var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
-    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Crear");
-    var puedeEditar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Editar");
-    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Eliminar");
+    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Crear Proyectos", "Crear");
+    var puedeEditar = await Acceso.TienePermisoAsync(usuarioId, "Editar proyecto", "Editar");
+    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Eliminar Proyectos", "Eliminar");
 }
 
 
 <link href="~/css/stylesProyectosIndex.css" rel="stylesheet" />
 
 <div class="container-fluid">
-     
+
 
 
 
@@ -34,29 +34,28 @@
             <p class="text-muted">Administra y da seguimiento a todos los proyectos de la empresa</p>
         </div>
         <div>
-           
         </div>
     </div>
 
 
     <div class="botones ">
-       
+
         <div>
-        @if (puedeCrear)
-        {
+            @if (puedeCrear)
+            {
                 <div>
                     <p class="text-muted fw-bold">Sube un proyecto o crea uno nuevo</p>
                 </div>
-            
-            <a href="@Url.Action("Crear")" class="btn-proyectos-principal">
-                <i class="fas fa-plus me-1"></i>Nuevo Proyecto
-            </a>
 
-            <a href="@Url.Action("Cargar")" class="btn-proyectos-principal">
-                <i class="fas fa-cloud-upload-alt me-1"></i> Cargar proyecto terminado
-            </a>
+                <a href="@Url.Action("Crear")" class="btn-proyectos-principal">
+                    <i class="fas fa-plus me-1"></i>Nuevo Proyecto
+                </a>
 
-        }
+                <a href="@Url.Action("Cargar")" class="btn-proyectos-principal">
+                    <i class="fas fa-cloud-upload-alt me-1"></i> Cargar proyecto terminado
+                </a>
+
+            }
         </div>
 
     </div>
@@ -64,16 +63,12 @@
 
 
     <!-- Estadísticas -->
-
     @*GRAFICO*@
-
-    <div class="col-12 col-md-12">
-        <div class="mb-3">
-            <canvas id="graficoEstados" height="160" width="300"></canvas>
+    <div class="grafico-container mb-4">
+        <div class="estadistica-card" style="padding: 1rem;">
+            <canvas id="graficoEstados" style="max-height: 350px;"></canvas>
         </div>
-    </div>
-
-    <div class="estadisticas-grid">
+    </div> <div class="estadisticas-grid">
         <div class="estadistica-card">
             <i class="fas fa-clipboard-list fa-2x text-secondary mb-2"></i>
             <h4 class="mb-1">@Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.Planificacion, 0)</h4>
@@ -100,6 +95,7 @@
             <small class="text-muted">Alta Prioridad</small>
         </div>
     </div>
+
 
     <!-- Filtros -->
     <div class="filtros-container">
@@ -259,7 +255,7 @@
                                 </div>
                             </div>
                         }*@
-                        
+
 
                         <!-- Tags -->
                         @if (!string.IsNullOrEmpty(proyecto.Tags))
@@ -280,7 +276,7 @@
                                 </small>
                             </div>
                             <div>
-                                
+
                                 <a href="@Url.Action("Detalle", new { id = proyecto.ProyectoID })"
                                    class="btn btn-sm btn-proyectos-principal me-1">
                                     <i class="fas fa-eye me-1"></i>Ver
@@ -288,7 +284,7 @@
                                 @if (puedeEditar)
                                 {
                                     <a href="@Url.Action("Editar", new { id = proyecto.ProyectoID })"
-                                    class="btn btn-sm btn-proyectos-outline-secundario">
+                                       class="btn btn-sm btn-proyectos-outline-secundario">
                                         <i class="fas fa-edit me-1"></i>Editar
                                     </a>
 
@@ -323,14 +319,14 @@
                     {
                         <text>Comienza creando tu primer proyecto.</text>
                     }
-                   
+
                 }
             </p>
             @if (puedeCrear)
             {
                 <a href="@Url.Action("Crear")" class="btn-proyectos-crear">
                     <i class="fas fa-plus me-1"></i>Crear Nuevo Proyecto
-            </a>
+                </a>
             }
         </div>
     }
@@ -408,54 +404,63 @@
     </script>
 
     @*Fragmento de codigo para el grafico de barrras*@
+
+    @*Fragmento de codigo para el grafico de Área Polar*@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        const ctx = document.getElementById("graficoEstados").getContext("2d"); 
-
+        const ctx = document.getElementById("graficoEstados").getContext("2d");
         const data = {
-            labels: ["Planificación", "En Progreso", "En Revisión", "Completados", "Alta Prioridad"],
+            // Los datos son los mismos que para la dona
+            labels: ["Planificación", "En Progreso", "En Revisión", "Completados"],
             datasets: [{
                 label: "Proyectos",
                 data: [
                     @Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.Planificacion, 0),
                     @Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.EnProgreso, 0),
                     @Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.EnRevision, 0),
-                    @Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.Completado, 0),
-                   /// @Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.Cancelado, 0),
-                   /// @Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.Pausado, 0),
-                    @Model.ContadorPorPrioridad.GetValueOrDefault(PrioridadProyecto.Alta, 0) 
-
+                    @Model.ContadorPorEstado.GetValueOrDefault(EstadoProyecto.Completado, 0)
                 ],
                 backgroundColor: [
-                    "#6c757d", // gris
-                    "#0d6efd", // azul
-                    "#ffc107", // amarillo
-                    "#198754", // verde
-                    "#dc3545"  // rojo
+                    "rgba(108, 117, 125, 0.8)", // gris (Planificación)
+                    "rgba(13, 110, 253, 0.8)", // azul (En Progreso)
+                    "rgba(255, 193, 7, 0.8)",  // amarillo (En Revisión)
+                    "rgba(25, 135, 84, 0.8)"   // verde (Completados)
                 ],
-                borderRadius: 6
+                borderColor: '#ffffff', // Borde blanco entre secciones
+                borderWidth: 2
             }]
         };
 
         new Chart(ctx, {
-            type: "bar",
+            type: "polarArea", // <-- 1. CAMBIO DE TIPO DE GRÁFICO
             data,
             options: {
                 responsive: true,
-              //  maintainAspectRatio: false,
+                maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false },
+                    legend: {
+                        display: true,
+                        position: 'right' // Mantenemos la leyenda
+                    },
                     title: {
                         display: true,
-                        text: "Proyectos por Estado",
+                        text: "Distribución de Proyectos por Estado",
                         font: { size: 16 }
                     }
                 },
+                // 2. Opciones específicas para la escala radial (opcional pero recomendado)
                 scales: {
-                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                    r: {
+                        ticks: { display: false }, // Oculta los números de la escala
+                        grid: {
+                            circular: true,
+                            color: 'rgba(0, 0, 0, 0.05)' // Líneas de la telaraña muy sutiles
+                        }
+                    }
                 }
             }
         });
     </script>
-
 }
+
+
