@@ -35,17 +35,22 @@
             @if (puedeCrear)
             {
                 <a class="btn btn-primary custom-btn"
-                   asp-controller="Lider" asp-action="CrearWebinar">➕ Agregar webinar</a>
+                   asp-controller="Lider"
+                   asp-action="CrearWebinar"
+                   data-overlay-trigger>
+                    ➕ Agregar webinar
+                </a>
+
             }
 
          
             <a class="btn btn-warning custom-btn"
-               asp-controller="Lider" asp-action="Lista">🖥️ Mis webinars</a>
+               asp-controller="Lider" asp-action="Lista" data-overlay-trigger>🖥️ Mis webinars</a>
 
             @if (puedeEditar || puedeEliminar)
             {
                 <a class="btn btn-primary custom-btn"
-                   asp-controller="Lider" asp-action="GestionarWebinar">⚙️ Gestionar webinars</a>
+                   asp-controller="Lider" asp-action="GestionarWebinar" data-overlay-trigger>⚙️ Gestionar webinars</a>
             }
         </div>
     </div>

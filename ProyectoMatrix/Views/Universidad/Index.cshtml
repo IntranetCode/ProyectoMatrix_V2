@@ -30,13 +30,13 @@
                     <div class="header-actions">
                         @if (Model.PuedeCrearCursos)
                         {
-                            <a href="/Universidad/CrearCurso" class="btn btn-universidad me-2">
+                            <a href="/Universidad/CrearCurso" data-overlay-trigger class="btn btn-universidad me-2">
                                 <i class="fas fa-plus me-2"></i>Crear Curso
                             </a>
                         }
                         @if (Model.PuedeAsignarCursos)
                         {
-                            <a href="/Asignaciones/AsignacionMasiva" class="btn btn-outline-universidad">
+                            <a href="/Asignaciones/AsignacionMasiva" data-overlay-trigger class="btn btn-outline-universidad">
                                 <i class="fas fa-users me-2"></i>Asignar
                             </a>
                         }
@@ -113,7 +113,7 @@
                             <p class="stat-label">Certificados</p>
                             <small class="text-muted">
                                 <i class="fas fa-download me-1"></i>
-                                <a href="/Universidad/MisCertificados" class="text-decoration-none">Ver todos</a>
+                                <a href="/Universidad/MisCertificados" data-overlay-trigger class="text-decoration-none">Ver todos</a>
                             </small>
                         </div>
                     </div>
@@ -151,7 +151,7 @@
                             <h5 class="content-card-title">
                                 <i class="fas fa-graduation-cap me-2"></i>Mis Capacitaciones
                             </h5>
-                            <a href="/Universidad/MisCursos" class="btn btn-sm btn-outline-primary">Ver todos</a>
+                            <a href="/Universidad/MisCursos" data-overlay-trigger class="btn btn-sm btn-outline-primary">Ver todos</a>
                         </div>
                         <div class="content-card-body">
                             @if (Model.MisCursos.Any())
@@ -228,7 +228,7 @@
                             <h5 class="content-card-title">
                                 <i class="fas fa-cogs me-2"></i>Panel de Administración
                             </h5>
-                            <a href="/Universidad/GestionCursos" class="btn btn-sm btn-outline-primary">
+                            <a href="/Universidad/GestionCursos" data-overlay-trigger class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-book me-1"></i>Gestionar Cursos
                             </a>
                         </div>
@@ -255,7 +255,7 @@
                                             <h4>@Model.Estadisticas.TotalCursosCreados</h4>
                                             <p class="text-muted">Cursos Creados</p>
                                             <small class="text-info">
-                                                <a href="/Universidad/GestionCursos" class="text-decoration-none">
+                                                <a href="/Universidad/GestionCursos" data-overlay-trigger class="text-decoration-none">
                                                     <i class="fas fa-cog me-1"></i>Gestionar
                                                 </a>
                                             </small>
@@ -365,7 +365,7 @@
                                         </div>
                                         @if (certificado.TieneArchivo)
                                         {
-                                            <a href="/Universidad/DescargarCertificado/@certificado.CertificadoID"
+                                            <a href="/Universidad/DescargarCertificado/@certificado.CertificadoID" data-overlay-trigger
                                                class="btn btn-sm btn-outline-primary">
                                                 <i class="fas fa-download"></i>
                                             </a>
@@ -374,7 +374,7 @@
                                 </div>
                             }
                             <div class="text-center">
-                                <a href="/Universidad/MisCertificados" class="btn btn-sm btn-outline-primary">
+                                <a href="/Universidad/MisCertificados" data-overlay-trigger class="btn btn-sm btn-outline-primary">
                                     Ver todos los certificados
                                 </a>
                             </div>
