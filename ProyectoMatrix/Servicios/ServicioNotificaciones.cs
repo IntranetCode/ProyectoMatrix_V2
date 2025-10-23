@@ -542,5 +542,34 @@ WHERE u.UsuarioID IN ({string.Join(",", paramNames)})
             });
             await _context.SaveChangesAsync();
         }
+
+
+        public async Task<List<int>> GetTodosPersonaIdsConCorreoAsync()
+        {
+            const string sql = @"
+        SELECT DISTINCT p.PersonaID
+        FROM Persona p
+        INNER JOIN Usuarios u ON u.PersonaID = p.PersonaID
+        WHERE p.Correo IS NOT NULL
+          AND LTRIM(RTRIM(p.Correo)) <> ''
+          AND u.Activo = 1;
+    ";
+
+            _logger.LogInformation("GetTodosPersonaIdsConCorreoAsync: obteniendo todos los usuarios activos");
+
+            var result = new List<int>();
+
+            await using var conn = new SqlConnection(_cs);
+            await conn.OpenAsync();
+            await using var cmd = new SqlCommand(sql, conn);
+
+            await using var rd = await cmd.ExecuteReaderAsync();
+            while (await rd.ReadAsync())
+                result.Add(rd.GetInt32(0));
+
+            _logger.LogInformation("GetTodosPersonaIdsConCorreoAsync: {Count} usuarios activos con correo encontrados", result.Count);
+
+            return result;
+        }
     }
 }

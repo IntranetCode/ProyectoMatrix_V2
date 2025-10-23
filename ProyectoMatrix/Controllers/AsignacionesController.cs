@@ -227,9 +227,60 @@ namespace ProyectoMatrix.Controllers
                 {
                     var asunto = $"[Nuevo curso asignado] {nombreCurso}";
                     var html = $@"
-                <h2>{System.Net.WebUtility.HtmlEncode(nombreCurso)}</h2>
-                <p>Se te ha asignado un nuevo curso.</p>
-                <p style='color:#666'>ID Curso: {request.IdCurso} • {DateTime.Now:dd/MM/yyyy HH:mm}</p>";
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; }}
+                .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; }}
+                .header h1 {{ margin: 0; font-size: 24px; font-weight: 600; }}
+                .content {{ padding: 30px 25px; }}
+                .greeting {{ font-size: 18px; color: #333; margin-bottom: 15px; }}
+                .message {{ font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 20px; }}
+                .course-box {{ background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; border-radius: 4px; }}
+                .course-name {{ font-size: 18px; font-weight: 600; color: #333; margin-bottom: 5px; }}
+                .course-id {{ font-size: 14px; color: #888; }}
+                .cta {{ text-align: center; margin: 30px 0; }}
+                .button {{ display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: 600; transition: transform 0.2s; }}
+                .button:hover {{ transform: translateY(-2px); }}
+                .footer {{ background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 13px; color: #888; }}
+                .emoji {{ font-size: 22px; }}
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h1><span class='emoji'>🎓</span> Nuevo Curso Asignado</h1>
+                </div>
+                <div class='content'>
+                    <p class='greeting'>¡Hola!</p>
+                    <p class='message'>
+                        Esperamos que te encuentres muy bien. Nos complace informarte que se te ha asignado un nuevo curso 
+                        en nuestra plataforma de capacitación.
+                    </p>
+                    <div class='course-box'>
+                        <div class='course-name'>{System.Net.WebUtility.HtmlEncode(nombreCurso)}</div>
+                        <div class='course-id'>ID: {request.IdCurso}</div>
+                    </div>
+                    <p class='message'>
+                        Este curso ha sido seleccionado especialmente para fortalecer tus habilidades y conocimientos. 
+                        Te invitamos a comenzar cuanto antes para aprovechar al máximo esta oportunidad de aprendizaje.
+                    </p>
+                    {(request.FechaLimite.HasValue ? $@"
+                    <p class='message' style='color: #e74c3c;'>
+                        <strong>📅 Fecha límite:</strong> {request.FechaLimite.Value:dd/MM/yyyy}
+                    </p>" : "")}
+                </div>
+                <div class='footer'>
+                    <p>Asignado el {DateTime.Now:dd/MM/yyyy} a las {DateTime.Now:HH:mm}</p>
+                    <p>Este es un mensaje automático. Por favor no responder a este correo.</p>
+                </div>
+            </div>
+        </body>
+        </html>";
+
 
                     _logger.LogInformation("Iniciando envío de correo a {Count} usuarios (UsuarioIDs)",
                         request.UsuariosSeleccionados.Distinct().Count());
@@ -323,6 +374,9 @@ namespace ProyectoMatrix.Controllers
                 return RedirectToAction("Index", "Universidad");
             }
         }
+
+
+
 
     }
 

@@ -383,47 +383,111 @@ public async Task<IActionResult> Crear(
                 "Comunicados",
                 vm.EmpresasSeleccionadas);
         }
+                // ===============================
+                // ✉️ Envío de correo COMPLETO
+                // ===============================
+                try
+                {
+                    var asunto = $"📢 Nuevo Comunicado: {comunicado.NombreComunicado}";
+                    var html = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; }}
+        .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+        .header {{ background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; padding: 30px 20px; text-align: center; }}
+        .header h1 {{ margin: 0; font-size: 24px; font-weight: 600; }}
+        .content {{ padding: 30px 25px; }}
+        .greeting {{ font-size: 18px; color: #333; margin-bottom: 15px; }}
+        .message {{ font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 20px; }}
+        .comunicado-box {{ background-color: #f8f9fa; border-left: 4px solid #3498db; padding: 15px; margin: 20px 0; border-radius: 4px; }}
+        .comunicado-title {{ font-size: 20px; font-weight: 600; color: #333; margin-bottom: 10px; }}
+        .comunicado-desc {{ font-size: 15px; color: #555; line-height: 1.6; }}
+        .category {{ display: inline-block; background-color: #3498db; color: white; padding: 5px 12px; border-radius: 15px; font-size: 12px; font-weight: 600; margin-top: 10px; }}
+        .footer {{ background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 13px; color: #888; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1><span style='font-size: 22px;'>📢</span> Nuevo Comunicado</h1>
+        </div>
+        <div class='content'>
+            <p class='greeting'>¡Hola!</p>
+            <p class='message'>
+                Esperamos que te encuentres muy bien. Queremos compartir contigo una información importante 
+                que acabamos de publicar en nuestra plataforma.
+            </p>
+            <div class='comunicado-box'>
+                <div class='comunicado-title'>{System.Net.WebUtility.HtmlEncode(comunicado.NombreComunicado)}</div>
+                {(!string.IsNullOrWhiteSpace(comunicado.Descripcion) ? $@"
+                <div class='comunicado-desc'>{System.Net.WebUtility.HtmlEncode(comunicado.Descripcion)}</div>
+                " : "")}
+                {(!string.IsNullOrWhiteSpace(comunicado.Categoria) ? $@"
+                <span class='category'>{System.Net.WebUtility.HtmlEncode(comunicado.Categoria)}</span>
+                " : "")}
+            </div>
+            <p class='message'>
+                Te invitamos a revisar el comunicado completo en nuestra plataforma de intranet para estar al tanto 
+                de todos los detalles importantes.
+            </p>
+        </div>
+        <div class='footer'>
+            <p>Publicado el {DateTime.Now:dd/MM/yyyy} a las {DateTime.Now:HH:mm}</p>
+            <p>Este es un mensaje automático. Por favor no responder a este correo.</p>
+        </div>
+    </div>
+</body>
+</html>";
 
-        // ===============================
-        // ✉️ Envío de correo (REAL, por Persona)
-        // ===============================
-        try
-        {
-            var asunto = $"[Nuevo Comunicado] {comunicado.NombreComunicado}";
-            var html = $@"
-                <h2>{System.Net.WebUtility.HtmlEncode(comunicado.NombreComunicado)}</h2>
-                <p>{(string.IsNullOrWhiteSpace(comunicado.Descripcion) ? "" : System.Net.WebUtility.HtmlEncode(comunicado.Descripcion))}</p>
-                <p style='color:#666'>ID: {comunicado.ComunicadoID} • {DateTime.Now:dd/MM/yyyy HH:mm}</p>";
+                    List<int> personaIds = new();
 
-            // ⚠️ Por defecto NO hacemos blast global cuando EsPublico=true
-            // Actívalo manualmente si lo necesitas:
-            bool enviarPublicoPorCorreo = false;
+                    if (vm.EsPublico)
+                    {
+                        // ✅ OBTENER TODOS LOS USUARIOS ACTIVOS CON CORREO
+                        personaIds = await _notif.GetTodosPersonaIdsConCorreoAsync();
+                        _logger.LogInformation("Comunicado público: preparando envío a {Count} usuarios totales", personaIds.Count);
+                    }
+                    else if (vm.EmpresasSeleccionadas?.Any() == true)
+                    {
+                        // ✅ OBTENER USUARIOS DE EMPRESAS SELECCIONADAS
+                        personaIds = await _notif.GetPersonaIdsPorEmpresasAsync(vm.EmpresasSeleccionadas.Distinct());
+                        _logger.LogInformation("Comunicado privado: preparando envío a {Count} usuarios de {Empresas} empresas",
+                            personaIds.Count, vm.EmpresasSeleccionadas.Distinct().Count());
+                    }
 
-            if (!vm.EsPublico && vm.EmpresasSeleccionadas?.Any() == true)
-            {
-                // 1) Saca PersonaIDs (con correo válido) de las empresas destino
-                var personaIds = await _notif.GetPersonaIdsPorEmpresasAsync(vm.EmpresasSeleccionadas);
+                    // ✅ ENVIAR SI HAY DESTINATARIOS
+                    if (personaIds.Count > 0)
+                    {
+                        var resultado = await _notif.EnviarABccPersonasAsync(personaIds, asunto, html);
 
-                // 2) Envía en BCC (usa tus candados: SoloPruebas/MaxDestinatarios/etc.)
-                if (personaIds.Count > 0)
-                    await _notif.EnviarABccPersonasAsync(personaIds, asunto, html);
-            }
-            else if (vm.EsPublico && enviarPublicoPorCorreo)
-            {
-                // Ejemplo (ajusta a tu ámbito real):
-                // var personaIdsTodas = await _notif.GetPersonaIdsPorEmpresasAsync(await _db.Empresas.Select(e => e.EmpresaID).ToListAsync());
-                // if (personaIdsTodas.Count > 0)
-                //     await _notif.EnviarABccPersonasAsync(personaIdsTodas, asunto, html);
-            }
-        }
-        catch (Exception exCorreo)
-        {
-            // No rompas la UX si falla el correo: registra y sigue
-            _logger.LogError(exCorreo, "Error enviando comunicado por correo (ComunicadoID={Id})", comunicado.ComunicadoID);
-        }
+                        _logger.LogInformation(
+                            "📧 Correo comunicado enviado: Encontrados={Enc}, Enviados={Env}, Filtrados={Filt}, Errores={Err}",
+                            resultado.Encontrados, resultado.Enviados, resultado.FiltradosPorCandados, resultado.Errores
+                        );
 
-        // Bitácora OK
-        await bitacora.RegistrarAsync(
+                        if (resultado.Mensajes.Any())
+                        {
+                            foreach (var msg in resultado.Mensajes)
+                                _logger.LogWarning("Correo comunicado: {Msg}", msg);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ Comunicado sin destinatarios con correo válido");
+                    }
+                }
+                catch (Exception exCorreo)
+                {
+                    _logger.LogError(exCorreo, "Error enviando comunicado por correo (ComunicadoID={Id})", comunicado.ComunicadoID);
+                    // No interrumpimos - la notificación in-app ya se envió
+                }
+
+
+                // Bitácora OK
+                await bitacora.RegistrarAsync(
             idUsuario: idUsuario,
             idEmpresa: idEmpresaContexto,
             accion: "COMUNICADO_CREAR",
