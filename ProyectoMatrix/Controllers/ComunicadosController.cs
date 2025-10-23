@@ -6,6 +6,7 @@ using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
 using System.Security.Claims;
 using ProyectoMatrix.Seguridad;
+using Microsoft.Extensions.Logging;
 
 
 
@@ -19,15 +20,18 @@ namespace ProyectoMatrix.Controllers
         private readonly ServicioNotificaciones _notif;
         private readonly BitacoraService _bitacora;
         private readonly IServicioAcceso _acceso;
+        private readonly ILogger<ComunicadosController> _logger;
 
 
-        public ComunicadosController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif, BitacoraService bitacora, IServicioAcceso acceso)
+
+        public ComunicadosController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif, BitacoraService bitacora, IServicioAcceso acceso, ILogger<ComunicadosController> logger)
         {
             _db = db;
             _env = env;
             _notif = notif;
             _bitacora = bitacora;
             _acceso = acceso;
+            _logger = logger;
         }
 
 
@@ -288,143 +292,179 @@ namespace ProyectoMatrix.Controllers
 
 
   
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [AutorizarAccion("Crear Comunicados", "Crear")]
-        public async Task<IActionResult> Crear(ComunicadoCreateVM vm, [FromServices] BitacoraService bitacora)
+      [HttpPost]
+[ValidateAntiForgeryToken]
+[AutorizarAccion("Crear Comunicados", "Crear")]
+public async Task<IActionResult> Crear(
+    ComunicadoCreateVM vm,
+    [FromServices] BitacoraService bitacora,
+    [FromServices] IConfiguration cfg) // sólo si lo necesitas en el futuro
+{
+    // Ids desde claims/sesión
+    int? idUsuario = null;
+    if (int.TryParse(User.FindFirst("UsuarioID")?.Value, out var uid)) idUsuario = uid;
+    else if (int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out uid)) idUsuario = uid;
+    else idUsuario = HttpContext.Session.GetInt32("UsuarioID");
+
+    int? idEmpresaContexto = int.TryParse(User.FindFirstValue("EmpresaID"), out var eid)
+        ? eid : (int?)null;
+
+    var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+    var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
+    var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
+
+    if (!ModelState.IsValid)
+    {
+        vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
+        return View(vm);
+    }
+
+    try
+    {
+        var comunicado = new Comunicado
         {
-            // Ids desde claims (ajusta si usas otros)
-            int? idUsuario = null;
-            if (int.TryParse(User.FindFirst("UsuarioID")?.Value, out var uid)) idUsuario = uid;
+            NombreComunicado = vm.NombreComunicado,
+            Descripcion = vm.Descripcion,
+            FechaCreacion = vm.FechaCreacion,
+            Categoria = vm.Categoria,
+            EsPublico = vm.EsPublico,
+            UsuarioCreadorID = idUsuario
+        };
 
-            else if (int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out uid)) idUsuario = uid;
-            else idUsuario = HttpContext.Session.GetInt32("UsuarioID");
-
-
-            int? idEmpresaContexto = int.TryParse(User.FindFirstValue("EmpresaID"), out var eid)
-            ? eid : (int?)null;
-
-            var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
-            var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
-            var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
-
-
-            if (!ModelState.IsValid)
+        // Media opcional
+        if (vm.ImagenFile != null && vm.ImagenFile.Length > 0)
+        {
+            var ext = Path.GetExtension(vm.ImagenFile.FileName).ToLowerInvariant();
+            var permitidos = new[] { ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".pdf" };
+            if (!permitidos.Contains(ext))
             {
+                ModelState.AddModelError("MediaFile", "Formato no soportado");
                 vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
                 return View(vm);
             }
 
-            try
-            {
-                var comunicado = new Comunicado
-                {
-                    NombreComunicado = vm.NombreComunicado,
-                    Descripcion = vm.Descripcion,
-                    FechaCreacion = vm.FechaCreacion,
-                    Categoria = vm.Categoria,
-                    EsPublico = vm.EsPublico,
-                    UsuarioCreadorID = idUsuario
-                };
-
-                // Media opcional
-                if (vm.ImagenFile != null && vm.ImagenFile.Length > 0)
-                {
-                    var ext = Path.GetExtension(vm.ImagenFile.FileName).ToLowerInvariant();
-                    var permitidos = new[] { ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".pdf" };
-                    if (!permitidos.Contains(ext))
-                    {
-                        ModelState.AddModelError("MediaFile", "Formato no soportado");
-                        vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
-                        return View(vm);
-                    }
-
-                    var uploads = Path.Combine(_env.WebRootPath, "uploads");
-                    Directory.CreateDirectory(uploads);
-                    var fileName = $"{Guid.NewGuid()}{ext}";
-                    var path = Path.Combine(uploads, fileName);
-                    using var fs = new FileStream(path, FileMode.Create);
-                    await vm.ImagenFile.CopyToAsync(fs);
-                    comunicado.Imagen = $"/uploads/{fileName}";
-                }
-
-                // Empresas destino
-                if (!vm.EsPublico && vm.EmpresasSeleccionadas.Any())
-                {
-                    foreach (var empId in vm.EmpresasSeleccionadas.Distinct())
-                        comunicado.ComunicadosEmpresas.Add(new ComunicadoEmpresa { EmpresaID = empId });
-                }
-
-                // Guardado
-                _db.Comunicados.Add(comunicado);
-                await _db.SaveChangesAsync();
-
-
-                if (vm.EsPublico)
-                {
-                    await _notif.EmitirGlobal(
-                        "Comunicado_Nuevo",
-                        comunicado.NombreComunicado,
-                        comunicado.Descripcion,
-                        comunicado.ComunicadoID,
-                        "Comunicados");
-                }
-                else if (vm.EmpresasSeleccionadas.Any())
-                {
-                    await _notif.EmitirParaEmpresas(
-                        "Comunicado_Nuevo",
-                        comunicado.NombreComunicado,
-                        comunicado.Descripcion,
-                        comunicado.ComunicadoID,
-                        "Comunicados",
-                        vm.EmpresasSeleccionadas);
-                }
-
-                await bitacora.RegistrarAsync(
-                    idUsuario: idUsuario,
-                    idEmpresa: idEmpresaContexto,   // o null si no aplica
-                    accion: "COMUNICADO_CREAR",
-                    mensaje: vm.EsPublico
-                        ? "Comunicado público creado"
-                        : $"Comunicado privado creado para {vm.EmpresasSeleccionadas.Distinct().Count()} empresas",
-                 modulo: "COMUNICADOS",
-        entidad: "Comunicado",
-        entidadId: comunicado.ComunicadoID.ToString(),
-        resultado: "OK",
-        severidad: 4,               // sugerencia: 4 = auditoría
-        solicitudId: solicitudId,
-        ip: direccionIp,
-        AgenteUsuario: agenteUsuario
-                );
-
-                return RedirectToAction(nameof(Gestionar));
-            }
-            catch (Exception ex)
-            {
-                // 📝 Bitácora: error
-                await bitacora.RegistrarAsync(
-         idUsuario: idUsuario,
-         idEmpresa: idEmpresaContexto,
-         accion: "CREAR",
-         mensaje: ex.Message,
-         modulo: "COMUNICADOS",
-         entidad: "Comunicado",
-         entidadId: null,            // si falló antes de tener ID
-         resultado: "ERROR",
-         severidad: 3,               // 3 = error
-         solicitudId: solicitudId,
-         ip: direccionIp,
-         AgenteUsuario: agenteUsuario
-     );
-
-                // UI
-                ModelState.AddModelError(string.Empty, "No se pudo crear el comunicado.");
-                vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
-                return View(vm);
-            }
+            var uploads = Path.Combine(_env.WebRootPath, "uploads");
+            Directory.CreateDirectory(uploads);
+            var fileName = $"{Guid.NewGuid()}{ext}";
+            var path = Path.Combine(uploads, fileName);
+            using var fs = new FileStream(path, FileMode.Create);
+            await vm.ImagenFile.CopyToAsync(fs);
+            comunicado.Imagen = $"/uploads/{fileName}";
         }
 
+        // Empresas destino
+        if (!vm.EsPublico && vm.EmpresasSeleccionadas?.Any() == true)
+        {
+            foreach (var empId in vm.EmpresasSeleccionadas.Distinct())
+                comunicado.ComunicadosEmpresas.Add(new ComunicadoEmpresa { EmpresaID = empId });
+        }
 
+        // Guardado
+        _db.Comunicados.Add(comunicado);
+        await _db.SaveChangesAsync();
+
+        // Notificaciones in-app
+        if (vm.EsPublico)
+        {
+            await _notif.EmitirGlobal(
+                "Comunicado_Nuevo",
+                comunicado.NombreComunicado,
+                comunicado.Descripcion,
+                comunicado.ComunicadoID,
+                "Comunicados");
+        }
+        else if (vm.EmpresasSeleccionadas?.Any() == true)
+        {
+            await _notif.EmitirParaEmpresas(
+                "Comunicado_Nuevo",
+                comunicado.NombreComunicado,
+                comunicado.Descripcion,
+                comunicado.ComunicadoID,
+                "Comunicados",
+                vm.EmpresasSeleccionadas);
+        }
+
+        // ===============================
+        // ✉️ Envío de correo (REAL, por Persona)
+        // ===============================
+        try
+        {
+            var asunto = $"[Nuevo Comunicado] {comunicado.NombreComunicado}";
+            var html = $@"
+                <h2>{System.Net.WebUtility.HtmlEncode(comunicado.NombreComunicado)}</h2>
+                <p>{(string.IsNullOrWhiteSpace(comunicado.Descripcion) ? "" : System.Net.WebUtility.HtmlEncode(comunicado.Descripcion))}</p>
+                <p style='color:#666'>ID: {comunicado.ComunicadoID} • {DateTime.Now:dd/MM/yyyy HH:mm}</p>";
+
+            // ⚠️ Por defecto NO hacemos blast global cuando EsPublico=true
+            // Actívalo manualmente si lo necesitas:
+            bool enviarPublicoPorCorreo = false;
+
+            if (!vm.EsPublico && vm.EmpresasSeleccionadas?.Any() == true)
+            {
+                // 1) Saca PersonaIDs (con correo válido) de las empresas destino
+                var personaIds = await _notif.GetPersonaIdsPorEmpresasAsync(vm.EmpresasSeleccionadas);
+
+                // 2) Envía en BCC (usa tus candados: SoloPruebas/MaxDestinatarios/etc.)
+                if (personaIds.Count > 0)
+                    await _notif.EnviarABccPersonasAsync(personaIds, asunto, html);
+            }
+            else if (vm.EsPublico && enviarPublicoPorCorreo)
+            {
+                // Ejemplo (ajusta a tu ámbito real):
+                // var personaIdsTodas = await _notif.GetPersonaIdsPorEmpresasAsync(await _db.Empresas.Select(e => e.EmpresaID).ToListAsync());
+                // if (personaIdsTodas.Count > 0)
+                //     await _notif.EnviarABccPersonasAsync(personaIdsTodas, asunto, html);
+            }
+        }
+        catch (Exception exCorreo)
+        {
+            // No rompas la UX si falla el correo: registra y sigue
+            _logger.LogError(exCorreo, "Error enviando comunicado por correo (ComunicadoID={Id})", comunicado.ComunicadoID);
+        }
+
+        // Bitácora OK
+        await bitacora.RegistrarAsync(
+            idUsuario: idUsuario,
+            idEmpresa: idEmpresaContexto,
+            accion: "COMUNICADO_CREAR",
+            mensaje: vm.EsPublico
+                ? "Comunicado público creado"
+                : $"Comunicado privado creado para {vm.EmpresasSeleccionadas?.Distinct().Count() ?? 0} empresas",
+            modulo: "COMUNICADOS",
+            entidad: "Comunicado",
+            entidadId: comunicado.ComunicadoID.ToString(),
+            resultado: "OK",
+            severidad: 4,
+            solicitudId: solicitudId,
+            ip: direccionIp,
+            AgenteUsuario: agenteUsuario
+        );
+
+        return RedirectToAction(nameof(Gestionar));
+    }
+    catch (Exception ex)
+    {
+        // Bitácora ERROR
+        await bitacora.RegistrarAsync(
+            idUsuario: idUsuario,
+            idEmpresa: idEmpresaContexto,
+            accion: "CREAR",
+            mensaje: ex.Message,
+            modulo: "COMUNICADOS",
+            entidad: "Comunicado",
+            entidadId: null,
+            resultado: "ERROR",
+            severidad: 3,
+            solicitudId: solicitudId,
+            ip: direccionIp,
+            AgenteUsuario: agenteUsuario
+        );
+
+        ModelState.AddModelError(string.Empty, "No se pudo crear el comunicado.");
+        vm.Empresas = await _db.Empresas.OrderBy(e => e.Nombre).ToListAsync();
+        return View(vm);
+    }
+}
 
 
 
