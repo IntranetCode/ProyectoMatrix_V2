@@ -19,7 +19,7 @@
 @{
     var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
     var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Crear webinar", "Crear");
-    
+
 
 }
 
@@ -140,16 +140,26 @@ else if (destacado != null)
 
 
 
-<div class="lider-container">
-    <h2 class="mb-3">Webinars</h2>
+<div class="lider-container webinars-section">
+    <div class="section-header">
+        <h2 class="section-title">Próximos Webinars</h2>
+        <p class="section-subtitle">Conecta con expertos y amplía tu conocimiento</p>
+    </div>
 
     @if (!(Model?.Any() ?? false))
     {
-        <div class="alert alert-info">No hay webinars disponibles por el momento.</div>
+        <div class="empty-state">
+            <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <h3>No hay webinars programados</h3>
+            <p>Vuelve pronto para ver nuevos eventos</p>
+        </div>
     }
     else
     {
-        <div class="row">
+        <div class="webinars-grid">
             @foreach (var w in Model)
             {
                 var ahora = DateTime.Now;
@@ -164,129 +174,141 @@ else if (destacado != null)
                 ? (ahora > fin.Value)
                 : (ahora.Date > inicio.Date);
 
-
-
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100">
-                        @if (!string.IsNullOrWhiteSpace(w.Imagen))
-                        {
-                            <img class="card-img-top" src="@w.Imagen" alt="Portada del webinar" />
-                        }
-                        <div class="card-body d-flex flex-column">
-                            <h5 class="card-title">@w.Titulo</h5>
-
-                            <p class="card-text mb-1">
-                                <b>Inicio:</b> @w.FechaInicio.ToString("dd 'de' MMMM 'de' yyyy HH:mm") <br />
-                                <b>Fin:</b> @w.FechaFin.ToString("dd 'de' MMMM 'de' yyyy HH:mm")
-                            </p>
-
-                            @if (!string.IsNullOrWhiteSpace(w.Descripcion))
-                            {
-                                <p class="card-text text-muted">@w.Descripcion</p>
-                            }
-
-
-                            @{
-                                bool esAsamblea = !string.IsNullOrWhiteSpace(w?.UrlEnVivoEmbed);
-                            }
-                            <div class="mt-auto">
+                <article class="webinar-card @(enCurso ? "live" : "") @(yaPaso ? "past" : "")">
+                    @if (!string.IsNullOrWhiteSpace(w.Imagen))
+                    {
+                        <div class="webinar-thumbnail">
+                            <img src="@w.Imagen" alt="@w.Titulo" loading="lazy" />
+                            <div class="thumbnail-overlay">
                                 @if (enCurso)
                                 {
-                                    if (!string.IsNullOrWhiteSpace(w.UrlEnVivoEmbed))
-                                    {
-                                        <button type="button" class="btn btn-primary w-100"
-                                                onclick="abrirEnKiosko('@w.UrlEnVivoEmbed')">
-                                            Ver en vivo
-                                        </button>
-                                    }
-
-                                    @if (puedeCrear && !string.IsNullOrWhiteSpace(w.UrlTeams))
-                                    {
-                                        <button type="button" class="btn btn-outline-secondary w-100 mt-2"
-                                                onclick="abrirTeamsTopLevel('@w.UrlTeams')">
-                                            Unirse por Teams (presentador)
-                                        </button>
-                                    }
-                                }
-
-                                else if (yaPaso && !string.IsNullOrWhiteSpace(w.UrlGrabacion))
-                                {
-                                    <button type="button" class="btn btn-outline-secondary w-100"
-                                            onclick="abrirGrabacionKiosko('@w.UrlGrabacion')">
-                                        Volver a ver
-                                    </button>
-                                }
-                                else if (!yaPaso && !string.IsNullOrWhiteSpace(w.UrlRegistro))
-                                {
-                                    <button type="button" class="btn btn-outline-primary w-100"
-                                            onclick="abrirEnKiosko('@w.UrlRegistro')">
-                                        Registrarme
-                                    </button>
+                                    <span class="status-badge live-badge">
+                                        <span class="pulse-dot"></span>
+                                        En Vivo
+                                    </span>
                                 }
                                 else if (yaPaso)
                                 {
-                                    <span class="badge bg-light text-muted w-100 text-center">Evento finalizado</span>
+                                    <span class="status-badge past-badge">Finalizado</span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-secondary w-100 text-center">Próximamente</span>
+                                    <span class="status-badge upcoming-badge">Próximamente</span>
                                 }
                             </div>
+                        </div>
+                    }
 
+                    <div class="webinar-content">
+                        <h3 class="webinar-title">@w.Titulo</h3>
 
+                        <div class="webinar-meta">
+                            <div class="meta-item">
+                                <svg class="meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <div class="meta-text">
+                                    <span class="meta-label">Inicio</span>
+                                    <span class="meta-value">@w.FechaInicio.ToString("dd MMM yyyy, HH:mm")</span>
+                                </div>
+                            </div>
+                            <div class="meta-item">
+                                <svg class="meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div class="meta-text">
+                                    <span class="meta-label">Fin</span>
+                                    <span class="meta-value">@w.FechaFin.ToString("dd MMM yyyy, HH:mm")</span>
+                                </div>
+                            </div>
+                        </div>
 
+                        @if (!string.IsNullOrWhiteSpace(w.Descripcion))
+                        {
+                            <p class="webinar-description">@w.Descripcion</p>
+                        }
+
+                        <div class="webinar-actions">
+                            @if (enCurso)
+                            {
+                                if (!string.IsNullOrWhiteSpace(w.UrlEnVivoEmbed))
+                                {
+                                    <button type="button" class="btn btn-primary btn-live"
+                                            onclick="abrirEnKiosko('@w.UrlEnVivoEmbed')">
+                                        <svg class="btn-icon" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
+                                        </svg>
+                                        Ver en Vivo
+                                    </button>
+                                }
+
+                                @if (puedeCrear && !string.IsNullOrWhiteSpace(w.UrlTeams))
+                                {
+                                    <button type="button" class="btn btn-secondary"
+                                            onclick="abrirTeamsTopLevel('@w.UrlTeams')">
+                                        <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                        </svg>
+                                        Unirse (Presentador)
+                                    </button>
+                                }
+                            }
+                            else if (yaPaso && !string.IsNullOrWhiteSpace(w.UrlGrabacion))
+                            {
+                                <button type="button" class="btn btn-secondary"
+                                        onclick="abrirGrabacionKiosko('@w.UrlGrabacion')">
+                                    <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Ver Grabación
+                                </button>
+                            }
+                            else if (!yaPaso && !string.IsNullOrWhiteSpace(w.UrlRegistro))
+                            {
+                                <button type="button" class="btn btn-primary"
+                                        onclick="abrirEnKiosko('@w.UrlRegistro')">
+                                    <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                    </svg>
+                                    Registrarme Ahora
+                                </button>
+                            }
                         </div>
                     </div>
-                </div>
+                </article>
             }
         </div>
     }
 </div>
 
 
-
-
-
 <div class="videoteca mt-5">
     <link href="~/css/stylesLiderIndex.css" rel="stylesheet" />
     <div class="lider-container">
         <p class="lider-title">
-            Videoteca 
+            Videoteca
         </p>
     </div>
 
-
-
-
- 
-    <div class="filters-section">
-        <div class="filters-container">
-            <div class="filter-tags">
-                <button class="filter-tag active" onclick="filtrarPor(event,'todos')">Todos</button>
-            </div>
-            <div class="search-container">
-                <input type="text" class="search-input" placeholder="Buscar videos, speakers, temas..."
-                       oninput="buscarVideos(this.value)">
-                <i class="fas fa-search" style="color: #888;"></i>
-            </div>
-        </div>
-    </div>
-
-    <!-- Categorías de Videos (solo 2 secciones) -->
+    <!-- Categorías de Videos (solo 1 sección, siempre visible) -->
     <div class="categories-section">
         <!-- Liderazgo Estratégico -->
         <div class="category-section" data-category="estrategico">
             <div class="category-header">
                 <h2 class="category-title">
                     <i class="fas fa-chess-king"></i>
-                    Videos Ns Group
+                    Videos NS Group
                 </h2>
-                <a href="#" class="view-all-btn">Ver todos</a>
             </div>
             <div class="videos-grid" id="estrategico-grid"></div>
         </div>
-
-        
     </div>
 
     <!-- Modal de Video -->
@@ -303,6 +325,7 @@ else if (destacado != null)
         </div>
     </div>
 </div>
+
 
 @*Se agrega un kiosko para navegar siempre dentro de intranet*@
 
@@ -513,11 +536,19 @@ else if (destacado != null)
           const videoId = wrap.getAttribute('data-video-id');
           if (!videoId) return;
 
-          heroPlayer = new YT.Player('heroPlayer', {
+                 heroPlayer = new YT.Player('heroPlayer', {
             videoId,
-            playerVars: { autoplay: 0, mute: 1, controls: 1, rel: 0, modestbranding: 1, playsinline: 1 },
+            playerVars: {
+                autoplay: 0,
+                mute: 0,           // ← Cambiado: Sin silencio inicial
+                controls: 1,       // ← Ya estaba: Muestra controles
+                rel: 0,
+                modestbranding: 1,
+                playsinline: 1,
+                fs: 1              // ← Añadido: Permite pantalla completa
+            },
             events: { onReady: setupHeroVisibilityControl }
-          });
+        });
         }
 
         function setupHeroVisibilityControl() {
@@ -569,8 +600,7 @@ else if (destacado != null)
             const videoId = wrap.getAttribute('data-video-id');
             if (!videoId) return;
             const iframe = document.createElement('iframe');
-            iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1`;
-            iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+        iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=0&mute=0&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1`;            iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
             iframe.allowFullscreen = true;
             document.getElementById('heroPlayer').appendChild(iframe);
           }
@@ -672,8 +702,8 @@ else if (destacado != null)
 
            setTimeout(() => { if (!cargado) window.location.href = url; }, 6000);
 
-          
-          
+
+
         }
 
 

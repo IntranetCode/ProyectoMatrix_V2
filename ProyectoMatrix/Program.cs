@@ -98,6 +98,7 @@ builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 //builder.Services.AddScoped<PerfilUsuarioService>();
 
 
+builder.Services.AddSingleton<ISftpStorage, SftpStorage>();
 
 
 // ? SERVICIOS Universidad NS
@@ -129,6 +130,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IServicioAcceso, ServicioAcceso>();
 
 var app = builder.Build();
+
+
 
 // Configurar el middleware                                             
 if (!app.Environment.IsDevelopment())
