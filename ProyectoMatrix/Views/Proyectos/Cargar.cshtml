@@ -10,9 +10,9 @@
 @inject IServicioAcceso Acceso
 @{
     var usuarioId = int.Parse(User.FindFirst("UsuarioID").Value);
-    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Crear");
-    var puedeEditar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Editar");
-    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Proyectos", "Eliminar");
+    var puedeCrear = await Acceso.TienePermisoAsync(usuarioId, "Crear Proyectos", "Crear");
+    var puedeEditar = await Acceso.TienePermisoAsync(usuarioId, "Editar Proyecto", "Editar");
+    var puedeEliminar = await Acceso.TienePermisoAsync(usuarioId, "Eliminar Proyectos", "Eliminar");
 }
 
 
@@ -234,11 +234,15 @@
         </div>
     </div>
         <div class="d-flex gap-2 mb-3">
-            
+            <button type="button" id="btn-guardar-habilitar" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i> Guardar y habilitar gestor
+            </button>
+
             <button type="button" id="btn-guardar-ir-index" class="btn btn-success">
-                <i class="fas fa-save me-1"></i> Guardar
+                <i class="fas fa-save me-1"></i> Guardar y regresar
             </button>
         </div>
+
 
         
     </form>
@@ -254,6 +258,28 @@
           const byId = id => document.getElementById(id);
 
           const form = byId('formCargarProyecto');
+
+
+                  // --- Autogenerar Código del Proyecto si está vacío ---
+        {
+          const nombreInput = document.getElementById('NombreProyecto');
+          const codigoInput = document.getElementById('CodigoProyecto');
+          if (nombreInput && codigoInput) {
+            nombreInput.addEventListener('blur', function () {
+              const tieneCodigo = (codigoInput.value || '').trim() !== '';
+              const tieneNombre = (this.value || '').trim() !== '';
+              if (!tieneCodigo && tieneNombre) {
+                const d = new Date();
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const rnd = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
+                codigoInput.value = `PRY-${y}${m}-${rnd}`;
+              }
+            });
+          }
+        }
+
+
           const ga = byId('gestor-archivos');
           const listaBody = byId('ga-lista');
           const breadcrumbOl = byId('ga-breadcrumb');
