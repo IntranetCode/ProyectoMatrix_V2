@@ -1,0 +1,68 @@
+﻿@model IEnumerable<ProyectoMatrix.Models.Universidad.CursoResumenViewModel>
+
+@{
+    Layout = null;
+    ViewBag.Title = "Resumen de cursos";
+}
+
+<h2>Resumen de cursos</h2>
+
+<p>
+    <a href="@Url.Action("ExportarResumenCursos", "UniversidadReportes")"
+       class="btn btn-sm btn-success">
+        Exportar resumen (CSV)
+    </a>
+</p>
+
+
+@if (Model == null || !Model.Any())
+{
+    <p>No hay cursos con información de asignaciones.</p>
+}
+else
+{
+    <table class="table table-striped table-bordered table-sm">
+        <thead>
+            <tr>
+                <th>Curso</th>
+                <th class="text-center">Usuarios asignados</th>
+                <th class="text-center">No iniciados</th>
+                <th class="text-center">En progreso</th>
+                <th class="text-center">Aprobados</th>
+                <th class="text-center">Reprobados</th>
+                <th class="text-center">% Aprobación</th>
+                <th class="text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.NombreCurso</td>
+
+                    <td class="text-center">@item.UsuariosAsignados</td>
+                    <td class="text-center">@item.NoIniciados</td>
+                    <td class="text-center">@item.EnProgreso</td>
+                    <td class="text-center">@item.Aprobados</td>
+                    <td class="text-center">@item.Reprobados</td>
+
+                    <td class="text-center">
+                        @item.PorcentajeAprobacion.ToString("0.##") %
+                    </td>
+
+                   
+                <td class="text-center">
+                    @Html.ActionLink(
+                        "Ver detalle",
+                        "DetalleCurso",
+                        "UniversidadReportes",
+                        new { cursoId = item.CursoId },
+                        new { @class = "btn btn-sm btn-primary" }
+                    )
+                </td>
+                
+                </tr>
+            }
+        </tbody>
+    </table>
+}

@@ -4,7 +4,12 @@
     {
         public int IntentoId { get; set; }
         public int UsuarioId { get; set; }
+
+        public int CursoId { get; set; }
+
         public int SubCursoId { get; set; }
+
+        public string NombreSubCurso { get; set; }
 
         public int NumeroIntento { get; set; }
 

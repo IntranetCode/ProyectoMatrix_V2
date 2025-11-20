@@ -1,0 +1,50 @@
+﻿@model IEnumerable<ProyectoMatrix.Models.Universidad.IntentoEvaluacionViewModel>
+
+@{
+    Layout = null; 
+    var nombreUsuario = ViewBag.NombreUsuario as string ?? "Usuario";
+    var nombreCurso = ViewBag.NombreCurso as string ?? "Curso";
+}
+
+<h2>Intentos de evaluación</h2>
+<p>
+    <strong>Curso:</strong> @nombreCurso<br />
+    <strong>Usuario:</strong> @nombreUsuario
+</p>
+
+@if (Model == null || !Model.Any())
+{
+    <p>Este usuario no tiene intentos de evaluación registrados para este curso.</p>
+}
+else
+{
+    <table class="table table-striped table-bordered table-sm">
+        <thead>
+            <tr>
+                <th>Subcurso</th>
+                <th class="text-center"># Intento</th>
+                <th>Fecha inicio</th>
+                <th>Fecha fin</th>
+                <th class="text-center">Puntaje</th>
+                <th class="text-center">Máximo</th>
+                <th class="text-center">Aprobado</th>
+                <th class="text-center">Tiempo empleado</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var intento in Model)
+            {
+                <tr>
+                    <td>@intento.NombreSubCurso</td>
+                    <td class="text-center">@intento.NumeroIntento</td>
+                    <td>@intento.FechaInicio.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>@intento.FechaFin.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td class="text-center">@intento.PuntajeObtenido.ToString("0.##")</td>
+                    <td class="text-center">@intento.PuntajeMaximo.ToString("0.##")</td>
+                    <td class="text-center">@((intento.Aprobado) ? "Sí" : "No")</td>
+                    <td class="text-center">@intento.TiempoEmpleado</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

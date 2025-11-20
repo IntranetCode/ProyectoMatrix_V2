@@ -1,6 +1,6 @@
 ﻿namespace ProyectoMatrix.Models.Universidad
 {
-    public class CursoDetalleViewModel
+    public class DetalleCursoViewModel
     {
         public int AsignacionId { get; set; }
 
@@ -9,7 +9,10 @@
 
         // Identificación de usuario
         public int UsuarioId { get; set; }
-        public string? NombreUsuario { get; set; }  // Lo llenaremos cuando hagamos JOIN con tu tabla de usuarios
+
+        public string Username { get; set; } = string.Empty;
+
+        public string? NombreUsuario { get; set; } 
 
         // Empresa / área
         public int? EmpresaId { get; set; }

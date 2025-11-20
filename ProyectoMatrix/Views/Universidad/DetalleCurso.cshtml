@@ -1,0 +1,100 @@
+﻿@model IEnumerable<ProyectoMatrix.Models.Universidad.DetalleCursoViewModel>
+
+@{
+    Layout = null; 
+    var tituloCurso = ViewBag.NombreCurso as string ?? "Curso";
+}
+
+<h2>Detalle del curso: @tituloCurso</h2>
+
+@if (Model == null || !Model.Any())
+{
+    <p>No hay usuarios asignados o no hay información de progreso para este curso.</p>
+}
+else
+{
+    <table class="table table-striped table-bordered table-sm">
+        <thead>
+            <tr>
+                <th>Usuario</th>
+                <th>EmpresaID</th>
+                <th>DepartamentoID</th>
+                <th>Estado</th>
+                <th class="text-center">Calificación final</th>
+                <th class="text-center">Intentos totales</th>
+                <th class="text-center">Intentos aprobados</th>
+                <th class="text-center">Intentos no aprobados</th>
+                <th>Fecha asignación</th>
+                <th>Fecha inicio</th>
+                <th>Fecha término</th>
+                <th>Última actividad</th>
+                <th class="text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>
+                        @(
+                                        !string.IsNullOrWhiteSpace(item.NombreUsuario)
+                                        ? item.NombreUsuario
+                                        : (!string.IsNullOrWhiteSpace(item.Username)
+                                        ? item.Username
+                                        : item.UsuarioId.ToString())
+                                        )
+                    </td>
+
+                    <td>@(item.EmpresaId?.ToString() ?? "-")</td>
+                    <td>@(item.DepartamentoId?.ToString() ?? "-")</td>
+
+                    <td>@item.EstadoCurso</td>
+
+                    <td class="text-center">
+                        @(item.CalificacionFinal.HasValue
+                                        ? item.CalificacionFinal.Value.ToString("0.##")
+                                        : "-")
+            </td>
+
+                    <td class="text-center">
+                        @(item.IntentosTotales.HasValue? item.IntentosTotales.Value.ToString() : "0")
+                    </td>
+                    <td class="text-center">
+                        @(item.IntentosAprobados.HasValue? item.IntentosAprobados.Value.ToString() : "0")
+                    </td>
+                    <td class="text-center">
+                        @(item.IntentosNoAprobados.HasValue? item.IntentosNoAprobados.Value.ToString() : "0")
+                    </td>
+
+                    <td>@item.FechaAsignacion.ToString("dd/MM/yyyy")</td>
+                    <td>@(item.FechaInicioCurso?.ToString("dd/MM/yyyy") ?? "-")</td>
+                    <td>@(item.FechaTerminoCurso?.ToString("dd/MM/yyyy") ?? "-")</td>
+                    <td>@(item.FechaUltimaActividad?.ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
+
+
+                    <td class="text-center">
+            @if (item.IntentosTotales.HasValue && item.IntentosTotales.Value > 0)
+            {
+                @Html.ActionLink(
+                    "Ver intentos",
+                    "IntentosUsuarioCurso",
+                    "UniversidadReportes",
+                    new {
+                        cursoId = item.CursoId,
+                        usuarioId = item.UsuarioId,
+                        nombreUsuario = item.NombreUsuario ?? item.Username,
+                        nombreCurso = item.NombreCurso
+                    },
+                    new { @class = "btn btn-sm btn-secondary" }
+                )
+            }
+            else
+            {
+                <span class="text-muted">Sin intentos</span>
+            }
+        </td>
+                </tr>
+                }
+        </tbody>
+    </table>
+}
