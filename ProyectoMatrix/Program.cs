@@ -112,6 +112,8 @@ builder.Services.AddScoped<UniversidadServices>();
 builder.Services.AddScoped<ServicioNotificaciones>();
 
 
+//Registrar el servicio de denuncias
+builder.Services.AddScoped<ServiciosDenuncias>();
 
 
 //Vicular opciones de corrreo

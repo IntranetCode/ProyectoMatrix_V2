@@ -28,13 +28,13 @@ public class LoginController : Controller
 
     // ---------- LOGIN GET ----------
     [HttpGet]
-  
+
     public IActionResult Login()
     {
         if (HttpContext.Session.GetInt32("UsuarioID") != null)
         {
             return RedirectToAction("Index", "Menu"); // Redirige si el usuario es diferente de null, porque ya tiene la sesio abierta
-       
+
         }
 
         return View();
@@ -51,9 +51,9 @@ public class LoginController : Controller
 
         var usuario = await ObtenerUsuarioActivoAsync(model.Username, _connectionString);
 
- var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
+        var solicitudId = HttpContext.Items["SolicitudId"]?.ToString();
         var direccionIp = HttpContext.Items["DireccionIp"]?.ToString();
-       var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
+        var agenteUsuario = HttpContext.Items["AgenteUsuario"]?.ToString();
 
         if (usuario == null || usuario.Password != model.Password)
         {
@@ -90,7 +90,7 @@ public class LoginController : Controller
 
         if (empresas.Count > 1)
         {
-           
+
 
             try
             {
@@ -148,7 +148,7 @@ public class LoginController : Controller
             return await CompletarLogin(usuario, empresas[0]);
 
 
-            
+
         }
         else
         {
@@ -199,6 +199,18 @@ public class LoginController : Controller
         HttpContext.Session.SetString("EmpresaLogo", string.IsNullOrEmpty(empresa.Logo) ? "default.jpg" : empresa.Logo);
         HttpContext.Session.SetString("ColorPrimario", string.IsNullOrEmpty(empresa.ColorPrimario) ? "#007bff" : empresa.ColorPrimario);
         HttpContext.Session.SetString("Rol", usuario.Rol);
+        //Obtener nombre completo nde  un usuario y guardalo en la sesion
+        var nombreMostrar = await ObtenerNombreMostrarPorUsuarioAsync(usuario.UsuarioID);
+
+        if (!string.IsNullOrWhiteSpace(nombreMostrar))
+        {
+            HttpContext.Session.SetString("NombreMostrar", nombreMostrar);
+        }
+        else
+        {
+            // Respaldo: si no hay Persona, se usa el Username
+            HttpContext.Session.SetString("NombreMostrar", usuario.Username);
+        }
 
 
         // ✅ AGREGAR ESTAS LÍNEAS - Variables que necesita Universidad NS
@@ -235,7 +247,7 @@ public class LoginController : Controller
         var principal = new ClaimsPrincipal(identity);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
 
-        TempData["Bienvenida"] = $"Bienvenido, {usuario.Username}";
+        TempData["Bienvenida"] = $"Bienvenido, {nombreMostrar ?? usuario.Username}";
         return RedirectToAction("Index", "Menu");
     }
 
@@ -392,7 +404,7 @@ public class LoginController : Controller
     // ---------- LOGOUT ----------
     [HttpGet]
     [AuditarAccion(Modulo = "SEGURIDAD", Entidad = "Login", Operacion = "LOGOUT", OmitirListas = false)]
-  
+
     public async Task<IActionResult> Logout()
     {
         // Datos del middleware
@@ -457,6 +469,43 @@ public class LoginController : Controller
         var result = await command.ExecuteScalarAsync();
         return result != null ? Convert.ToInt32(result) : 4; // Default: Autor/Editor para YOLGUINM
     }
+
+    //Nuevo metodo para obtener el nombre completo de un usuario, para mostrarlo en vez del USERNAME
+
+    private async Task<string?> ObtenerNombreMostrarPorUsuarioAsync(int usuarioId)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        string query = @"
+           SELECT TOP 1 
+               p.Nombre,
+               p.ApellidoPaterno,
+               p.ApellidoMaterno
+        FROM Usuarios u
+        INNER JOIN Persona p ON u.PersonaID = p.PersonaID
+        WHERE u.UsuarioID = @UsuarioID;";
+
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+        using var reader = await command.ExecuteReaderAsync();
+        if(await reader.ReadAsync())
+        {
+            var nombre = reader["Nombre"] as string ?? "";
+            var apePat = reader["ApellidoPaterno"] as string ?? "";
+            var apeMat = reader["ApellidoMaterno"] as string ?? "";
+
+            var nombreMostrar = $"{nombre} {apePat} {apeMat}".Trim();
+
+            if(!string.IsNullOrWhiteSpace(nombreMostrar))
+                return nombreMostrar;
+
+        }
+        return null;
+
+    }
+    //WHERE u.UsuarioID = @UsuarioID;
 
     [HttpGet]
     public IActionResult VerificarSesion()

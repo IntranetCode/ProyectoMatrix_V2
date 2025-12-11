@@ -99,7 +99,16 @@
                            class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "GestionCursos" ? "active" : "")">
                             <i class="fas fa-book"></i><span>Gestionar</span>
                         </a>
-                    }
+
+                       <a asp-controller="UniversidadReportes" asp-action="ResumenCursos"
+                       class="nav-link  @(ViewContext.RouteData.Values["Controller"]?.ToString() == "UniversidadReportes"
+                                                  && ViewContext.RouteData.Values["Action"]?.ToString() == "ResumenCursos"
+                       ? "active" : "")">
+                       <i class="fas fa-chart-bar"></i><span>Reportes</span>
+                   </a>
+                    } 
+
+                   
 
                     @if (puedeAsignarCursos)
                     {
@@ -127,12 +136,12 @@
             <div class="navbar-user-section">
                 <!-- Quick Actions -->
                 <div class="quick-actions">
-                    @if (puedeGestionarCursos)
+                  |@* @if (puedeGestionarCursos)
                     {
                         <a asp-controller="Universidad" asp-action="CrearCurso" class="quick-action-btn" title="Crear Curso">
                             <i class="fas fa-plus"></i>
                         </a>
-                    }
+                    }*@ 
 
                     <a asp-controller="Menu" asp-action="Index" class="quick-action-btn" title="Volver a Intranet">
                         <i class="fas fa-home"></i>

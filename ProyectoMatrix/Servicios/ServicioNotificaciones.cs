@@ -571,5 +571,98 @@ WHERE u.UsuarioID IN ({string.Join(",", paramNames)})
 
             return result;
         }
+
+        //Envvío de correo denuncia anónima
+
+
+        public async Task EnviarCorreoDenunciaAnonimaAsync (DenunciaAnonimaCreateVm d)
+        {
+
+           // _logger.LogInformation("📨 Enviando correo de denuncia anónima. Tipo={Tipo}, Depto={Depto}",
+       //d.TipoDenuncia, d.DepartamentoAfectado);
+
+            var asunto = "Nueva denuncia anónima confidencial";
+
+            var fechaHechos = d.FechaHechos.HasValue
+                ? d.FechaHechos.Value.ToString("dd/MM/yyyy")
+                : "No especificada";
+
+            var cuerpo = $@"
+<html>
+  <body style='margin:0;padding:0;background-color:#f4f4f6;font-family:Segoe UI,Arial,sans-serif;'>
+    <table role='presentation' cellpadding='0' cellspacing='0' width='100%'>
+      <tr>
+        <td align='center' style='padding:24px 12px;'>
+          <table role='presentation' cellpadding='0' cellspacing='0' width='100%' style='max-width:640px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.18);'>
+            <tr>
+              <td style='background:#111827;padding:18px 24px;color:#f9fafb;'>
+                <h2 style='margin:0;font-size:18px;font-weight:600;'>
+                  Nueva denuncia anónima
+                </h2>
+                <p style='margin:4px 0 0;font-size:12px;color:#e5e7eb;'>
+                  Este mensaje fue generado automáticamente desde la Intranet NS Group.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style='padding:20px 24px 8px;'>
+                <p style='margin:0 0 12px;font-size:13px;color:#4b5563;'>
+                  Se ha registrado una nueva denuncia anónima en el sistema. A continuación se muestran los detalles proporcionados por la persona denunciante.
+                </p>
+
+                <table role='presentation' cellpadding='0' cellspacing='0' width='100%' style='font-size:13px;color:#111827;border-collapse:collapse;'>
+                  <tr>
+                    <td style='padding:6px 0;width:40%;font-weight:600;color:#6b7280;'>Tipo de denuncia</td>
+                    <td style='padding:6px 0;'>{System.Net.WebUtility.HtmlEncode(d.TipoDenuncia)}</td>
+                  </tr>
+                  <tr>
+                    <td style='padding:6px 0;font-weight:600;color:#6b7280;'>Departamento afectado</td>
+                    <td style='padding:6px 0;'>{System.Net.WebUtility.HtmlEncode(d.DepartamentoAfectado)}</td>
+                  </tr>
+                  <tr>
+                    <td style='padding:6px 0;font-weight:600;color:#6b7280;'>Fecha aproximada de los hechos</td>
+                    <td style='padding:6px 0;'>{fechaHechos}</td>
+                  </tr>
+                  <tr>
+                    <td style='padding:6px 0;font-weight:600;color:#6b7280;'>Lugar de los hechos</td>
+                    <td style='padding:6px 0;'>{System.Net.WebUtility.HtmlEncode(d.LugarHechos ?? "No especificado")}</td>
+                  </tr>
+                </table>
+
+                <div style='margin-top:18px;'>
+                  <div style='font-size:12px;font-weight:600;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em;'>
+                    Descripción
+                  </div>
+                  <div style='font-size:13px;line-height:1.5;color:#111827;background:#f9fafb;border-radius:8px;padding:10px 12px;border:1px solid #e5e7eb;white-space:pre-line;'>
+                    {System.Net.WebUtility.HtmlEncode(d.Descripcion)}
+                  </div>
+                </div>
+
+                <div style='margin-top:18px;padding:10px 12px;border-radius:8px;background:#fef3c7;font-size:11px;color:#92400e;'>
+                  <strong>Nota:</strong> La identidad de la persona denunciante no se muestra en este correo ni en los reportes para Recursos Humanos.
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style='padding:12px 24px 18px;text-align:center;font-size:11px;color:#9ca3af;background:#f9fafb;'>
+                Intranet NS Group · Este es un mensaje automático, por favor no responder directamente a este correo.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+";
+            var correoRh = "yadira.olguin@nsgroup.com.mx";
+
+            //var correoRh = "litzi.perez@nsgroup.com.mx";
+
+            await EnviarCorreoAsync(correoRh, asunto, cuerpo);
+        }
+
+           
+
     }
 }

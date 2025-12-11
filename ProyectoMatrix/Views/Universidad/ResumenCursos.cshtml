@@ -1,18 +1,28 @@
 ﻿@model IEnumerable<ProyectoMatrix.Models.Universidad.CursoResumenViewModel>
 
 @{
-    Layout = null;
+    //Layout = null;
+    Layout = "~/Views/Universidad/_LayoutUniversidad.cshtml";
     ViewBag.Title = "Resumen de cursos";
 }
 
 <h2>Resumen de cursos</h2>
 
-<p>
-    <a href="@Url.Action("ExportarResumenCursos", "UniversidadReportes")"
-       class="btn btn-sm btn-success">
-        Exportar resumen (CSV)
-    </a>
-</p>
+<link href="~/css/stylesUniversidadReportes.css" rel="stylesheet" />
+
+
+<div class="uni-report">
+    <div class="uni-report-header">
+        <h2>Resumen de cursos</h2>
+    <div class="uni-report-actions">
+        <a href="@Url.Action("ExportarResumenCursos", "UniversidadReportes")"
+           class="btn btn-sm btn-success">
+            Exportar resumen (CSV)
+        </a>
+    </div>
+
+</div>
+
 
 
 @if (Model == null || !Model.Any())
@@ -21,7 +31,8 @@
 }
 else
 {
-    <table class="table table-striped table-bordered table-sm">
+    <div class="uni-table-wrapper">
+    <table class="uni-table">
         <thead>
             <tr>
                 <th>Curso</th>
@@ -65,4 +76,6 @@ else
             }
         </tbody>
     </table>
+    </div>
 }
+</div>

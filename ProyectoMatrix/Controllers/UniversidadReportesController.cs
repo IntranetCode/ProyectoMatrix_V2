@@ -57,8 +57,8 @@ namespace ProyectoMatrix.Controllers
 
             var sb = new StringBuilder();
 
-            // Encabezados (usa ; porque Excel en español lo entiende bien)
-            sb.AppendLine("Curso;UsuariosAsignados;NoIniciados;EnProgreso;Aprobados;Reprobados;PorcentajeAprobacion");
+            
+            sb.AppendLine("Curso,UsuariosAsignados,NoIniciados,EnProgreso,Aprobados,Reprobados,PorcentajeAprobacion");
 
             foreach (var item in datos)
             {
@@ -69,7 +69,7 @@ namespace ProyectoMatrix.Controllers
                     .Replace("\n", " ");
 
                 var linea = string.Format(CultureInfo.InvariantCulture,
-                    "{0};{1};{2};{3};{4};{5};{6}",
+                    "{0},{1},{2},{3},{4},{5},{6}",
                     nombreCurso,
                     item.UsuariosAsignados,
                     item.NoIniciados,

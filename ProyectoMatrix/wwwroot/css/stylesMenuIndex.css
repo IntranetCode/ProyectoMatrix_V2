@@ -1029,3 +1029,132 @@ body {
 .action-card.generico .action-icon {
     background: linear-gradient(135deg, #94a3b8, #64748b) !important;
 }
+
+
+
+/*ESTILOS PARA LOS MODALES DE PERFIL Y DE DENUNCIA*/
+
+.modal-perfil {
+    border-radius: 18px;
+    overflow: hidden;
+    border: none;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+}
+
+    .modal-perfil .modal-header {
+        background: linear-gradient(120deg, #04173b, #063f63);
+        color: #fff;
+        border-bottom: none;
+    }
+
+    .modal-perfil .modal-title i {
+        margin-right: .5rem;
+    }
+
+    .modal-perfil .modal-body {
+        background: #f7f9fc;
+    }
+
+.perfil-info {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+    .perfil-info .mb-3 {
+        margin-bottom: .8rem !important;
+    }
+
+    .perfil-info label {
+        font-size: 0.9rem;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+        margin-bottom: .15rem;
+    }
+
+    .perfil-info p {
+        margin-bottom: 0;
+        margin-left: 1.5rem;
+        font-size: 0.9rem;
+        color: #0f172a;
+    }
+
+
+.modal-denuncia {
+    border-radius: 18px;
+    overflow: hidden;
+    border: none;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+}
+
+    .modal-denuncia .modal-header {
+        background: #111827;
+        color: #f9fafb;
+        border-bottom: none;
+    }
+
+    .modal-denuncia .modal-title {
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .modal-denuncia .modal-body {
+        background: #f9fafb;
+    }
+
+    .modal-denuncia .text-muted.small {
+        font-size: .8rem;
+        color: #4b5563 !important;
+        background: #e0f2fe;
+        border-left: 4px solid #0ea5e9;
+        padding: .6rem .75rem;
+        border-radius: .75rem;
+    }
+
+    .modal-denuncia .form-group {
+        margin-bottom: .9rem;
+    }
+
+        .modal-denuncia .form-group label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #111827;
+        }
+
+    .modal-denuncia .form-control,
+    .modal-denuncia .form-select {
+        border-radius: .65rem;
+        border-color: #d1d5db;
+        font-size: 0.9rem;
+    }
+
+        .modal-denuncia .form-control:focus,
+        .modal-denuncia .form-select:focus {
+            box-shadow: 0 0 0 .16rem rgba(37, 99, 235, .28);
+            border-color: #2563eb;
+        }
+
+    .modal-denuncia .modal-footer {
+        background: #f3f4f6;
+        border-top: none;
+    }
+
+    .modal-denuncia .btn-primary {
+        border-radius: 999px;
+        padding-inline: 1.3rem;
+    }
+
+    .modal-denuncia .btn-secondary {
+        border-radius: 999px;
+        padding-inline: 1.1rem;
+        background-color: #e5e7eb;
+        color: #111827;
+        border-color: #d1d5db;
+    }
+
+        .modal-denuncia .btn-secondary:hover {
+            background-color: #d1d5db;
+        }
