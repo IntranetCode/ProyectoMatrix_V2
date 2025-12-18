@@ -34,10 +34,7 @@
     <link rel="stylesheet" href="~/css/components/navbar.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/components/cards.css" asp-append-version="true" />
     <link href="~/css/stylesUniversidadLU.css" rel="stylesheet" />
-    <!-- Universidad NS Specific CSS -->
-    @*<link rel="stylesheet" href="~/css/universidad/universidad-core.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/universidad/universidad-components.css" asp-append-version="true" />
-*@ 
+  
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
@@ -118,16 +115,7 @@
                         </a>
                     }
 
-                    @*
-                         @if (puedeVerReportes)
-                    {
-                        <a href="/Universidad/Reportes" class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Reportes" ? "active" : "")">
-                            <i class="fas fa-chart-bar"></i>
-                            <span>Reportes</span>
-                        </a>
-                    }
-                    *@
-
+                   
                    
                 </div>
             </div>
@@ -136,13 +124,7 @@
             <div class="navbar-user-section">
                 <!-- Quick Actions -->
                 <div class="quick-actions">
-                  |@* @if (puedeGestionarCursos)
-                    {
-                        <a asp-controller="Universidad" asp-action="CrearCurso" class="quick-action-btn" title="Crear Curso">
-                            <i class="fas fa-plus"></i>
-                        </a>
-                    }*@ 
-
+                  
                     <a asp-controller="Menu" asp-action="Index" class="quick-action-btn" title="Volver a Intranet">
                         <i class="fas fa-home"></i>
                     </a>
@@ -170,34 +152,10 @@
                         <div class="dropdown-header">
                             <div class="dropdown-user-info">
                                 <strong>@nombreUsuario</strong>
-                                @*<small class="text-muted">@nombreEmpresa</small>*@ 
+                               
                             </div>
                         </div>
-                        @*Se quito este fragemnto de codigo porque las opciones no funcionaba*@
-                        @*
-                        <div class="dropdown-divider"></div>
-                        <a href="/Universidad/MiPerfil" class="dropdown-item">
-                            <i class="fas fa-user"></i>
-                            Mi Perfil
-                        </a>
-
                        
-                             <a href="/Universidad/MisPreferencias" class="dropdown-item">
-                            <i class="fas fa-cog"></i>
-                            Preferencias
-                        </a>
-                        <a href="/Universidad/MiProgreso" class="dropdown-item">
-                            <i class="fas fa-chart-line"></i>
-                            Mi Progreso
-                        </a>
-                       
-                       
-                        <div class="dropdown-divider"></div>
-                        <a href="/Universidad/Ayuda" class="dropdown-item">
-                            <i class="fas fa-question-circle"></i>
-                            Ayuda
-                        </a>
-                         *@
                         <div class="dropdown-divider"></div>
                         <a href="/Menu/Index" class="dropdown-item">
 
