@@ -88,7 +88,7 @@ namespace ProyectoMatrix.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener departamentos de empresa {EmpresaId}", idEmpresa);
+                _logger.LogError(ex, "Error al obtener departamentos de empresa {EmpresaID}", idEmpresa);
                 return Json(new { success = false, message = "Error al obtener departamentos" });
             }
         }
