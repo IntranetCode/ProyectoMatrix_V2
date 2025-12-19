@@ -331,6 +331,13 @@
                     welcomeSectionOverlay.classList.add("leaving");
                     welcomePinned.style.opacity = '1';
                 }, 2000);
+                        setTimeout(() => {
+          if (document.getElementById("welcome-section")) {
+            welcomeSectionOverlay.remove();
+            mainWrapper.classList.remove("overlay-lock");
+          }
+        }, 3200);
+
                 welcomeSectionOverlay.addEventListener("transitionend", function handler(event) {
                     if (event.propertyName === 'opacity' && welcomeSectionOverlay.classList.contains("leaving")) {
                         welcomeSectionOverlay.remove();

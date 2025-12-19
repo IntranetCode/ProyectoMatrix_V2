@@ -30,6 +30,10 @@ namespace ProyectoMatrix.Controllers
         [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public async Task<IActionResult> Index()
         {
+            ViewBag.MostrarBienvenida = (TempData["MostrarBienvenida"] as string) == "true";
+
+
+
             int? usuarioID = HttpContext.Session.GetInt32("UsuarioID");
             if (usuarioID == null)
                 return RedirectToAction("Login", "Login");

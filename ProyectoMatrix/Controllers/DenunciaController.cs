@@ -13,6 +13,32 @@ namespace ProyectoMatrix.Controllers
             _serviciosDenuncias = serviciosDenuncias;
         }
 
+        [HttpGet]
+        public IActionResult Index()
+        {
+            return View(new DenunciaAnonimaCreateVm());
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Index (DenunciaAnonimaCreateVm model)
+        {
+            if(!ModelState.IsValid)
+            {
+                TempData["ErrorDenunciaAnonima"] = "Revisa la información de la denuncia.";
+                return View(model);
+            }
+
+            var userId = int.Parse(User.FindFirst("UsuarioID")!.Value);
+
+            await _serviciosDenuncias.CrearDenunciaAsync(model, userId);
+
+            TempData["ExitoDenunciaAnonima"] = "Tu denuncia se envió de forma anónima. Gracias por tu confianza.";
+
+            return RedirectToAction(nameof(Index));
+        }
+
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Crear(DenunciaAnonimaCreateVm model)

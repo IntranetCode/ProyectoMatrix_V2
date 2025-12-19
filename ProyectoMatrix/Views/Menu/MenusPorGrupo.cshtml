@@ -132,14 +132,7 @@
             @{
                 var claseBienvenida = (ViewBag.MostrarBienvenida == true) ? "welcome-section as-overlay" : "welcome-section is-pinned";
             }
-            <section id="welcome-section" class="@claseBienvenida" aria-labelledby="welcome-title">
-                <div class="welcome-box">
-                    <h1 id="welcome-title" class="welcome-title">¡Hola, @nombreUsuario!</h1>
-                    <p class="welcome-subtitle">Bienvenido al portal interno de @nombreEmpresa. Accede a recursos, capacitaciones y herramientas internas.</p>
-                </div>
-            </section>
-            <div id="welcome-pinned-container" style="display: none;"></div>
-
+           
 
 
             <nav class="migapan" aria-label="Ruta">
@@ -338,27 +331,7 @@
             const mainWrapper = document.querySelector(".main-wrapper");
             const pinnedContainer = document.getElementById("welcome-pinned-container");
 
-            if (welcomeSectionOverlay.classList.contains("as-overlay")) {
-                mainWrapper.classList.add("overlay-lock");
-                const welcomePinned = welcomeSectionOverlay.cloneNode(true);
-                welcomePinned.classList.remove("as-overlay", "leaving");
-                welcomePinned.classList.add("is-pinned");
-                welcomePinned.style.opacity = '0';
-                welcomePinned.style.transition = 'opacity 0.4s ease-in-out';
-                pinnedContainer.appendChild(welcomePinned);
-                pinnedContainer.style.display = 'block';
-                setTimeout(() => {
-                    welcomeSectionOverlay.classList.add("leaving");
-                    welcomePinned.style.opacity = '1';
-                }, 2000);
-                welcomeSectionOverlay.addEventListener("transitionend", function handler(event) {
-                    if (event.propertyName === 'opacity' && welcomeSectionOverlay.classList.contains("leaving")) {
-                        welcomeSectionOverlay.remove();
-                        mainWrapper.classList.remove("overlay-lock");
-                        welcomeSectionOverlay.removeEventListener('transitionend', handler);
-                    }
-                });
-            }
+            
         });
     </script>
     <script>
