@@ -241,11 +241,19 @@ public class LoginController : Controller
 
         TempData["MostrarBienvenida"] = "true";
 
+        //Si el rol = 7 de invitado entra directo a index universidad
 
+       
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+        if (rolId == 7)
+        {
+            return RedirectToAction("Index", "Universidad");
+        }
+
 
         TempData["Bienvenida"] = $"Bienvenido, {nombreMostrar ?? usuario.Username}";
         return RedirectToAction("Index", "Menu");

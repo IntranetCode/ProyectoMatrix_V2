@@ -1,0 +1,117 @@
+﻿@model ProyectoMatrix.Models.MisVacacionesVm
+
+@{
+    ViewData["Title"] = "Mis vacaciones";
+    Layout = "_LayoutComunicados";
+}
+
+<h2>Mis vacaciones</h2>
+
+
+@if (TempData["MensajeVacaciones"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["MensajeVacaciones"]
+    </div>
+}
+<div class="mb-3">
+    <a asp-action="CrearSolicitud" class="btn btn-primary">Solicitar vacaciones</a>
+
+    @if (ViewBag.EsJefeInmediato == true)
+    {
+        <a asp-action="SolicitudesPendientesJefe"
+           class="btn btn-outline-secondary ms-2">
+            Solicitudes de mi equipo
+        </a>
+    }
+
+    @if (ViewBag.EsUsuarioRH == true)
+    {
+        <a asp-action="SolicitudesPendientesRH"
+           class="btn btn-outline-warning ms-2">
+            Solicitudes para registro RH
+        </a>
+    }
+
+    @if (ViewBag.EsUsuarioRH == true)
+    {
+        <a asp-action="BandejaRH"
+           asp-route-filtro="por_registrar"
+           class="btn btn-outline-info ms-2">
+            Bandeja RH (consulta + saldo)
+        </a>
+    }
+
+
+</div>
+
+
+@if (!string.IsNullOrEmpty(ViewBag.Error as string))
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+@if (Model != null)
+{
+    <h4>@Model.NombreCompleto (@Model.NumeroEmpleado)</h4>
+
+    @if (Model.ResumenActual != null)
+    {
+        <p>
+            <strong>Año:</strong> @Model.ResumenActual.Anio |
+            <strong>Corresponden:</strong> @Model.ResumenActual.DiasCorrespondientes días |
+            <strong>Tomados:</strong> @Model.ResumenActual.DiasTomados días |
+            <strong>Disponibles:</strong> @Model.ResumenActual.DiasDisponibles días
+        </p>
+    }
+
+    <h5>Historial de solicitudes</h5>
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Folio</th>
+                <th>Fecha solicitud</th>
+                <th>Periodo</th>
+                <th>Días</th>
+                <th>Anticipada</th>
+                <th>Estado jefe</th>
+                <th>Estado RH</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Solicitudes != null && Model.Solicitudes.Any())
+            {
+                foreach (var s in Model.Solicitudes)
+                {
+                    <tr>
+                        <td>@s.SolicitudVacacionesID</td>
+                        <td>@s.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                        <td>@s.FechaInicio.ToString("dd/MM/yyyy") - @s.FechaFin.ToString("dd/MM/yyyy")</td>
+                        <td>@s.DiasSolicitados</td>
+                        <td>@(s.EsAnticipada ? "Sí" : "No")</td>
+                        <td>@s.EstadoAutorizacion</td>
+                        <td>@s.EstadoRecursosHumanos</td>
+                        @*
+                        <td>
+                            @if (s.EstadoAutorizacion == "Autorizada")
+                            {
+                                <a asp-action="FormatoSolicitud"
+                                   asp-route-id="@s.SolicitudVacacionesID"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    Formato / Imprimir
+                                </a>
+                            }
+                        </td>
+                        *@
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="7" class="text-muted">Aún no tienes solicitudes de vacaciones.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

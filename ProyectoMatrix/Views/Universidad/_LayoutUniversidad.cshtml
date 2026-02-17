@@ -119,15 +119,24 @@
                    
                 </div>
             </div>
+            @{
+                var rolId2 = Context.Session.GetInt32("RolID") ?? 0;
+            }
 
             <!-- User Section -->
             <div class="navbar-user-section">
                 <!-- Quick Actions -->
                 <div class="quick-actions">
-                  
-                    <a asp-controller="Menu" asp-action="Index" class="quick-action-btn" title="Volver a Intranet">
-                        <i class="fas fa-home"></i>
-                    </a>
+                   
+                    @if (rolId2 != 7)
+                    {
+                        <a asp-controller="Menu" asp-action="Index" class="quick-action-btn" title="Volver a Intranet">
+                            <i class="fas fa-home"></i>
+                        </a>
+
+                    }
+
+                    
                 </div>
 
                 <!-- User Menu -->

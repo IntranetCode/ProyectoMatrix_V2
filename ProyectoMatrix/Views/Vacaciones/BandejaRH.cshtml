@@ -1,0 +1,140 @@
+﻿@model ProyectoMatrix.Models.VacacionesBandejaRHPantallaVm
+
+@{
+    ViewData["Title"] = "Bandeja RH - Vacaciones";
+    Layout = "_LayoutComunicados";
+    var tab = (Model?.Tab ?? "autorizadas").ToLower();
+}
+
+<h2>Bandeja RH - Vacaciones</h2>
+
+@if (!string.IsNullOrEmpty(ViewBag.Error as string))
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+<div class="row g-2 mb-3">
+    <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="pendientes" class="btn @(tab=="pendientes"?"btn-primary":"btn-outline-primary")">
+            Pendientes de autorizar por Jefe Directo (@(ViewBag.Pendientes ?? 0))
+        </a>
+    </div>
+
+    <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="autorizadas" class="btn @(tab=="autorizadas"?"btn-primary":"btn-outline-primary")">
+            Autorizadas (@(ViewBag.Autorizadas ?? 0))
+        </a>
+    </div>
+
+    <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="registradas" class="btn @(tab=="registradas"?"btn-primary":"btn-outline-primary")">
+            Registradas por RRHH (@(ViewBag.Registradas ?? 0))
+        </a>
+    </div>
+
+    <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="rechazadas" class="btn @(tab=="rechazadas"?"btn-primary":"btn-outline-primary")">
+            Rechazadas por Jefe Directo (@(ViewBag.Rechazadas ?? 0))
+        </a>
+    </div>
+
+    <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="usuarios" class="btn @(tab == "usuarios" ? "btn-primary" : "btn-outline-primary")">
+            Saldo de usuarios
+        </a>
+    </div>
+</div>
+
+@if (tab == "usuarios")
+{
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Empleado</th>
+                <th>Clave nómina</th>
+                <th>Nombre</th>
+                <th>Puesto</th>
+                <th>Año</th>
+                <th>Correspond.</th>
+                <th>Extra</th>
+                <th>Tomados</th>
+                <th>Caduc.</th>
+                <th>Disponibles</th>
+                <th>Anticipadas Reg.</th>
+                <th>Anticipadas Por Reg.</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model?.Usuarios != null && Model.Usuarios.Any())
+            {
+                foreach (var u in Model.Usuarios)
+                {
+                    <tr>
+                        <td>@u.NumeroEmpleado</td>
+                        <td>@u.ClaveEmpleadoNomina</td>
+                        <td>@u.NombreCompleto</td>
+                        <td>@u.Puesto</td>
+                        <td>@u.Anio</td>
+                        <td>@u.DiasCorrespondientes</td>
+                        <td>@u.DiasExtra</td>
+                        <td>@u.DiasTomados</td>
+                        <td>@u.DiasCaducados</td>
+                        <td><strong>@u.DiasDisponibles</strong></td>
+                        <td>@u.AnticipadasRegistradas</td>
+                        <td>@u.AnticipadasPorRegistrar</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="12" class="text-muted">No hay usuarios para mostrar.</td></tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Folio</th>
+                <th>Empleado</th>
+                <th>Clave nómina</th>
+                <th>Colaborador</th>
+                <th>Periodo</th>
+                <th>Días</th>
+                <th>Disp.</th>
+                <th>Jefe</th>
+                <th>RH</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model?.Solicitudes != null && Model.Solicitudes.Any())
+            {
+                foreach (var s in Model.Solicitudes)
+                {
+                    <tr>
+                        <td>@s.Folio</td>
+                        <td>@s.NumeroEmpleado</td>
+                        <td>@s.ClaveEmpleadoNomina</td>
+                        <td>
+                            @s.NombreCompleto
+                            <div class="text-muted" style="font-size: 0.85em;">
+                                @s.Puesto | Año saldo: @s.AnioSaldo
+                            </div>
+                        </td>
+                        <td>@s.FechaInicio.ToString("dd/MM/yyyy") - @s.FechaFin.ToString("dd/MM/yyyy")</td>
+                        <td>@s.DiasSolicitados</td>
+                        <td><strong>@s.DiasDisponibles</strong></td>
+                        <td>@s.EstadoAutorizacion</td>
+                        <td>@s.EstadoRecursosHumanos</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="9" class="text-muted">No hay registros para esta pestaña.</td></tr>
+            }
+        </tbody>
+    </table>
+}

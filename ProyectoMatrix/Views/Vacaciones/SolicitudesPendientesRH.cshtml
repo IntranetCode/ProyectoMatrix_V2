@@ -1,0 +1,80 @@
+﻿@model List<ProyectoMatrix.Models.VacacionesSolicitudRHVm>
+
+
+@{
+    ViewData["Title"] = "Solicitudes pendientes autorizadas";
+    Layout = "_LayoutComunicados";
+}
+
+<link href="~/css/stylesVacacionesSPRH.css" rel="stylesheet" />
+<h2>Solicitudes de vacaciones pendientes de registro en RRHH</h2>
+
+@if (TempData["MensajeVacacionesRH"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["MensajeVacacionesRH"]
+    </div>
+}
+
+@if (TempData["ErrorVacacionesRH"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["ErrorVacacionesRH"]
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(ViewBag.Error as string))
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+@if (Model == null || !Model.Any())
+{
+    <p class="text-muted">No hay solicitudes pendientes de registrar.</p>
+}
+else
+{
+    <div class="table-responsive">
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Folio</th>
+                <th>Empleado</th>
+                <th>Nombre</th>
+                <th>Fecha solicitud</th>
+                <th>Periodo</th>
+                <th>Días</th>
+                <th>Anticipada</th>
+                <th>Estado jefe</th>
+                <th>Estado RH</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model)
+            {
+                <tr>
+                    <td>@s.SolicitudVacacionesID</td>
+                    <td>@s.NumeroEmpleado</td>
+                    <td>@s.NombreColaborador</td>
+                    <td>@s.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                    <td>@s.FechaInicio.ToString("dd/MM/yyyy") - @s.FechaFin.ToString("dd/MM/yyyy")</td>
+                    <td>@s.DiasSolicitados</td>
+                    <td>@(s.EsAnticipada ? "Sí" : "No")</td>
+                    <td>@s.EstadoAutorizacion</td>
+                    <td>@s.EstadoRecursosHumanos</td>
+                    <td>
+                        <form asp-action="RegistrarComoRH" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
+                            <button type="submit" class="btn btn-sm btn-success">
+                                Registrar en RH
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+}

@@ -578,6 +578,10 @@ namespace ProyectoMatrix.Controllers
                 ViewBag.EmpresaId = empresaId.Value;
                 ViewBag.SubCursoId = subCursoId;
 
+
+                var puedeDescargar = await _acceso.TienePermisoAsync(usuarioId.Value, "Ver cursos", "Descargar");
+                ViewBag.PuedeDescargarPdf = puedeDescargar;
+
                 // Bitácora (silenciar errores)
                 try
                 {
@@ -2034,6 +2038,85 @@ namespace ProyectoMatrix.Controllers
                 return Json(new { success = false, message = "Error interno del servidor." });
             }
         }
+
+
+        // Metodo de solo ver para el rol 7
+
+
+        [HttpGet]
+        [AutorizarAccion("Ver cursos", "Ver")]
+        public async Task<IActionResult> VerPdfSubCurso(int subCursoId)
+        {
+            Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+            Response.Headers["Pragma"] = "no-cache";
+            Response.Headers["Expires"] = "0";
+            Response.Headers["X-Content-Type-Options"] = "nosniff";
+            Response.Headers["X-Frame-Options"] = "SAMEORIGIN"; 
+
+            var (usuarioId, empresaId) = LeerIdsSesion();
+            if (!usuarioId.HasValue || !empresaId.HasValue)
+                return RedirectToAction("Login", "Login");
+
+            // 1) Validar acceso y existencia de PDF
+            var subCurso = await _universidadServices.ObtenerSubCursoConCursoAsync(
+                subCursoId, usuarioId.Value, empresaId.Value);
+
+            if (subCurso == null || !subCurso.PuedeAcceder || string.IsNullOrWhiteSpace(subCurso.ArchivoPDF))
+                return NotFound();
+
+            // 2) Anti path-traversal + ruta física segura
+            var pdfRel = subCurso.ArchivoPDF.Replace('\\', '/');
+
+            // Bloquea intentos tipo ../ o rutas absolutas
+            if (pdfRel.Contains("..") || pdfRel.StartsWith("/") || pdfRel.Contains(":"))
+                return NotFound();
+
+            var pdfPath = Path.Combine(_webHostEnvironment.WebRootPath, "contenidos", pdfRel);
+            if (!System.IO.File.Exists(pdfPath))
+                return NotFound();
+
+            // 3) Marcar como visto EN SERVIDOR (idempotente)
+           
+            await _universidadServices.MarcarPdfVistoAsync(usuarioId.Value, empresaId.Value, subCursoId);
+
+            // 4) Responder en streaming + soporte de rangos (mejor para visor PDF)
+            var fileName = Path.GetFileName(pdfPath);
+            Response.Headers["Content-Disposition"] = $"inline; filename=\"{fileName}\"";
+
+            var stream = new FileStream(pdfPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            return new FileStreamResult(stream, "application/pdf")
+            {
+                EnableRangeProcessing = true
+            };
+        }
+
+
+
+
+        // Método para descargar, se debe evitar en el rol 7
+        [HttpGet]
+        [AutorizarAccion("Ver cursos", "Descargar")]
+        public async Task<IActionResult> DescargarPdfSubCurso(int subCursoId)
+        {
+            var (usuarioId, empresaId) = LeerIdsSesion();
+            if (!usuarioId.HasValue || !empresaId.HasValue)
+                return RedirectToAction("Login", "Login");
+
+            var subCurso = await _universidadServices.ObtenerSubCursoConCursoAsync(subCursoId, usuarioId.Value, empresaId.Value);
+            if (subCurso == null || !subCurso.PuedeAcceder || string.IsNullOrWhiteSpace(subCurso.ArchivoPDF))
+                return NotFound();
+
+            var pdfRel = subCurso.ArchivoPDF.Replace("/", Path.DirectorySeparatorChar.ToString());
+            var pdfPath = Path.Combine(_webHostEnvironment.WebRootPath, "contenidos", pdfRel);
+            if (!System.IO.File.Exists(pdfPath))
+                return NotFound();
+
+            var bytes = await System.IO.File.ReadAllBytesAsync(pdfPath);
+
+            var safeName = $"Material_SubCurso_{subCursoId}.pdf";
+            return File(bytes, "application/pdf", safeName); 
+        }
+
 
     }
 

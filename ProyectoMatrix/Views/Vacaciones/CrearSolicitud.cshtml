@@ -1,0 +1,52 @@
+﻿@model ProyectoMatrix.Models.CrearSolicitudVacacionesVm
+
+@{
+    ViewData["Title"] = "Solicitar vacaciones";
+    Layout = "_LayoutComunicados";
+}
+<link href="~/css/stylesVacacionesCS.css" rel="stylesheet" />
+<h2>Solicitar vacaciones</h2>
+
+
+@if (!string.IsNullOrEmpty(ViewBag.Error as string))
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+@Html.ValidationSummary(true, "", new { @class = "text-danger" })
+
+
+<div class="alert alert-info">
+    <strong>Días disponibles año actual:</strong> @Model.DiasDisponiblesActuales
+</div>
+
+<form asp-action="CrearSolicitud" method="post">
+    @Html.AntiForgeryToken()
+
+    <div class="mb-3">
+        <label asp-for="FechaInicio" class="form-label"></label>
+        <input asp-for="FechaInicio" class="form-control" type="date" />
+        <span asp-validation-for="FechaInicio" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="FechaFin" class="form-label"></label>
+        <input asp-for="FechaFin" class="form-control" type="date" />
+        <span asp-validation-for="FechaFin" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Observaciones" class="form-label"></label>
+        <textarea asp-for="Observaciones" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Observaciones" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Enviar solicitud</button>
+    <a asp-action="MisVacaciones" class="btn btn-secondary">Cancelar</a>
+</form>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
