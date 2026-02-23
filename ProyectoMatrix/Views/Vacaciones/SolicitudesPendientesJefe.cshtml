@@ -1,26 +1,22 @@
-﻿@model List<ProyectoMatrix.Models.VacacionesSolicitudJefeVm>
+﻿@model ProyectoMatrix.Models.SolicitudesPendientesJefePantallaVm
 
 @{
-    ViewData["Title"] = "Solicitudes pendientes";
+    ViewData["Title"] = "Solicitudes de mi equipo";
     Layout = "_LayoutComunicados";
 }
 
 <link href="~/css/stylesVacacionesSPJ.css" rel="stylesheet" />
 
-<h2>Solicitudes de vacaciones pendientes de autorización</h2>
+<h2>Solicitudes de mi equipo</h2>
 
 @if (TempData["MensajeVacacionesJefe"] != null)
 {
-    <div class="alert alert-success">
-        @TempData["MensajeVacacionesJefe"]
-    </div>
+    <div class="alert alert-success">@TempData["MensajeVacacionesJefe"]</div>
 }
 
 @if (TempData["ErrorVacacionesJefe"] != null)
 {
-    <div class="alert alert-danger">
-        @TempData["ErrorVacacionesJefe"]
-    </div>
+    <div class="alert alert-danger">@TempData["ErrorVacacionesJefe"]</div>
 }
 
 @if (!string.IsNullOrEmpty(ViewBag.Error as string))
@@ -28,13 +24,16 @@
     <div class="alert alert-danger">@ViewBag.Error</div>
 }
 
-@if (Model == null || !Model.Any())
+<!-- =================== PENDIENTES =================== -->
+<h5 class="mt-3">Pendientes de autorización</h5>
+
+@if (Model?.Pendientes == null || !Model.Pendientes.Any())
 {
     <p class="text-muted">No tienes solicitudes pendientes por autorizar.</p>
 }
 else
 {
-    <table class="table table-sm table-striped">
+    <table class="table table-sm table-striped align-middle">
         <thead>
             <tr>
                 <th>Folio</th>
@@ -49,7 +48,7 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var s in Model)
+            @foreach (var s in Model.Pendientes)
             {
                 <tr>
                     <td>@s.SolicitudVacacionesID</td>
@@ -60,15 +59,13 @@ else
                     <td>@s.DiasSolicitados</td>
                     <td>@(s.EsAnticipada ? "Sí" : "No")</td>
                     <td>@s.EstadoRecursosHumanos</td>
-                    <td>
+                    <td class="text-nowrap">
                         <form asp-action="AutorizarComoJefe" method="post" class="d-inline">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
                             <input type="hidden" name="autorizar" value="true" />
                             <input type="hidden" name="comentarios" value="" />
-                            <button type="submit" class="btn btn-sm btn-success">
-                                Autorizar
-                            </button>
+                            <button type="submit" class="btn btn-sm btn-success">Autorizar</button>
                         </form>
 
                         <form asp-action="AutorizarComoJefe" method="post" class="d-inline ms-1">
@@ -76,14 +73,94 @@ else
                             <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
                             <input type="hidden" name="autorizar" value="false" />
                             <input type="hidden" name="comentarios" value="" />
-                            <button type="submit" class="btn btn-sm btn-danger">
-                                Rechazar
-                            </button>
+                            <button type="submit" class="btn btn-sm btn-danger">Rechazar</button>
                         </form>
                     </td>
                 </tr>
             }
         </tbody>
+    </table>
+}
 
+<!-- =================== PRÓXIMAS =================== -->
+<h5 class="mt-4">Próximas vacaciones</h5>
+<p class="text-muted small mb-2">Colaboradores que iniciarán vacaciones pronto.</p>
+
+@if (Model?.Proximas == null || !Model.Proximas.Any())
+{
+    <p class="text-muted">No hay próximas vacaciones registradas.</p>
+}
+else
+{
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Empleado</th>
+                <th>Nombre</th>
+                <th>Inicio</th>
+                <th>Fin</th>
+                <th>Días</th>
+                <th>Anticipada</th>
+                <th>Estado jefe</th>
+                <th>Estado RH</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model.Proximas)
+            {
+                <tr>
+                    <td>@s.NumeroEmpleado</td>
+                    <td>@s.NombreColaborador</td>
+                    <td>@s.FechaInicio.ToString("dd/MM/yyyy")</td>
+                    <td>@s.FechaFin.ToString("dd/MM/yyyy")</td>
+                    <td>@s.DiasSolicitados</td>
+                    <td>@(s.EsAnticipada ? "Sí" : "No")</td>
+                    <td>@s.EstadoAutorizacion</td>
+                    <td>@s.EstadoRecursosHumanos</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<!-- =================== HISTORIAL =================== -->
+<h5 class="mt-4">Historial (todas)</h5>
+
+@if (Model?.Historial == null || !Model.Historial.Any())
+{
+    <p class="text-muted">No hay historial disponible.</p>
+}
+else
+{
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Folio</th>
+                <th>Empleado</th>
+                <th>Nombre</th>
+                <th>Fecha solicitud</th>
+                <th>Periodo</th>
+                <th>Días</th>
+                <th>Anticipada</th>
+                <th>Estado jefe</th>
+                <th>Estado RH</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model.Historial)
+            {
+                <tr>
+                    <td>@s.SolicitudVacacionesID</td>
+                    <td>@s.NumeroEmpleado</td>
+                    <td>@s.NombreColaborador</td>
+                    <td>@s.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                    <td>@s.FechaInicio.ToString("dd/MM/yyyy") - @s.FechaFin.ToString("dd/MM/yyyy")</td>
+                    <td>@s.DiasSolicitados</td>
+                    <td>@(s.EsAnticipada ? "Sí" : "No")</td>
+                    <td>@s.EstadoAutorizacion</td>
+                    <td>@s.EstadoRecursosHumanos</td>
+                </tr>
+            }
+        </tbody>
     </table>
 }

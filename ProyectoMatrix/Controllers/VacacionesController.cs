@@ -86,37 +86,37 @@ namespace ProyectoMatrix.Controllers
                     }
 
                     // Resumen del año actual
-                    using (var cmd = new SqlCommand(@"
-                        SELECT 
-                            Anio,
-                            DiasCorrespondientes,
-                            DiasExtra,
-                            DiasTomados,
-                            DiasCaducados,
-                            DiasDisponibles
-                        FROM vw_VacacionesResumenAnual
-                        WHERE PersonaID = @PersonaID
-                          AND Anio = @Anio;", conn))
-                    {
-                        cmd.Parameters.AddWithValue("@PersonaID", personaId);
-                        cmd.Parameters.AddWithValue("@Anio", anio);
+                   using (var cmd = new SqlCommand(@"
+    SELECT TOP 1
+        AnioSaldo,
+        DiasCorrespondientes,
+        DiasExtra,
+        DiasTomados,
+        DiasCaducados,
+        DiasDisponibles
+    FROM vw_VacacionesSaldoActual
+    WHERE PersonaID = @PersonaID
+    ORDER BY AnioSaldo DESC;", conn))
+{
+    cmd.Parameters.AddWithValue("@PersonaID", personaId);
 
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            if (reader.Read())
-                            {
-                                vm.ResumenActual = new VacacionesResumenAnualVm
-                                {
-                                    Anio = (int)reader["Anio"],
-                                    DiasCorrespondientes = Convert.ToInt32(reader["DiasCorrespondientes"]),
-                                    DiasExtra = Convert.ToDecimal(reader["DiasExtra"]),
-                                    DiasTomados = Convert.ToDecimal(reader["DiasTomados"]),
-                                    DiasCaducados = Convert.ToDecimal(reader["DiasCaducados"]),
-                                    DiasDisponibles = Convert.ToDecimal(reader["DiasDisponibles"])
-                                };
-                            }
-                        }
-                    }
+    using (var reader = cmd.ExecuteReader())
+    {
+        if (reader.Read())
+        {
+            vm.ResumenActual = new VacacionesResumenAnualVm
+            {
+                Anio = Convert.ToInt32(reader["AnioSaldo"]),
+                DiasCorrespondientes = Convert.ToInt32(reader["DiasCorrespondientes"]),
+                DiasExtra = Convert.ToDecimal(reader["DiasExtra"]),
+                DiasTomados = Convert.ToDecimal(reader["DiasTomados"]),
+                DiasCaducados = Convert.ToDecimal(reader["DiasCaducados"]),
+                DiasDisponibles = Convert.ToDecimal(reader["DiasDisponibles"])
+            };
+        }
+    }
+}
+
 
                     // historial de solicitudes
                     vm.Solicitudes = new List<VacacionesSolicitudItemVm>();
@@ -124,6 +124,9 @@ namespace ProyectoMatrix.Controllers
                     using (var cmd = new SqlCommand(@"
                         SELECT 
                             SolicitudVacacionesID,
+                            FechaIngreso,
+DiasTomados,
+DiasDisponibles,
                             FechaSolicitud,
                             FechaInicio,
                             FechaFin,
@@ -146,6 +149,9 @@ namespace ProyectoMatrix.Controllers
                                 var item = new VacacionesSolicitudItemVm
                                 {
                                     SolicitudVacacionesID = (int)reader["SolicitudVacacionesID"],
+                                    FechaIngreso = (DateTime)reader["FechaIngreso"],
+                                    DiasTomados = reader["DiasTomados"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["DiasTomados"]),
+                                    DiasDisponibles = reader["DiasDisponibles"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["DiasDisponibles"]),
                                     FechaSolicitud = (DateTime)reader["FechaSolicitud"],
                                     FechaInicio = (DateTime)reader["FechaInicio"],
                                     FechaFin = (DateTime)reader["FechaFin"],
@@ -203,9 +209,9 @@ namespace ProyectoMatrix.Controllers
                     // Traer el saldo MÁS RECIENTE (último año generado)
                     using (var cmd = new SqlCommand(@"
     SELECT TOP 1 DiasDisponibles
-    FROM vw_VacacionesResumenAnual
+    FROM vw_VacacionesSaldoActual
     WHERE PersonaID = @PersonaID
-    ORDER BY Anio DESC;", conn))
+    ORDER BY AnioSaldo DESC;", conn))
                     {
                         cmd.Parameters.AddWithValue("@PersonaID", personaId);
 
@@ -331,7 +337,7 @@ namespace ProyectoMatrix.Controllers
             if (usuarioId == 0)
                 return Unauthorized();
 
-            var lista = new List<VacacionesSolicitudJefeVm>();
+            var todas = new List<VacacionesSolicitudJefeVm>();
 
             try
             {
@@ -339,7 +345,7 @@ namespace ProyectoMatrix.Controllers
                 {
                     conn.Open();
 
-                    // Ojo: ajusta los nombres de columnas/tablas si alguno es distinto
+                    // Trae TODAS las solicitudes del equipo (no solo pendientes)
                     var sql = @"
                 SELECT 
                     s.SolicitudVacacionesID,
@@ -357,7 +363,6 @@ namespace ProyectoMatrix.Controllers
                 INNER JOIN Persona pj ON p.JefeInmediatoPersonaID = pj.PersonaID
                 INNER JOIN Usuarios uj ON uj.PersonaID = pj.PersonaID
                 WHERE uj.UsuarioID = @UsuarioJefeID
-                  AND s.EstadoAutorizacion = 'Pendiente'
                 ORDER BY s.FechaSolicitud DESC;";
 
                     using (var cmd = new SqlCommand(sql, conn))
@@ -382,19 +387,51 @@ namespace ProyectoMatrix.Controllers
                                     EstadoRecursosHumanos = reader["EstadoRecursosHumanos"]?.ToString()
                                 };
 
-                                lista.Add(item);
+                                todas.Add(item);
                             }
                         }
                     }
                 }
+
+                // Separación de listas
+                var hoy = DateTime.Today;
+                var limite = hoy.AddDays(14); // cámbialo a 7/30 si quieres
+
+                bool EsPendiente(VacacionesSolicitudJefeVm s) =>
+                    string.Equals((s.EstadoAutorizacion ?? "").Trim(), "Pendiente", StringComparison.OrdinalIgnoreCase);
+
+                bool EsAutorizadaJefe(VacacionesSolicitudJefeVm s) =>
+                    string.Equals((s.EstadoAutorizacion ?? "").Trim(), "Autorizada", StringComparison.OrdinalIgnoreCase);
+
+                bool EsRechazada(VacacionesSolicitudJefeVm s) =>
+                    string.Equals((s.EstadoAutorizacion ?? "").Trim(), "Rechazada", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals((s.EstadoRecursosHumanos ?? "").Trim(), "Rechazada", StringComparison.OrdinalIgnoreCase);
+
+                var vm = new SolicitudesPendientesJefePantallaVm
+                {
+                    Pendientes = todas.Where(EsPendiente).OrderByDescending(x => x.FechaSolicitud).ToList(),
+
+                    // Próximas: inicia pronto + ya autorizó el jefe + no rechazada
+                    Proximas = todas
+                        .Where(s => !EsRechazada(s)
+                                 && EsAutorizadaJefe(s)
+                                 && s.FechaInicio.Date >= hoy
+                                 && s.FechaInicio.Date <= limite)
+                        .OrderBy(s => s.FechaInicio)
+                        .ToList(),
+
+                    Historial = todas.OrderByDescending(x => x.FechaSolicitud).ToList()
+                };
+
+                return View(vm);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error cargando SolicitudesPendientesJefe");
                 ViewBag.Error = $"Error al cargar solicitudes: {ex.Message}";
+                // devolver VM vacío para que la vista no truene
+                return View(new SolicitudesPendientesJefePantallaVm());
             }
-
-            return View(lista);
         }
 
 
@@ -1059,9 +1096,9 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                     // 2) Traer saldos (como en CrearSolicitud: último año disponible)
                     using (var cmdSaldo = new SqlCommand(@"
                 SELECT TOP 1 DiasCorrespondientes, DiasTomados, DiasDisponibles
-                FROM vw_VacacionesResumenAnual
+                FROM vw_VacacionesSaldoActual
                 WHERE PersonaID = @PersonaID
-                ORDER BY Anio DESC;", conn))
+                ORDER BY AnioSaldo DESC;", conn))
                     {
                         cmdSaldo.Parameters.AddWithValue("@PersonaID", personaSolicitudId);
 
@@ -1109,27 +1146,27 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
 
         //Contralador para la banndeja de entrada de RRHH
 
-        public IActionResult BandejaRH(string tab = "autorizadas")
+      public IActionResult BandejaRH(string tab = "autorizadas", string? q = null)
+{
+    int usuarioId = ObtenerUsuarioIdActual();
+    if (usuarioId == 0) return Unauthorized();
+
+    tab = (tab ?? "autorizadas").ToLower().Trim();
+    q = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
+
+    var vm = new VacacionesBandejaRHPantallaVm { Tab = tab };
+
+    try
+    {
+        using (var conn = new SqlConnection(_connectionString))
         {
-            int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0) return Unauthorized();
+            conn.Open();
 
-            var vm = new VacacionesBandejaRHPantallaVm
-            {
-                Tab = (tab ?? "autorizadas").ToLower()
-            };
+            if (!EsUsuarioRecursosHumanos(conn, usuarioId))
+                return Forbid();
 
-            try
-            {
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    conn.Open();
-
-                    if (!EsUsuarioRecursosHumanos(conn, usuarioId))
-                        return Forbid();
-
-                    // Contadores para tabs
-                    var sqlConteo = @"
+            // Contadores para tabs
+            var sqlConteo = @"
                 SELECT
                     SUM(CASE WHEN EstadoAutorizacion = 'Pendiente' THEN 1 ELSE 0 END) AS Pendientes,
                     SUM(CASE WHEN EstadoAutorizacion = 'Autorizada' THEN 1 ELSE 0 END) AS Autorizadas,
@@ -1137,21 +1174,24 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                     SUM(CASE WHEN EstadoAutorizacion = 'Rechazada' THEN 1 ELSE 0 END) AS Rechazadas
                 FROM dbo.vw_Vacaciones_BandejaRH_ConSaldo;";
 
-                    using (var cmdC = new SqlCommand(sqlConteo, conn))
-                    using (var rC = cmdC.ExecuteReader())
-                    {
-                        if (rC.Read())
-                        {
-                            ViewBag.Pendientes = Convert.ToInt32(rC["Pendientes"]);
-                            ViewBag.Autorizadas = Convert.ToInt32(rC["Autorizadas"]);
-                            ViewBag.Registradas = Convert.ToInt32(rC["Registradas"]);
-                            ViewBag.Rechazadas = Convert.ToInt32(rC["Rechazadas"]);
-                        }
-                    }
+            using (var cmdC = new SqlCommand(sqlConteo, conn))
+            using (var rC = cmdC.ExecuteReader())
+            {
+                if (rC.Read())
+                {
+                    ViewBag.Pendientes = Convert.ToInt32(rC["Pendientes"]);
+                    ViewBag.Autorizadas = Convert.ToInt32(rC["Autorizadas"]);
+                    ViewBag.Registradas = Convert.ToInt32(rC["Registradas"]);
+                    ViewBag.Rechazadas = Convert.ToInt32(rC["Rechazadas"]);
+                }
+            }
 
-                    if (vm.Tab == "usuarios")
-                    {
-                        var sqlUsuarios = @"
+            // Para que el input conserve lo escrito
+            ViewBag.Q = q;
+
+            if (vm.Tab == "usuarios")
+            {
+                var sqlUsuarios = @"
                     SELECT
                         PersonaID, NumeroEmpleado, ClaveEmpleadoNomina, NombreCompleto, Puesto,
                         Anio, DiasCorrespondientes, DiasExtra, DiasTomados, DiasCaducados, DiasDisponibles,
@@ -1159,56 +1199,135 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                     FROM dbo.vw_Vacaciones_UsuariosSaldoRH
                     ORDER BY NombreCompleto;";
 
-                        using (var cmdU = new SqlCommand(sqlUsuarios, conn))
-                        using (var rU = cmdU.ExecuteReader())
-                        {
-                            while (rU.Read())
-                            {
-                                vm.Usuarios.Add(new VacacionesUsuarioSaldoRHVm
-                                {
-                                    PersonaID = Convert.ToInt32(rU["PersonaID"]),
-                                    NumeroEmpleado = rU["NumeroEmpleado"]?.ToString(),
-                                    ClaveEmpleadoNomina = rU["ClaveEmpleadoNomina"]?.ToString(),
-                                    NombreCompleto = rU["NombreCompleto"]?.ToString(),
-                                    Puesto = rU["Puesto"]?.ToString(),
-
-                                    Anio = Convert.ToInt32(rU["Anio"]),
-                                    DiasCorrespondientes = Convert.ToDecimal(rU["DiasCorrespondientes"]),
-                                    DiasExtra = Convert.ToDecimal(rU["DiasExtra"]),
-                                    DiasTomados = Convert.ToDecimal(rU["DiasTomados"]),
-                                    DiasCaducados = Convert.ToDecimal(rU["DiasCaducados"]),
-                                    DiasDisponibles = Convert.ToDecimal(rU["DiasDisponibles"]),
-
-                                    AnticipadasRegistradas = Convert.ToInt32(rU["AnticipadasRegistradas"]),
-                                    AnticipadasPorRegistrar = Convert.ToInt32(rU["AnticipadasPorRegistrar"])
-                                });
-                            }
-                        }
-                    }
-                    else
+                using (var cmdU = new SqlCommand(sqlUsuarios, conn))
+                using (var rU = cmdU.ExecuteReader())
+                {
+                    while (rU.Read())
                     {
-                        string where;
-                        switch (vm.Tab)
+                        vm.Usuarios.Add(new VacacionesUsuarioSaldoRHVm
                         {
-                            case "pendientes":
-                                where = "EstadoAutorizacion = 'Pendiente'";
-                                break;
-                            case "autorizadas":
-                                where = "EstadoAutorizacion = 'Autorizada'";
-                                break;
-                            case "registradas":
-                                where = "EstadoRecursosHumanos = 'Registrado'";
-                                break;
-                            case "rechazadas":
-                                where = "EstadoAutorizacion = 'Rechazada'";
-                                break;
-                            default:
-                                vm.Tab = "autorizadas";
-                                where = "EstadoAutorizacion = 'Autorizada'";
-                                break;
-                        }
+                            PersonaID = Convert.ToInt32(rU["PersonaID"]),
+                            NumeroEmpleado = rU["NumeroEmpleado"]?.ToString(),
+                            ClaveEmpleadoNomina = rU["ClaveEmpleadoNomina"]?.ToString(),
+                            NombreCompleto = rU["NombreCompleto"]?.ToString(),
+                            Puesto = rU["Puesto"]?.ToString(),
 
-                        var sqlSolicitudes = $@"
+                            Anio = Convert.ToInt32(rU["Anio"]),
+                            DiasCorrespondientes = Convert.ToDecimal(rU["DiasCorrespondientes"]),
+                            DiasExtra = Convert.ToDecimal(rU["DiasExtra"]),
+                            DiasTomados = Convert.ToDecimal(rU["DiasTomados"]),
+                            DiasCaducados = Convert.ToDecimal(rU["DiasCaducados"]),
+                            DiasDisponibles = Convert.ToDecimal(rU["DiasDisponibles"]),
+
+                            AnticipadasRegistradas = Convert.ToInt32(rU["AnticipadasRegistradas"]),
+                            AnticipadasPorRegistrar = Convert.ToInt32(rU["AnticipadasPorRegistrar"])
+                        });
+                    }
+                }
+
+                // ✅ Buscador en usuarios
+                if (q != null)
+                {
+                    vm.Usuarios = vm.Usuarios.Where(u =>
+                        (u.NumeroEmpleado ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        (u.ClaveEmpleadoNomina ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        (u.NombreCompleto ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        (u.Puesto ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)
+                    ).ToList();
+                }
+            }
+            else if (vm.Tab == "vistaexcel")
+            {
+                
+                var sqlExcel = @"
+                  DECLARE @AnioSaldo INT = YEAR(GETDATE());
+
+SELECT
+    ROW_NUMBER() OVER (ORDER BY p.ApellidoPaterno, p.ApellidoMaterno, p.Nombre) AS N,
+    0 AS N2,
+    '' AS Sociedad,
+    CONCAT(p.ApellidoPaterno,' ',p.ApellidoMaterno,' ',p.Nombre) AS Nombre,
+    ISNULL(p.Puesto,'') AS Puesto,
+    '' AS Departamento,
+    p.FechaIngreso,
+    CAST(GETDATE() AS date) AS Hoy,
+
+    ISNULL(vsa.DiasCorrespondientes, 0) AS DiasCorrespondientes,
+    0 AS DiasPendientes,
+
+    (ISNULL(vsa.DiasCorrespondientes,0) + ISNULL(vsa.DiasExtra,0)
+     - ISNULL(vsa.DiasTomados,0) - ISNULL(vsa.DiasCaducados,0)) AS DiasDisponibles
+FROM dbo.Persona p
+OUTER APPLY (
+    SELECT TOP 1 *
+    FROM dbo.vw_VacacionesSaldoActual x
+    WHERE x.PersonaID = p.PersonaID
+    ORDER BY x.AnioSaldo DESC
+) vsa
+WHERE p.FechaIngreso IS NOT NULL
+  AND p.FechaBaja IS NULL
+ORDER BY Nombre;
+
+
+";
+
+                using (var cmdX = new SqlCommand(sqlExcel, conn))
+                using (var rX = cmdX.ExecuteReader())
+                {
+                    while (rX.Read())
+                    {
+                        var fechaIngreso = Convert.ToDateTime(rX["FechaIngreso"]);
+                        var hoy = Convert.ToDateTime(rX["Hoy"]);
+
+                        // Antigüedad AA-MM y años
+                        var (aaMm, anios) = CalcularAntiguedad(fechaIngreso, hoy);
+
+                        vm.VistaExcel.Add(new VacacionesVistaExcelVm
+                        {
+                            N = Convert.ToInt32(rX["N"]),
+                            N2 = Convert.ToInt32(rX["N2"]),
+                            Sociedad = rX["Sociedad"]?.ToString() ?? "",
+                            Nombre = rX["Nombre"]?.ToString() ?? "",
+                            Puesto = rX["Puesto"]?.ToString() ?? "",
+                            Departamento = rX["Departamento"]?.ToString() ?? "",
+                            FechaIngreso = fechaIngreso,
+                            Hoy = hoy,
+                            AntiguedadAniosMeses = aaMm,
+                            AntiguedadAnios = anios,
+                            DiasCorrespondientes = Convert.ToDecimal(rX["DiasCorrespondientes"]),
+                            DiasPendientes = Convert.ToDecimal(rX["DiasPendientes"]),
+                            DiasDisponibles = Convert.ToDecimal(rX["DiasDisponibles"])
+                        });
+                    }
+                }
+
+                // ✅ Buscador en vista excel
+                if (q != null)
+                {
+                    vm.VistaExcel = vm.VistaExcel.Where(x =>
+                        (x.Sociedad ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        (x.Nombre ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        (x.Puesto ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        (x.Departamento ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)
+                    ).ToList();
+                }
+            }
+            else
+            {
+                string where;
+                switch (vm.Tab)
+                {
+                    case "pendientes": where = "EstadoAutorizacion = 'Pendiente'"; break;
+                    case "autorizadas": where = "EstadoAutorizacion = 'Autorizada'"; break;
+                    case "registradas": where = "EstadoRecursosHumanos = 'Registrado'"; break;
+                    case "rechazadas": where = "EstadoAutorizacion = 'Rechazada'"; break;
+                    default:
+                        vm.Tab = "autorizadas";
+                        where = "EstadoAutorizacion = 'Autorizada'";
+                        break;
+                }
+
+                var sqlSolicitudes = $@"
                     SELECT
                         Folio, PersonaID, NumeroEmpleado, NombreCompleto, ClaveEmpleadoNomina, Puesto,
                         FechaSolicitud, FechaInicio, FechaFin, FechaRegresoLabores,
@@ -1219,51 +1338,76 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                     WHERE {where}
                     ORDER BY FechaSolicitud DESC;";
 
-                        using (var cmdS = new SqlCommand(sqlSolicitudes, conn))
-                        using (var rS = cmdS.ExecuteReader())
+                using (var cmdS = new SqlCommand(sqlSolicitudes, conn))
+                using (var rS = cmdS.ExecuteReader())
+                {
+                    while (rS.Read())
+                    {
+                        vm.Solicitudes.Add(new VacacionesBandejaRHVm
                         {
-                            while (rS.Read())
-                            {
-                                vm.Solicitudes.Add(new VacacionesBandejaRHVm
-                                {
-                                    Folio = Convert.ToInt32(rS["Folio"]),
-                                    PersonaID = Convert.ToInt32(rS["PersonaID"]),
-                                    NumeroEmpleado = rS["NumeroEmpleado"]?.ToString(),
-                                    NombreCompleto = rS["NombreCompleto"]?.ToString(),
-                                    ClaveEmpleadoNomina = rS["ClaveEmpleadoNomina"]?.ToString(),
-                                    Puesto = rS["Puesto"]?.ToString(),
+                            Folio = Convert.ToInt32(rS["Folio"]),
+                            PersonaID = Convert.ToInt32(rS["PersonaID"]),
+                            NumeroEmpleado = rS["NumeroEmpleado"]?.ToString(),
+                            NombreCompleto = rS["NombreCompleto"]?.ToString(),
+                            ClaveEmpleadoNomina = rS["ClaveEmpleadoNomina"]?.ToString(),
+                            Puesto = rS["Puesto"]?.ToString(),
 
-                                    FechaSolicitud = Convert.ToDateTime(rS["FechaSolicitud"]),
-                                    FechaInicio = Convert.ToDateTime(rS["FechaInicio"]),
-                                    FechaFin = Convert.ToDateTime(rS["FechaFin"]),
-                                    FechaRegresoLabores = Convert.ToDateTime(rS["FechaRegresoLabores"]),
+                            FechaSolicitud = Convert.ToDateTime(rS["FechaSolicitud"]),
+                            FechaInicio = Convert.ToDateTime(rS["FechaInicio"]),
+                            FechaFin = Convert.ToDateTime(rS["FechaFin"]),
+                            FechaRegresoLabores = Convert.ToDateTime(rS["FechaRegresoLabores"]),
 
-                                    DiasSolicitados = Convert.ToDecimal(rS["DiasSolicitados"]),
-                                    EsAnticipada = Convert.ToBoolean(rS["EsAnticipada"]),
+                            DiasSolicitados = Convert.ToDecimal(rS["DiasSolicitados"]),
+                            EsAnticipada = Convert.ToBoolean(rS["EsAnticipada"]),
 
-                                    EstadoAutorizacion = rS["EstadoAutorizacion"]?.ToString(),
-                                    EstadoRecursosHumanos = rS["EstadoRecursosHumanos"]?.ToString(),
+                            EstadoAutorizacion = rS["EstadoAutorizacion"]?.ToString(),
+                            EstadoRecursosHumanos = rS["EstadoRecursosHumanos"]?.ToString(),
 
-                                    AnioSaldo = Convert.ToInt32(rS["AnioSaldo"]),
-                                    DiasCorrespondientes = Convert.ToDecimal(rS["DiasCorrespondientes"]),
-                                    DiasExtra = Convert.ToDecimal(rS["DiasExtra"]),
-                                    DiasTomados = Convert.ToDecimal(rS["DiasTomados"]),
-                                    DiasCaducados = Convert.ToDecimal(rS["DiasCaducados"]),
-                                    DiasDisponibles = Convert.ToDecimal(rS["DiasDisponibles"])
-                                });
-                            }
-                        }
+                            AnioSaldo = Convert.ToInt32(rS["AnioSaldo"]),
+                            DiasCorrespondientes = Convert.ToDecimal(rS["DiasCorrespondientes"]),
+                            DiasExtra = Convert.ToDecimal(rS["DiasExtra"]),
+                            DiasTomados = Convert.ToDecimal(rS["DiasTomados"]),
+                            DiasCaducados = Convert.ToDecimal(rS["DiasCaducados"]),
+                            DiasDisponibles = Convert.ToDecimal(rS["DiasDisponibles"])
+                        });
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error cargando BandejaRH");
-                ViewBag.Error = $"Error al cargar bandeja RH: {ex.Message}";
-            }
 
-            return View(vm);
+                // (opcional) buscador también en solicitudes
+                if (q != null)
+                {
+                    vm.Solicitudes = vm.Solicitudes.Where(s =>
+                        (s.NumeroEmpleado ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        (s.ClaveEmpleadoNomina ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        (s.NombreCompleto ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        (s.Puesto ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)
+                    ).ToList();
+                }
+            }
         }
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error cargando BandejaRH");
+        ViewBag.Error = $"Error al cargar bandeja RH: {ex.Message}";
+    }
+
+    return View(vm);
+}
+
+
+private static (string aaMm, int anios) CalcularAntiguedad(DateTime ingreso, DateTime hoy)
+{
+    int totalMeses = (hoy.Year - ingreso.Year) * 12 + (hoy.Month - ingreso.Month);
+    if (hoy.Day < ingreso.Day) totalMeses--;
+
+    if (totalMeses < 0) totalMeses = 0;
+
+    int anios = totalMeses / 12;
+    int meses = totalMeses % 12;
+    return ($"{anios:D2}-{meses:D2}", anios);
+}
+
 
 
 

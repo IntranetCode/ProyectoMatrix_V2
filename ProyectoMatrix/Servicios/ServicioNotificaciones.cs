@@ -1,9 +1,4 @@
-﻿// ============================================
-// PARCHE: ServicioNotificaciones.cs
-// Agrega logging exhaustivo para diagnóstico
-// ============================================
-
-using ProyectoMatrix.Models;
+﻿using ProyectoMatrix.Models;
 using ProyectoMatrix.Models.Opciones;
 using Microsoft.Extensions.Options;
 using MailKit.Net.Smtp;
@@ -93,6 +88,9 @@ namespace ProyectoMatrix.Servicios
 
             try
             {
+                smtp.LocalDomain = "mail.nutriservicios.com.mx";
+
+
                 await smtp.ConnectAsync(_correoOpt.SmtpHost, _correoOpt.SmtpPort, ToSecureOption(_correoOpt.Security));
                 smtp.AuthenticationMechanisms.Remove("XOAUTH2");
 
@@ -106,7 +104,8 @@ namespace ProyectoMatrix.Servicios
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error enviando correo a {Para}", para);
-                throw;
+             //   throw;
+             return;
             }
         }
 
@@ -182,6 +181,9 @@ namespace ProyectoMatrix.Servicios
                     Timeout = 20000,
                     ServerCertificateValidationCallback = (s, c, h, e) => true
                 };
+
+                smtp.LocalDomain = "mail.nutriservicios.com.mx";
+
 
                 await smtp.ConnectAsync(_correoOpt.SmtpHost, _correoOpt.SmtpPort, ToSecureOption(_correoOpt.Security));
                 smtp.AuthenticationMechanisms.Remove("XOAUTH2");

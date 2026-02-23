@@ -14,11 +14,15 @@
 }
 
 <div class="row g-2 mb-3">
-    <div class="col-auto">
+
+    @*
+         <div class="col-auto">
         <a asp-action="BandejaRH" asp-route-tab="pendientes" class="btn @(tab=="pendientes"?"btn-primary":"btn-outline-primary")">
             Pendientes de autorizar por Jefe Directo (@(ViewBag.Pendientes ?? 0))
         </a>
     </div>
+    *@
+   
 
     <div class="col-auto">
         <a asp-action="BandejaRH" asp-route-tab="autorizadas" class="btn @(tab=="autorizadas"?"btn-primary":"btn-outline-primary")">
@@ -31,21 +35,112 @@
             Registradas por RRHH (@(ViewBag.Registradas ?? 0))
         </a>
     </div>
-
-    <div class="col-auto">
+    @*
+        <div class="col-auto">
         <a asp-action="BandejaRH" asp-route-tab="rechazadas" class="btn @(tab=="rechazadas"?"btn-primary":"btn-outline-primary")">
             Rechazadas por Jefe Directo (@(ViewBag.Rechazadas ?? 0))
         </a>
     </div>
+    *@
+    
 
     <div class="col-auto">
         <a asp-action="BandejaRH" asp-route-tab="usuarios" class="btn @(tab == "usuarios" ? "btn-primary" : "btn-outline-primary")">
             Saldo de usuarios
         </a>
     </div>
+
+    <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="vistaexcel"
+           class="btn @(tab == "vistaexcel" ? "btn-primary" : "btn-outline-primary")">
+            Vista general
+        </a>
+    </div>
+
+
 </div>
 
-@if (tab == "usuarios")
+
+<div class="modal-footer">
+    <a asp-controller="Vacaciones" asp-action="MisVacaciones" asp-route-id="1" class="btn btn-secondary">
+        Volver a Mis Vacaciones
+    </a>
+</div>
+@if (tab == "vistaexcel")
+{
+    <form method="get" asp-action="BandejaRH" class="row g-2 mb-3">
+        <input type="hidden" name="tab" value="@tab" />
+
+        <div class="col-sm-6 col-md-4 col-lg-3">
+            <input type="text" name="q" value="@(ViewBag.Q ?? "")"
+                   class="form-control form-control-sm"
+                   placeholder="Buscar..." />
+        </div>
+
+        <div class="col-auto">
+            <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(ViewBag.Q as string))
+        {
+            <div class="col-auto">
+                <a class="btn btn-sm btn-outline-danger"
+                   asp-action="BandejaRH" asp-route-tab="@tab">
+                    Limpiar
+                </a>
+            </div>
+        }
+    </form>
+
+
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th>N°</th>
+                <th>N°2</th>
+                <th>Sociedad</th>
+                <th>Nombre</th>
+                <th>Puesto</th>
+                <th>Departamento</th>
+                <th>F. de ingreso</th>
+                <th>HOY</th>
+                <th>Antigüedad (AA-MM)</th>
+                <th>Antigüedad (años)</th>
+                <th>Días correspond.</th>
+                <th>Días pendientes</th>
+                <th>Días disponibles</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model?.VistaExcel != null && Model.VistaExcel.Any())
+            {
+                foreach (var x in Model.VistaExcel)
+                {
+                    <tr>
+                        <td>@x.N</td>
+                        <td>@x.N2</td>
+                        <td>@x.Sociedad</td>
+                        <td>@x.Nombre</td>
+                        <td>@x.Puesto</td>
+                        <td>@x.Departamento</td>
+                        <td>@x.FechaIngreso.ToString("dd/MM/yyyy")</td>
+                        <td>@x.Hoy.ToString("dd/MM/yyyy")</td>
+                        <td>@x.AntiguedadAniosMeses</td>
+                        <td>@x.AntiguedadAnios</td>
+                        <td>@x.DiasCorrespondientes</td>
+                        <td>@x.DiasPendientes</td>
+                        <td><strong>@x.DiasDisponibles</strong></td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="13" class="text-muted">No hay datos para mostrar.</td></tr>
+            }
+        </tbody>
+    </table>
+}
+else if (tab == "usuarios")
 {
     <table class="table table-sm table-striped">
         <thead>

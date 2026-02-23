@@ -29,6 +29,15 @@ namespace ProyectoMatrix.Models
         public string EstadoAutorizacion { get; set; }
         public string EstadoRecursosHumanos { get; set; }
         public string Origen { get; set; }
+
+
+        //Nuevos campos en la tabla de solicitudes 
+
+        public DateTime FechaIngreso { get; set; }
+
+        public decimal DiasTomados { get; set; }
+
+        public decimal DiasDisponibles { get; set; }
     }
 
     public class MisVacacionesVm
@@ -178,6 +187,43 @@ namespace ProyectoMatrix.Models
         public string Tab { get; set; } = "autorizadas";
         public List<VacacionesBandejaRHVm> Solicitudes { get; set; } = new();
         public List<VacacionesUsuarioSaldoRHVm> Usuarios { get; set; } = new();
+
+        public List<VacacionesVistaExcelVm> VistaExcel { get; set; } = new();
+
+
     }
+
+    public class SolicitudesPendientesJefePantallaVm
+    {
+        public List<VacacionesSolicitudJefeVm> Pendientes { get; set; } = new();
+        public List<VacacionesSolicitudJefeVm> Proximas { get; set; } = new();
+        public List<VacacionesSolicitudJefeVm> Historial { get; set; } = new();
+    }
+
+    public class VacacionesVistaExcelVm
+    {
+        public int N { get; set; }
+        public int N2 { get; set; }
+        public string Sociedad { get; set; }
+        public string Nombre { get; set; }
+        public string Puesto { get; set; }
+        public string Departamento { get; set; }
+
+        public DateTime FechaIngreso { get; set; }
+        public DateTime Hoy { get; set; }
+
+        public string AntiguedadAniosMeses { get; set; }   // ej: "17-01"
+        public int AntiguedadAnios { get; set; }           // ej: 17
+
+        public decimal DiasCorrespondientes { get; set; }
+        public decimal DiasPendientes { get; set; }        // si RH lo quiere
+        public decimal DiasDisponibles { get; set; }
+    }
+
+
+
+
+
+
 
 }

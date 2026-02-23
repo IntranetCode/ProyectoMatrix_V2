@@ -9,6 +9,13 @@
 <link href="~/css/stylesVacacionesSPRH.css" rel="stylesheet" />
 <h2>Solicitudes de vacaciones pendientes de registro en RRHH</h2>
 
+<div class="modal-footer">
+    <a asp-controller="Vacaciones" asp-action="MisVacaciones" asp-route-id="1" class="btn btn-secondary">
+        Volver a Mis Vacaciones 
+    </a>
+</div>
+
+
 @if (TempData["MensajeVacacionesRH"] != null)
 {
     <div class="alert alert-success">
