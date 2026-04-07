@@ -20,7 +20,7 @@ namespace ProyectoMatrix.Models
     public class VacacionesSolicitudItemVm
     {
         public int SolicitudVacacionesID { get; set; }
-        public DateTime FechaSolicitud { get; set; }
+        public DateTime FechaSolicitud { get; set; } 
         public DateTime FechaInicio { get; set; }
         public DateTime FechaFin { get; set; }
         public DateTime FechaRegresoLabores { get; set; }

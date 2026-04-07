@@ -74,7 +74,14 @@ namespace ProyectoMatrix.Controllers
                     Password = viewModel.Password,
                     RolID = viewModel.RolID,
                     EmpresasIDs = viewModel.EmpresasIDs,
-                    SubMenuIDs = viewModel.SubMenuIDs ?? new List<int>()
+                    SubMenuIDs = viewModel.SubMenuIDs ?? new List<int>(),
+
+                    NumeroEmpleado = viewModel.NumeroEmpleado,
+                    ClaveEmpleadoNomina = viewModel.ClaveEmpleadoNomina,
+                    FechaIngreso = viewModel.FechaIngreso,
+                    Puesto = viewModel.Puesto,
+                    FechaNacimiento = viewModel.FechaNacimiento,
+                    JefeInmediatoPersonaID = viewModel.JefeInmediatoPersonaID
                 };
 
                 await _usuarioService.RegistrarAsync(nuevoUsuarioDto);
@@ -111,7 +118,15 @@ namespace ProyectoMatrix.Controllers
                 EmpresasIDs = usuarioDto.EmpresasIDs ?? new List<int>(),
                 SubMenuIDs = usuarioDto.SubMenuIDs ?? new List<int>(),
                 HistorialDeCambios = await _usuarioService.ObtenerHistorialAsync(id),
-                MenusDisponibles = await _usuarioService.ObtenerMenusConSubMenusAsync()
+                MenusDisponibles = await _usuarioService.ObtenerMenusConSubMenusAsync(),
+
+                NumeroEmpleado = usuarioDto.NumeroEmpleado,
+                ClaveEmpleadoNomina = usuarioDto.ClaveEmpleadoNomina,
+                FechaIngreso = usuarioDto.FechaIngreso, 
+                Puesto = usuarioDto.Puesto,
+                FechaNacimiento = usuarioDto.FechaNacimiento,
+                JefeInmediatoPersonaID = usuarioDto.JefeInmediatoPersonaID
+
             };
 
             // CARGA DE OVERRIDES usando el servicio (más limpio y consistente)
@@ -203,7 +218,14 @@ namespace ProyectoMatrix.Controllers
                     RolID = viewModel.RolID,
                     Activo = viewModel.Activo,
                     EmpresasIDs = viewModel.EmpresasIDs ?? new List<int>(),
-                    SubMenuIDs = viewModel.SubMenuIDs ?? new List<int>()
+                    SubMenuIDs = viewModel.SubMenuIDs ?? new List<int>(),
+
+                    NumeroEmpleado = viewModel.NumeroEmpleado,
+                    ClaveEmpleadoNomina = viewModel.ClaveEmpleadoNomina,
+                    FechaIngreso = viewModel.FechaIngreso,
+                    Puesto = viewModel.Puesto,
+                    FechaNacimiento = viewModel.FechaNacimiento,
+                    JefeInmediatoPersonaID = viewModel.JefeInmediatoPersonaID
                 };
 
                 await _usuarioService.ActualizarAsync(usuarioEditadoDto);
@@ -369,6 +391,36 @@ namespace ProyectoMatrix.Controllers
                 return RedirectToAction("Editar", new { id = UsuarioID, tab = "permisos" });
             }
         }
+
+        //Metodoo que devuelve un jason para el buscador de jefes
+
+        [HttpGet]
+        public async Task<IActionResult> BuscarPersonasJefes(string term)
+        {
+            if (string.IsNullOrWhiteSpace(term) || term.Length < 1)
+                return Json(new { results = new List<object>() });
+
+            term = term.Trim().ToLower();
+
+            var personas = await _context.Personas
+                .Where(p =>
+                    p.Nombre.ToLower().Contains(term) ||
+                    p.ApellidoPaterno.ToLower().Contains(term) ||
+                    (p.ApellidoMaterno != null && p.ApellidoMaterno.ToLower().Contains(term))
+                )
+                .Select(p => new
+                {
+                    id = p.PersonaID,
+                    text = (p.Nombre + " " + p.ApellidoPaterno +
+                           (p.ApellidoMaterno != null ? " " + p.ApellidoMaterno : "")).Trim()
+                })
+                .Take(15)
+                .ToListAsync();
+
+            return Json(new { results = personas });
+        }
+
+       
 
 
 

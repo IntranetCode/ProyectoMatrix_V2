@@ -36,5 +36,13 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.DTOs
 
         // AÑADIDO
         public List<int> SubMenuIDs { get; set; } = new List<int>();
+
+        public string? NumeroEmpleado { get; set; }
+        public string? ClaveEmpleadoNomina { get; set; }
+        public DateTime? FechaIngreso { get; set; }
+        public string? Puesto { get; set; }
+
+        public int? JefeInmediatoPersonaID { get; set; }
+
     }
 }

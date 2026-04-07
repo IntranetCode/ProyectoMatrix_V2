@@ -19,5 +19,18 @@ namespace ProyectoMatrix.Models
         public string? Correo { get; set; }
 
         public string? Telefono { get; set; } // ✅ CORRECCIÓN DEFINITIVA
+
+        public DateTime? FechaNacimiento { get; set; }
+
+        public string? NumeroEmpleado { get; set; }
+
+        public string? ClaveEmpleadoNomina { get; set; }
+
+        public DateTime? FechaIngreso { get; set; }
+
+        public string? Puesto { get; set; }
+
+        public int? JefeInmediatoPersonaID { get; set; }
+
     }
 }

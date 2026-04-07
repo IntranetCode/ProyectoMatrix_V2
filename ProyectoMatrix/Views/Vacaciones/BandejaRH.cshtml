@@ -233,3 +233,132 @@ else
         </tbody>
     </table>
 }
+
+<style>
+    /* --- Ajustes Generales y Título --- */
+    h2 {
+        color: #1a237e;
+        font-weight: 700;
+        border-left: 6px solid #ff6d00;
+        padding-left: 15px;
+        margin-top: 20px;
+        margin-bottom: 25px;
+    }
+
+    /* --- Botones de Navegación (Tabs) --- */
+    /* Estado Inactivo (Outline) */
+    .btn-outline-primary {
+        color: #1a237e !important;
+        border-color: #1a237e !important;
+        background-color: #ffffff !important;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 8px 16px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-outline-primary:hover {
+            background-color: #f1f4f9 !important;
+            transform: translateY(-1px);
+        }
+
+    /* Estado Activo (Solid) */
+    .btn-primary {
+        background-color: #1a237e !important;
+        border-color: #1a237e !important;
+        color: #ffffff !important;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 8px 16px;
+        box-shadow: 0 4px 8px rgba(26, 35, 126, 0.2);
+    }
+
+    /* --- Tablas Corporativas --- */
+    .table {
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-top: 15px;
+        border: 1px solid #e1e8ed;
+    }
+
+        .table thead th {
+            background-color: #1a237e !important;
+            color: #ffffff !important;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px;
+            border: none;
+            text-align: center;
+        }
+
+        .table tbody td {
+            padding: 12px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f4f7;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+    /* Cebra de la tabla */
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: rgba(26, 35, 126, 0.02) !important;
+    }
+
+    /* Hover en filas */
+    .table-hover tbody tr:hover,
+    .table tbody tr:hover {
+        background-color: rgba(255, 109, 0, 0.05) !important;
+    }
+
+    /* Resalte de números y celdas importantes */
+    .table td strong {
+        color: #ff6d00; /* Naranja para los saldos disponibles */
+        font-weight: 700;
+    }
+
+    /* --- Formulario de Búsqueda y Filtros --- */
+    .form-control-sm {
+        border: 1px solid #dce1e7;
+        border-radius: 6px;
+        padding: 8px 12px;
+    }
+
+        .form-control-sm:focus {
+            border-color: #ff6d00;
+            box-shadow: 0 0 0 0.2rem rgba(255, 109, 0, 0.1);
+        }
+
+    .btn-outline-secondary {
+        border-color: #dce1e7;
+        color: #1a237e;
+        font-weight: 600;
+    }
+
+        .btn-outline-secondary:hover {
+            background-color: #1a237e;
+            color: #ffffff;
+        }
+
+    /* --- Alertas y Footer --- */
+    .alert-danger {
+        background-color: #fff5f5;
+        border: 1px solid #feb2b2;
+        color: #c53030;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+
+    .modal-footer {
+        border-top: 1px solid #e1e8ed;
+        margin-top: 20px;
+        padding-top: 15px;
+    }
+
+    .btn-secondary {
+        background-color: #64748b !important;
+        border: none !important;
+        font-weight: 600;
+    }
+</style>

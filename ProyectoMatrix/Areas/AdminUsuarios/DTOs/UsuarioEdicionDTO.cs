@@ -31,5 +31,14 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.DTOs
 
         [ValidateNever]
         public IEnumerable<AuditoriaUsuario> HistorialDeCambios { get; set; }
+
+        public string? NumeroEmpleado { get; set; }
+        public string? ClaveEmpleadoNomina { get; set; }
+        public DateTime? FechaIngreso { get; set; }
+        public string? Puesto { get; set; }
+
+        public int? JefeInmediatoPersonaID { get; set; }
+        public DateTime? FechaNacimiento { get; set; }
+
     }
 }

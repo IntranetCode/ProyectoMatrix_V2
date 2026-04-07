@@ -4,15 +4,15 @@
     const panelContent = document.getElementById('panel-content');
 
     if (!panel || !overlay || !panelContent) {
-        console.error('[usuarios-panel] Faltan elementos del panel (#slide-out-panel, #panel-overlay, #panel-content).');
+        console.error('[usuarios-panel] Faltan elementos del panel.');
         return;
     }
 
     function showPanel() {
-        // Si tu CSS usa .open o .show, cambia aquí:
         panel.classList.add('is-open');
         overlay.classList.add('is-open');
     }
+
     function hidePanel() {
         panel.classList.remove('is-open');
         overlay.classList.remove('is-open');
@@ -20,14 +20,66 @@
 
     function spinner() {
         return `
-      <div class="d-flex justify-content-center align-items-center h-100 p-4">
-        <div class="spinner-border" role="status" aria-label="Cargando"></div>
-      </div>`;
+        <div class="d-flex justify-content-center align-items-center h-100 p-4">
+            <div class="spinner-border" role="status" aria-label="Cargando"></div>
+        </div>`;
+    }
+
+    function inicializarSelect2Jefe() {
+        // Esperar a que Select2 esté disponible (cargado desde la partial)
+        let intentos = 0;
+        const intervalo = setInterval(function () {
+            intentos++;
+
+            if (window.jQuery && typeof window.jQuery.fn.select2 !== 'undefined') {
+                clearInterval(intervalo);
+
+                const $sel = window.jQuery('#selectJefe');
+                if (!$sel.length) return;
+
+                if ($sel.hasClass('select2-hidden-accessible')) {
+                    $sel.select2('destroy');
+                }
+
+                $sel.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: '-- Escriba para buscar jefe... --',
+                    minimumInputLength: 1,
+                    allowClear: true,
+                    dropdownParent: window.jQuery('body'),
+                    ajax: {
+                        url: '/Usuarios/BuscarPersonasJefes',
+                        dataType: 'json',
+                        delay: 300,
+                        data: function (params) { return { term: params.term }; },
+                        processResults: function (data) {
+                            console.log('✅ Select2 resultados:', data);
+                            return data;
+                        },
+                        error: function (xhr, status, err) {
+                            console.error('❌ Select2 AJAX error:', status, err);
+                        }
+                    }
+                }).on('select2:open', function () {
+                    setTimeout(function () {
+                        document.querySelector('.select2-container--open .select2-search__field')?.focus();
+                    }, 50);
+                });
+
+                console.log('✅ Select2 inicializado');
+            }
+
+            if (intentos >= 30) {
+                clearInterval(intervalo);
+                console.error('❌ Select2 no cargó en 3 segundos');
+            }
+        }, 100);
     }
 
     async function openPanel(url) {
         if (!url) {
-            console.error('[usuarios-panel] URL vacía para openPanel');
+            console.error('[usuarios-panel] URL vacía');
             return;
         }
 
@@ -49,17 +101,19 @@
             const html = await res.text();
             panelContent.innerHTML = html;
 
-            // Re-activar validación unobtrusive si está disponible
             if (window.jQuery && window.jQuery.validator && window.jQuery.validator.unobtrusive) {
                 panelContent.querySelectorAll('form').forEach(f => window.jQuery.validator.unobtrusive.parse(f));
             }
+
+            inicializarSelect2Jefe();
+
         } catch (err) {
             console.error('Error al abrir el panel:', err);
             panelContent.innerHTML = `
-        <div class="alert alert-danger m-3">
-          No se pudo cargar el contenido.<br>
-          <small>${(err && err.message) ? err.message.replace(/</g, '&lt;') : 'Error desconocido'}</small>
-        </div>`;
+            <div class="alert alert-danger m-3">
+                No se pudo cargar el contenido.<br>
+                <small>${(err && err.message) ? err.message.replace(/</g, '&lt;') : 'Error desconocido'}</small>
+            </div>`;
         }
     }
 
@@ -77,7 +131,6 @@
                 credentials: 'include'
             });
 
-            // Si el server redirige (guardado OK), seguimos esa redirección
             if (res.redirected) {
                 window.location.href = res.url;
                 return;
@@ -86,30 +139,29 @@
             const html = await res.text();
             panelContent.innerHTML = html;
 
-            // Re-activar validación (errores de modelo)
             if (window.jQuery && window.jQuery.validator && window.jQuery.validator.unobtrusive) {
                 panelContent.querySelectorAll('form').forEach(f => window.jQuery.validator.unobtrusive.parse(f));
             }
+
+            inicializarSelect2Jefe();
+
         } catch (err) {
             console.error('Error al enviar el formulario:', err);
             panelContent.innerHTML = `
-        <div class="alert alert-danger m-3">
-          No se pudo enviar el formulario.<br>
-          <small>${(err && err.message) ? err.message.replace(/</g, '&lt;') : 'Error desconocido'}</small>
-        </div>`;
+            <div class="alert alert-danger m-3">
+                No se pudo enviar el formulario.<br>
+                <small>${(err && err.message) ? err.message.replace(/</g, '&lt;') : 'Error desconocido'}</small>
+            </div>`;
         }
     }
 
-    // Delegación: abrir panel (acepta <a> y <button> con href o data-url)
+    // Abrir panel
     document.body.addEventListener('click', function (e) {
         const el = e.target.closest('#btn-crear-usuario, .btn-editar-usuario');
         if (!el) return;
 
         e.preventDefault();
-        const href = el.getAttribute('href');
-        const dataUrl = el.getAttribute('data-url') || (el.dataset ? el.dataset.url : null);
-        const url = href || dataUrl;
-
+        const url = el.getAttribute('href') || el.getAttribute('data-url') || (el.dataset ? el.dataset.url : null);
         openPanel(url);
     });
 
@@ -125,24 +177,20 @@
         if (e.key === 'Escape') closePanel();
     });
 
-    // Interceptar cualquier submit dentro del panel (no dependas de un id concreto)
+    // Submit dentro del panel
     panel.addEventListener('submit', function (e) {
         const form = e.target.closest('form');
         if (!form) return;
 
-        // ¿Quién disparó el submit?
         const submitter = e.submitter || document.activeElement;
-
         e.preventDefault();
 
-        // Si fue el botón de overrides, saltamos validación de jQuery
         const isOverrides = submitter && submitter.classList && submitter.classList.contains('save-overrides');
 
         if (!isOverrides && window.jQuery && window.jQuery.fn && window.jQuery.fn.valid) {
             if (!window.jQuery(form).valid()) return;
         }
 
-        handleFormSubmit(form); // tu función fetch POST (incluye X-Requested-With y credentials)
+        handleFormSubmit(form);
     });
-
 });
