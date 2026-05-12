@@ -1,0 +1,288 @@
+﻿@model ProyectoMatrix.Models.VacacionesSolicitudFormatoVm
+@{
+    Layout = null; // vista independiente para imprimir
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Solicitud de vacaciones - Folio @Model.SolicitudVacacionesID</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .page {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px 30px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        h1, h2, h3 {
+            margin: 0;
+            padding: 0;
+        }
+
+        .encabezado {
+            display: grid;
+            grid-template-columns: 120px 1fr 160px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .logo {
+            max-height: 80px;
+        }
+
+        .encabezado-centro {
+            text-align: center;
+        }
+
+            .encabezado-centro h1 {
+                font-size: 18px;
+                margin-bottom: 4px;
+            }
+
+            .encabezado-centro p {
+                margin: 2px 0;
+                font-size: 13px;
+            }
+
+        .encabezado-der {
+            font-size: 12px;
+            text-align: right;
+        }
+
+        .seccion-titulo {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 16px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            color: #444;
+        }
+
+        table.info {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        table.info td {
+            padding: 4px 6px;
+            vertical-align: top;
+        }
+
+        table.info td.label {
+            font-weight: 600;
+            width: 30%;
+        }
+
+        .resumen-saldos {
+            margin-top: 10px;
+            margin-bottom: 16px;
+        }
+
+        .resumen-saldos table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .resumen-saldos th,
+        .resumen-saldos td {
+            border: 1px solid #ccc;
+            padding: 4px 6px;
+            text-align: center;
+        }
+
+        .firmas {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+
+        .firma {
+            width: 45%;
+            text-align: center;
+        }
+
+        .firma-linea {
+            margin-top: 40px;
+            border-top: 1px solid #000;
+            padding-top: 4px;
+        }
+
+        .acciones {
+            text-align: right;
+            margin-bottom: 10px;
+        }
+
+        .btn-imp {
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 4px;
+            border: 1px solid #888;
+            background-color: #f2f2f2;
+            cursor: pointer;
+        }
+
+        @@media print {
+            body {
+                background-color: #ffffff;
+                padding: 0;
+            }
+            .acciones {
+                display: none;
+            }
+            .page {
+                box-shadow: none;
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="acciones">
+        <button class="btn-imp" onclick="window.print();">Imprimir</button>
+    </div>
+
+    <div class="page">
+        <div class="encabezado">
+            <div>
+                <img src="~/Imagenes/logo.png"
+                     alt="NS Group"
+                     class="logo" />
+            </div>
+
+            <div class="encabezado-centro">
+                <h1>NS GROUP</h1>
+                <p>DIRECCIÓN DE RECURSOS HUMANOS</p>
+                <p><strong>VACACIONES</strong></p>
+            </div>
+
+            <div class="encabezado-der">
+                <p><strong>RECH-F013</strong></p>
+                <p>Folio: <strong>@Model.SolicitudVacacionesID</strong></p>
+                <p>Fecha solicitud: @Model.FechaSolicitud.ToString("dd/MM/yyyy")</p>
+                
+        <p>Publicación: 01/Ago/22</p>
+        <p>Revisión: ____</p>
+        
+            </div>
+        </div>
+
+
+        <div>
+            <div class="seccion-titulo">Solicitud</div>
+            <table class="info">
+                <tr>
+                    <td class="label">Número de empleado:</td>
+                    <td>@Model.NumeroEmpleado</td>
+                    <td class="label">Fecha de solicitud:</td>
+                    <td>@Model.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                </tr>
+                <tr>
+                    <td class="label">Sociedad:</td>
+                    <td>@Model.Sociedad</td>
+                    <td class="label">Empresa:</td>
+                    <td>@Model.Empresa</td>
+                </tr>
+                <tr>
+                    <td class="label">Nombre:</td>
+                    <td colspan="3">@Model.NombreColaborador</td>
+                </tr>
+                <tr>
+                    <td class="label">Puesto:</td>
+                    <td>@Model.Puesto</td>
+                    <td class="label">Departamento:</td>
+                    <td>@Model.Departamento</td>
+                </tr>
+                <tr>
+                    <td class="label">Días solicitados:</td>
+                    <td>@Model.DiasSolicitados</td>
+                    <td class="label">Fechas:</td>
+                    <td>
+                        @Model.FechaInicio.ToString("dd/MM/yyyy")
+                        &nbsp;al&nbsp;
+                        @Model.FechaFin.ToString("dd/MM/yyyy")
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+
+        <div>
+            <div class="seccion-titulo">Información de la solicitud</div>
+            <table class="info">
+                <tr>
+                    <td class="label">Periodo solicitado:</td>
+                    <td>@Model.FechaInicio.ToString("dd/MM/yyyy") al @Model.FechaFin.ToString("dd/MM/yyyy")</td>
+                </tr>
+                <tr>
+                    <td class="label">Días hábiles solicitados:</td>
+                    <td>@Model.DiasSolicitados</td>
+                </tr>
+                <tr>
+                    <td class="label">Tipo:</td>
+                    <td>@(Model.EsAnticipada ? "Vacaciones anticipadas" : "Vacaciones normales")</td>
+                </tr>
+                <tr>
+                    <td class="label">Estatus jefe:</td>
+                    <td>@Model.EstadoAutorizacion</td>
+                </tr>
+                <tr>
+                    <td class="label">Estatus RH:</td>
+                    <td>@Model.EstadoRH</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="resumen-saldos">
+            <div class="seccion-titulo">Resumen de saldos de vacaciones</div>
+            <table>
+                <tr>
+                    <th>Días que le corresponden</th>
+                    <th>Días tomados</th>
+                    <th>Días disponibles</th>
+                </tr>
+                <tr>
+                    <td>@Model.DiasCorrespondientes</td>
+                    <td>@Model.DiasTomados</td>
+                    <td>@Model.DiasDisponibles</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="firmas">
+            <div class="firma">
+                <div class="firma-linea">
+                    Firma del colaborador
+                </div>
+            </div>
+            <div class="firma">
+                <div class="firma-linea">
+                    Jefe inmediato
+                </div>
+            </div>
+        </div>
+
+        <div class="firmas" style="margin-top: 40px;">
+            <div class="firma" style="margin: 0 auto;">
+                <div class="firma-linea">
+                    Recursos Humanos
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

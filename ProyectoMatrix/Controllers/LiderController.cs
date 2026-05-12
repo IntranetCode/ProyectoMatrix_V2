@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
 using ProyectoMatrix.Seguridad;
+using Microsoft.Extensions.Logging;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -17,14 +18,16 @@ namespace ProyectoMatrix.Controllers
         private readonly ServicioNotificaciones _notif;
         private readonly BitacoraService _bitacoraService;
         private readonly IServicioAcceso _acceso;
+        private readonly ILogger<ComunicadosController> _logger;
 
-        public LiderController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif, BitacoraService bitacoraService, IServicioAcceso acceso)
+        public LiderController(ApplicationDbContext db, IWebHostEnvironment env, ServicioNotificaciones notif, BitacoraService bitacoraService, IServicioAcceso acceso, ILogger<ComunicadosController> logger)
         {
             _db = db;
             _env = env;
             _notif = notif;
             _bitacoraService = bitacoraService;
             _acceso = acceso;
+            _logger = logger;
         }
 
 
@@ -449,6 +452,117 @@ namespace ProyectoMatrix.Controllers
                     "Webinars",
                     empresasSeleccionadas.Distinct()
                 );
+            }
+            // ===============================
+            // ✉️ Envío de correo para Webinar
+            // ===============================
+            try
+            {
+                var tipoEvento = model.EsAsamblea ? "Asamblea Virtual" : "Webinar";
+                var asunto = $"🎥 Nuevo {tipoEvento}: {model.Titulo}";
+
+                var html = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; }}
+        .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+        .header {{ background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 30px 20px; text-align: center; }}
+        .header h1 {{ margin: 0; font-size: 24px; font-weight: 600; }}
+        .content {{ padding: 30px 25px; }}
+        .greeting {{ font-size: 18px; color: #333; margin-bottom: 15px; }}
+        .message {{ font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 20px; }}
+        .event-box {{ background-color: #f8f9fa; border-left: 4px solid #e74c3c; padding: 20px; margin: 20px 0; border-radius: 4px; }}
+        .event-title {{ font-size: 20px; font-weight: 600; color: #333; margin-bottom: 10px; }}
+        .event-desc {{ font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 15px; }}
+        .event-detail {{ font-size: 14px; color: #555; margin: 8px 0; }}
+        .event-detail strong {{ color: #333; }}
+        .footer {{ background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 13px; color: #888; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1><span style='font-size: 22px;'>🎥</span> Nuevo {tipoEvento}</h1>
+        </div>
+        <div class='content'>
+            <p class='greeting'>¡Hola!</p>
+            <p class='message'>
+                Esperamos que te encuentres excelente. Nos complace invitarte a un evento especial 
+                que hemos preparado para ti.
+            </p>
+            <div class='event-box'>
+                <div class='event-title'>{System.Net.WebUtility.HtmlEncode(model.Titulo)}</div>
+                {(!string.IsNullOrWhiteSpace(model.Descripcion) ? $@"
+                <div class='event-desc'>{System.Net.WebUtility.HtmlEncode(model.Descripcion)}</div>
+                " : "")}
+                <div class='event-detail'>
+                    <strong><span style='margin-right: 8px;'>📅</span>Fecha de inicio:</strong> {model.FechaInicio:dd/MM/yyyy HH:mm}
+                </div>
+                <div class='event-detail'>
+                    <strong><span style='margin-right: 8px;'>⏰</span>Finaliza:</strong> {model.FechaFin:dd/MM/yyyy HH:mm}
+                </div>
+            </div>
+            <p class='message'>
+                {(model.EsAsamblea
+                                ? "Esta asamblea virtual es una excelente oportunidad para estar informado y participar activamente."
+                                : "Este webinar es una excelente oportunidad para aprender y desarrollar nuevas habilidades.")}
+            </p>
+            <p class='message' style='color: #e74c3c; font-weight: 600;'>
+                ¡No te lo pierdas! Reserva este espacio en tu agenda.
+            </p>
+        </div>
+        <div class='footer'>
+            <p>Programado para el {model.FechaInicio:dd/MM/yyyy} a las {model.FechaInicio:HH:mm}</p>
+            <p>Este es un mensaje automático. Por favor no responder a este correo.</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+                List<int> personaIds = new();
+
+                if (model.EsPublico)
+                {
+                    // ✅ OBTENER TODOS LOS USUARIOS ACTIVOS CON CORREO
+                    personaIds = await _notif.GetTodosPersonaIdsConCorreoAsync();
+                    _logger.LogInformation("Webinar público: preparando envío a {Count} usuarios totales", personaIds.Count);
+                }
+                else if (empresasSeleccionadas?.Any() == true)
+                {
+                    // ✅ OBTENER USUARIOS DE EMPRESAS SELECCIONADAS
+                    personaIds = await _notif.GetPersonaIdsPorEmpresasAsync(empresasSeleccionadas.Distinct());
+                    _logger.LogInformation("Webinar privado: preparando envío a {Count} usuarios de {Empresas} empresas",
+                        personaIds.Count, empresasSeleccionadas.Distinct().Count());
+                }
+
+                // ✅ ENVIAR SI HAY DESTINATARIOS
+                if (personaIds.Count > 0)
+                {
+                    var resultado = await _notif.EnviarABccPersonasAsync(personaIds, asunto, html);
+
+                    _logger.LogInformation(
+                        "📧 Correo webinar enviado: Encontrados={Enc}, Enviados={Env}, Filtrados={Filt}, Errores={Err}",
+                        resultado.Encontrados, resultado.Enviados, resultado.FiltradosPorCandados, resultado.Errores
+                    );
+
+                    if (resultado.Mensajes.Any())
+                    {
+                        foreach (var msg in resultado.Mensajes)
+                            _logger.LogWarning("Correo webinar: {Msg}", msg);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️ Webinar sin destinatarios con correo válido");
+                }
+            }
+            catch (Exception exCorreo)
+            {
+                _logger.LogError(exCorreo, "Error enviando webinar por correo (WebinarID={Id})", model.WebinarID);
+                // No interrumpimos - la notificación in-app ya se envió
             }
 
             // servicio de logs

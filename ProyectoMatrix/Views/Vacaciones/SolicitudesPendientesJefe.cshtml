@@ -1,0 +1,231 @@
+﻿@model ProyectoMatrix.Models.SolicitudesPendientesJefePantallaVm
+
+@{
+    ViewData["Title"] = "Solicitudes de mi equipo";
+    Layout = "_LayoutComunicados";
+}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+<link href="~/css/stylesVacacionesSPJ.css" rel="stylesheet" />
+
+<h2>Solicitudes de mi equipo</h2>
+
+@if (TempData["MensajeVacacionesJefe"] != null)
+{
+    <div class="alert alert-success">@TempData["MensajeVacacionesJefe"]</div>
+}
+
+@if (TempData["ErrorVacacionesJefe"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorVacacionesJefe"]</div>
+}
+
+@if (!string.IsNullOrEmpty(ViewBag.Error as string))
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+
+<h5 class="mt-3">Pendientes de autorización</h5>
+
+@if (Model.HabilitacionesPendientes.Any())
+{
+    <div class="alert alert-light border-warning shadow-sm mb-4">
+        <h5 class="text-warning"><i class="fas fa-exclamation-circle me-2"></i>Peticiones de Vacaciones Adelantadas</h5>
+        <p class="small text-muted">Los siguientes colaboradores solicitan permiso para adelantar vacaciones debido a motivos especiales.</p>
+
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Colaborador</th>
+                        <th>Motivo Justificado</th>
+                        <th>Fecha</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var h in Model.HabilitacionesPendientes)
+                    {
+                        <tr>
+                            <td><strong>@h.NombreColaborador</strong></td>
+                            <td><i class="text-muted">"@h.Motivo"</i></td>
+                            <td>@h.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <button onclick="decidirHabilitacion(@h.HabilitacionID, true)" class="btn btn-success btn-sm">Aprobar Motivo</button>
+                                <button onclick="decidirHabilitacion(@h.HabilitacionID, false)" class="btn btn-outline-danger btn-sm">Rechazar</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (Model?.Pendientes == null || !Model.Pendientes.Any())
+{
+    <p class="text-muted">No tienes solicitudes pendientes por autorizar.</p>
+}
+else
+{
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Folio</th>
+                <th>Empleado</th>
+                <th>Nombre</th>
+                <th>Fecha solicitud</th>
+                <th>Periodo</th>
+                <th>Días</th>
+                <th>Anticipada</th>
+                <th>Estado RH</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model.Pendientes)
+            {
+                <tr>
+                    <td>@s.SolicitudVacacionesID</td>
+                    <td>@s.NumeroEmpleado</td>
+                    <td>@s.NombreColaborador</td>
+                    <td>@s.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                    <td>@s.FechaInicio.ToString("dd/MM/yyyy") - @s.FechaFin.ToString("dd/MM/yyyy")</td>
+                    <td>@s.DiasSolicitados</td>
+                    <td>@(s.EsAnticipada ? "Sí" : "No")</td>
+                    <td>@s.EstadoRecursosHumanos</td>
+                    <td class="text-nowrap">
+                        <form asp-action="AutorizarComoJefe" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
+                            <input type="hidden" name="autorizar" value="true" />
+                            <input type="hidden" name="comentarios" value="" />
+                            <button type="submit" class="btn btn-sm btn-success">Autorizar</button>
+                        </form>
+
+                        <form asp-action="AutorizarComoJefe" method="post" class="d-inline ms-1">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
+                            <input type="hidden" name="autorizar" value="false" />
+                            <input type="hidden" name="comentarios" value="" />
+                            <button type="submit" class="btn btn-sm btn-danger">Rechazar</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h5 class="mt-4">Próximas vacaciones</h5>
+<p class="text-muted small mb-2">Colaboradores que iniciarán vacaciones pronto.</p>
+
+@if (Model?.Proximas == null || !Model.Proximas.Any())
+{
+    <p class="text-muted">No hay próximas vacaciones registradas.</p>
+}
+else
+{
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Empleado</th>
+                <th>Nombre</th>
+                <th>Inicio</th>
+                <th>Fin</th>
+                <th>Días</th>
+                <th>Anticipada</th>
+                <th>Estado jefe</th>
+                <th>Estado RH</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model.Proximas)
+            {
+                <tr>
+                    <td>@s.NumeroEmpleado</td>
+                    <td>@s.NombreColaborador</td>
+                    <td>@s.FechaInicio.ToString("dd/MM/yyyy")</td>
+                    <td>@s.FechaFin.ToString("dd/MM/yyyy")</td>
+                    <td>@s.DiasSolicitados</td>
+                    <td>@(s.EsAnticipada ? "Sí" : "No")</td>
+                    <td>@s.EstadoAutorizacion</td>
+                    <td>@s.EstadoRecursosHumanos</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+
+<h5 class="mt-4">Historial (todas)</h5>
+
+@if (Model?.Historial == null || !Model.Historial.Any())
+{
+    <p class="text-muted">No hay historial disponible.</p>
+}
+else
+{
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Folio</th>
+                <th>Empleado</th>
+                <th>Nombre</th>
+                <th>Fecha solicitud</th>
+                <th>Periodo</th>
+                <th>Días</th>
+                <th>Anticipada</th>
+                <th>Estado jefe</th>
+                <th>Estado RH</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model.Historial)
+            {
+                <tr>
+                    <td>@s.SolicitudVacacionesID</td>
+                    <td>@s.NumeroEmpleado</td>
+                    <td>@s.NombreColaborador</td>
+                    <td>@s.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                    <td>@s.FechaInicio.ToString("dd/MM/yyyy") - @s.FechaFin.ToString("dd/MM/yyyy")</td>
+                    <td>@s.DiasSolicitados</td>
+                    <td>@(s.EsAnticipada ? "Sí" : "No")</td>
+                    <td>@s.EstadoAutorizacion</td>
+                    <td>@s.EstadoRecursosHumanos</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+                    <script>
+                            function decidirHabilitacion(id, aprobado) {
+        const texto = aprobado ? "¿Aprobar este motivo para vacaciones adelantadas?" : "¿Rechazar esta solicitud?";
+
+        Swal.fire({
+            title: 'Confirmar Decisión',
+            text: texto,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: aprobado ? '#198754' : '#dc3545',
+            confirmButtonText: aprobado ? 'Sí, Aprobar' : 'Sí, Rechazar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('@Url.Action("DecidirHabilitacionJefe", "Vacaciones")', {
+                    habilitacionId: id,
+                    aprobado: aprobado
+                }, function (res) {
+                    if (res.success) {
+                        Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', res.message, 'error');
+                    }
+                });
+            }
+        });
+    }
+                    </script>

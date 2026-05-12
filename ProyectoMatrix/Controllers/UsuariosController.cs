@@ -41,7 +41,38 @@ namespace ProyectoMatrix.Controllers
         [AutorizarAccion("Crear Usuario", "Crear")]
         public async Task<IActionResult> Crear()
         {
+            // 1. Cargamos las empresas (manteniendo tu lógica actual)
             ViewBag.Empresas = new SelectList(_context.Empresas, "EmpresaID", "Nombre");
+
+            // 2. Cargamos los Departamentos usando SQL Puro
+            var listaDeptos = new List<SelectListItem>();
+            string cnn = _context.Database.GetConnectionString();
+
+            using (var conn = new Microsoft.Data.SqlClient.SqlConnection(cnn))
+            {
+                await conn.OpenAsync();
+                // Consulta SQL para traer solo departamentos activos
+                const string sql = "SELECT DepartamentoID, NombreDepartamento FROM Departamentos WHERE Activo = 1 ORDER BY NombreDepartamento";
+
+                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, conn))
+                {
+                    using (var rd = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await rd.ReadAsync())
+                        {
+                            listaDeptos.Add(new SelectListItem
+                            {
+                                Value = rd["DepartamentoID"].ToString(),
+                                Text = rd["NombreDepartamento"].ToString()
+                            });
+                        }
+                    }
+                }
+            }
+            // Pasamos la lista a la vista mediante ViewBag
+            ViewBag.Departamentos = listaDeptos;
+
+            // 3. Inicializamos el ViewModel
             var viewModel = new UsuarioFormViewModel
             {
                 EsModoCrear = true,
@@ -55,7 +86,6 @@ namespace ProyectoMatrix.Controllers
             return PartialView("_UsuarioForm", viewModel);
         }
 
-        // POST: /Usuarios/Crear
         [HttpPost]
         [ValidateAntiForgeryToken]
         [AutorizarAccion("Crear Usuario", "Crear")]
@@ -74,13 +104,26 @@ namespace ProyectoMatrix.Controllers
                     Password = viewModel.Password,
                     RolID = viewModel.RolID,
                     EmpresasIDs = viewModel.EmpresasIDs,
-                    SubMenuIDs = viewModel.SubMenuIDs ?? new List<int>()
+                    SubMenuIDs = viewModel.SubMenuIDs ?? new List<int>(),
+
+                    NumeroEmpleado = viewModel.NumeroEmpleado,
+                    ClaveEmpleadoNomina = viewModel.ClaveEmpleadoNomina,
+                    FechaIngreso = viewModel.FechaIngreso,
+                    Puesto = viewModel.Puesto,
+                    FechaNacimiento = viewModel.FechaNacimiento,
+                    JefeInmediatoPersonaID = viewModel.JefeInmediatoPersonaID,
+                    // AGREGAR ESTA LÍNEA:
+                    DepartamentoID = viewModel.DepartamentoID
                 };
+                ViewBag.Departamentos = await ObtenerListaDepartamentosSQL(viewModel.DepartamentoID);
 
                 await _usuarioService.RegistrarAsync(nuevoUsuarioDto);
                 TempData["SuccessMessage"] = "Usuario creado exitosamente.";
                 return RedirectToAction(nameof(Index), new { activos = true });
             }
+
+            // RECARGAR LISTA DE DEPARTAMENTOS SI HAY ERRORES (SQL Puro)
+            ViewBag.Departamentos = await ObtenerListaDepartamentosSQL(viewModel.DepartamentoID);
 
             ViewBag.Empresas = new SelectList(_context.Empresas, "EmpresaID", "Nombre", viewModel.EmpresasIDs);
             viewModel.MenusDisponibles = await _usuarioService.ObtenerMenusConSubMenusAsync();
@@ -96,6 +139,60 @@ namespace ProyectoMatrix.Controllers
             var usuarioDto = await _usuarioService.ObtenerParaEditarAsync(id);
             if (usuarioDto == null) return NotFound();
 
+            string nombreJefe = "";
+            string nombreDepto = "";
+            var listaDeptos = new List<SelectListItem>(); // Nueva lista para el select
+            string cnn = _context.Database.GetConnectionString();
+
+            // --- BLOQUE SQL PURO PARA CARGAR DATOS Y LISTA ---
+            using (var conn = new Microsoft.Data.SqlClient.SqlConnection(cnn))
+            {
+                await conn.OpenAsync();
+
+                // 1. Obtener nombre del Jefe
+                if (usuarioDto.JefeInmediatoPersonaID.HasValue)
+                {
+                    var sqlJefe = @"SELECT (Nombre + ' ' + ApellidoPaterno + ' ' + ISNULL(ApellidoMaterno, '')) 
+                            FROM Persona WHERE PersonaID = @id";
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(sqlJefe, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", usuarioDto.JefeInmediatoPersonaID);
+                        nombreJefe = (await cmd.ExecuteScalarAsync())?.ToString() ?? "";
+                    }
+                }
+
+                // 2. CARGAR LISTA COMPLETA DE DEPARTAMENTOS
+                const string sqlLista = "SELECT DepartamentoID, NombreDepartamento FROM Departamentos WHERE Activo = 1 ORDER BY NombreDepartamento";
+                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(sqlLista, conn))
+                {
+                    using (var rd = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await rd.ReadAsync())
+                        {
+                            listaDeptos.Add(new SelectListItem
+                            {
+                                Value = rd["DepartamentoID"].ToString(),
+                                Text = rd["NombreDepartamento"].ToString(),
+                                // Pre-selecciona el depto actual del usuario
+                                Selected = usuarioDto.DepartamentoID.HasValue && (int)rd["DepartamentoID"] == usuarioDto.DepartamentoID.Value
+                            });
+                        }
+                    }
+                }
+
+                // 3. Obtener nombre del Departamento actual (para el ViewModel)
+                if (usuarioDto.DepartamentoID.HasValue)
+                {
+                    var sqlDepto = "SELECT NombreDepartamento FROM Departamentos WHERE DepartamentoID = @id";
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(sqlDepto, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", usuarioDto.DepartamentoID);
+                        nombreDepto = (await cmd.ExecuteScalarAsync())?.ToString() ?? "";
+                    }
+                }
+            }
+
+            ViewBag.Departamentos = listaDeptos;
             ViewBag.Empresas = new SelectList(_context.Empresas, "EmpresaID", "Nombre", usuarioDto.EmpresasIDs);
 
             var viewModel = new UsuarioFormViewModel
@@ -111,15 +208,22 @@ namespace ProyectoMatrix.Controllers
                 EmpresasIDs = usuarioDto.EmpresasIDs ?? new List<int>(),
                 SubMenuIDs = usuarioDto.SubMenuIDs ?? new List<int>(),
                 HistorialDeCambios = await _usuarioService.ObtenerHistorialAsync(id),
-                MenusDisponibles = await _usuarioService.ObtenerMenusConSubMenusAsync()
+                MenusDisponibles = await _usuarioService.ObtenerMenusConSubMenusAsync(),
+                NumeroEmpleado = usuarioDto.NumeroEmpleado,
+                ClaveEmpleadoNomina = usuarioDto.ClaveEmpleadoNomina,
+                FechaIngreso = usuarioDto.FechaIngreso,
+                Puesto = usuarioDto.Puesto,
+                FechaNacimiento = usuarioDto.FechaNacimiento,
+                JefeInmediatoPersonaID = usuarioDto.JefeInmediatoPersonaID,
+                JefeInmediatoNombreCompleto = nombreJefe,
+                DepartamentoID = usuarioDto.DepartamentoID,
+                NombreDepartamento = nombreDepto
             };
-
-            // CARGA DE OVERRIDES usando el servicio (más limpio y consistente)
+            // --- LÓGICA DE OVERRIDES (NO TOCADA) ---
             List<OverrideItemDto> overridesItems;
             try
             {
-                // Usa el método del servicio que ya tienes
-                overridesItems = await _usuarioService.ListarOverridesAsync(id, null); // null = global
+                overridesItems = await _usuarioService.ListarOverridesAsync(id, null);
             }
             catch (Exception ex)
             {
@@ -127,7 +231,6 @@ namespace ProyectoMatrix.Controllers
                 overridesItems = new List<OverrideItemDto>();
             }
 
-            // Si no hay items, construir catálogo base desde menús
             if (overridesItems.Count == 0)
             {
                 var menus = await _usuarioService.ObtenerMenusConSubMenusAsync();
@@ -135,29 +238,26 @@ namespace ProyectoMatrix.Controllers
                 {
                     foreach (var subMenu in menu.SubMenus)
                     {
-                        // Calcular permiso efectivo del rol base
                         bool permisoEfectivo = await _usuarioService.VerificarPermisoAsync(id, subMenu.SubMenuID);
-
                         overridesItems.Add(new OverrideItemDto
                         {
                             MenuID = menu.MenuID,
                             MenuNombre = menu.Nombre,
                             SubMenuID = subMenu.SubMenuID,
                             Nombre = subMenu.Nombre,
-                            Estado = -1, // heredar
+                            Estado = -1,
                             PermisoEfectivo = permisoEfectivo
                         });
                     }
                 }
             }
 
-            // Agrupar por menú
             var grupos = overridesItems
                 .GroupBy(x => new { x.MenuID, x.MenuNombre })
                 .Select(g => new OverridesVm
                 {
                     UsuarioID = id,
-                    EmpresaID = null, // global
+                    EmpresaID = null,
                     MenuID = g.Key.MenuID,
                     MenuNombre = g.Key.MenuNombre,
                     Items = g.OrderBy(it => it.Nombre).ToList()
@@ -171,6 +271,7 @@ namespace ProyectoMatrix.Controllers
             return PartialView("_UsuarioForm", viewModel);
         }
 
+        // POST: /Usuarios/Editar/5
         // POST: /Usuarios/Editar/5
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -203,13 +304,25 @@ namespace ProyectoMatrix.Controllers
                     RolID = viewModel.RolID,
                     Activo = viewModel.Activo,
                     EmpresasIDs = viewModel.EmpresasIDs ?? new List<int>(),
-                    SubMenuIDs = viewModel.SubMenuIDs ?? new List<int>()
+                    SubMenuIDs = viewModel.SubMenuIDs ?? new List<int>(),
+
+                    NumeroEmpleado = viewModel.NumeroEmpleado,
+                    ClaveEmpleadoNomina = viewModel.ClaveEmpleadoNomina,
+                    FechaIngreso = viewModel.FechaIngreso,
+                    Puesto = viewModel.Puesto,
+                    FechaNacimiento = viewModel.FechaNacimiento,
+                    JefeInmediatoPersonaID = viewModel.JefeInmediatoPersonaID,
+                    // AGREGADO PARA GUARDAR:
+                    DepartamentoID = viewModel.DepartamentoID
                 };
 
                 await _usuarioService.ActualizarAsync(usuarioEditadoDto);
                 TempData["SuccessMessage"] = "Usuario actualizado correctamente.";
                 return RedirectToAction(nameof(Index), routeValues);
             }
+
+            // AGREGADO PARA RECARGAR LA LISTA SI HAY ERROR DE VALIDACIÓN:
+            ViewBag.Departamentos = await ObtenerListaDepartamentosSQL(viewModel.DepartamentoID);
 
             ViewBag.Empresas = new SelectList(_context.Empresas, "EmpresaID", "Nombre", viewModel.EmpresasIDs);
             viewModel.HistorialDeCambios = await _usuarioService.ObtenerHistorialAsync(id);
@@ -370,7 +483,71 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
+        //Metodoo que devuelve un jason para el buscador de jefes
 
+        [HttpGet]
+        public async Task<IActionResult> BuscarPersonasJefes(string term)
+        {
+            if (string.IsNullOrWhiteSpace(term) || term.Length < 1)
+                return Json(new { results = new List<object>() });
+
+            term = term.Trim().ToLower();
+
+            var personas = await _context.Personas
+                .Where(p =>
+                    p.Nombre.ToLower().Contains(term) ||
+                    p.ApellidoPaterno.ToLower().Contains(term) ||
+                    (p.ApellidoMaterno != null && p.ApellidoMaterno.ToLower().Contains(term))
+                )
+                .Select(p => new
+                {
+                    id = p.PersonaID,
+                    text = (p.Nombre + " " + p.ApellidoPaterno +
+                           (p.ApellidoMaterno != null ? " " + p.ApellidoMaterno : "")).Trim()
+                })
+                .Take(15)
+                .ToListAsync();
+
+            return Json(new { results = personas });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> BuscarDepartamentos(string term, int? empresaId)
+        {
+            if (string.IsNullOrWhiteSpace(term))
+                return Json(new { results = new List<object>() });
+
+            var resultados = new List<object>();
+            string cnn = _context.Database.GetConnectionString();
+
+            using (var conn = new Microsoft.Data.SqlClient.SqlConnection(cnn))
+            {
+                await conn.OpenAsync();
+                // Ajustado a 'EmpleadoDepartamentos' o la tabla pivote correcta según tu diagrama
+                var sql = @"
+            SELECT TOP 15 d.DepartamentoID, d.NombreDepartamento
+            FROM Departamentos d
+            INNER JOIN EmpleadoDepartamentos ed ON ed.DepartamentoID = d.DepartamentoID
+            WHERE d.NombreDepartamento LIKE @t
+              AND d.Activo = 1
+              AND (@empresaId IS NULL OR ed.EmpresaID = @empresaId)";
+
+                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@t", $"%{term}%");
+                    cmd.Parameters.AddWithValue("@empresaId", (object?)empresaId ?? DBNull.Value);
+
+                    using (var rd = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await rd.ReadAsync())
+                        {
+                            resultados.Add(new { id = rd["DepartamentoID"], text = rd["NombreDepartamento"].ToString() });
+                        }
+                    }
+                }
+            }
+            return Json(new { results = resultados });
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -414,6 +591,35 @@ namespace ProyectoMatrix.Controllers
         }
 
 
+        private async Task<List<SelectListItem>> ObtenerListaDepartamentosSQL(int? seleccionadoId = null)
+        {
+            var lista = new List<SelectListItem>();
+            string cnn = _context.Database.GetConnectionString();
+
+            using (var conn = new Microsoft.Data.SqlClient.SqlConnection(cnn))
+            {
+                await conn.OpenAsync();
+                const string sql = "SELECT DepartamentoID, NombreDepartamento FROM Departamentos WHERE Activo = 1 ORDER BY NombreDepartamento";
+                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, conn))
+                {
+                    using (var rd = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await rd.ReadAsync())
+                        {
+                            int idDepto = (int)rd["DepartamentoID"];
+                            lista.Add(new SelectListItem
+                            {
+                                Value = idDepto.ToString(),
+                                Text = rd["NombreDepartamento"].ToString(),
+                                Selected = seleccionadoId.HasValue && idDepto == seleccionadoId.Value
+                            });
+                        }
+                    }
+                }
+            }
+            return lista;
+        }
+
         // ✅ AGREGAR ESTE MÉTODO AUXILIAR
         private async Task<List<MenuModel>> ObtenerMenuActualizadoAsync(int usuarioId, int? empresaId)
         {
@@ -455,5 +661,7 @@ ORDER BY m.MenuID;";
             return lista;
         }
     }
+
+
 
     }

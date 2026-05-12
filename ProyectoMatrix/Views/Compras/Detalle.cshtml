@@ -1,0 +1,30 @@
+﻿<div class="card shadow">
+    <div class="card-body">
+        <h4 class="mb-5">Seguimiento de Folio: @Model.Folio</h4>
+
+        <div class="dataline-stepper">
+            <div class="step-item @(Model.PasosCompletados.Contains(1) ? "completed" : "active")">
+                <div class="step-circle"><i class="fas fa-file-invoice"></i></div>
+                <div class="step-label">Solicitud</div>
+                <small class="text-muted">@Model.FechaSolicitud.ToString("dd/MM/yy")</small>
+            </div>
+
+            <div class="step-item @(Model.PasosCompletados.Contains(2) ? "completed" : Model.EstatusActual == 2 ? "active" : "")">
+                <div class="step-circle"><i class="fas fa-search-dollar"></i></div>
+                <div class="step-label">Cotización</div>
+                <small class="text-muted">@(Model.FechaCotizacion?.ToString("dd/MM/yy") ?? "Pendiente")</small>
+            </div>
+
+            <div class="step-item @(Model.PasosCompletados.Contains(3) ? "completed" : Model.EstatusActual == 3 ? "active" : "")">
+                <div class="step-circle"><i class="fas fa-check-double"></i></div>
+                <div class="step-label">Presupuesto</div>
+                <small class="text-muted">@(Model.IdRequisicion ?? "Esperando...")</small>
+            </div>
+
+            <div class="step-item @(Model.PasosCompletados.Contains(5) ? "completed" : "")">
+                <div class="step-circle"><i class="fas fa-box-open"></i></div>
+                <div class="step-label">Entregado</div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,72 @@
+﻿@model IEnumerable<ProyectoMatrix.Models.MisComprasVm>
+
+@{
+    ViewData["Title"] = "Mis Compras";
+    Layout = "_LayoutComunicados";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Gestión de Compras</h2>
+    <div>
+        <a asp-action="NuevaSolicitud" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Nueva Solicitud
+        </a>
+
+        @if (ViewBag.Puesto == "DIRECCION COMPRAS")
+        {
+            <a asp-action="BandejaAdmin" class="btn btn-dark ms-2">
+                <i class="fas fa-user-shield me-1"></i> Bandeja Maestra
+            </a>
+            <a asp-action="DashboardDireccion" class="btn btn-outline-primary ms-2">
+                <i class="fas fa-chart-line me-1"></i> Ver Gráficos
+            </a>
+        }
+
+        @if (ViewBag.Puesto == "CONTROL PRESUPUESTAL")
+        {
+            <a asp-action="BandejaPresupuestal" class="btn btn-info ms-2">
+                <i class="fas fa-wallet me-1"></i> Validar Presupuestos
+            </a>
+        }
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Folio</th>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Empresa</th>
+                    <th>Estatus / Progreso</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td><strong>@item.Folio</strong></td>
+                        <td>@item.Fecha.ToString("dd/MM/yyyy")</td>
+                        <td>@item.Tipo</td>
+                        <td>@item.Empresa</td>
+                        <td>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar @(item.EstatusID == 4 ? "bg-success" : "bg-primary")"
+                                     style="width: @(item.EstatusID * 25)%"></div>
+                            </div>
+                            <small>@item.Estatus</small>
+                        </td>
+                        <td>
+                            <a asp-action="Detalle" asp-route-id="@item.SolicitudID" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-search"></i> Seguimiento
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

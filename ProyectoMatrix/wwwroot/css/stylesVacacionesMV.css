@@ -1,0 +1,159 @@
+﻿h2 {
+    color: #1a237e;
+    font-weight: 800;
+    margin: 20px 0 25px;
+    letter-spacing: -0.5px;
+}
+
+    h2::after {
+        content: "";
+        display: block;
+        margin-top: 10px;
+        height: 4px;
+        width: 60px; /* Más corto se ve más elegante */
+        border-radius: 999px;
+        background: #ff6d00; /* Naranja Matrix para acento */
+    }
+
+.card {
+    border: none;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(26, 35, 126, 0.05);
+    margin-bottom: 2rem;
+}
+
+.card-body .text-muted.small {
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-size: 0.7rem;
+    color: #64748b !important;
+}
+
+.card-body .fw-semibold {
+    font-size: 1.1rem;
+    color: #1a237e;
+}
+
+.col-md-8 .col-6:last-child .fw-semibold {
+    color: #ff6d00;
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+
+.btn {
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    padding: 10px 20px !important;
+    transition: all 0.2s ease;
+    border-width: 1.5px !important;
+}
+
+.btn-primary {
+    background-color: #1a237e !important;
+    border-color: #1a237e !important;
+    box-shadow: 0 8px 20px rgba(26, 35, 126, 0.2);
+}
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 25px rgba(26, 35, 126, 0.3);
+        background-color: #0d47a1 !important;
+    }
+
+.btn-outline-secondary, .btn-outline-warning, .btn-outline-info {
+    color: #1a237e !important;
+    border-color: #e2e8f0 !important;
+    background: white !important;
+}
+
+    .btn-outline-secondary:hover, .btn-outline-warning:hover, .btn-outline-info:hover {
+        border-color: #1a237e !important;
+        background: #f8f9ff !important;
+        transform: translateY(-2px);
+    }
+
+h5 {
+    color: #1a237e;
+    font-weight: 800;
+    margin-top: 2.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+    h5::before {
+        content: "";
+        width: 4px;
+        height: 18px;
+        background: #ff6d00;
+        border-radius: 4px;
+    }
+
+.table {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+}
+
+    .table thead th {
+        background-color: #f8fabb !important; /* Un tono muy tenue */
+        background: #1a237e !important;
+        color: white !important;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        padding: 15px !important;
+        border: none !important;
+    }
+
+    .table tbody td {
+        padding: 15px !important;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+
+    .table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f8f9ff !important;
+    }
+
+.status-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.status-pending {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.status-approved {
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.status-rejected {
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .mb-3 {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn {
+        width: 100%;
+    }
+}

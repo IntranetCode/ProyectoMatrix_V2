@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
 	  <RazorCompileOnBuild>true</RazorCompileOnBuild>
 	  <RazorCompileOnPublish>true</RazorCompileOnPublish>
+	  <UserSecretsId>973f14ac-f219-4430-8112-d07e3f642c14</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,10 +27,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Servicios\PerfilUsuarioService.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="bootstrap" Version="5.3.6" />
     <PackageReference Include="Dapper" Version="2.1.66" />
@@ -45,6 +42,7 @@
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="QuestPDF" Version="2025.7.1" />
+    <PackageReference Include="SSH.NET" Version="2025.0.0" />
   </ItemGroup>
 
   <ItemGroup>

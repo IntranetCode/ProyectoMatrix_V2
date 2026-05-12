@@ -81,7 +81,16 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.Services
                 Activo = usuario.Activo,
                 EmpresasIDs = empresasIds,
                 SubMenuIDs = subMenusEfectivos,   // <- ya NO viene de tabla Permisos
-                HistorialDeCambios = historial
+                HistorialDeCambios = historial,
+
+
+
+                NumeroEmpleado = usuario.Persona.NumeroEmpleado,
+                ClaveEmpleadoNomina = usuario.Persona.ClaveEmpleadoNomina,
+                FechaIngreso = usuario.Persona.FechaIngreso,
+                Puesto = usuario.Persona.Puesto,
+                FechaNacimiento = usuario.Persona.FechaNacimiento,
+                JefeInmediatoPersonaID = usuario.Persona.JefeInmediatoPersonaID
             };
         }
 
@@ -113,7 +122,9 @@ WHERE fe.TienePermiso = 1;";
 
         public async Task RegistrarAsync(UsuarioRegistroDTO nuevoUsuario)
         {
-            var passwordHash = BCrypt.Net.BCrypt.HashPassword(nuevoUsuario.Password);
+            // var passwordHash = BCrypt.Net.BCrypt.HashPassword(nuevoUsuario.Password);
+
+            var passwordDirecta = nuevoUsuario.Password;
 
             var empresasTable = new DataTable();
             empresasTable.Columns.Add("ID", typeof(int));
@@ -146,21 +157,34 @@ WHERE fe.TienePermiso = 1;";
             };
 
             var parameters = new object[]
-            {
-                new SqlParameter("@Nombre", nuevoUsuario.Nombre),
-                new SqlParameter("@ApellidoPaterno", nuevoUsuario.ApellidoPaterno),
-                new SqlParameter("@Correo", nuevoUsuario.Correo),
-                new SqlParameter("@Username", nuevoUsuario.Username),
-                new SqlParameter("@ContrasenaHash", passwordHash),
-                new SqlParameter("@RolID", nuevoUsuario.RolID),
-                new SqlParameter("@ApellidoMaterno", (object)nuevoUsuario.ApellidoMaterno ?? DBNull.Value),
-                new SqlParameter("@Telefono", (object)nuevoUsuario.Telefono ?? DBNull.Value),
-                empresasParam,
-                subMenusParam
-            };
+     {
+        new SqlParameter("@Nombre", nuevoUsuario.Nombre),
+        new SqlParameter("@ApellidoPaterno", nuevoUsuario.ApellidoPaterno),
+        new SqlParameter("@Correo", (object)nuevoUsuario.Correo ?? DBNull.Value),
+        new SqlParameter("@Username", nuevoUsuario.Username),
+        new SqlParameter("@ContrasenaHash", passwordDirecta),
+        new SqlParameter("@RolID", nuevoUsuario.RolID),
+        new SqlParameter("@ApellidoMaterno", (object)nuevoUsuario.ApellidoMaterno ?? DBNull.Value),
+        new SqlParameter("@Telefono", (object)nuevoUsuario.Telefono ?? DBNull.Value),
+        empresasParam,
+        subMenusParam,
 
+        // ✅ NUEVOS PARÁMETROS: El orden debe ser idéntico al SP
+        new SqlParameter("@FechaIngreso", SqlDbType.Date) { Value = (object)nuevoUsuario.FechaIngreso ?? DBNull.Value },
+        new SqlParameter("@JefeInmediatoPersonaID", (object)nuevoUsuario.JefeInmediatoPersonaID ?? DBNull.Value),
+        new SqlParameter("@NumeroEmpleado", (object)nuevoUsuario.NumeroEmpleado ?? DBNull.Value),
+        new SqlParameter("@Puesto", (object)nuevoUsuario.Puesto ?? DBNull.Value),
+        new SqlParameter("@FechaNacimiento", SqlDbType.Date) { Value = (object)nuevoUsuario.FechaNacimiento ?? DBNull.Value },
+        new SqlParameter("@ClaveEmpleadoNomina", (object)nuevoUsuario.ClaveEmpleadoNomina ?? DBNull.Value)
+     };
+
+            // Ejecución con la cadena de parámetros alineada
             await _context.Database.ExecuteSqlRawAsync(
-                "EXEC sp_RegistrarUsuario @Nombre, @ApellidoPaterno, @Correo, @Username, @ContrasenaHash, @RolID, @ApellidoMaterno, @Telefono, @EmpresasIDs, @SubMenuIDs",
+                @"EXEC sp_RegistrarUsuario 
+            @Nombre, @ApellidoPaterno, @Correo, @Username, @ContrasenaHash, @RolID, 
+            @ApellidoMaterno, @Telefono, @EmpresasIDs, @SubMenuIDs, 
+            @FechaIngreso, @JefeInmediatoPersonaID, @NumeroEmpleado, @Puesto, 
+            @FechaNacimiento, @ClaveEmpleadoNomina",
                 parameters);
         }
 
@@ -206,12 +230,26 @@ WHERE fe.TienePermiso = 1;";
                 new SqlParameter("@ApellidoMaterno", (object)usuario.ApellidoMaterno ?? DBNull.Value),
                 new SqlParameter("@Telefono", (object)usuario.Telefono ?? DBNull.Value),
                 empresasParam,
-                subMenusParam
-            };
+                subMenusParam,
+
+                new SqlParameter("@FechaIngreso", (object)usuario.FechaIngreso ?? DBNull.Value),
+    new SqlParameter("@JefeInmediatoPersonaID", (object)usuario.JefeInmediatoPersonaID ?? DBNull.Value),
+    new SqlParameter("@NumeroEmpleado", (object)usuario.NumeroEmpleado ?? DBNull.Value),
+    new SqlParameter("@Puesto", (object)usuario.Puesto ?? DBNull.Value),
+    new SqlParameter("@FechaNacimiento", (object)usuario.FechaNacimiento ?? DBNull.Value),
+    new SqlParameter("@ClaveEmpleadoNomina", (object)usuario.ClaveEmpleadoNomina ?? DBNull.Value),
+    new SqlParameter("@DepartamentoID", (object)usuario.DepartamentoID ?? DBNull.Value)
+   
+
+
+        };
 
             await _context.Database.ExecuteSqlRawAsync(
-                "EXEC sp_ActualizarUsuario @UsuarioID, @Nombre, @ApellidoPaterno, @Correo, @RolID, @Activo, @ApellidoMaterno, @Telefono, @EmpresasIDs, @SubMenuIDs",
-                parameters);
+     @"EXEC sp_ActualizarUsuario 
+        @UsuarioID, @Nombre, @ApellidoPaterno, @Correo, @RolID, @Activo, 
+        @ApellidoMaterno, @Telefono, @EmpresasIDs, @SubMenuIDs, 
+        @FechaIngreso, @JefeInmediatoPersonaID, @NumeroEmpleado, @Puesto,@FechaNacimiento,@DepartamentoID",
+     parameters);
         }
 
         public async Task DarDeBajaAsync(int usuarioId)

@@ -115,6 +115,12 @@ namespace ProyectoMatrix.Models
                 .HasForeignKey(x => x.NotificacionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+
+            base.OnModelCreating(modelBuilder);
+
+            // Configurar el ViewModel como sin clave (keyless)
+            modelBuilder.Entity<UsuarioPerfilViewModel>().HasNoKey();
+
             modelBuilder.Entity<UsuarioPerfilViewModel>().HasNoKey();
         }
     }

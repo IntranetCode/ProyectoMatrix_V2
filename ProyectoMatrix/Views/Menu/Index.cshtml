@@ -8,7 +8,7 @@
     ViewData["Title"] = "Intranet - NS Group";
 
     // Datos de sesión
-    var nombreUsuario = Context.Session.GetString("Username") ?? "Invitado";
+    var nombreUsuario = Context.Session.GetString("NombreMostrar") ?? Context.Session.GetString("Username") ?? "Invitado";
     var nombreEmpresa = Context.Session.GetString("EmpresaNombre") ?? "NS Group";
     var logoEmpresa = Context.Session.GetString("EmpresaLogo") ?? "default-logo.png";
     var empresaIdStr = Context.Session.GetString("EmpresaId");
@@ -32,8 +32,8 @@
 
     // Enlaces externos
     var enlacesMejoraContina = "https://nsgroupmx.sharepoint.com/sites/ProcesosyMejoraContinua";
-    var enlacesCompras = "https://forms.office.com/r/K7u3UMVVKi";
-    var enlacesLogistica = "https://forms.office.com/r/77fwUyxuE0";
+  //  var enlacesCompras = "https://forms.office.com/r/K7u3UMVVKi";
+  //  var enlacesLogistica = "https://forms.office.com/r/77fwUyxuE0";
     var enlacesEmbarques = "https://forms.office.com/r/MRjsPtpUrv";
    
 
@@ -60,6 +60,7 @@
     <link rel="preload" href="~/js/dashboard.js" as="script" />
     <link rel="preload" href="~/Imagenes/logo-universidad-ns.png" as="image" />
     <link rel="stylesheet" href="~/css/overlay.css" asp-append-version="true" />
+
 </head>
 
 
@@ -105,13 +106,23 @@
                         </button>
 
                         <div class="user-dropdown" id="userDropdownMenu" role="menu" aria-labelledby="userToggle">
+
                             <a href="#" id="linkMiPerfil" class="dropdown-item" role="menuitem">
                                 <i class="fas fa-user" aria-hidden="true"></i> Mi Perfil
                             </a>
-                            <a href="#" class="dropdown-item" role="menuitem"><i class="fas fa-cog" aria-hidden="true"></i> Configuración</a>
-                            <a href="#" class="dropdown-item" role="menuitem"><i class="fas fa-question-circle" aria-hidden="true"></i> Ayuda</a>
+
+                            <a href="#" class="dropdown-item"   role="menuitem" data-bs-toggle="modal"
+                               data-bs-target="#modalDenunciaAnonima">
+                                <i class="fas fa-user-secret" aria-hidden="true"></i> Denuncia anónima
+                            </a>
+
+                            @*  <a href="#" class="dropdown-item" role="menuitem"><i class="fas fa-cog" aria-hidden="true"></i> Configuración</a>
+                            <a href="#" class="dropdown-item" role="menuitem"><i class="fas fa-question-circle" aria-hidden="true"></i> Ayuda</a>*@
                             <a href="/Login/Logout" class="dropdown-item"><i class="fas fa-sign-out-alt" aria-hidden="true"></i> Cerrar Sesión</a>
                         </div>
+
+
+
                     </div>
 
                 </div>
@@ -160,7 +171,7 @@
                     <h2 class="action-title">Mejora Continua</h2>
                     <p class="action-description">Procesos y mejora continua del grupo</p>
                 </article>
-                <article class="action-card compras" data-href-external="@enlacesCompras" role="button" tabindex="0">
+              @*  <article class="action-card compras" data-href-external="@enlacesCompras" role="button" tabindex="0">
                     <div class="external-link-badge">Forms</div>
                     <div class="action-icon" aria-hidden="true"><i class="fas fa-shopping-cart"></i></div>
                     <h2 class="action-title">Compras</h2>
@@ -171,7 +182,7 @@
                     <div class="action-icon" aria-hidden="true"><i class="fas fa-truck"></i></div>
                     <h2 class="action-title">Logística</h2>
                     <p class="action-description">Gestión logística y entregas</p>
-                </article>
+                </article>*@
                 <article class="action-card embarques" data-href-external="@enlacesEmbarques" role="button" tabindex="0">
                     <div class="external-link-badge">Forms</div>
                     <div class="action-icon" aria-hidden="true"><i class="fas fa-ship"></i></div>
@@ -182,6 +193,135 @@
             </section>
         </main>
     </div>
+
+    <!-- Modal de Perfil -->
+    <div class="modal fade" id="modalPerfil" tabindex="-1" aria-labelledby="modalPerfilLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-perfil">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalPerfilLabel">
+                        <i class="fas fa-user-circle"></i> Mi Perfil
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i class="fas fa-user-circle fa-5x text-primary"></i>
+                    </div>
+                    <div class="perfil-info">
+                        <div class="mb-3">
+                            <label class="fw-bold"><i class="fas fa-user"></i> Nombre:</label>
+                            <p id="perfilNombre" class="ms-3"></p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold"><i class="fas fa-id-badge"></i> Usuario:</label>
+                            <p id="perfilUsername" class="ms-3"></p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold"><i class="fas fa-envelope"></i> Correo:</label>
+                            <p id="perfilCorreo" class="ms-3"></p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold"><i class="fas fa-phone"></i> Teléfono:</label>
+                            <p id="perfilTelefono" class="ms-3"></p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold"><i class="fas fa-user-tag"></i> Rol:</label>
+                            <p id="perfilRol" class="ms-3"></p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold"><i class="fas fa-info-circle"></i> Descripción del Rol:</label>
+                            <p id="perfilDescripcionRol" class="ms-3"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal de la denuncia anónima -->
+
+    <div class="modal fade" id="modalDenunciaAnonima" tabindex="-1" role="dialog" aria-labelledby="modalDenunciaAnonimaLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content modal-denuncia">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalDenunciaAnonimaLabel">
+                        Denuncia anónima y confidencial
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar">
+                        
+                    </button>
+                </div>
+
+                @using (Html.BeginForm("Crear", "DenunciasAnonimas", FormMethod.Post, new { id = "formDenunciaAnonima" }))
+                {
+                    @Html.AntiForgeryToken()
+
+                    <div class="modal-body">
+                        <p class="text-muted small">
+                            Tu identidad no se mostrará en ningún lado. La información se enviará de forma confidencial.
+                        </p>
+
+                        <div class="form-group">
+                            <label for="TipoDenuncia">Tipo de denuncia *</label>
+                            <select id="TipoDenuncia" name="TipoDenuncia" class="form-control" required>
+                                <option value="">-- Selecciona una opción --</option>
+                                <option value="Acoso">Acoso</option>
+                                <option value="Fraude">Fraude</option>
+                                <option value="Conducta inadecuada">Conducta inadecuada</option>
+                                <option value="Seguridad">Seguridad</option>
+                                <option value="Otros">Otros</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="DepartamentoAfectado">Departamento afectado *</label>
+                            <select id="DepartamentoAfectado" name="DepartamentoAfectado" class="form-control" required>
+                                <option value="">-- Selecciona una opción --</option>
+                                <option value="Recursos Humanos">Recursos Humanos</option>
+                                <option value="Ventas">Compras</option>
+                                <option value="Proyectos">Proyectos</option>
+                                <option value="Operaciones">Almacén</option>
+                                <option value="Finanzas">Finanzas</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="Descripcion">Descripción detallada *</label>
+                            <textarea id="Descripcion" name="Descripcion" class="form-control" rows="4" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="FechaHechos">Fecha aproximada de los hechos *</label>
+                            <input type="date" id="FechaHechos" name="FechaHechos" class="form-control" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="LugarHechos">Lugar de los hechos *</label>
+                            <input type="text" id="LugarHechos" name="LugarHechos" class="form-control" maxlength="200" />
+                        </div>
+                        <div class="form-group">
+                            <label for="camposObligatorios">* Todos los campos son obligatorios</label>
+                           
+                        </div>
+                      
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Enviar denuncia</button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+
     <script src="~/js/overlay.js" asp-append-version="true"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/dashboard.js" asp-append-version="true"></script>
@@ -363,7 +503,7 @@
           }
           function linkDestino(tipo, idOrigen) {
             let url = '#';
-            if (tipo === 'CursoAsignado') url = `/Cursos/MisCursos/${idOrigen}`;
+            if (tipo === 'CursoAsignado') url = `/Universidad/MisCursos/${idOrigen}`;
             else if (tipo === 'WebinarAsignado') url = `/Lider/Lista/${idOrigen}`;
             else if (tipo === 'Comunicado_Nuevo') url = `/Comunicados/Index/${idOrigen}`;
             return `<a class="js-ver" href="${url}">Ver</a>`;
@@ -468,6 +608,47 @@
           };
         })();
     </script>
+
+
+    <script>
+                document.addEventListener('DOMContentLoaded', function() {
+            const linkMiPerfil = document.getElementById('linkMiPerfil');
+
+            if (linkMiPerfil) {
+                linkMiPerfil.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    cargarPerfil();
+                });
+            }
+
+            function cargarPerfil() {
+                fetch('/Perfil/ObtenerMiPerfil')
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            const data = result.data;
+                            document.getElementById('perfilNombre').textContent = data.nombreUsuario || 'N/A';
+                            document.getElementById('perfilUsername').textContent = data.username || 'N/A';
+                            document.getElementById('perfilCorreo').textContent = data.correo || 'N/A';
+                            document.getElementById('perfilTelefono').textContent = data.telefono || 'N/A';
+                            document.getElementById('perfilRol').textContent = data.nombreRol || 'N/A';
+                            document.getElementById('perfilDescripcionRol').textContent = data.descripcionRol || 'N/A';
+
+                            // Mostrar el modal (Bootstrap 5)
+                            const modal = new bootstrap.Modal(document.getElementById('modalPerfil'));
+                            modal.show();
+                        } else {
+                            alert('Error: ' + result.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error al cargar el perfil');
+                    });
+            }
+        });
+
+    </script>
 </body>
 </html>
 
@@ -482,6 +663,7 @@
             var x when x.Contains("líder") || x.Contains("lider") => "lider",
             var x when x.Contains("comunicados") => "comunicados",
             var x when x.Contains("proyectos") => "proyectos",
+            var x when x.Contains("directorio") => "directorio",
             _ => ""
         };
     }

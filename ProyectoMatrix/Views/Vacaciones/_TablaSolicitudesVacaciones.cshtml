@@ -1,0 +1,38 @@
+﻿@model List<ProyectoMatrix.Models.VacacionesSolicitudItemVm>
+
+<table class="table table-sm table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Folio</th>
+            <th>Fecha solicitud</th>
+            <th>Periodo</th>
+            <th>Días</th>
+            <th>Anticipada</th>
+            <th>Estado jefe</th>
+            <th>Estado RH</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model != null && Model.Any())
+        {
+            foreach (var s in Model)
+            {
+                <tr>
+                    <td>@s.SolicitudVacacionesID</td>
+                    <td>@s.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                    <td>@s.FechaInicio.ToString("dd/MM/yyyy") - @s.FechaFin.ToString("dd/MM/yyyy")</td>
+                    <td>@s.DiasSolicitados</td>
+                    <td>@(s.EsAnticipada ? "Sí" : "No")</td>
+                    <td>@s.EstadoAutorizacion</td>
+                    <td>@s.EstadoRecursosHumanos</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="7" class="text-muted">Sin registros.</td>
+            </tr>
+        }
+    </tbody>
+</table>

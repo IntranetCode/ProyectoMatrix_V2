@@ -1,0 +1,154 @@
+﻿
+.uni-report {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 1.5rem 2rem;
+    background-color: #f5f7fb;
+    color: #1f2933;
+}
+
+.uni-report-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #d0d7e2;
+    padding-bottom: 0.5rem;
+}
+
+    .uni-report-header h2 {
+        margin: 0;
+        font-size: 1.4rem;
+        font-weight: 600;
+    }
+
+.uni-report-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.uni-report-empty {
+    margin-top: 1rem;
+    font-style: italic;
+    color: #6b7280;
+}
+
+
+
+.uni-table-wrapper {
+    overflow-x: auto;
+}
+
+.uni-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+    background-color: #ffffff;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    font-size: 0.9rem;
+}
+
+    .uni-table thead {
+        background: #e5edf9;
+    }
+
+        .uni-table thead th {
+            padding: 0.6rem 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid #cbd5e1;
+            white-space: nowrap;
+        }
+
+    .uni-table tbody td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .uni-table tbody tr:nth-child(even) {
+        background-color: #f9fafb;
+    }
+
+    .uni-table tbody tr:hover {
+        background-color: #eef2ff;
+    }
+
+
+.uni-col-course {
+    font-weight: 500;
+}
+
+.uni-col-number {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.uni-col-ok {
+    color: #15803d; /* verde */
+    font-weight: 600;
+}
+
+.uni-col-bad {
+    color: #b91c1c; /* rojo */
+    font-weight: 600;
+}
+
+.uni-col-actions {
+    text-align: center;
+    white-space: nowrap;
+}
+
+
+
+.btn {
+    display: inline-block;
+    padding: 0.35rem 0.8rem;
+    border-radius: 4px;
+    border: none;
+    font-size: 0.85rem;
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.15s ease, transform 0.05s ease;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+
+
+.btn-success {
+    background-color: #16a34a;
+    color: #ffffff;
+}
+
+    .btn-success:hover {
+        background-color: #15803d;
+    }
+
+.btn-primary {
+    background-color: #2563eb;
+    color: #ffffff;
+}
+
+    .btn-primary:hover {
+        background-color: #1d4ed8;
+    }
+
+.btn-secondary {
+    background-color: #64748b;
+    color: #ffffff;
+}
+
+    .btn-secondary:hover {
+        background-color: #4b5563;
+    }
+
+
+.btn:active {
+    transform: scale(0.97);
+}

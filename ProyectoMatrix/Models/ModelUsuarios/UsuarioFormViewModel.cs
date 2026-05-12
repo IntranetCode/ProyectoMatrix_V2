@@ -62,8 +62,25 @@ namespace ProyectoMatrix.Models.ModelUsuarios
         public List<int> SubMenuIDs { get; set; } = new List<int>();
         [ValidateNever]
         public List<MenuViewModel> MenusDisponibles { get; set; } = new List<MenuViewModel>();
+
+        // Campos nuevos para solicitar en el form
+        public string? NumeroEmpleado { get; set; }
+        public string? ClaveEmpleadoNomina { get; set; }
+        public DateTime? FechaIngreso { get; set; }
+        public string? Puesto { get; set; }
+        public DateTime? FechaNacimiento { get; set; }
+        // En UsuarioFormViewModel.cs
+        public int? JefeInmediatoPersonaID { get; set; }
+
+        [ValidateNever]
+        public string? JefeInmediatoNombreCompleto { get; set; }
+
        
-        
+        public int? DepartamentoID { get; set; }
+
+        [ValidateNever]
+        public string? NombreDepartamento { get; set; }
+
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
@@ -80,7 +97,7 @@ namespace ProyectoMatrix.Models.ModelUsuarios
             }
         }
 
-
+        public bool PermiteAdelantadas { get; set; }
 
     } 
 }

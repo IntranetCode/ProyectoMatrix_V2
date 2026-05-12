@@ -31,7 +31,6 @@
     }
 }
 
-<a asp-action="Index" asp-controller="Menu" class="btn btn-secondary">Volver a menú principal</a>
 
 <div class="page-container">
     <div class="page-header-static">
@@ -153,7 +152,232 @@
         </div>
     </div>
 </div>
-
+@*<div class="modal fade" id="modalAjusteVacaciones" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-history me-2"></i>Cargar Días Tomados (Histórico)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formAjusteVacaciones">
+                    <input type="hidden" id="ajusteUsuarioID" name="UsuarioID" />
+                    <div class="mb-3">
+                        <label class="form-label">Días a descontar</label>
+                        <input type="number" step="0.5" class="form-control" name="Dias" placeholder="Ej: 3.5" required>
+                        <div class="form-text">Estos días se restarán del saldo disponible del colaborador.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo / Observaciones</label>
+                        <textarea class="form-control" name="Observaciones" rows="2" placeholder="Días tomados en diciembre 2025..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" onclick="guardarAjuste()">Guardar Histórico</button>
+            </div>
+        </div>
+    </div>
+</div>*@
 @section Scripts {
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- Panel JS siempre DESPUÉS de Select2 -->
     <script src="~/js/usuarios/usuarios-panel.js" asp-append-version="true"></script>
+
 }
+
+    <style>
+    .page-container {
+        background-color: #fcfdfe; 
+        padding: 2rem;
+        min-height: 100vh;
+    }
+
+  
+    .page-header-static {
+        padding-bottom: 0.5rem;
+    }
+
+    
+    .page-header h1 {
+        color: #1a237e; 
+        font-weight: 700;
+        font-size: 1.75rem;
+        letter-spacing: -0.5px;
+        border-left: 6px solid #ff6d00; 
+        padding-left: 20px;
+        margin-bottom: 0;
+    }
+
+    .page-header-static .card {
+        border: none;
+        box-shadow: none; 
+        background-color: transparent;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .page-header-static .card-header {
+        background-color: transparent !important;
+        border: none;
+        padding: 0;
+    }
+
+    .scrollable-content .card {
+        border: none;
+        box-shadow: none; 
+        background-color: #ffffff;
+    }
+
+    .scrollable-content .card-body {
+        padding: 0;
+    }
+
+    
+    .btn-primary {
+        background-color: #1a237e !important;
+        border: none !important;
+        color: #ffffff !important;
+        font-weight: 600;
+        font-size: 0.9rem;
+        padding: 10px 20px;
+        border-radius: 6px;
+        box-shadow: 0 4px 6px rgba(26, 35, 126, 0.15); 
+        transition: all 0.3s ease;
+    }
+
+        .btn-primary:hover {
+            background-color: #2e3b9e !important; 
+            box-shadow: 0 6px 12px rgba(26, 35, 126, 0.25);
+            transform: translateY(-1px);
+        }
+
+
+    .btn-warning {
+        background-color: #ff6d00 !important;
+        border: none !important;
+        color: #ffffff !important;
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 8px 18px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-warning:hover {
+            background-color: #e65100 !important;
+            transform: translateY(-1px);
+        }
+
+    .input-group .form-control,
+    .input-group .form-select {
+        border: 1px solid #e1e8ed;
+        background-color: #ffffff;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+
+        .input-group .form-select:focus,
+        .input-group .form-control:focus {
+            border-color: #ff6d00;
+            box-shadow: 0 0 0 0.2rem rgba(255, 109, 0, 0.1);
+        }
+
+    .input-group .btn-outline-secondary,
+    .input-group .btn-outline-danger {
+        border: 1px solid #e1e8ed;
+        color: #1a237e;
+        background-color: #fcfdfe;
+    }
+
+        .input-group .btn-outline-secondary:hover {
+            background-color: #1a237e;
+            border-color: #1a237e;
+            color: #ffffff;
+        }
+
+    .table {
+        width: 100%;
+        margin-bottom: 0;
+    }
+
+      
+        .table thead.thead-light th {
+            background-color: #1a237e;
+            color: #ffffff;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.75px;
+            border: none !important;
+            padding: 16px 15px; 
+        }
+
+        .table td {
+            vertical-align: middle;
+            border-top: 1px solid #f1f4f7; 
+            border-bottom: none !important;
+            padding: 16px 15px; 
+            color: #2c3e50;
+            font-size: 0.95rem;
+        }
+
+        .table tbody tr {
+            transition: background-color 0.2s ease;
+        }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(26, 35, 126, 0.03);
+    }
+
+    .table td.ps-4 strong {
+        color: #1a237e;
+        font-weight: 700;
+    }
+
+    
+    .badge {
+        border-radius: 20px; 
+        font-weight: 600;
+        font-size: 0.75rem;
+        padding: 5px 12px;
+    }
+
+        .badge.bg-success {
+            background-color: rgba(46, 125, 50, 0.1) !important; 
+            color: #2e7d32 !important; 
+        }
+
+        .badge.bg-danger {
+            background-color: rgba(211, 47, 47, 0.1) !important;
+            color: #d32f2f !important; 
+        }
+
+    .scrollable-content {
+        padding-top: 10px;
+    }
+    </style>
+
+    <script>
+            function abrirModalAjuste(usuarioId) {
+        $('#ajusteUsuarioID').val(usuarioId);
+        $('#formAjusteVacaciones')[0].reset();
+        $('#modalAjusteVacaciones').modal('show');
+    }
+
+    function guardarAjuste() {
+        const formData = $('#formAjusteVacaciones').serialize();
+
+        $.post('/AdminUsuarios/Usuarios/RegistrarAjusteVacaciones', formData, function (response) {
+            if (response.success) {
+                Swal.fire('¡Éxito!', response.message, 'success');
+                $('#modalAjusteVacaciones').modal('hide');
+            } else {
+                Swal.fire('Error', response.message, 'error');
+            }
+        });
+    }
+    </script>

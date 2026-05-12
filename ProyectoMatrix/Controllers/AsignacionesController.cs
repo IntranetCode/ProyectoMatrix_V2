@@ -88,7 +88,7 @@ namespace ProyectoMatrix.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener departamentos de empresa {EmpresaId}", idEmpresa);
+                _logger.LogError(ex, "Error al obtener departamentos de empresa {EmpresaID}", idEmpresa);
                 return Json(new { success = false, message = "Error al obtener departamentos" });
             }
         }
@@ -149,9 +149,12 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
+
         // =====================================================
-        // PROCESAR ASIGNACIÓN MASIVA - AJAX
+        // MÉTODO: ProcesarAsignacionMasiva
+        // ✅ CON ENVÍO DE CORREO GARANTIZADO Y LOGGING EXHAUSTIVO
         // =====================================================
+
         [HttpPost]
         public async Task<JsonResult> ProcesarAsignacionMasiva([FromBody] AsignacionMasivaRequest request)
         {
@@ -159,18 +162,25 @@ namespace ProyectoMatrix.Controllers
             {
                 var usuarioCreador = HttpContext.Session.GetInt32("UsuarioID");
                 var empresaId = HttpContext.Session.GetInt32("EmpresaSeleccionada") ??
-                               HttpContext.Session.GetInt32("EmpresaID") ?? 1;
+                                HttpContext.Session.GetInt32("EmpresaID") ?? 1;
+
+                _logger.LogInformation("=== INICIO ProcesarAsignacionMasiva ===");
+                _logger.LogInformation("UsuarioCreador: {Uid}, CursoID: {CursoId}, Usuarios: {Count}",
+                    usuarioCreador, request.IdCurso, request.UsuariosSeleccionados?.Count() ?? 0);
 
                 if (!usuarioCreador.HasValue)
                 {
+                    _logger.LogWarning("Sesión expirada - UsuarioID no encontrado");
                     return Json(new { success = false, message = "Sesión expirada" });
                 }
 
                 if (request.UsuariosSeleccionados == null || !request.UsuariosSeleccionados.Any())
                 {
+                    _logger.LogWarning("No se seleccionaron usuarios");
                     return Json(new { success = false, message = "Debe seleccionar al menos un usuario" });
                 }
 
+                // ✅ ASIGNACIÓN EN BD
                 var resultado = await _universidadServices.AsignarCursoMasivoAsync(
                     request.IdCurso,
                     request.UsuariosSeleccionados,
@@ -179,43 +189,157 @@ namespace ProyectoMatrix.Controllers
                     request.Observaciones
                 );
 
-
-                if (resultado.Exito)
+                if (!resultado.Exito)
                 {
+                    _logger.LogError("AsignarCursoMasivoAsync falló: {Mensaje}", resultado.Mensaje);
+                    return Json(new { success = false, message = resultado.Mensaje });
+                }
 
-                    var nombreCurso = "Curso";
-                    foreach (var uid in request.UsuariosSeleccionados.Distinct())
+                _logger.LogInformation("✅ Asignación BD exitosa: {Asignados} usuarios, {Omitidos} omitidos",
+                    resultado.UsuariosAsignados, resultado.UsuariosOmitidos);
+
+                // ✅ NOTIFICACIÓN IN-APP
+                var nombreCurso = "Curso"; // TODO: obtener nombre real desde BD si lo necesitas
+                foreach (var uid in request.UsuariosSeleccionados.Distinct())
+                {
+                    try
                     {
                         await _notif.EmitirUsuario(
                             "CursoAsignado",
                             nombreCurso,
-                            "Se te asigno un nuevo curso",
+                            "Se te asignó un nuevo curso",
                             request.IdCurso,
                             "Cursos",
                             uid
-                            );
+                        );
+                    }
+                    catch (Exception exNotif)
+                    {
+                        _logger.LogError(exNotif, "Error al emitir notificación in-app para UsuarioID={Uid}", uid);
+                    }
+                }
+
+                _logger.LogInformation("✅ Notificaciones in-app emitidas");
+
+                // ✅ ENVÍO DE CORREO (GARANTIZADO)
+                var resultadoCorreo = new ServicioNotificaciones.ResultadoEnvio();
+                try
+                {
+                    var asunto = $"[Nuevo curso asignado] {nombreCurso}";
+                    var html = $@"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; }}
+                .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; }}
+                .header h1 {{ margin: 0; font-size: 24px; font-weight: 600; }}
+                .content {{ padding: 30px 25px; }}
+                .greeting {{ font-size: 18px; color: #333; margin-bottom: 15px; }}
+                .message {{ font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 20px; }}
+                .course-box {{ background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; border-radius: 4px; }}
+                .course-name {{ font-size: 18px; font-weight: 600; color: #333; margin-bottom: 5px; }}
+                .course-id {{ font-size: 14px; color: #888; }}
+                .cta {{ text-align: center; margin: 30px 0; }}
+                .button {{ display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: 600; transition: transform 0.2s; }}
+                .button:hover {{ transform: translateY(-2px); }}
+                .footer {{ background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 13px; color: #888; }}
+                .emoji {{ font-size: 22px; }}
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h1><span class='emoji'>🎓</span> Nuevo Curso Asignado</h1>
+                </div>
+                <div class='content'>
+                    <p class='greeting'>¡Hola!</p>
+                    <p class='message'>
+                        Esperamos que te encuentres muy bien. Nos complace informarte que se te ha asignado un nuevo curso 
+                        en nuestra plataforma de capacitación.
+                    </p>
+                    <div class='course-box'>
+                        <div class='course-name'>{System.Net.WebUtility.HtmlEncode(nombreCurso)}</div>
+                        <div class='course-id'>ID: {request.IdCurso}</div>
+                    </div>
+                    <p class='message'>
+                        Este curso ha sido seleccionado especialmente para fortalecer tus habilidades y conocimientos. 
+                        Te invitamos a comenzar cuanto antes para aprovechar al máximo esta oportunidad de aprendizaje.
+                    </p>
+                    {(request.FechaLimite.HasValue ? $@"
+                    <p class='message' style='color: #e74c3c;'>
+                        <strong>📅 Fecha límite:</strong> {request.FechaLimite.Value:dd/MM/yyyy}
+                    </p>" : "")}
+                </div>
+                <div class='footer'>
+                    <p>Asignado el {DateTime.Now:dd/MM/yyyy} a las {DateTime.Now:HH:mm}</p>
+                    <p>Este es un mensaje automático. Por favor no responder a este correo.</p>
+                </div>
+            </div>
+        </body>
+        </html>";
+
+
+                    _logger.LogInformation("Iniciando envío de correo a {Count} usuarios (UsuarioIDs)",
+                        request.UsuariosSeleccionados.Distinct().Count());
+
+                    resultadoCorreo = await _notif.EnviarCursosAUsuariosAsync(
+                        request.UsuariosSeleccionados.Distinct(),
+                        asunto,
+                        html,
+                        batchSize: 40
+                    );
+
+                    _logger.LogInformation("📧 Resultado correo: Encontrados={Enc}, Enviados={Env}, Filtrados={Filt}, Errores={Err}",
+                        resultadoCorreo.Encontrados,
+                        resultadoCorreo.Enviados,
+                        resultadoCorreo.FiltradosPorCandados,
+                        resultadoCorreo.Errores);
+
+                    if (resultadoCorreo.Mensajes.Any())
+                    {
+                        foreach (var msg in resultadoCorreo.Mensajes)
+                            _logger.LogWarning("Correo mensaje: {Msg}", msg);
                     }
 
-
-                    return Json(new
+                    if (resultadoCorreo.Enviados == 0 && resultadoCorreo.Errores == 0)
                     {
-                        success = true,
-                        message = $"Curso asignado exitosamente a {resultado.UsuariosAsignados} usuarios.",
-                        usuariosAsignados = resultado.UsuariosAsignados,
-                        usuariosOmitidos = resultado.UsuariosOmitidos
-                    });
+                        _logger.LogWarning("⚠️ NO SE ENVIÓ NINGÚN CORREO - Revisa candados: SoloPruebas/ListaBlanca/Habilitado");
+                    }
                 }
-                else
+                catch (Exception exCorreo)
                 {
-                    return Json(new { success = false, message = resultado.Mensaje });
+                    _logger.LogError(exCorreo, "❌ ERROR CRÍTICO al enviar correos de asignación masiva (CursoId={IdCurso})", request.IdCurso);
+                    // ⚠️ NO interrumpimos la respuesta si el correo falla - la asignación ya se hizo
                 }
+
+                _logger.LogInformation("=== FIN ProcesarAsignacionMasiva ===");
+
+                // ✅ RESPUESTA CON INFO DE CORREO
+                return Json(new
+                {
+                    success = true,
+                    message = $"Curso asignado exitosamente a {resultado.UsuariosAsignados} usuarios.",
+                    usuariosAsignados = resultado.UsuariosAsignados,
+                    usuariosOmitidos = resultado.UsuariosOmitidos,
+                    correo = new
+                    {
+                        enviados = resultadoCorreo.Enviados,
+                        filtrados = resultadoCorreo.FiltradosPorCandados,
+                        errores = resultadoCorreo.Errores,
+                        mensajes = resultadoCorreo.Mensajes
+                    }
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al procesar asignación masiva");
+                _logger.LogError(ex, "❌ ERROR CRÍTICO en ProcesarAsignacionMasiva");
                 return Json(new { success = false, message = "Error interno del servidor" });
             }
         }
+
 
         // =====================================================
         // VER ASIGNACIONES RECIENTES
@@ -250,6 +374,9 @@ namespace ProyectoMatrix.Controllers
                 return RedirectToAction("Index", "Universidad");
             }
         }
+
+
+
 
     }
 

@@ -1,0 +1,85 @@
+﻿<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow mb-4 border-bottom-primary">
+                <div class="card-header py-3 bg-white">
+                    <h5 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-file-invoice-dollar mr-2"></i>Validación de Presupuesto - Folio @Model.Folio
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4 bg-light p-3 rounded">
+                        <div class="col-md-6">
+                            <p class="mb-1 text-muted">Monto Cotizado:</p>
+                            <h3 class="text-dark font-weight-bold">@Model.MontoTotal.ToString("C") MXN</h3>
+                        </div>
+                        <div class="col-md-6 text-right">
+                            <a href="/uploads/cotizaciones/@Model.ArchivoPath" target="_blank" class="btn btn-outline-danger">
+                                <i class="fas fa-file-pdf mr-1"></i> Ver Cotización Adjunta
+                            </a>
+                        </div>
+                    </div>
+
+                    <form asp-action="ProcesarDictamen" method="post" id="formDictamen">
+                        <input type="hidden" name="SolicitudID" value="@Model.SolicitudID" />
+
+                        <div class="form-group mb-4">
+                            <label class="d-block font-weight-bold">¿La solicitud procede?</label>
+                            <div class="custom-control custom-radio custom-control-inline">
+                                <input type="radio" id="pasaSi" name="Pasa" value="true" class="custom-control-input" checked>
+                                <label class="custom-control-label text-success" for="pasaSi">Aprobar</label>
+                            </div>
+                            <div class="custom-control custom-radio custom-control-inline">
+                                <input type="radio" id="pasaNo" name="Pasa" value="false" class="custom-control-input">
+                                <label class="custom-control-label text-danger" for="pasaNo">Rechazar</label>
+                            </div>
+                        </div>
+
+                        <div id="seccionAprobacion">
+                            <div class="form-group">
+                                <label class="font-weight-bold">ID de Requisición (SAP/Sistema):</label>
+                                <input type="text" name="NumeroRequisicion" class="form-control" placeholder="Ej: REQ-2026-XXXXX">
+                            </div>
+
+                            <div class="form-group">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="swPresupuesto" name="DentroDePresupuesto" checked>
+                                    <label class="custom-control-label" for="swPresupuesto">¿Está dentro del presupuesto anual?</label>
+                                </div>
+                                <small class="text-muted" id="msgDesviacion">Si se desactiva, se marcará automáticamente como <b>Desviación</b>.</small>
+                            </div>
+                        </div>
+
+                        <div id="seccionRechazo" style="display:none;">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Motivo del Rechazo:</label>
+                                <textarea name="Observaciones" class="form-control" rows="3" placeholder="Escriba aquí por qué no procede la compra..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="mt-5">
+                            <button type="submit" class="btn btn-primary btn-block btn-lg shadow">
+                                <i class="fas fa-save mr-2"></i>Guardar Dictamen Final
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Lógica para mostrar/ocultar campos dinámicamente
+    document.querySelectorAll('input[name="Pasa"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'true') {
+                document.getElementById('seccionAprobacion').style.display = 'block';
+                document.getElementById('seccionRechazo').style.display = 'none';
+            } else {
+                document.getElementById('seccionAprobacion').style.display = 'none';
+                document.getElementById('seccionRechazo').style.display = 'block';
+            }
+        });
+    });
+</script>

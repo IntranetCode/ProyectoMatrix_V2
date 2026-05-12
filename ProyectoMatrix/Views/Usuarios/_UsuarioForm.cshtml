@@ -74,6 +74,7 @@
             </button>
         </li>
     }
+   
 </ul>
 
 <!-- CONTENIDO -->
@@ -122,6 +123,88 @@
                     </div>
                 </div>
 
+                <div class="form-section">
+                    <div class="section-header">
+                        <i class="fas fa-briefcase section-icon"></i>
+                        <h5 class="section-title">Información de Empleado</h5>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label asp-for="NumeroEmpleado" class="form-label-modern">Número de Empleado</label>
+                            <input asp-for="NumeroEmpleado" class="form-control form-control-modern" placeholder="Ej: 00123" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="ClaveEmpleadoNomina" class="form-label-modern">Clave Nómina</label>
+                            <input asp-for="ClaveEmpleadoNomina" class="form-control form-control-modern" placeholder="Clave interna" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="FechaIngreso" class="form-label-modern">Fecha de Ingreso</label>
+                            <input asp-for="FechaIngreso" type="date" class="form-control form-control-modern" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Puesto" class="form-label-modern">Puesto</label>
+                            <input asp-for="Puesto" class="form-control form-control-modern" placeholder="Cargo del colaborador" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="FechaNacimiento" class="form-label-modern">Fecha de Nacimiento</label>
+                            <input asp-for="FechaNacimiento" type="date" class="form-control form-control-modern" />
+                        </div>
+
+
+                        <div class="col-md-12 mb-3">
+                            <label asp-for="DepartamentoID" class="form-label-modern">Departamento</label>
+                            <div style="position: relative;">
+                                <i class="fas fa-sitemap text-primary"
+                                   style="position:absolute; left:10px; top:50%; transform:translateY(-50%); z-index:10; pointer-events:none;"></i>
+
+                                <select asp-for="DepartamentoID"
+                                        id="selectDepartamento"
+                                        class="form-select"
+                                        style="padding-left: 32px;"
+                                        asp-items="ViewBag.Departamentos">
+                                    <option value="">-- Seleccione un Departamento --</option>
+                                </select>
+                            </div>
+                            <span asp-validation-for="DepartamentoID" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label-modern">Jefe Directo</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="fas fa-user-tie text-primary"></i></span>
+                                <select asp-for="JefeInmediatoPersonaID" id="selectJefe" class="form-select">
+                                    @if (Model.JefeInmediatoPersonaID > 0)
+                                    {
+                                        <option value="@Model.JefeInmediatoPersonaID" selected>@Model.JefeInmediatoNombreCompleto</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="">-- Buscar Jefe --</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        
+                    @*    @if (!Model.EsModoCrear)
+                        {
+                            <div class="col-md-12 mt-3">
+                                <div class="p-3 border border-warning rounded bg-light bg-opacity-10">
+                                    <h6 class="text-warning d-flex align-items-center">
+                                        <i class="fas fa-calendar-alt me-2"></i> Ajuste Manual de Vacaciones (RH)
+                                    </h6>
+                                    <p class="small text-muted mb-3">Utilice esta opción para cargar días que el colaborador ya tomó antes de la implementación del sistema.</p>
+                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="abrirModalAjuste(@Model.UsuarioID)">
+                                        <i class="fas fa-plus-circle me-1"></i> Cargar Saldo Pendiente
+                                    </button>
+                                </div>
+                            </div>
+                        }*@
+
+                    </div>
+                </div>
+
+
                 @if (Model.EsModoCrear)
                 {
                     <div class="form-section">
@@ -136,8 +219,13 @@
                                 <span asp-validation-for="Username" class="text-danger small"></span>
                             </div>
                             <div class="col-md-6">
-                                <label asp-for="Password" class="form-label-modern"></label>
-                                <input asp-for="Password" type="password" class="form-control form-control-modern" placeholder="••••••••" />
+                                <label asp-for="Password" class="form-label-modern">Contraseña</label>
+                                <div class="input-group">
+                                    <input asp-for="Password" type="password" id="txtPassword" class="form-control form-control-modern" placeholder="••••••••" />
+                                    <button class="btn btn-outline-secondary border-2" type="button" onclick="togglePasswordVisibility()">
+                                        <i id="eyeIcon" class="fas fa-eye"></i>
+                                    </button>
+                                </div>
                                 <span asp-validation-for="Password" class="text-danger small"></span>
                             </div>
                         </div>
@@ -176,6 +264,29 @@
                         }
                     </div>
                 </div>
+                
+                @*  
+         
+                @if (!Model.EsModoCrear)
+                {
+                    <div class="form-section border-orange">
+                        <div class="section-header">
+                            <i class="fas fa-exclamation-triangle section-icon icon-orange"></i>
+                            <h5 class="section-title">Permisos Especiales de RH</h5>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-check form-switch form-switch-modern">
+                                    <input class="form-check-input check-adelantadas" type="checkbox" role="switch" asp-for="PermiteAdelantadas" id="switchAdelantadas" />
+                                    <label class="form-check-label" for="switchAdelantadas">
+                                        <strong>Habilitar Vacaciones Adelantadas</strong>
+                                        <small class="d-block text-muted">Permite al usuario solicitar vacaciones aunque no haya cumplido el año de antigüedad.</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }*@
 
                 <div class="form-actions">
                     <button type="button" class="btn btn-outline-secondary btn-modern" id="cancel-btn">
@@ -356,8 +467,8 @@
 <!-- ESTILOS -->
 <style>
     :root {
-        --pm-indigo: #667eea;
-        --pm-purple: #764ba2;
+        --pm-indigo: #ff6d00;
+        --pm-purple: #1a237e;
         --pm-muted: #f6f7fb;
         --pm-surface: #ffffff;
         --pm-border: #e7e9ef;
@@ -366,7 +477,7 @@
     }
 
     .panel-header-modern {
-        background: linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+        background: linear-gradient(135deg,#1a237e 0%,#0d47a1 100%);
         padding: 1.5rem 2rem;
         display: flex;
         align-items: center;
@@ -385,7 +496,7 @@
         width: 64px;
         height: 64px;
         border-radius: 50%;
-        background: rgba(255,255,255,.2);
+        background: rgba(0,0,153,.2);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -446,7 +557,7 @@
         }
 
             .nav-tabs-modern .nav-link.active {
-                color: #667eea;
+                color: #ff6d00;
                 background: var(--pm-surface)
             }
 
@@ -457,7 +568,7 @@
                     right: 0;
                     bottom: -1px;
                     height: 2px;
-                    background: linear-gradient(90deg,#667eea,#764ba2)
+                    background: linear-gradient(90deg,#ff6d00,#1a237e)
                 }
 
     .tab-content-modern {
@@ -499,7 +610,7 @@
     }
 
     .section-icon {
-        color: #667eea
+        color: #ff6d00
     }
 
     .section-title {
@@ -521,7 +632,7 @@
     }
 
         .form-control-modern:focus, .form-select:focus {
-            border-color: #667eea;
+            border-color: #ff6d00;
             box-shadow: 0 0 0 .2rem rgba(102,126,234,.15)
         }
 
@@ -556,7 +667,8 @@
     }
 
     .permission-group-header {
-        background: linear-gradient(135deg,#667eea,#764ba2);
+        background: linear-gradient(135deg,#1a237e 0%,#0d47a1 100%);
+  
         color: #fff;
         padding: .85rem 1.1rem;
         font-weight: 700;
@@ -689,37 +801,61 @@
     .btn-group-vertical .form-check {
         margin-bottom: 0.25rem;
     }
+
+    
+    /* ... (tus estilos anteriores) ... */
+    /* Estilo especial para la sección de excepciones */
+    .border-orange {
+        border: 1px solid rgba(255, 109, 0, 0.3) !important;
+        background: rgba(255, 109, 0, 0.02) !important;
+    }
+
+    .icon-orange {
+        color: #ff6d00 !important;
+    }
+
+    /* Switch Color Naranja Matrix */
+    .form-check-input.check-adelantadas:checked {
+        background-color: #ff6d00 !important;
+        border-color: #ff6d00 !important;
+    }
+
+    .form-check-input.check-adelantadas:focus {
+        box-shadow: 0 0 0 0.25rem rgba(255, 109, 0, 0.2) !important;
+    }
+
+    /* Asegurar que los estilos de los switches se mantengan modernos */
+    .form-switch-modern .form-check-input {
+        width: 3em;
+        height: 1.5em;
+        cursor: pointer;
+    }
+
+    .form-switch-modern .form-check-label {
+        padding-left: 10px;
+        cursor: pointer;
+    }
+
 </style>
 
-<!-- JS -->
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('🚀 Iniciando gestor de permisos (Radio Buttons)...');
-
-        // ===== Referencias =====
+    // ===== GESTOR DE PERMISOS =====
+    (function () {
         const ovForm = document.getElementById('ov-form');
         const ovSave = document.getElementById('ov-save');
-        const ovSaveTop = document.getElementById('ov-save-top');
         const dirtyTop = document.getElementById('ov-dirty-indicator');
         const dirtyBot = document.getElementById('ov-dirty-indicator-bottom');
         const resetAllBtn = document.getElementById('ov-reset-all');
 
-        if (!ovForm) {
-            console.log('⚠️ Formulario de permisos no encontrado');
-            return;
-        }
-
-        console.log('✅ Formulario encontrado, configurando...');
+        if (!ovForm) return;
 
         let isDirty = false;
 
-        // ===== FUNCIONES AUXILIARES =====
         function markDirty() {
             if (!isDirty) {
                 isDirty = true;
                 dirtyTop?.classList.remove('d-none');
                 dirtyBot?.classList.remove('d-none');
-                console.log('📝 Cambios marcados como pendientes');
             }
         }
 
@@ -727,13 +863,11 @@
             isDirty = false;
             dirtyTop?.classList.add('d-none');
             dirtyBot?.classList.add('d-none');
-            console.log('✨ Cambios limpiados');
         }
 
         function updateBadge(tr, estado) {
             const badgeWrap = tr.querySelector('.ov-badge');
             const badge = badgeWrap?.querySelector('.badge');
-
             if (estado === -1) {
                 badgeWrap?.classList.add('d-none');
             } else {
@@ -745,168 +879,125 @@
             }
         }
 
-        // ===== CAMBIO EN RADIO BUTTONS =====
+        function showToast(type, message) {
+            document.querySelectorAll('.alert.position-fixed').forEach(a => a.remove());
+            const alertClass = type === 'success' ? 'alert-success' : type === 'error' ? 'alert-danger' : 'alert-info';
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ';
+            const el = document.createElement('div');
+            el.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+            el.style.cssText = 'top:20px;right:20px;z-index:9999;min-width:350px;box-shadow:0 4px 12px rgba(0,0,0,.15)';
+            el.innerHTML = `<strong>${icon} ${type === 'success' ? 'Éxito' : type === 'error' ? 'Error' : 'Info'}:</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), type === 'success' ? 4000 : 7000);
+        }
+
         document.getElementById('tab-permisos')?.addEventListener('change', (ev) => {
             if (!ev.target.classList.contains('ov-radio')) return;
-
-            console.log('🖱️ Radio cambiado:', ev.target.value);
-
             const tr = ev.target.closest('tr');
-            const subMenuId = tr.dataset.submenu;
-            const estado = parseInt(ev.target.value);
-
-            console.log(`  SubMenuID: ${subMenuId}, Nuevo estado: ${estado}`);
-
-            updateBadge(tr, estado);
+            updateBadge(tr, parseInt(ev.target.value));
             markDirty();
         });
 
-        // ===== GUARDAR SUPERIOR =====
-        ovSaveTop?.addEventListener('click', (e) => {
-            console.log('💾 Click en botón superior');
-            e.preventDefault();
-            guardarOverrides(ovSaveTop);
-        });
-
-        // ===== SUBMIT DEL FORMULARIO =====
         ovForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            console.log('📤 Submit del formulario interceptado');
-            await guardarOverrides(ovSave);
-        });
-
-        // ===== FUNCIÓN PRINCIPAL DE GUARDADO =====
-        async function guardarOverrides(btnClicked) {
-            console.log('🔄 Iniciando guardado de overrides...');
-
-            const btn = btnClicked || ovSave;
-            const originalHtml = btn.innerHTML;
-
-            // Deshabilitar ambos botones
-            [ovSave, ovSaveTop].forEach(b => {
-                if (b) b.disabled = true;
-            });
-
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+            const originalHtml = ovSave.innerHTML;
+            ovSave.disabled = true;
+            ovSave.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
 
             try {
-                // Serializar formulario
                 const fd = new FormData(ovForm);
-
-                // DEBUG: Mostrar qué se está enviando
-                console.log('📦 Datos a enviar:');
-                for (let [key, value] of fd.entries()) {
-                    console.log(`  ${key}: ${value}`);
-                }
-
-                // Petición AJAX
                 const url = '@Url.Action("GuardarOverrides", "Usuarios")';
-                console.log('🌐 URL:', url);
-
                 const res = await fetch(url, {
                     method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    },
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
                     body: fd,
                     credentials: 'same-origin'
                 });
 
-                console.log('📡 Respuesta HTTP:', res.status, res.statusText);
+                const data = await res.json();
+                if (!res.ok || !data?.ok) throw new Error(data?.message || `Error HTTP ${res.status}`);
 
-                let data;
-                try {
-                    data = await res.json();
-                    console.log('✅ JSON parseado:', data);
-                } catch (jsonError) {
-                    console.error('❌ Error parseando JSON:', jsonError);
-                    const text = await res.text();
-                    console.error('📄 Respuesta como texto:', text.substring(0, 500));
-                    throw new Error('Respuesta del servidor no es JSON válido');
-                }
-
-                if (!res.ok || !data?.ok) {
-                    throw new Error(data?.message || `Error HTTP ${res.status}`);
-                }
-
-                // ÉXITO
                 clearDirty();
                 showToast('success', data.message || 'Permisos actualizados correctamente');
 
-                // Actualizar estados iniciales
                 document.querySelectorAll('#tab-permisos tr[data-submenu]').forEach(tr => {
-                    const radioChecked = tr.querySelector('.ov-radio:checked');
-                    if (radioChecked) {
-                        tr.setAttribute('data-estado-inicial', radioChecked.value);
-                    }
+                    const checked = tr.querySelector('.ov-radio:checked');
+                    if (checked) tr.setAttribute('data-estado-inicial', checked.value);
                 });
-
-                console.log('✅ Guardado exitoso');
 
             } catch (err) {
-                console.error('❌ Error al guardar:', err);
                 showToast('error', err.message || 'Error al guardar los cambios');
             } finally {
-                // Rehabilitar botones
-                [ovSave, ovSaveTop].forEach(b => {
-                    if (b) {
-                        b.disabled = false;
-                        b.innerHTML = originalHtml;
-                    }
-                });
+                ovSave.disabled = false;
+                ovSave.innerHTML = originalHtml;
             }
-        }
-
-        // ===== DESHACER CAMBIOS =====
-        resetAllBtn?.addEventListener('click', () => {
-            if (!isDirty) {
-                showToast('info', 'No hay cambios para deshacer');
-                return;
-            }
-
-            if (!confirm('¿Descartar todos los cambios no guardados?')) return;
-
-            console.log('↩️ Deshaciendo cambios...');
-
-            document.querySelectorAll('#ov-form tr[data-submenu]').forEach(tr => {
-                const estadoInicial = parseInt(tr.getAttribute('data-estado-inicial') ?? "-1");
-                const radio = tr.querySelector(`.ov-radio[value="${estadoInicial}"]`);
-
-                if (radio) {
-                    radio.checked = true;
-                    updateBadge(tr, estadoInicial);
-                }
-            });
-
-            clearDirty();
         });
 
-        // ===== TOAST HELPER =====
-        function showToast(type, message) {
-            // Remover toasts anteriores
-            document.querySelectorAll('.alert.position-fixed').forEach(alert => {
-                alert.remove();
+        resetAllBtn?.addEventListener('click', () => {
+            if (!isDirty) { showToast('info', 'No hay cambios para deshacer'); return; }
+            if (!confirm('¿Descartar todos los cambios no guardados?')) return;
+
+            document.querySelectorAll('#ov-form tr[data-submenu]').forEach(tr => {
+                const estadoInicial = parseInt(tr.getAttribute('data-estado-inicial') ?? '-1');
+                const radio = tr.querySelector(`.ov-radio[value="${estadoInicial}"]`);
+                if (radio) { radio.checked = true; updateBadge(tr, estadoInicial); }
             });
+            clearDirty();
+        });
+    })();
 
-            const alertClass = type === 'success' ? 'alert-success' :
-                              type === 'error' ? 'alert-danger' : 'alert-info';
-            const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ';
+    // ===== VER/OCULTAR CONTRASEÑA =====
+    function togglePasswordVisibility() {
+        const passInput = document.getElementById('txtPassword');
+        const eyeIcon = document.getElementById('eyeIcon');
+        if (!passInput) return;
+        if (passInput.type === 'password') {
+            passInput.type = 'text';
+            eyeIcon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            passInput.type = 'password';
+            eyeIcon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
 
-            const alert = document.createElement('div');
-            alert.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
-            alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 350px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
-            alert.innerHTML = `
-                <strong>${icon} ${type === 'success' ? 'Éxito' : type === 'error' ? 'Error' : 'Info'}:</strong> ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
+    // ===== BUSCADORES SELECT2 =====
+    $(document).ready(function() {
+           const commonOptions = {
+        theme: 'bootstrap-5',
+        width: '100%',
+        // Esto asegura que el buscador "viva" dentro del panel y no sea bloqueado
+        dropdownParent: $('#user-form'),
+        language: {
+            inputTooShort: () => "Por favor, introduzca 1 o más caracteres",
+            noResults: () => "No se encontraron resultados",
+            searching: () => "Buscando..."
+        },
+        minimumInputLength: 1
+    };
 
-            document.body.appendChild(alert);
+        
+        // 2. Buscador de Jefes
+        $('#selectJefe').select2({
+            ...commonOptions,
+            placeholder: '-- Buscar Jefe --',
+            ajax: {
+                url: '@Url.Action("BuscarPersonasJefes", "Usuarios")',
+                dataType: 'json',
+                delay: 250,
+                data: params => ({ term: params.term }),
+                processResults: data => ({ results: data.results })
+            }
+        });
 
-            const timeout = type === 'success' ? 4000 : type === 'error' ? 7000 : 5000;
-            setTimeout(() => {
-                if (alert.parentNode) {
-                    alert.classList.remove
+    
 
-
-            </script>
+        @if (Model.JefeInmediatoPersonaID > 0)
+        {
+                <text>
+                var optJefe = new Option('@Model.JefeInmediatoNombreCompleto', '@Model.JefeInmediatoPersonaID', true, true);
+                $('#selectJefe').append(optJefe).trigger('change');
+                </text>
+        }
+    });
+</script>

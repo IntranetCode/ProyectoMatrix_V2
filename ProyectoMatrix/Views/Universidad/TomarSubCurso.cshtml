@@ -213,17 +213,27 @@
                                 </div>
                             </div>
                             <div class="mt-2">
-                                <a id="btnVerPdf"
-                                   href="~/contenidos/@Model.ArchivoPDF"
-                                   target="_blank"
-                                   class="btn btn-outline-danger btn-sm me-2">
+                                <button type="button"
+                                        id="btnVerPdf"
+                                        class="btn btn-outline-danger btn-sm me-2"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#pdfModal"
+                                        data-pdf-url="@Url.Action("VerPdfSubCurso", "Universidad", new { subCursoId = Model.SubCursoID })">
                                     <i class="fas fa-eye me-1"></i> Ver
-                                </a>
-                                <a href="~/contenidos/@Model.ArchivoPDF"
-                                   download
-                                   class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-download me-1"></i> Descargar
-                                </a>
+                                </button>
+
+                                @{
+                                    bool puedeDescargarPdf = (ViewBag.PuedeDescargarPdf as bool?) ?? false;
+                                }
+
+                                @if (puedeDescargarPdf)
+                                {
+                                    <a href="@Url.Action("DescargarPdfSubCurso", "Universidad", new { subCursoId = Model.SubCursoID })"
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-download me-1"></i> Descargar
+                                    </a>
+                                }
+
                             </div>
                         </div>
                     </div>
@@ -310,6 +320,46 @@
         </div>
     </div>
 </div>
+
+
+<div class="modal fade" id="pdfModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-pdf text-danger me-2"></i> Documento PDF
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body p-0" style="height:80vh; overflow:auto;">
+                <!-- Toolbar simple (sin descargar) -->
+                <div class="d-flex align-items-center gap-2 p-2 border-bottom">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="pdfPrev">◀</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="pdfNext">▶</button>
+                    <span class="ms-2 small text-muted">
+                        Página <span id="pdfPageNum">1</span> / <span id="pdfPageCount">1</span>
+                    </span>
+
+                    <div class="ms-auto d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="pdfZoomOut">-</button>
+                        <span class="small text-muted"><span id="pdfZoom">100</span>%</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="pdfZoomIn">+</button>
+                    </div>
+                </div>
+
+                <div id="pdfLoading" class="p-3 text-muted" style="display:none;">Cargando PDF...</div>
+
+                <div id="pdfCanvasWrap" class="p-3">
+                    <canvas id="pdfCanvas" style="width:100%; height:auto;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
 
 <style>
     :root {
@@ -636,8 +686,14 @@
 </style>
 
 @section Scripts {
+
     @Html.AntiForgeryToken()
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
+
     <script>
+        
         const CONFIG = {
             subCursoId: @Model.SubCursoID,
             usuarioId: @ViewBag.UsuarioId,
@@ -674,7 +730,9 @@
 
         let prerrequisitosEstado = { videoCompleto: false, pdfVisto: false };
 
-        // --- Prerrequisitos / botón evaluación ---
+        // =========================
+        // PRERREQUISITOS / BOTÓN EVALUACIÓN
+        // =========================
         async function verificarPrerequisitos() {
             if (!CONFIG.requiereEvaluacion) return;
             try {
@@ -711,21 +769,17 @@
                 btn.style.cursor = 'not-allowed';
 
                 let pendientes = [];
-                if (CONFIG.tieneVideo && !prerrequisitosEstado.videoCompleto) {
-                    pendientes.push('ver el video (95%)');
-                }
-                if (CONFIG.tienePDF && !prerrequisitosEstado.pdfVisto) {
-                    pendientes.push('abrir el PDF');
-                }
+                if (CONFIG.tieneVideo && !prerrequisitosEstado.videoCompleto) pendientes.push('ver el video (95%)');
+                if (CONFIG.tienePDF && !prerrequisitosEstado.pdfVisto) pendientes.push('abrir el PDF');
 
-                const msg = serverMsg && serverMsg.length
+                const msg = (serverMsg && serverMsg.length)
                     ? serverMsg
                     : ('Requisitos pendientes: ' + pendientes.join(' y '));
                 btn.setAttribute('title', msg);
             }
         }
 
-        // --- Persistencia monótona ---
+        // progreso de video
         async function registrarProgresoVideo(porcentaje, segundosVistos) {
             if (!CONFIG.tieneVideo) return;
 
@@ -763,7 +817,6 @@
             }
         }
 
-        // --- Inicialización del reproductor (UNA SOLA VEZ) ---
         (function initPlayerAndProgress() {
             const video = document.getElementById('videoPlayer');
             if (!video || video.dataset.bound === '1') return;
@@ -795,61 +848,45 @@
             let lastPlayingStamp = 0;
             let currentPlayingSecs = 0;
 
-            // === BLOQUEO DE ADELANTAR ===
-
-            // 1) Bloquear cambio de velocidad
-            video.addEventListener('ratechange', function() {
-                if (video.playbackRate !== 1) {
-                    video.playbackRate = 1;
-                }
+            video.addEventListener('ratechange', function () {
+                if (video.playbackRate !== 1) video.playbackRate = 1;
             });
 
-            // 2) Bloquear menú contextual
-            video.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-            });
+            video.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
-            // 3) Bloquear atajos de teclado (flecha derecha, fin, etc.)
-            document.addEventListener('keydown', function(e) {
+            document.addEventListener('keydown', function (e) {
                 const isAdvanceKey = ['ArrowRight', 'End', 'PageDown', '.', 'l', 'L'].includes(e.key);
                 if (!isAdvanceKey) return;
 
                 const withinPlayer = e.target === video ||
-                                   (e.target.closest && e.target.closest('.ns-video')) ||
-                                   (e.target.closest && e.target.closest('.ns-controls'));
+                    (e.target.closest && e.target.closest('.ns-video')) ||
+                    (e.target.closest && e.target.closest('.ns-controls'));
                 if (withinPlayer) {
                     e.preventDefault();
                     e.stopPropagation();
                 }
             }, { capture: true });
 
-            // 4) Actualizar tiempo permitido durante reproducción
-            video.addEventListener('timeupdate', function() {
+            video.addEventListener('timeupdate', function () {
                 if (!video.seeking && !video.paused) {
                     lastAllowedTime = Math.max(lastAllowedTime, Math.floor(video.currentTime), accSecs || 0);
                 }
             }, { passive: true });
 
-            // 5) Impedir seek hacia adelante
-            video.addEventListener('seeking', function() {
+            video.addEventListener('seeking', function () {
                 const allowed = Math.max(lastAllowedTime, accSecs || 0);
                 if (video.currentTime > allowed + 0.25) {
                     video.currentTime = allowed;
                 }
             });
 
-            // 6) Deshabilitar botón de adelantar
             if (btnFwd) {
                 btnFwd.setAttribute('disabled', 'disabled');
                 btnFwd.classList.add('ns-btn-disabled');
-                btnFwd.addEventListener('click', function(e) {
-                    e.preventDefault();
-                });
+                btnFwd.addEventListener('click', function (e) { e.preventDefault(); });
             }
 
-            // === UTILIDADES ===
-
-            const fmtMS = function(s) {
+            const fmtMS = function (s) {
                 const totalSeconds = Math.floor(s);
                 const minutes = Math.floor(totalSeconds / 60);
                 const seconds = totalSeconds % 60;
@@ -858,17 +895,11 @@
 
             function setIcon(isPlaying) {
                 if (!iconPlay) return;
-
                 iconPlay.classList.remove('ns-icon-play', 'ns-icon-pause');
                 iconPlay.classList.add(isPlaying ? 'ns-icon-pause' : 'ns-icon-play');
-
-                // ✅ FIX: Verificar que btnPlay existe antes de manipularlo
                 if (btnPlay) {
-                    if (isPlaying) {
-                        btnPlay.classList.remove('ns-btn-primary');
-                    } else {
-                        btnPlay.classList.add('ns-btn-primary');
-                    }
+                    if (isPlaying) btnPlay.classList.remove('ns-btn-primary');
+                    else btnPlay.classList.add('ns-btn-primary');
                 }
             }
 
@@ -905,31 +936,16 @@
                 return true;
             }
 
-            async function safePlay() {
-                try {
-                    await video.play();
-                } catch (err) {
-                    console.error('Error al reproducir:', err);
-                }
-            }
+            async function safePlay() { try { await video.play(); } catch (err) { console.error('Error al reproducir:', err); } }
+            function safePause() { try { video.pause(); } catch (e) { console.error('Error al pausar:', e); } }
 
-            function safePause() {
-                try {
-                    video.pause();
-                } catch (e) {
-                    console.error('Error al pausar:', e);
-                }
-            }
-
-            // === EVENT LISTENERS DEL VIDEO ===
-
-            video.addEventListener('play', function() {
+            video.addEventListener('play', function () {
                 lastPlayingStamp = performance.now();
                 currentPlayingSecs = video.currentTime;
                 setIcon(true);
             });
 
-            video.addEventListener('pause', function() {
+            video.addEventListener('pause', function () {
                 if (lastPlayingStamp) {
                     if (video.currentTime > currentPlayingSecs) {
                         accSecs = Math.max(accSecs, Math.floor(video.currentTime));
@@ -944,24 +960,19 @@
                 setIcon(false);
             });
 
-            video.addEventListener('timeupdate', function() {
+            video.addEventListener('timeupdate', function () {
                 if (!video.paused && lastPlayingStamp) {
                     accSecs = Math.max(accSecs, Math.floor(video.currentTime));
                 }
-
                 const duration = video.duration || 0;
                 const pct = duration ? (accSecs / duration) * 100 : 0;
 
                 updateControls();
-
-                if (throttleBeat()) {
-                    registrarProgresoVideo(pct, accSecs);
-                }
-
+                if (throttleBeat()) registrarProgresoVideo(pct, accSecs);
                 uiPush(pct);
             });
 
-            video.addEventListener('ended', function() {
+            video.addEventListener('ended', function () {
                 if (lastPlayingStamp) {
                     accSecs = Math.floor(video.duration);
                     localStorage.setItem(LS_TIME_KEY, String(accSecs));
@@ -973,15 +984,12 @@
                 setIcon(false);
             });
 
-            video.addEventListener('loadedmetadata', function() {
+            video.addEventListener('loadedmetadata', function () {
                 const duration = video.duration || 0;
-
                 if (timeDurationEl) timeDurationEl.textContent = fmtMS(duration);
 
                 const cachedTime = Math.min(accSecs, duration);
-                if (cachedTime > 0) {
-                    video.currentTime = cachedTime;
-                }
+                if (cachedTime > 0) video.currentTime = cachedTime;
 
                 const cachedPct = Math.max(CONFIG.initialProgress, duration ? (cachedTime / duration) * 100 : 0);
                 uiPush(cachedPct);
@@ -989,41 +997,32 @@
                 setIcon(!video.paused);
             });
 
-            // === CONTROLES PERSONALIZADOS ===
-
             if (btnPlay) {
-                btnPlay.addEventListener('click', function(ev) {
+                btnPlay.addEventListener('click', function (ev) {
                     ev.preventDefault();
-                    if (video.paused) {
-                        safePlay();
-                    } else {
-                        safePause();
-                    }
+                    if (video.paused) safePlay();
+                    else safePause();
                 });
             }
 
             if (btnBack) {
-                btnBack.addEventListener('click', function(ev) {
+                btnBack.addEventListener('click', function (ev) {
                     ev.preventDefault();
                     video.currentTime = Math.max(0, video.currentTime - 10);
                 });
             }
 
-            // Clic en contenedor del video (no en el <video> directamente)
             const nsVideoContainer = document.querySelector('.ns-video');
             if (nsVideoContainer) {
-                nsVideoContainer.addEventListener('click', function(ev) {
+                nsVideoContainer.addEventListener('click', function (ev) {
                     if (ev.target.closest('.ns-controls')) return;
-                    if (video.paused) {
-                        safePlay();
-                    } else {
-                        safePause();
-                    }
+                    if (video.paused) safePlay();
+                    else safePause();
                 });
             }
         })();
 
-        // === PDF ===
+        // marcar viston un pdf 
         async function marcarPdfVisto() {
             if (!CONFIG.tienePDF) return;
             try {
@@ -1039,15 +1038,152 @@
             }
         }
 
-        const btnVerPdf = document.getElementById('btnVerPdf');
-        if (btnVerPdf) {
-            btnVerPdf.addEventListener('click', marcarPdfVisto);
-        }
+        //modal para visualizar pdf
+        (function initPdfJs() {
+            // Si no existe el modal/canvas, no hacemos nada
+            const els = {
+                loading: document.getElementById('pdfLoading'),
+                canvas: document.getElementById('pdfCanvas'),
+                pageNum: document.getElementById('pdfPageNum'),
+                pageCount: document.getElementById('pdfPageCount'),
+                zoom: document.getElementById('pdfZoom'),
+                prev: document.getElementById('pdfPrev'),
+                next: document.getElementById('pdfNext'),
+                zoomIn: document.getElementById('pdfZoomIn'),
+                zoomOut: document.getElementById('pdfZoomOut'),
+            };
 
-        // === BOTÓN TOMAR EVALUACIÓN ===
+            const ctx = els.canvas ? els.canvas.getContext('2d') : null;
+
+            if (!window.pdfjsLib) {
+                console.error('PDF.js NO cargó. Revisa Network: pdf.min.js');
+                return;
+            }
+            if (!ctx) {
+                console.error('No hay canvas #pdfCanvas para renderizar.');
+                return;
+            }
+
+            // Worker recomendado
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+                "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.js";
+
+            let pdfDoc = null;
+            let pdfPageNum = 1;
+            let pdfPageCount = 1;
+            let pdfScale = 1.2;
+
+            async function loadPdfIntoCanvas(pdfUrl) {
+                if (!pdfUrl) return;
+
+                els.loading.style.display = 'block';
+                els.canvas.style.display = 'none';
+
+                const resp = await fetch(pdfUrl, { credentials: 'same-origin' });
+                if (!resp.ok) throw new Error(`No se pudo cargar PDF (${resp.status})`);
+                const data = await resp.arrayBuffer();
+
+                pdfDoc = await window.pdfjsLib.getDocument({ data }).promise;
+                pdfPageCount = pdfDoc.numPages;
+                pdfPageNum = 1;
+
+                els.pageCount.textContent = String(pdfPageCount);
+                await renderPdfPage();
+            }
+
+            async function renderPdfPage() {
+                if (!pdfDoc) return;
+
+                els.loading.style.display = 'block';
+                els.canvas.style.display = 'none';
+
+                const page = await pdfDoc.getPage(pdfPageNum);
+                const viewport = page.getViewport({ scale: pdfScale });
+
+                const outputScale = window.devicePixelRatio || 1;
+                els.canvas.width = Math.floor(viewport.width * outputScale);
+                els.canvas.height = Math.floor(viewport.height * outputScale);
+
+                // Responsive (tamaño visual)
+                els.canvas.style.width = viewport.width + "px";
+                els.canvas.style.height = viewport.height + "px";
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null,
+                    viewport
+                };
+
+                await page.render(renderContext).promise;
+
+                els.pageNum.textContent = String(pdfPageNum);
+                els.zoom.textContent = String(Math.round(pdfScale * 100));
+
+                els.loading.style.display = 'none';
+                els.canvas.style.display = 'block';
+
+                els.prev.disabled = (pdfPageNum <= 1);
+                els.next.disabled = (pdfPageNum >= pdfPageCount);
+            }
+
+            els.prev?.addEventListener('click', () => {
+                if (!pdfDoc || pdfPageNum <= 1) return;
+                pdfPageNum--;
+                renderPdfPage();
+            });
+
+            els.next?.addEventListener('click', () => {
+                if (!pdfDoc || pdfPageNum >= pdfPageCount) return;
+                pdfPageNum++;
+                renderPdfPage();
+            });
+
+            els.zoomIn?.addEventListener('click', () => {
+                if (!pdfDoc) return;
+                pdfScale = Math.min(3.0, pdfScale + 0.1);
+                renderPdfPage();
+            });
+
+            els.zoomOut?.addEventListener('click', () => {
+                if (!pdfDoc) return;
+                pdfScale = Math.max(0.5, pdfScale - 0.1);
+                renderPdfPage();
+            });
+
+            // ÚNICO handler: abrir modal => render + marcar visto
+            document.addEventListener('shown.bs.modal', async function (e) {
+                if (!e.target || e.target.id !== 'pdfModal') return;
+
+                const btn = document.getElementById('btnVerPdf');
+                const url = btn?.getAttribute('data-pdf-url') || '';
+
+                try {
+                    await loadPdfIntoCanvas(url);
+                    await marcarPdfVisto();
+                } catch (err) {
+                    console.error(err);
+                    alert('No se pudo visualizar el PDF.');
+                }
+            });
+
+            // cerrar modal => limpiar
+            document.addEventListener('hidden.bs.modal', function (e) {
+                if (!e.target || e.target.id !== 'pdfModal') return;
+
+                pdfDoc = null;
+                pdfPageNum = 1;
+                pdfPageCount = 1;
+                pdfScale = 1.2;
+
+                ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+            });
+        })();
+
+       
+        // boton tomar evaluacion
         const btnEvaluacion = document.getElementById('startEvaluationBtn');
         if (btnEvaluacion) {
-            btnEvaluacion.addEventListener('click', async function(e) {
+            btnEvaluacion.addEventListener('click', async function (e) {
                 if (this.disabled || this.classList.contains('disabled')) {
                     e.preventDefault();
                     alert(this.getAttribute('title') || 'Debes completar los requisitos antes de la evaluación.');
@@ -1060,11 +1196,9 @@
                     const resp = await postJson('@Url.Action("PrereqEstado", "Universidad")', {
                         subCursoId: CONFIG.subCursoId
                     });
-                    if (resp.ok) {
-                        window.location.href = this.getAttribute('href');
-                    } else {
-                        alert(resp.message || 'Debes completar los requisitos antes de la evaluación.');
-                    }
+
+                    if (resp.ok) window.location.href = this.getAttribute('href');
+                    else alert(resp.message || 'Debes completar los requisitos antes de la evaluación.');
                 } catch (error) {
                     console.error('Error al verificar prerrequisitos:', error);
                     alert('No se pudo verificar los requisitos. Inténtalo de nuevo.');
@@ -1072,7 +1206,8 @@
             });
         }
 
-        // === INICIALIZACIÓN ===
+        // INIT
         document.addEventListener('DOMContentLoaded', verificarPrerequisitos);
     </script>
 }
+

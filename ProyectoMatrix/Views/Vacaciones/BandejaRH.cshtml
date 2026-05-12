@@ -1,0 +1,509 @@
+﻿@model ProyectoMatrix.Models.VacacionesBandejaRHPantallaVm
+
+@{
+    ViewData["Title"] = "Bandeja RH - Vacaciones";
+    Layout = "_LayoutComunicados";
+    var tab = (Model?.Tab ?? "autorizadas").ToLower();
+}
+
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<h2>Bandeja RH - Vacaciones</h2>
+
+@if (!string.IsNullOrEmpty(ViewBag.Error as string))
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+<div class="row g-2 mb-3">
+
+    @*
+         <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="pendientes" class="btn @(tab=="pendientes"?"btn-primary":"btn-outline-primary")">
+            Pendientes de autorizar por Jefe Directo (@(ViewBag.Pendientes ?? 0))
+        </a>
+    </div>
+    *@
+   
+
+    <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="autorizadas" class="btn @(tab=="autorizadas"?"btn-primary":"btn-outline-primary")">
+            Autorizadas (@(ViewBag.Autorizadas ?? 0))
+        </a>
+    </div>
+
+    <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="registradas" class="btn @(tab=="registradas"?"btn-primary":"btn-outline-primary")">
+            Registradas por RRHH (@(ViewBag.Registradas ?? 0))
+        </a>
+    </div>
+    @*
+        <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="rechazadas" class="btn @(tab=="rechazadas"?"btn-primary":"btn-outline-primary")">
+            Rechazadas por Jefe Directo (@(ViewBag.Rechazadas ?? 0))
+        </a>
+    </div>
+    *@
+    
+
+    <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="usuarios" class="btn @(tab == "usuarios" ? "btn-primary" : "btn-outline-primary")">
+            Saldo de usuarios
+        </a>
+    </div>
+
+    <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="vistaexcel"
+           class="btn @(tab == "vistaexcel" ? "btn-primary" : "btn-outline-primary")">
+            Vista general
+        </a>
+    </div>
+
+
+</div>
+
+
+<div class="modal-footer">
+    <a asp-controller="Vacaciones" asp-action="MisVacaciones" asp-route-id="1" class="btn btn-secondary">
+        Volver a Mis Vacaciones
+    </a>
+</div>
+@if (tab == "vistaexcel")
+{
+    <form method="get" asp-action="BandejaRH" class="row g-2 mb-3">
+        @* Es vital que el tab se envíe como "vistaexcel" *@
+        <input type="hidden" name="tab" value="vistaexcel" />
+
+        <div class="col-sm-6 col-md-4 col-lg-3">
+            <input type="text" name="q" value="@ViewBag.Q"
+                   class="form-control form-control-sm"
+                   placeholder="Buscar por nombre o N°2..." />
+        </div>
+
+        <div class="col-auto">
+            <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(ViewBag.Q as string))
+        {
+            <div class="col-auto">
+                <a class="btn btn-sm btn-outline-danger"
+                   asp-action="BandejaRH" asp-route-tab="vistaexcel">
+                    Limpiar
+                </a>
+            </div>
+        }
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>N°</th>
+                    <th>N°2</th>
+                    <th>Sociedad</th>
+                    <th>Nombre</th>
+                    <th>Puesto</th>
+                    <th>Departamento</th>
+                    <th>F. de ingreso</th>
+                    <th>HOY</th>
+                    <th>Antigüedad (AA-MM)</th>
+                    <th>Antigüedad (años)</th>
+                    <th>Días correspond.</th>
+                    <th>Días pendientes</th>
+                    <th>Días disponibles</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model?.VistaExcel != null && Model.VistaExcel.Any())
+                {
+                    foreach (var x in Model.VistaExcel)
+                    {
+                        <tr>
+                            <td>@x.N</td>
+                            <td>@x.N2</td>
+                            <td>@x.Sociedad</td>
+                            <td>@x.Nombre</td>
+                            <td>@x.Puesto</td>
+                            <td>@x.Departamento</td>
+                            <td>@x.FechaIngreso.ToString("dd/MM/yyyy")</td>
+                            <td>@x.Hoy.ToString("dd/MM/yyyy")</td>
+                            <td>@x.AntiguedadAniosMeses</td>
+                            <td>@x.AntiguedadAnios</td>
+                            <td>@x.DiasCorrespondientes</td>
+                            <td>@x.DiasPendientes</td>
+                            <td><strong>@x.DiasDisponibles</strong></td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="13" class="text-center text-muted">No hay datos para mostrar.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else if (tab == "usuarios")
+{
+    <div class="mb-3">
+    <form method="get" action="@Url.Action("BandejaRH")">
+        <input type="hidden" name="tab" value="usuarios" />
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="Buscar por nombre o # empleado..." value="@ViewBag.Query">
+            <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+            <a href="@Url.Action("BandejaRH", new { tab = "usuarios" })" class="btn btn-outline-danger">Limpiar</a>
+
+                <button type="button" class="btn btn-danger" onclick="abrirModalMasivo()">
+                    <i class="fas fa-users-slash me-1"></i> Descuento Masivo
+                </button>
+        </div>
+    </form>
+</div>
+
+
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Empleado</th>
+                <th>Clave nómina</th>
+                <th>Nombre</th>
+                <th>Puesto</th>
+                <th>Año</th>
+                <th>Correspond.</th>
+                <th>Extra</th>
+                <th>Tomados</th>
+                <th>Caduc.</th>
+                <th>Disponibles</th>
+                <th>Anticipadas Reg.</th>
+                <th>Anticipadas Por Reg.</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model?.Usuarios != null && Model.Usuarios.Any())
+            {
+                foreach (var u in Model.Usuarios)
+                {
+                    <tr>
+                        <td>@u.NumeroEmpleado</td>
+                        <td>@u.ClaveEmpleadoNomina</td>
+                        <td>@u.NombreCompleto</td>
+                        <td>@u.Puesto</td>
+                        <td>@u.Anio</td>
+                        <td>@u.DiasCorrespondientes</td>
+                        <td>@u.DiasExtra</td>
+                        <td>@u.DiasTomados</td>
+                        <td>@u.DiasCaducados</td>
+                        <td><strong>@u.DiasDisponibles</strong></td>
+                        <td>@u.AnticipadasRegistradas</td>
+                        <td>@u.AnticipadasPorRegistrar</td>
+                        <td>
+                          
+                            <button class="btn btn-sm btn-outline-primary"
+                                    onclick="abrirModalAjuste(@u.PersonaID, '@u.NombreCompleto')">
+                                <i class="fas fa-plus-circle"></i> Cargar Historial
+                            </button>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="12" class="text-muted">No hay usuarios para mostrar.</td></tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Folio</th>
+                <th>Empleado</th>
+                <th>Clave nómina</th>
+                <th>Colaborador</th>
+                <th>Periodo</th>
+                <th>Días</th>
+                <th>Disp.</th>
+                <th>Jefe</th>
+                <th>RH</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model?.Solicitudes != null && Model.Solicitudes.Any())
+            {
+                foreach (var s in Model.Solicitudes)
+                {
+                    <tr>
+                        <td>@s.Folio</td>
+                        <td>@s.NumeroEmpleado</td>
+                        <td>@s.ClaveEmpleadoNomina</td>
+                        <td>
+                            @s.NombreCompleto
+                            <div class="text-muted" style="font-size: 0.85em;">
+                                @s.Puesto | Año saldo: @s.AnioSaldo
+                            </div>
+                        </td>
+                        <td>@s.FechaInicio.ToString("dd/MM/yyyy") - @s.FechaFin.ToString("dd/MM/yyyy")</td>
+                        <td>@s.DiasSolicitados</td>
+                        <td><strong>@s.DiasDisponibles</strong></td>
+                        <td>@s.EstadoAutorizacion</td>
+                        <td>@s.EstadoRecursosHumanos</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="9" class="text-muted">No hay registros para esta pestaña.</td></tr>
+            }
+        </tbody>
+    </table>
+}
+
+<div class="modal fade" id="modalAjusteManual" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Registrar Vacaciones (Historial)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Cargando historial para: <strong id="lblNombreEmpleado"></strong></p>
+                <input type="hidden" id="txtPersonaID" />
+
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="form-label">Fecha Inicio</label>
+                        <input type="date" id="txtFechaInicio" class="form-control" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Fecha Fin</label>
+                        <input type="date" id="txtFechaFin" class="form-control" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Días a descontar (decimales permitidos)</label>
+                        <input type="number" step="0.5" id="txtDiasAjuste" class="form-control" placeholder="Ej. 2" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Observaciones (Referencia)</label>
+                        <textarea id="txtObsAjuste" class="form-control" rows="2" placeholder="Ej. Vacaciones tomadas en 2024 antes del sistema"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarAjusteManual()">Guardar Registro</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function abrirModalAjuste(personaId, nombre) {
+        $('#txtPersonaID').val(personaId);
+        $('#lblNombreEmpleado').text(nombre);
+        $('#modalAjusteManual').modal('show');
+    }
+
+    function guardarAjusteManual() {
+        const data = {
+            PersonaID: $('#txtPersonaID').val(),
+            FechaInicio: $('#txtFechaInicio').val(),
+            FechaFin: $('#txtFechaFin').val(),
+            DiasATomar: $('#txtDiasAjuste').val(),
+            Observaciones: $('#txtObsAjuste').val()
+        };
+
+        if (!data.FechaInicio || !data.FechaFin || !data.DiasATomar) {
+            Swal.fire('Atención', 'Por favor completa los campos de fechas y días.', 'warning');
+            return;
+        }
+
+        Swal.fire({
+            title: '¿Registrar ajuste?',
+            text: "Esto afectará el saldo disponible del usuario de inmediato.",
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, registrar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('@Url.Action("GuardarAjusteManual", "Vacaciones")', data, function (res) {
+                    if (res.success) {
+                        Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', res.message, 'error');
+                    }
+                });
+            }
+        });
+    }
+
+        function abrirModalMasivo() {
+        Swal.fire({
+            title: 'Descuento Masivo de Días',
+            html: `
+                <input type="number" id="diasMasivo" class="swal2-input" placeholder="Cantidad de días (ej. 1)" step="0.5">
+                <textarea id="motivoMasivo" class="swal2-textarea" placeholder="Motivo del descuento masivo..."></textarea>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Aplicar a TODOS',
+            confirmButtonColor: '#dc3545',
+            preConfirm: () => {
+                const dias = document.getElementById('diasMasivo').value;
+                const motivo = document.getElementById('motivoMasivo').value;
+                if (!dias || !motivo) {
+                    Swal.showValidationMessage('Ambos campos son obligatorios');
+                }
+                return { dias: dias, motivo: motivo };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('@Url.Action("AplicarDescuentoMasivo", "Vacaciones")', result.value, function(res) {
+                    if (res.success) {
+                        Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', res.message, 'error');
+                    }
+                });
+            }
+        });
+    }
+</script>
+
+
+<style>
+    /* --- Ajustes Generales y Título --- */
+    h2 {
+        color: #1a237e;
+        font-weight: 700;
+        border-left: 6px solid #ff6d00;
+        padding-left: 15px;
+        margin-top: 20px;
+        margin-bottom: 25px;
+    }
+
+    /* --- Botones de Navegación (Tabs) --- */
+    /* Estado Inactivo (Outline) */
+    .btn-outline-primary {
+        color: #1a237e !important;
+        border-color: #1a237e !important;
+        background-color: #ffffff !important;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 8px 16px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-outline-primary:hover {
+            background-color: #f1f4f9 !important;
+            transform: translateY(-1px);
+        }
+
+    /* Estado Activo (Solid) */
+    .btn-primary {
+        background-color: #1a237e !important;
+        border-color: #1a237e !important;
+        color: #ffffff !important;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 8px 16px;
+        box-shadow: 0 4px 8px rgba(26, 35, 126, 0.2);
+    }
+
+    /* --- Tablas Corporativas --- */
+    .table {
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-top: 15px;
+        border: 1px solid #e1e8ed;
+    }
+
+        .table thead th {
+            background-color: #1a237e !important;
+            color: #ffffff !important;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px;
+            border: none;
+            text-align: center;
+        }
+
+        .table tbody td {
+            padding: 12px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f4f7;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+    /* Cebra de la tabla */
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: rgba(26, 35, 126, 0.02) !important;
+    }
+
+    /* Hover en filas */
+    .table-hover tbody tr:hover,
+    .table tbody tr:hover {
+        background-color: rgba(255, 109, 0, 0.05) !important;
+    }
+
+    /* Resalte de números y celdas importantes */
+    .table td strong {
+        color: #ff6d00; /* Naranja para los saldos disponibles */
+        font-weight: 700;
+    }
+
+    /* --- Formulario de Búsqueda y Filtros --- */
+    .form-control-sm {
+        border: 1px solid #dce1e7;
+        border-radius: 6px;
+        padding: 8px 12px;
+    }
+
+        .form-control-sm:focus {
+            border-color: #ff6d00;
+            box-shadow: 0 0 0 0.2rem rgba(255, 109, 0, 0.1);
+        }
+
+    .btn-outline-secondary {
+        border-color: #dce1e7;
+        color: #1a237e;
+        font-weight: 600;
+    }
+
+        .btn-outline-secondary:hover {
+            background-color: #1a237e;
+            color: #ffffff;
+        }
+
+    /* --- Alertas y Footer --- */
+    .alert-danger {
+        background-color: #fff5f5;
+        border: 1px solid #feb2b2;
+        color: #c53030;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+
+    .modal-footer {
+        border-top: 1px solid #e1e8ed;
+        margin-top: 20px;
+        padding-top: 15px;
+    }
+
+    .btn-secondary {
+        background-color: #64748b !important;
+        border: none !important;
+        font-weight: 600;
+    }
+</style>
+
+
+   
