@@ -150,24 +150,42 @@
                             <input asp-for="FechaNacimiento" type="date" class="form-control form-control-modern" />
                         </div>
 
-                        <div class="col-md-12">
-                            <label class="form-label-modern">Jefe Inmediato</label>
-                            <div class="input-group select2-bootstrap-5-parent">
-                                @* Clase de apoyo *@
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="fas fa-user-tie text-primary"></i>
-                                </span>
-                                <select asp-for="JefeInmediatoPersonaID" id="selectJefe" class="form-select" data-search="true">
-                                    <option value="">-- Escriba para buscar jefe... --</option>
-                                    @if (Model.JefeInmediatoPersonaID.HasValue)
+
+                        <div class="col-md-12 mb-3">
+                            <label asp-for="DepartamentoID" class="form-label-modern">Departamento</label>
+                            <div style="position: relative;">
+                                <i class="fas fa-sitemap text-primary"
+                                   style="position:absolute; left:10px; top:50%; transform:translateY(-50%); z-index:10; pointer-events:none;"></i>
+
+                                <select asp-for="DepartamentoID"
+                                        id="selectDepartamento"
+                                        class="form-select"
+                                        style="padding-left: 32px;"
+                                        asp-items="ViewBag.Departamentos">
+                                    <option value="">-- Seleccione un Departamento --</option>
+                                </select>
+                            </div>
+                            <span asp-validation-for="DepartamentoID" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label-modern">Jefe Directo</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="fas fa-user-tie text-primary"></i></span>
+                                <select asp-for="JefeInmediatoPersonaID" id="selectJefe" class="form-select">
+                                    @if (Model.JefeInmediatoPersonaID > 0)
                                     {
-                                        <option value="@Model.JefeInmediatoPersonaID" selected>Cargando...</option>
+                                        <option value="@Model.JefeInmediatoPersonaID" selected>@Model.JefeInmediatoNombreCompleto</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="">-- Buscar Jefe --</option>
                                     }
                                 </select>
                             </div>
                         </div>
 
-
+                        
                     @*    @if (!Model.EsModoCrear)
                         {
                             <div class="col-md-12 mt-3">
@@ -246,6 +264,29 @@
                         }
                     </div>
                 </div>
+                
+                @*  
+         
+                @if (!Model.EsModoCrear)
+                {
+                    <div class="form-section border-orange">
+                        <div class="section-header">
+                            <i class="fas fa-exclamation-triangle section-icon icon-orange"></i>
+                            <h5 class="section-title">Permisos Especiales de RH</h5>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-check form-switch form-switch-modern">
+                                    <input class="form-check-input check-adelantadas" type="checkbox" role="switch" asp-for="PermiteAdelantadas" id="switchAdelantadas" />
+                                    <label class="form-check-label" for="switchAdelantadas">
+                                        <strong>Habilitar Vacaciones Adelantadas</strong>
+                                        <small class="d-block text-muted">Permite al usuario solicitar vacaciones aunque no haya cumplido el año de antigüedad.</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }*@
 
                 <div class="form-actions">
                     <button type="button" class="btn btn-outline-secondary btn-modern" id="cancel-btn">
@@ -760,10 +801,43 @@
     .btn-group-vertical .form-check {
         margin-bottom: 0.25rem;
     }
+
+    
+    /* ... (tus estilos anteriores) ... */
+    /* Estilo especial para la sección de excepciones */
+    .border-orange {
+        border: 1px solid rgba(255, 109, 0, 0.3) !important;
+        background: rgba(255, 109, 0, 0.02) !important;
+    }
+
+    .icon-orange {
+        color: #ff6d00 !important;
+    }
+
+    /* Switch Color Naranja Matrix */
+    .form-check-input.check-adelantadas:checked {
+        background-color: #ff6d00 !important;
+        border-color: #ff6d00 !important;
+    }
+
+    .form-check-input.check-adelantadas:focus {
+        box-shadow: 0 0 0 0.25rem rgba(255, 109, 0, 0.2) !important;
+    }
+
+    /* Asegurar que los estilos de los switches se mantengan modernos */
+    .form-switch-modern .form-check-input {
+        width: 3em;
+        height: 1.5em;
+        cursor: pointer;
+    }
+
+    .form-switch-modern .form-check-label {
+        padding-left: 10px;
+        cursor: pointer;
+    }
+
 </style>
 
-
-<!-- JS -->
 <script>
     // ===== GESTOR DE PERMISOS =====
     (function () {
@@ -818,7 +892,6 @@
             setTimeout(() => el.remove(), type === 'success' ? 4000 : 7000);
         }
 
-        // Cambio en radio buttons
         document.getElementById('tab-permisos')?.addEventListener('change', (ev) => {
             if (!ev.target.classList.contains('ov-radio')) return;
             const tr = ev.target.closest('tr');
@@ -826,7 +899,6 @@
             markDirty();
         });
 
-        // Submit overrides
         ovForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const originalHtml = ovSave.innerHTML;
@@ -862,7 +934,6 @@
             }
         });
 
-        // Revertir cambios
         resetAllBtn?.addEventListener('click', () => {
             if (!isDirty) { showToast('info', 'No hay cambios para deshacer'); return; }
             if (!confirm('¿Descartar todos los cambios no guardados?')) return;
@@ -890,18 +961,43 @@
         }
     }
 
+    // ===== BUSCADORES SELECT2 =====
+    $(document).ready(function() {
+           const commonOptions = {
+        theme: 'bootstrap-5',
+        width: '100%',
+        // Esto asegura que el buscador "viva" dentro del panel y no sea bloqueado
+        dropdownParent: $('#user-form'),
+        language: {
+            inputTooShort: () => "Por favor, introduzca 1 o más caracteres",
+            noResults: () => "No se encontraron resultados",
+            searching: () => "Buscando..."
+        },
+        minimumInputLength: 1
+    };
 
+        
+        // 2. Buscador de Jefes
+        $('#selectJefe').select2({
+            ...commonOptions,
+            placeholder: '-- Buscar Jefe --',
+            ajax: {
+                url: '@Url.Action("BuscarPersonasJefes", "Usuarios")',
+                dataType: 'json',
+                delay: 250,
+                data: params => ({ term: params.term }),
+                processResults: data => ({ results: data.results })
+            }
+        });
 
-        $(document).ready(function () {
-        const jefeId = '@Model.JefeInmediatoPersonaID';
+    
 
-        if (jefeId && jefeId > 0) {
-           
-            var newOption = new Option("Jefe asignado (ID: " + jefeId + ")", jefeId, true, true);
-            $('#selectJefe').append(newOption).trigger('change');
+        @if (Model.JefeInmediatoPersonaID > 0)
+        {
+                <text>
+                var optJefe = new Option('@Model.JefeInmediatoNombreCompleto', '@Model.JefeInmediatoPersonaID', true, true);
+                $('#selectJefe').append(optJefe).trigger('change');
+                </text>
         }
     });
-   
 </script>
-
-   

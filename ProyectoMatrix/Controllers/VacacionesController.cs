@@ -1,13 +1,14 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using ProyectoMatrix.Models;
+using ProyectoMatrix.Servicios;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Security.Claims;
-using ProyectoMatrix.Servicios;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -27,7 +28,6 @@ namespace ProyectoMatrix.Controllers
             _notif = notif;
         }
 
-       
         [HttpGet]
         public IActionResult MisVacaciones()
         {
@@ -38,6 +38,7 @@ namespace ProyectoMatrix.Controllers
             {
                 return Unauthorized();
             }
+            vm.UsuarioID = usuarioId;
 
             try
             {
@@ -51,30 +52,40 @@ namespace ProyectoMatrix.Controllers
                     {
                         ViewBag.Error = "No se encontró la persona asociada al usuario actual.";
                         return View(vm);
-
                     }
+
+                    // --- NUEVA VALIDACIÓN: Permiso de Vacaciones Adelantadas ---
+                    // Consultamos si existe un registro autorizado por RH y completado
+                    bool tienePermisoEspecial = false;
+                    string sqlValidarPermiso = @"
+                SELECT COUNT(*) 
+                FROM VacacionesHabilitacionesEspeciales 
+                WHERE UsuarioID = @UsuarioID 
+                  AND EstatusRH = 'Autorizado' 
+                  AND Completada = 1";
+
+                    using (var cmdP = new SqlCommand(sqlValidarPermiso, conn))
+                    {
+                        cmdP.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                        tienePermisoEspecial = (int)cmdP.ExecuteScalar() > 0;
+                    }
+                    // Este ViewBag es el que usa tu vista MisVacaciones.cshtml para mostrar el botón azul
+                    ViewBag.PermiteAdelantadas = tienePermisoEspecial;
+
                     // Saber si esta persona es jefe de alguien
                     bool esJefe = EsJefeInmediato(conn, personaId);
                     ViewBag.EsJefeInmediato = esJefe;
 
-                    //Detertar si el usuario es de rrhh ocn ayuda del helper
+                    // Detectar si el usuario es de RRHH
                     bool esRH = EsUsuarioRecursosHumanos(conn, usuarioId);
                     ViewBag.EsUsuarioRH = esRH;
 
-
-
-                    int anio = DateTime.Now.Year;
-
-                    // datos de la persona (nombre y número)
+                    // Datos de la persona (nombre y número)
                     using (var cmd = new SqlCommand(@"
-                        SELECT 
-                            NumeroEmpleado,
-                            (ApellidoPaterno + ' ' + ApellidoMaterno + ' ' + Nombre) AS NombreCompleto
-                        FROM Persona
-                        WHERE PersonaID = @PersonaID;", conn))
+                SELECT NumeroEmpleado, (ApellidoPaterno + ' ' + ApellidoMaterno + ' ' + Nombre) AS NombreCompleto
+                FROM Persona WHERE PersonaID = @PersonaID;", conn))
                     {
                         cmd.Parameters.AddWithValue("@PersonaID", personaId);
-
                         using (var reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
@@ -86,67 +97,46 @@ namespace ProyectoMatrix.Controllers
                     }
 
                     // Resumen del año actual
-                   using (var cmd = new SqlCommand(@"
-    SELECT TOP 1
-        AnioSaldo,
-        DiasCorrespondientes,
-        DiasExtra,
-        DiasTomados,
-        DiasCaducados,
-        DiasDisponibles
-    FROM vw_VacacionesSaldoActual
-    WHERE PersonaID = @PersonaID
-    ORDER BY AnioSaldo DESC;", conn))
-{
-    cmd.Parameters.AddWithValue("@PersonaID", personaId);
-
-    using (var reader = cmd.ExecuteReader())
-    {
-        if (reader.Read())
-        {
-            vm.ResumenActual = new VacacionesResumenAnualVm
-            {
-                Anio = Convert.ToInt32(reader["AnioSaldo"]),
-                DiasCorrespondientes = Convert.ToInt32(reader["DiasCorrespondientes"]),
-                DiasExtra = Convert.ToDecimal(reader["DiasExtra"]),
-                DiasTomados = Convert.ToDecimal(reader["DiasTomados"]),
-                DiasCaducados = Convert.ToDecimal(reader["DiasCaducados"]),
-                DiasDisponibles = Convert.ToDecimal(reader["DiasDisponibles"])
-            };
-        }
-    }
-}
-
-
-                    // historial de solicitudes
-                    vm.Solicitudes = new List<VacacionesSolicitudItemVm>();
-
                     using (var cmd = new SqlCommand(@"
-                        SELECT 
-                            SolicitudVacacionesID,
-                            FechaIngreso,
-DiasTomados,
-DiasDisponibles,
-                            FechaSolicitud,
-                            FechaInicio,
-                            FechaFin,
-                            FechaRegresoLabores,
-                            DiasSolicitados,
-                            EsAnticipada,
-                            EstadoAutorizacion,
-                            EstadoRecursosHumanos,
-                            Origen
-                        FROM vw_VacacionesSolicitudesDetalle
-                        WHERE PersonaID = @PersonaID
-                        ORDER BY FechaSolicitud DESC;", conn))
+                SELECT TOP 1 AnioSaldo, DiasCorrespondientes, DiasExtra, DiasTomados, DiasCaducados, DiasDisponibles
+                FROM vw_VacacionesSaldoActual
+                WHERE PersonaID = @PersonaID
+                ORDER BY AnioSaldo DESC;", conn))
                     {
                         cmd.Parameters.AddWithValue("@PersonaID", personaId);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                vm.ResumenActual = new VacacionesResumenAnualVm
+                                {
+                                    Anio = Convert.ToInt32(reader["AnioSaldo"]),
+                                    DiasCorrespondientes = Convert.ToInt32(reader["DiasCorrespondientes"]),
+                                    DiasExtra = Convert.ToDecimal(reader["DiasExtra"]),
+                                    DiasTomados = Convert.ToDecimal(reader["DiasTomados"]),
+                                    DiasCaducados = Convert.ToDecimal(reader["DiasCaducados"]),
+                                    DiasDisponibles = Convert.ToDecimal(reader["DiasDisponibles"])
+                                };
+                            }
+                        }
+                    }
 
+                    // Historial de solicitudes
+                    vm.Solicitudes = new List<VacacionesSolicitudItemVm>();
+                    using (var cmd = new SqlCommand(@"
+                SELECT SolicitudVacacionesID, FechaIngreso, DiasTomados, DiasDisponibles, FechaSolicitud, 
+                       FechaInicio, FechaFin, FechaRegresoLabores, DiasSolicitados, EsAnticipada, 
+                       EstadoAutorizacion, EstadoRecursosHumanos, Origen
+                FROM vw_VacacionesSolicitudesDetalle
+                WHERE PersonaID = @PersonaID
+                ORDER BY FechaSolicitud DESC;", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@PersonaID", personaId);
                         using (var reader = cmd.ExecuteReader())
                         {
                             while (reader.Read())
                             {
-                                var item = new VacacionesSolicitudItemVm
+                                vm.Solicitudes.Add(new VacacionesSolicitudItemVm
                                 {
                                     SolicitudVacacionesID = (int)reader["SolicitudVacacionesID"],
                                     FechaIngreso = (DateTime)reader["FechaIngreso"],
@@ -161,9 +151,7 @@ DiasDisponibles,
                                     EstadoAutorizacion = reader["EstadoAutorizacion"]?.ToString(),
                                     EstadoRecursosHumanos = reader["EstadoRecursosHumanos"]?.ToString(),
                                     Origen = reader["Origen"]?.ToString()
-                                };
-
-                                vm.Solicitudes.Add(item);
+                                });
                             }
                         }
                     }
@@ -172,15 +160,11 @@ DiasDisponibles,
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error cargando MisVacaciones");
-
-                // Solo para depurar: muestra el detalle en pantalla
                 ViewBag.Error = $"Error al cargar la información de vacaciones: {ex.Message}";
             }
 
             return View(vm);
         }
-
-
 
         [HttpGet]
         public IActionResult CrearSolicitud()
@@ -338,6 +322,8 @@ DiasDisponibles,
                 return Unauthorized();
 
             var todas = new List<VacacionesSolicitudJefeVm>();
+            // Inicializamos el VM que contendrá todas las listas
+            var vm = new SolicitudesPendientesJefePantallaVm();
 
             try
             {
@@ -345,8 +331,8 @@ DiasDisponibles,
                 {
                     conn.Open();
 
-                    // Trae TODAS las solicitudes del equipo (no solo pendientes)
-                    var sql = @"
+                    // --- BLOQUE 1: Solicitudes de Vacaciones Normales ---
+                    var sqlSolicitudes = @"
                 SELECT 
                     s.SolicitudVacacionesID,
                     p.NumeroEmpleado,
@@ -365,15 +351,14 @@ DiasDisponibles,
                 WHERE uj.UsuarioID = @UsuarioJefeID
                 ORDER BY s.FechaSolicitud DESC;";
 
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new SqlCommand(sqlSolicitudes, conn))
                     {
                         cmd.Parameters.AddWithValue("@UsuarioJefeID", usuarioId);
-
                         using (var reader = cmd.ExecuteReader())
                         {
                             while (reader.Read())
                             {
-                                var item = new VacacionesSolicitudJefeVm
+                                todas.Add(new VacacionesSolicitudJefeVm
                                 {
                                     SolicitudVacacionesID = (int)reader["SolicitudVacacionesID"],
                                     NumeroEmpleado = reader["NumeroEmpleado"]?.ToString(),
@@ -385,17 +370,47 @@ DiasDisponibles,
                                     EsAnticipada = (bool)reader["EsAnticipada"],
                                     EstadoAutorizacion = reader["EstadoAutorizacion"]?.ToString(),
                                     EstadoRecursosHumanos = reader["EstadoRecursosHumanos"]?.ToString()
-                                };
+                                });
+                            }
+                        }
+                    }
 
-                                todas.Add(item);
+                    // --- BLOQUE 2: Habilitaciones Especiales (Adelantadas) ---
+                    var sqlHabilitaciones = @"
+                SELECT 
+                    h.HabilitacionID,
+                    (p.ApellidoPaterno + ' ' + p.Nombre) AS NombreColaborador,
+                    h.MotivoSolicitud,
+                    h.FechaSolicitud
+                FROM VacacionesHabilitacionesEspeciales h
+                INNER JOIN Usuarios u ON h.UsuarioID = u.UsuarioID
+                INNER JOIN Persona p ON u.PersonaID = p.PersonaID
+                WHERE p.JefeInmediatoPersonaID = (SELECT PersonaID FROM Usuarios WHERE UsuarioID = @UsuarioJefeID)
+                  AND h.EstatusJefe = 'Pendiente'
+                  AND h.Completada = 0;";
+
+                    using (var cmdH = new SqlCommand(sqlHabilitaciones, conn))
+                    {
+                        cmdH.Parameters.AddWithValue("@UsuarioJefeID", usuarioId);
+                        using (var readerH = cmdH.ExecuteReader())
+                        {
+                            while (readerH.Read())
+                            {
+                                vm.HabilitacionesPendientes.Add(new HabilitacionPendienteJefeVm
+                                {
+                                    HabilitacionID = (int)readerH["HabilitacionID"],
+                                    NombreColaborador = readerH["NombreColaborador"].ToString(),
+                                    Motivo = readerH["MotivoSolicitud"].ToString(),
+                                    FechaSolicitud = (DateTime)readerH["FechaSolicitud"]
+                                });
                             }
                         }
                     }
                 }
 
-                // Separación de listas
+                // --- BLOQUE 3: Clasificación de listas 
                 var hoy = DateTime.Today;
-                var limite = hoy.AddDays(14); // cámbialo a 7/30 si quieres
+                var limite = hoy.AddDays(14);
 
                 bool EsPendiente(VacacionesSolicitudJefeVm s) =>
                     string.Equals((s.EstadoAutorizacion ?? "").Trim(), "Pendiente", StringComparison.OrdinalIgnoreCase);
@@ -407,21 +422,10 @@ DiasDisponibles,
                     string.Equals((s.EstadoAutorizacion ?? "").Trim(), "Rechazada", StringComparison.OrdinalIgnoreCase)
                     || string.Equals((s.EstadoRecursosHumanos ?? "").Trim(), "Rechazada", StringComparison.OrdinalIgnoreCase);
 
-                var vm = new SolicitudesPendientesJefePantallaVm
-                {
-                    Pendientes = todas.Where(EsPendiente).OrderByDescending(x => x.FechaSolicitud).ToList(),
-
-                    // Próximas: inicia pronto + ya autorizó el jefe + no rechazada
-                    Proximas = todas
-                        .Where(s => !EsRechazada(s)
-                                 && EsAutorizadaJefe(s)
-                                 && s.FechaInicio.Date >= hoy
-                                 && s.FechaInicio.Date <= limite)
-                        .OrderBy(s => s.FechaInicio)
-                        .ToList(),
-
-                    Historial = todas.OrderByDescending(x => x.FechaSolicitud).ToList()
-                };
+                vm.Pendientes = todas.Where(EsPendiente).OrderByDescending(x => x.FechaSolicitud).ToList();
+                vm.Proximas = todas.Where(s => !EsRechazada(s) && EsAutorizadaJefe(s) && s.FechaInicio.Date >= hoy && s.FechaInicio.Date <= limite)
+                                   .OrderBy(s => s.FechaInicio).ToList();
+                vm.Historial = todas.OrderByDescending(x => x.FechaSolicitud).ToList();
 
                 return View(vm);
             }
@@ -429,7 +433,6 @@ DiasDisponibles,
             {
                 _logger.LogError(ex, "Error cargando SolicitudesPendientesJefe");
                 ViewBag.Error = $"Error al cargar solicitudes: {ex.Message}";
-                // devolver VM vacío para que la vista no truene
                 return View(new SolicitudesPendientesJefePantallaVm());
             }
         }
@@ -487,6 +490,95 @@ DiasDisponibles,
             return RedirectToAction("SolicitudesPendientesJefe");
         }
 
+        [HttpPost]
+        public async Task<IActionResult> GuardarAjusteManual(int PersonaID, DateTime FechaInicio, DateTime FechaFin, string Observaciones)
+        {
+            int usuarioRhId = ObtenerUsuarioIdActual();
+            if (usuarioRhId == 0) return Unauthorized();
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var trans = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            int nuevaSolicitudId = 0;
+
+                            // 1. Crear la solicitud en el historial usando tu SP
+                            using (var cmd = new SqlCommand("sp_Vacaciones_CrearSolicitud", conn, trans))
+                            {
+                                cmd.CommandType = CommandType.StoredProcedure;
+                                cmd.Parameters.AddWithValue("@PersonaID", PersonaID);
+                                cmd.Parameters.AddWithValue("@UsuarioSolicitaID", usuarioRhId);
+                                cmd.Parameters.AddWithValue("@FechaInicio", FechaInicio.Date);
+                                cmd.Parameters.AddWithValue("@FechaFin", FechaFin.Date);
+                                cmd.Parameters.AddWithValue("@Origen", "RecursosHumanos");
+                                cmd.Parameters.AddWithValue("@Observaciones", "[AJUSTE DIRECTO RH] " + (Observaciones ?? ""));
+
+                                SqlParameter outputId = new SqlParameter("@SolicitudVacacionesID", SqlDbType.Int) { Direction = ParameterDirection.Output };
+                                cmd.Parameters.Add(outputId);
+
+                                await cmd.ExecuteNonQueryAsync();
+                                nuevaSolicitudId = (int)outputId.Value;
+                            }
+
+                            // 2. Autorizar la solicitud automáticamente para que sea oficial
+                            string sqlAutorizar = @"UPDATE VacacionesSolicitud 
+                        SET EstadoAutorizacion = 'Autorizada', 
+                            EstadoRecursosHumanos = 'Registrado',
+                            FechaAutorizacionJefe = GETDATE(),
+                            FechaAutorizacionRH = GETDATE(),
+                            UsuarioRecursosHumanosID = @RhID
+                        WHERE SolicitudVacacionesID = @SolicitudID";
+
+                            using (var cmdAut = new SqlCommand(sqlAutorizar, conn, trans))
+                            {
+                                cmdAut.Parameters.AddWithValue("@SolicitudID", nuevaSolicitudId);
+                                cmdAut.Parameters.AddWithValue("@RhID", usuarioRhId);
+                                await cmdAut.ExecuteNonQueryAsync();
+                            }
+
+                            // 3. DESCUENTO REAL: Actualizar la columna DiasTomados en VacacionesSaldoAnual
+                            // Usamos tu función fn_ContarDiasHabiles para que coincida con lo registrado en el historial
+                            string sqlUpdateSaldo = @"UPDATE VacacionesSaldoAnual 
+    SET DiasTomados = DiasTomados + dbo.fn_ContarDiasHabiles(@Inicio, @Fin)
+    WHERE PersonaID = @PersonaID 
+    AND Anio = (SELECT MAX(Anio) FROM VacacionesSaldoAnual WHERE PersonaID = @PersonaID)";
+
+                            using (var cmdSaldo = new SqlCommand(sqlUpdateSaldo, conn, trans))
+                            {
+                                cmdSaldo.Parameters.AddWithValue("@Inicio", FechaInicio);
+                                cmdSaldo.Parameters.AddWithValue("@Fin", FechaFin);
+                                cmdSaldo.Parameters.AddWithValue("@PersonaID", PersonaID);
+
+                                int filasAfectadas = await cmdSaldo.ExecuteNonQueryAsync();
+
+                                if (filasAfectadas == 0)
+                                {
+                                    throw new Exception("El empleado no tiene ningún registro de saldo generado en VacacionesSaldoAnual.");
+                                }
+                            }
+
+                            trans.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            trans.Rollback();
+                            throw;
+                        }
+                    }
+                }
+                return Json(new { success = true, message = "Días descontados y registrados correctamente." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en GuardarAjusteManual");
+                return Json(new { success = false, message = "Error: " + ex.Message });
+            }
+        }
 
 
         private async Task NotificarSolicitanteDecisionAsync(int solicitudId, bool autorizar, string? comentarios)
@@ -559,6 +651,7 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
       {comentariosHtml}
 
       <p>Puedes revisar el detalle en la Intranet, módulo <strong>Vacaciones</strong> (sección <strong>Mis vacaciones</strong>).</p>
+       <p>https://intranet.nsgroup.com.mx/</p>
       <p style='color:#666; font-size:12px; margin-top:18px;'>Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.</p>
     </div>
   </div>
@@ -594,7 +687,7 @@ FROM Usuarios u
 INNER JOIN EmpleadoDepartamentos ed ON ed.UsuarioID = u.UsuarioID AND ed.Activo = 1
 INNER JOIN Departamentos d ON d.DepartamentoID = ed.DepartamentoID AND d.Activo = 1
 WHERE u.PersonaID IS NOT NULL
-  AND (UPPER(d.Nombre) LIKE '%RECURSOS HUMANOS%' OR UPPER(d.Nombre) LIKE 'RH%');";
+  AND (UPPER(d.NombreDepartamento) LIKE '%RECURSOS HUMANOS%' OR UPPER(d.NombreDepartamento) LIKE 'RH%');";
 
                     using (var cmd = new SqlCommand(sqlRH, conn))
                     using (var rd = cmd.ExecuteReader())
@@ -668,7 +761,7 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
       </div>
 
       <p><strong>Revisa el módulo de Vacaciones</strong> en Intranet para más información y para realizar el registro correspondiente.</p>
-
+<p>https://intranet.nsgroup.com.mx/</p>
       <p style='color:#666; font-size:12px; margin-top:18px;'>Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.</p>
     </div>
   </div>
@@ -686,15 +779,14 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
 
 
 
-
         [HttpGet]
         public IActionResult SolicitudesPendientesRH()
         {
             int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0)
-                return Unauthorized();
+            if (usuarioId == 0) return Unauthorized();
 
-            var lista = new List<VacacionesSolicitudRHVm>();
+            var listaSolicitudesNormales = new List<VacacionesSolicitudRHVm>();
+            var habilitacionesEspeciales = new List<HabilitacionPendienteRHVm>();
 
             try
             {
@@ -702,66 +794,82 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                 {
                     conn.Open();
 
-                    // Seguridad extra: verificar que realmente es usuario de RH
-                    if (!EsUsuarioRecursosHumanos(conn, usuarioId))
-                    {
-                        return Forbid(); // 403
-                    }
-
-                    var sql = @"
-                SELECT 
-                    s.SolicitudVacacionesID,
-                    p.NumeroEmpleado,
-                    (p.ApellidoPaterno + ' ' + p.ApellidoMaterno + ' ' + p.Nombre) AS NombreColaborador,
-                    s.FechaSolicitud,
-                    s.FechaInicio,
-                    s.FechaFin,
-                    s.DiasSolicitados,
-                    s.EsAnticipada,
-                    s.EstadoAutorizacion,
-                    s.EstadoRecursosHumanos
+                    // 1. Cargar Solicitudes de Vacaciones Normales (La tabla de abajo)
+                    var sqlSolicitudes = @"
+                SELECT s.SolicitudVacacionesID, p.NumeroEmpleado, 
+                       (p.ApellidoPaterno + ' ' + p.Nombre) AS NombreColaborador,
+                       s.FechaSolicitud, s.FechaInicio, s.FechaFin, s.DiasSolicitados,
+                       s.EsAnticipada, s.EstadoAutorizacion, s.EstadoRecursosHumanos
                 FROM VacacionesSolicitud s
                 INNER JOIN Persona p ON s.PersonaID = p.PersonaID
                 WHERE s.EstadoAutorizacion = 'Autorizada'
                   AND s.EstadoRecursosHumanos = 'SinRegistrar'
                 ORDER BY s.FechaSolicitud DESC;";
 
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmdS = new SqlCommand(sqlSolicitudes, conn))
+                    using (var rS = cmdS.ExecuteReader())
                     {
-                        using (var reader = cmd.ExecuteReader())
+                        while (rS.Read())
                         {
-                            while (reader.Read())
+                            listaSolicitudesNormales.Add(new VacacionesSolicitudRHVm
                             {
-                                var item = new VacacionesSolicitudRHVm
-                                {
-                                    SolicitudVacacionesID = (int)reader["SolicitudVacacionesID"],
-                                    NumeroEmpleado = reader["NumeroEmpleado"]?.ToString(),
-                                    NombreColaborador = reader["NombreColaborador"]?.ToString(),
-                                    FechaSolicitud = (DateTime)reader["FechaSolicitud"],
-                                    FechaInicio = (DateTime)reader["FechaInicio"],
-                                    FechaFin = (DateTime)reader["FechaFin"],
-                                    DiasSolicitados = Convert.ToDecimal(reader["DiasSolicitados"]),
-                                    EsAnticipada = (bool)reader["EsAnticipada"],
-                                    EstadoAutorizacion = reader["EstadoAutorizacion"]?.ToString(),
-                                    EstadoRecursosHumanos = reader["EstadoRecursosHumanos"]?.ToString()
-                                };
+                                SolicitudVacacionesID = (int)rS["SolicitudVacacionesID"],
+                                NumeroEmpleado = rS["NumeroEmpleado"]?.ToString(),
+                                NombreColaborador = rS["NombreColaborador"]?.ToString(),
+                                FechaSolicitud = (DateTime)rS["FechaSolicitud"],
+                                FechaInicio = (DateTime)rS["FechaInicio"],
+                                FechaFin = (DateTime)rS["FechaFin"],
+                                DiasSolicitados = Convert.ToDecimal(rS["DiasSolicitados"]),
+                                EsAnticipada = (bool)rS["EsAnticipada"],
+                                EstadoAutorizacion = rS["EstadoAutorizacion"]?.ToString(),
+                                EstadoRecursosHumanos = rS["EstadoRecursosHumanos"]?.ToString()
+                            });
+                        }
+                    }
 
-                                lista.Add(item);
-                            }
+                    // 2. Cargar Habilitaciones Especiales (La tabla de arriba)
+                    var sqlH = @"
+                SELECT h.HabilitacionID, (p.ApellidoPaterno + ' ' + p.Nombre) AS NombreColaborador,
+                       h.MotivoSolicitud, (pj.ApellidoPaterno + ' ' + pj.Nombre) AS NombreJefe,
+                       h.FechaAutorizacionJefe
+                FROM VacacionesHabilitacionesEspeciales h
+                INNER JOIN Usuarios u ON h.UsuarioID = u.UsuarioID
+                INNER JOIN Persona p ON u.PersonaID = p.PersonaID
+                LEFT JOIN Persona pj ON p.JefeInmediatoPersonaID = pj.PersonaID
+                WHERE h.EstatusJefe = 'Autorizado' AND h.EstatusRH = 'Pendiente' AND h.Completada = 0";
+
+                    using (var cmdH = new SqlCommand(sqlH, conn))
+                    using (var rH = cmdH.ExecuteReader())
+                    {
+                        while (rH.Read())
+                        {
+                            habilitacionesEspeciales.Add(new HabilitacionPendienteRHVm
+                            {
+                                HabilitacionID = (int)rH["HabilitacionID"],
+                                NombreColaborador = rH["NombreColaborador"].ToString(),
+                                Motivo = rH["MotivoSolicitud"].ToString(),
+                                NombreJefe = rH["NombreJefe"]?.ToString() ?? "N/A",
+                                FechaAutorizacionJefe = Convert.ToDateTime(rH["FechaAutorizacionJefe"])
+                            });
                         }
                     }
                 }
+
+                // PASO CRÍTICO: Asignar al ViewBag para que la vista lo vea
+                ViewBag.HabilitacionesEspeciales = habilitacionesEspeciales;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error cargando SolicitudesPendientesRH");
-                ViewBag.Error = $"Error al cargar solicitudes para RH: {ex.Message}";
+                _logger.LogError(ex, "Error en SolicitudesPendientesRH");
+                ViewBag.Error = ex.Message;
             }
 
-            return View(lista);
+            return View(listaSolicitudesNormales);
         }
 
 
+
+        //REVISAR EL ERROR DE SALDO INSUFICIENTE
         [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult RegistrarComoRH(int solicitudId)
@@ -924,6 +1032,9 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
         <p>
             Por favor ingresa a la Intranet (módulo <strong>Vacaciones</strong>) para
             <strong>autorizar</strong> o <strong>rechazar</strong> esta solicitud.
+        </p>
+ <p>
+           https://intranet.nsgroup.com.mx/
         </p>
     </div>
     <div class='footer'>
@@ -1141,32 +1252,114 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
             }
         }
 
+        //Métodos para que un jefe pueda crear solicitudes de su equiipo
+        [HttpGet]
+        public IActionResult CrearSolicitudEquipo()
+        {
+            int usuarioJefeId = ObtenerUsuarioIdActual();
+            if (usuarioJefeId == 0) return Unauthorized();
 
+            var vm = new CrearSolicitudEquipoVm();
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                conn.Open();
+                int personaJefeId = ObtenerPersonaIdPorUsuario(conn, usuarioJefeId);
+
+                // Obtenemos solo las personas que dependen de este jefe
+                string sqlEquipo = @"SELECT PersonaID, (ApellidoPaterno + ' ' + Nombre) as Nombre 
+                             FROM Persona 
+                             WHERE JefeInmediatoPersonaID = @JefeID AND EsColaboradorActivo = 1";
+
+                using (var cmd = new SqlCommand(sqlEquipo, conn))
+                {
+                    cmd.Parameters.AddWithValue("@JefeID", personaJefeId);
+                    using (var rd = cmd.ExecuteReader())
+                    {
+                        while (rd.Read())
+                        {
+                            vm.MiEquipo.Add(new SelectListItem
+                            {
+                                Value = rd["PersonaID"].ToString(),
+                                Text = rd["Nombre"].ToString()
+                            });
+                        }
+                    }
+                }
+            }
+
+            vm.FechaInicio = DateTime.Today;
+            vm.FechaFin = DateTime.Today;
+            return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CrearSolicitudEquipo(CrearSolicitudEquipoVm model)
+        {
+            int usuarioJefeId = ObtenerUsuarioIdActual();
+            if (usuarioJefeId == 0) return Unauthorized();
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand("sp_Vacaciones_CrearSolicitud", conn))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.Parameters.AddWithValue("@PersonaID", model.PersonaID);
+                        cmd.Parameters.AddWithValue("@UsuarioSolicitaID", usuarioJefeId);
+                        cmd.Parameters.AddWithValue("@FechaInicio", model.FechaInicio.Date);
+                        cmd.Parameters.AddWithValue("@FechaFin", model.FechaFin.Date);
+                        cmd.Parameters.AddWithValue("@Origen", "JefeDirecto"); // Identificamos que el jefe lo creó
+                        cmd.Parameters.AddWithValue("@Observaciones", "[SOLICITUD POR JEFE] " + (model.Observaciones ?? ""));
+
+                        var paramIdOut = new SqlParameter("@SolicitudVacacionesID", SqlDbType.Int) { Direction = ParameterDirection.Output };
+                        cmd.Parameters.Add(paramIdOut);
+
+                        cmd.ExecuteNonQuery();
+                        int nuevaId = (int)paramIdOut.Value;
+
+                        // lógica de notificar a RH directamente
+                        await NotificarRH_SolicitudAutorizadaAsync(nuevaId);
+                    }
+                }
+                TempData["MensajeVacaciones"] = "Solicitud para el equipo creada correctamente.";
+                return RedirectToAction("SolicitudesPendientesJefe");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear solicitud para equipo");
+                ViewBag.Error = ex.Message;
+                return View(model);
+            }
+        }
 
 
         //Contralador para la banndeja de entrada de RRHH
 
-      public IActionResult BandejaRH(string tab = "autorizadas", string? q = null)
-{
-    int usuarioId = ObtenerUsuarioIdActual();
-    if (usuarioId == 0) return Unauthorized();
-
-    tab = (tab ?? "autorizadas").ToLower().Trim();
-    q = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
-
-    var vm = new VacacionesBandejaRHPantallaVm { Tab = tab };
-
-    try
-    {
-        using (var conn = new SqlConnection(_connectionString))
+        public IActionResult BandejaRH(string tab = "autorizadas", string? q = null)
         {
-            conn.Open();
+            int usuarioId = ObtenerUsuarioIdActual();
+            if (usuarioId == 0) return Unauthorized();
 
-            if (!EsUsuarioRecursosHumanos(conn, usuarioId))
-                return Forbid();
+            tab = (tab ?? "autorizadas").ToLower().Trim();
+            q = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
 
-            // Contadores para tabs
-            var sqlConteo = @"
+            var vm = new VacacionesBandejaRHPantallaVm { Tab = tab };
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    if (!EsUsuarioRecursosHumanos(conn, usuarioId))
+                        return Forbid();
+
+                    // --- BLOQUE 1: Contadores para tabs ---
+                    var sqlConteo = @"
                 SELECT
                     SUM(CASE WHEN EstadoAutorizacion = 'Pendiente' THEN 1 ELSE 0 END) AS Pendientes,
                     SUM(CASE WHEN EstadoAutorizacion = 'Autorizada' THEN 1 ELSE 0 END) AS Autorizadas,
@@ -1174,229 +1367,277 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                     SUM(CASE WHEN EstadoAutorizacion = 'Rechazada' THEN 1 ELSE 0 END) AS Rechazadas
                 FROM dbo.vw_Vacaciones_BandejaRH_ConSaldo;";
 
-            using (var cmdC = new SqlCommand(sqlConteo, conn))
-            using (var rC = cmdC.ExecuteReader())
-            {
-                if (rC.Read())
-                {
-                    ViewBag.Pendientes = Convert.ToInt32(rC["Pendientes"]);
-                    ViewBag.Autorizadas = Convert.ToInt32(rC["Autorizadas"]);
-                    ViewBag.Registradas = Convert.ToInt32(rC["Registradas"]);
-                    ViewBag.Rechazadas = Convert.ToInt32(rC["Rechazadas"]);
-                }
-            }
-
-            // Para que el input conserve lo escrito
-            ViewBag.Q = q;
-
-            if (vm.Tab == "usuarios")
-            {
-                var sqlUsuarios = @"
-                    SELECT
-                        PersonaID, NumeroEmpleado, ClaveEmpleadoNomina, NombreCompleto, Puesto,
-                        Anio, DiasCorrespondientes, DiasExtra, DiasTomados, DiasCaducados, DiasDisponibles,
-                        AnticipadasRegistradas, AnticipadasPorRegistrar
-                    FROM dbo.vw_Vacaciones_UsuariosSaldoRH
-                    ORDER BY NombreCompleto;";
-
-                using (var cmdU = new SqlCommand(sqlUsuarios, conn))
-                using (var rU = cmdU.ExecuteReader())
-                {
-                    while (rU.Read())
+                    using (var cmdC = new SqlCommand(sqlConteo, conn))
+                    using (var rC = cmdC.ExecuteReader())
                     {
-                        vm.Usuarios.Add(new VacacionesUsuarioSaldoRHVm
+                        if (rC.Read())
                         {
-                            PersonaID = Convert.ToInt32(rU["PersonaID"]),
-                            NumeroEmpleado = rU["NumeroEmpleado"]?.ToString(),
-                            ClaveEmpleadoNomina = rU["ClaveEmpleadoNomina"]?.ToString(),
-                            NombreCompleto = rU["NombreCompleto"]?.ToString(),
-                            Puesto = rU["Puesto"]?.ToString(),
+                            ViewBag.Pendientes = rC["Pendientes"] != DBNull.Value ? Convert.ToInt32(rC["Pendientes"]) : 0;
+                            ViewBag.Autorizadas = rC["Autorizadas"] != DBNull.Value ? Convert.ToInt32(rC["Autorizadas"]) : 0;
+                            ViewBag.Registradas = rC["Registradas"] != DBNull.Value ? Convert.ToInt32(rC["Registradas"]) : 0;
+                            ViewBag.Rechazadas = rC["Rechazadas"] != DBNull.Value ? Convert.ToInt32(rC["Rechazadas"]) : 0;
+                        }
+                    }
 
-                            Anio = Convert.ToInt32(rU["Anio"]),
-                            DiasCorrespondientes = Convert.ToDecimal(rU["DiasCorrespondientes"]),
-                            DiasExtra = Convert.ToDecimal(rU["DiasExtra"]),
-                            DiasTomados = Convert.ToDecimal(rU["DiasTomados"]),
-                            DiasCaducados = Convert.ToDecimal(rU["DiasCaducados"]),
-                            DiasDisponibles = Convert.ToDecimal(rU["DiasDisponibles"]),
+                    // --- BLOQUE 2: Cargar Habilitaciones Especiales (Paso Final RRHH) ---
+                    var habilitacionesParaRRHH = new List<HabilitacionPendienteRHVm>();
+                    var sqlHabilitaciones = @"
+                SELECT 
+                    h.HabilitacionID,
+                    (p.ApellidoPaterno + ' ' + p.Nombre) AS NombreColaborador,
+                    h.MotivoSolicitud,
+                    (pj.ApellidoPaterno + ' ' + pj.Nombre) AS NombreJefe,
+                    h.FechaAutorizacionJefe
+                FROM VacacionesHabilitacionesEspeciales h
+                INNER JOIN Usuarios u ON h.UsuarioID = u.UsuarioID
+                INNER JOIN Persona p ON u.PersonaID = p.PersonaID
+                LEFT JOIN Persona pj ON p.JefeInmediatoPersonaID = pj.PersonaID
+                WHERE h.EstatusJefe = 'Autorizado' 
+                  AND h.EstatusRH = 'Pendiente'
+                  AND h.Completada = 0;";
 
-                            AnticipadasRegistradas = Convert.ToInt32(rU["AnticipadasRegistradas"]),
-                            AnticipadasPorRegistrar = Convert.ToInt32(rU["AnticipadasPorRegistrar"])
-                        });
+                    using (var cmdH = new SqlCommand(sqlHabilitaciones, conn))
+                    using (var rH = cmdH.ExecuteReader())
+                    {
+                        while (rH.Read())
+                        {
+                            var itemH = new HabilitacionPendienteRHVm
+                            {
+                                HabilitacionID = Convert.ToInt32(rH["HabilitacionID"]),
+                                NombreColaborador = rH["NombreColaborador"]?.ToString() ?? "Desconocido",
+                                Motivo = rH["MotivoSolicitud"]?.ToString() ?? "",
+                                NombreJefe = rH["NombreJefe"]?.ToString() ?? "S/J",
+                                FechaAutorizacionJefe = Convert.ToDateTime(rH["FechaAutorizacionJefe"])
+                            };
+                            vm.HabilitacionesEspeciales.Add(itemH);
+                            habilitacionesParaRRHH.Add(itemH);
+                        }
+                    }
+
+                  
+                    ViewBag.HabilitacionesEspeciales = habilitacionesParaRRHH;
+                    ViewBag.Q = q;
+
+                    // --- BLOQUE 3: Lógica de Tabs ---
+                    if (vm.Tab == "usuarios")
+                    {
+                        
+                        var sqlUsuarios = @"
+        SELECT 
+            p.PersonaID, 
+            p.NumeroEmpleado, 
+            p.ClaveEmpleadoNomina, 
+            (ISNULL(p.Nombre,'') + ' ' + ISNULL(p.ApellidoPaterno,'') + ' ' + ISNULL(p.ApellidoMaterno,'')) AS NombreCompleto, 
+            p.Puesto,
+            v.AnioSaldo AS Anio, 
+            v.DiasCorrespondientes, 
+            v.DiasExtra, 
+            v.DiasTomados, 
+            v.DiasCaducados, 
+            v.DiasDisponibles,
+            0 AS AnticipadasRegistradas, 
+            0 AS AnticipadasPorRegistrar
+        FROM Persona p
+        CROSS APPLY (
+            -- Esta es la clave: usamos la vista que SÍ le funciona al usuario en su panel
+            SELECT TOP 1 * FROM dbo.vw_VacacionesSaldoActual 
+            WHERE PersonaID = p.PersonaID 
+            ORDER BY AnioSaldo DESC
+        ) v
+        WHERE p.EsColaboradorActivo = 1 
+        ORDER BY NombreCompleto;";
+
+                        using (var cmdU = new SqlCommand(sqlUsuarios, conn))
+                        using (var rU = cmdU.ExecuteReader())
+                        {
+                            while (rU.Read())
+                            {
+                                
+                                vm.Usuarios.Add(new VacacionesUsuarioSaldoRHVm
+                                {
+                                    PersonaID = rU["PersonaID"] == DBNull.Value ? 0 : Convert.ToInt32(rU["PersonaID"]),
+                                    NumeroEmpleado = rU["NumeroEmpleado"]?.ToString(),
+                                    ClaveEmpleadoNomina = rU["ClaveEmpleadoNomina"]?.ToString(),
+                                    NombreCompleto = rU["NombreCompleto"]?.ToString(),
+                                    Puesto = rU["Puesto"]?.ToString(),
+                                    Anio = rU["Anio"] == DBNull.Value ? 0 : Convert.ToInt32(rU["Anio"]),
+                                    DiasCorrespondientes = rU["DiasCorrespondientes"] == DBNull.Value ? 0m : Convert.ToDecimal(rU["DiasCorrespondientes"]),
+                                    DiasExtra = rU["DiasExtra"] == DBNull.Value ? 0m : Convert.ToDecimal(rU["DiasExtra"]),
+                                    DiasTomados = rU["DiasTomados"] == DBNull.Value ? 0m : Convert.ToDecimal(rU["DiasTomados"]),
+                                    DiasCaducados = rU["DiasCaducados"] == DBNull.Value ? 0m : Convert.ToDecimal(rU["DiasCaducados"]),
+                                    DiasDisponibles = rU["DiasDisponibles"] == DBNull.Value ? 0m : Convert.ToDecimal(rU["DiasDisponibles"]),
+                                    AnticipadasRegistradas = rU["AnticipadasRegistradas"] == DBNull.Value ? 0 : Convert.ToInt32(rU["AnticipadasRegistradas"]),
+                                    AnticipadasPorRegistrar = rU["AnticipadasPorRegistrar"] == DBNull.Value ? 0 : Convert.ToInt32(rU["AnticipadasPorRegistrar"])
+                                });
+                            }
+                        }
+                        if (q != null)
+                        {
+                            vm.Usuarios = vm.Usuarios.Where(u => (u.NumeroEmpleado ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) || (u.NombreCompleto ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+                        }
+                    }
+                    else if (vm.Tab == "vistaexcel")
+                    {
+                        var sqlExcel = @"
+        SELECT 
+            p.PersonaID, 
+            p.NumeroEmpleado, 
+            (ISNULL(p.Nombre,'') + ' ' + ISNULL(p.ApellidoPaterno,'') + ' ' + ISNULL(p.ApellidoMaterno,'')) AS NombreCompleto,
+            p.Puesto, 
+            p.FechaIngreso,
+   d.NombreDepartamento AS Departamento, 
+            v.AnioSaldo AS Anio,
+            v.DiasCorrespondientes, 
+            v.DiasDisponibles
+      FROM Persona p
+
+-- Relación con usuario
+INNER JOIN Usuarios u 
+    ON u.PersonaID = p.PersonaID
+
+--  Relación con empleado-departamento
+LEFT JOIN EmpleadoDepartamentos ed 
+    ON ed.UsuarioID = u.UsuarioID
+   AND ed.Activo = 1
+
+--  Catálogo de departamentos
+LEFT JOIN Departamentos d 
+    ON d.DepartamentoID = ed.DepartamentoID
+
+CROSS APPLY (
+    SELECT TOP 1 * 
+    FROM dbo.vw_VacacionesSaldoActual 
+    WHERE PersonaID = p.PersonaID 
+    ORDER BY AnioSaldo DESC
+) v
+        WHERE p.EsColaboradorActivo = 1
+        ORDER BY NombreCompleto";
+
+                        using (var cmd = new SqlCommand(sqlExcel, conn))
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            int cont = 1;
+                            while (r.Read())
+                            {
+                                var fechaIng = r["FechaIngreso"] == DBNull.Value ? DateTime.Now : Convert.ToDateTime(r["FechaIngreso"]);
+
+                                var fechaDeHoy = DateTime.Now;
+
+                                // Cálculo básico de antigüedad para el reporte
+                                int antiguedad = DateTime.Now.Year - fechaIng.Year;
+                                if (DateTime.Now < fechaIng.AddYears(antiguedad)) antiguedad--;
+
+                                vm.VistaExcel.Add(new VacacionesVistaExcelVm
+                                {
+                                    N = cont++,
+                                    Nombre = r["NombreCompleto"].ToString(),
+                                    Puesto = r["Puesto"].ToString(),
+                                    FechaIngreso = fechaIng,
+                                    Hoy = fechaDeHoy,
+                                    Departamento = r["Departamento"]?.ToString(),
+                                    AntiguedadAnios = antiguedad,
+                                    DiasCorrespondientes = Convert.ToDecimal(r["DiasCorrespondientes"]),
+                                    DiasDisponibles = Convert.ToDecimal(r["DiasDisponibles"])
+                                });
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(q))
+                        {
+                            // Filtramos sobre la lista ya cargada para que coincida con lo que el usuario busca
+                            vm.VistaExcel = vm.VistaExcel.Where(v =>
+                                (v.Nombre ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                                v.N2.ToString().Contains(q)
+                            ).ToList();
+                        }
+                    }
+                    else
+                    {
+                        string where;
+                        switch (vm.Tab)
+                        {
+                            case "pendientes": where = "EstadoAutorizacion = 'Pendiente'"; break;
+                            case "autorizadas": where = "EstadoAutorizacion = 'Autorizada'"; break;
+                            case "registradas": where = "EstadoRecursosHumanos = 'Registrado'"; break;
+                            case "rechazadas": where = "EstadoAutorizacion = 'Rechazada'"; break;
+                            default: vm.Tab = "autorizadas"; where = "EstadoAutorizacion = 'Autorizada'"; break;
+                        }
+                        var sqlSolicitudes = $@"
+                    SELECT Folio, PersonaID, NumeroEmpleado, NombreCompleto, ClaveEmpleadoNomina, Puesto,
+                           FechaSolicitud, FechaInicio, FechaFin, FechaRegresoLabores,
+                           DiasSolicitados, EsAnticipada, EstadoAutorizacion, EstadoRecursosHumanos,
+                           AnioSaldo, DiasCorrespondientes, DiasExtra, DiasTomados, DiasCaducados, DiasDisponibles
+                    FROM dbo.vw_Vacaciones_BandejaRH_ConSaldo WHERE {where} ORDER BY FechaSolicitud DESC;";
+
+                        using (var cmdS = new SqlCommand(sqlSolicitudes, conn))
+                        using (var rS = cmdS.ExecuteReader())
+                        {
+                            while (rS.Read())
+                            {
+                                vm.Solicitudes.Add(new VacacionesBandejaRHVm
+                                {
+                                    Folio = Convert.ToInt32(rS["Folio"]),
+                                    PersonaID = Convert.ToInt32(rS["PersonaID"]),
+                                    NumeroEmpleado = rS["NumeroEmpleado"]?.ToString(),
+                                    NombreCompleto = rS["NombreCompleto"]?.ToString(),
+                                    FechaSolicitud = Convert.ToDateTime(rS["FechaSolicitud"]),
+                                    FechaInicio = Convert.ToDateTime(rS["FechaInicio"]),
+                                    FechaFin = Convert.ToDateTime(rS["FechaFin"]),
+                                    DiasSolicitados = Convert.ToDecimal(rS["DiasSolicitados"]),
+                                    EsAnticipada = Convert.ToBoolean(rS["EsAnticipada"]),
+                                    EstadoAutorizacion = rS["EstadoAutorizacion"]?.ToString(),
+                                    EstadoRecursosHumanos = rS["EstadoRecursosHumanos"]?.ToString(),
+                                    DiasDisponibles = Convert.ToDecimal(rS["DiasDisponibles"])
+                                });
+                            }
+                        }
                     }
                 }
-
-                // ✅ Buscador en usuarios
-                if (q != null)
-                {
-                    vm.Usuarios = vm.Usuarios.Where(u =>
-                        (u.NumeroEmpleado ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                        (u.ClaveEmpleadoNomina ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                        (u.NombreCompleto ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                        (u.Puesto ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)
-                    ).ToList();
-                }
             }
-            else if (vm.Tab == "vistaexcel")
+            catch (Exception ex)
             {
-                
-                var sqlExcel = @"
-                  DECLARE @AnioSaldo INT = YEAR(GETDATE());
+                _logger.LogError(ex, "Error cargando BandejaRH");
+                ViewBag.Error = $"Error al cargar bandeja RH: {ex.Message}";
+            }
 
-SELECT
-    ROW_NUMBER() OVER (ORDER BY p.ApellidoPaterno, p.ApellidoMaterno, p.Nombre) AS N,
-    0 AS N2,
-    '' AS Sociedad,
-    CONCAT(p.ApellidoPaterno,' ',p.ApellidoMaterno,' ',p.Nombre) AS Nombre,
-    ISNULL(p.Puesto,'') AS Puesto,
-    '' AS Departamento,
-    p.FechaIngreso,
-    CAST(GETDATE() AS date) AS Hoy,
-
-    ISNULL(vsa.DiasCorrespondientes, 0) AS DiasCorrespondientes,
-    0 AS DiasPendientes,
-
-    (ISNULL(vsa.DiasCorrespondientes,0) + ISNULL(vsa.DiasExtra,0)
-     - ISNULL(vsa.DiasTomados,0) - ISNULL(vsa.DiasCaducados,0)) AS DiasDisponibles
-FROM dbo.Persona p
-OUTER APPLY (
-    SELECT TOP 1 *
-    FROM dbo.vw_VacacionesSaldoActual x
-    WHERE x.PersonaID = p.PersonaID
-    ORDER BY x.AnioSaldo DESC
-) vsa
-WHERE p.FechaIngreso IS NOT NULL
-  AND p.FechaBaja IS NULL
-ORDER BY Nombre;
+            return View(vm);
+        }
 
 
-";
-
-                using (var cmdX = new SqlCommand(sqlExcel, conn))
-                using (var rX = cmdX.ExecuteReader())
+        [HttpGet]
+        public IActionResult ObtenerSaldoColaborador(int personaId)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
                 {
-                    while (rX.Read())
+                    conn.Open();
+                    // Reutilizando lavista vw_VacacionesSaldoActual
+                    string sql = @"SELECT TOP 1 DiasDisponibles 
+                           FROM vw_VacacionesSaldoActual 
+                           WHERE PersonaID = @PersonaID 
+                           ORDER BY AnioSaldo DESC";
+
+                    using (var cmd = new SqlCommand(sql, conn))
                     {
-                        var fechaIngreso = Convert.ToDateTime(rX["FechaIngreso"]);
-                        var hoy = Convert.ToDateTime(rX["Hoy"]);
+                        cmd.Parameters.AddWithValue("@PersonaID", personaId);
+                        var result = cmd.ExecuteScalar();
 
-                        // Antigüedad AA-MM y años
-                        var (aaMm, anios) = CalcularAntiguedad(fechaIngreso, hoy);
-
-                        vm.VistaExcel.Add(new VacacionesVistaExcelVm
-                        {
-                            N = Convert.ToInt32(rX["N"]),
-                            N2 = Convert.ToInt32(rX["N2"]),
-                            Sociedad = rX["Sociedad"]?.ToString() ?? "",
-                            Nombre = rX["Nombre"]?.ToString() ?? "",
-                            Puesto = rX["Puesto"]?.ToString() ?? "",
-                            Departamento = rX["Departamento"]?.ToString() ?? "",
-                            FechaIngreso = fechaIngreso,
-                            Hoy = hoy,
-                            AntiguedadAniosMeses = aaMm,
-                            AntiguedadAnios = anios,
-                            DiasCorrespondientes = Convert.ToDecimal(rX["DiasCorrespondientes"]),
-                            DiasPendientes = Convert.ToDecimal(rX["DiasPendientes"]),
-                            DiasDisponibles = Convert.ToDecimal(rX["DiasDisponibles"])
-                        });
+                        decimal saldo = (result != null && result != DBNull.Value) ? Convert.ToDecimal(result) : 0;
+                        return Json(new { success = true, saldo = saldo });
                     }
                 }
-
-                // ✅ Buscador en vista excel
-                if (q != null)
-                {
-                    vm.VistaExcel = vm.VistaExcel.Where(x =>
-                        (x.Sociedad ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                        (x.Nombre ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                        (x.Puesto ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                        (x.Departamento ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)
-                    ).ToList();
-                }
             }
-            else
+            catch (Exception ex)
             {
-                string where;
-                switch (vm.Tab)
-                {
-                    case "pendientes": where = "EstadoAutorizacion = 'Pendiente'"; break;
-                    case "autorizadas": where = "EstadoAutorizacion = 'Autorizada'"; break;
-                    case "registradas": where = "EstadoRecursosHumanos = 'Registrado'"; break;
-                    case "rechazadas": where = "EstadoAutorizacion = 'Rechazada'"; break;
-                    default:
-                        vm.Tab = "autorizadas";
-                        where = "EstadoAutorizacion = 'Autorizada'";
-                        break;
-                }
-
-                var sqlSolicitudes = $@"
-                    SELECT
-                        Folio, PersonaID, NumeroEmpleado, NombreCompleto, ClaveEmpleadoNomina, Puesto,
-                        FechaSolicitud, FechaInicio, FechaFin, FechaRegresoLabores,
-                        DiasSolicitados, EsAnticipada,
-                        EstadoAutorizacion, EstadoRecursosHumanos,
-                        AnioSaldo, DiasCorrespondientes, DiasExtra, DiasTomados, DiasCaducados, DiasDisponibles
-                    FROM dbo.vw_Vacaciones_BandejaRH_ConSaldo
-                    WHERE {where}
-                    ORDER BY FechaSolicitud DESC;";
-
-                using (var cmdS = new SqlCommand(sqlSolicitudes, conn))
-                using (var rS = cmdS.ExecuteReader())
-                {
-                    while (rS.Read())
-                    {
-                        vm.Solicitudes.Add(new VacacionesBandejaRHVm
-                        {
-                            Folio = Convert.ToInt32(rS["Folio"]),
-                            PersonaID = Convert.ToInt32(rS["PersonaID"]),
-                            NumeroEmpleado = rS["NumeroEmpleado"]?.ToString(),
-                            NombreCompleto = rS["NombreCompleto"]?.ToString(),
-                            ClaveEmpleadoNomina = rS["ClaveEmpleadoNomina"]?.ToString(),
-                            Puesto = rS["Puesto"]?.ToString(),
-
-                            FechaSolicitud = Convert.ToDateTime(rS["FechaSolicitud"]),
-                            FechaInicio = Convert.ToDateTime(rS["FechaInicio"]),
-                            FechaFin = Convert.ToDateTime(rS["FechaFin"]),
-                            FechaRegresoLabores = Convert.ToDateTime(rS["FechaRegresoLabores"]),
-
-                            DiasSolicitados = Convert.ToDecimal(rS["DiasSolicitados"]),
-                            EsAnticipada = Convert.ToBoolean(rS["EsAnticipada"]),
-
-                            EstadoAutorizacion = rS["EstadoAutorizacion"]?.ToString(),
-                            EstadoRecursosHumanos = rS["EstadoRecursosHumanos"]?.ToString(),
-
-                            AnioSaldo = Convert.ToInt32(rS["AnioSaldo"]),
-                            DiasCorrespondientes = Convert.ToDecimal(rS["DiasCorrespondientes"]),
-                            DiasExtra = Convert.ToDecimal(rS["DiasExtra"]),
-                            DiasTomados = Convert.ToDecimal(rS["DiasTomados"]),
-                            DiasCaducados = Convert.ToDecimal(rS["DiasCaducados"]),
-                            DiasDisponibles = Convert.ToDecimal(rS["DiasDisponibles"])
-                        });
-                    }
-                }
-
-                // (opcional) buscador también en solicitudes
-                if (q != null)
-                {
-                    vm.Solicitudes = vm.Solicitudes.Where(s =>
-                        (s.NumeroEmpleado ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                        (s.ClaveEmpleadoNomina ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                        (s.NombreCompleto ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                        (s.Puesto ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)
-                    ).ToList();
-                }
+                return Json(new { success = false, message = ex.Message });
             }
         }
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error cargando BandejaRH");
-        ViewBag.Error = $"Error al cargar bandeja RH: {ex.Message}";
-    }
-
-    return View(vm);
-}
 
 
-private static (string aaMm, int anios) CalcularAntiguedad(DateTime ingreso, DateTime hoy)
+
+
+        private static (string aaMm, int anios) CalcularAntiguedad(DateTime ingreso, DateTime hoy)
 {
     int totalMeses = (hoy.Year - ingreso.Year) * 12 + (hoy.Month - ingreso.Month);
     if (hoy.Day < ingreso.Day) totalMeses--;
@@ -1437,13 +1678,195 @@ private static (string aaMm, int anios) CalcularAntiguedad(DateTime ingreso, Dat
             }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> SolicitarHabilitacion(int usuarioId, string motivo)
+        {
+            
+
+            try
+            {
+               
+                if (string.IsNullOrWhiteSpace(motivo) || motivo.Length < 15)
+                    return Json(new { success = false, message = "El motivo debe tener al menos 15 caracteres." });
+
+               
+                using (SqlConnection conn = new SqlConnection(_connectionString))
+                {
+                    string query = @"INSERT INTO VacacionesHabilitacionesEspeciales 
+                            (UsuarioID, MotivoSolicitud, FechaSolicitud, EstatusJefe, EstatusRH, Completada)
+                            VALUES (@UsuarioID, @Motivo, GETDATE(), 'Pendiente', 'Pendiente', 0)";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                        cmd.Parameters.AddWithValue("@Motivo", motivo);
+
+                        if (conn.State != ConnectionState.Open) await conn.OpenAsync();
+
+                        await cmd.ExecuteNonQueryAsync();
+                        await NotificarJefeSolicitudHabilitacionAsync(usuarioId);
+                    }
+                }
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Error de Base de Datos: " + ex.Message });
+            }
+        }
+
+
+        [HttpPost]
+        public async Task<IActionResult> DecidirHabilitacionJefe(int habilitacionId, bool aprobado)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+            if (usuarioId == 0) return Unauthorized();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_connectionString))
+                {
+                    string estatus = aprobado ? "Autorizado" : "Rechazado";
+
+                    // Actualizamos la decisión del jefe y registramos quién y cuándo
+                    string query = @"UPDATE VacacionesHabilitacionesEspeciales 
+                             SET EstatusJefe = @Estatus, 
+                                 JefeID = @JefeID, 
+                                 FechaAutorizacionJefe = GETDATE() 
+                             WHERE HabilitacionID = @HabilitacionID";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Estatus", estatus);
+                        cmd.Parameters.AddWithValue("@JefeID", usuarioId);
+                        cmd.Parameters.AddWithValue("@HabilitacionID", habilitacionId);
+
+                        if (conn.State != ConnectionState.Open) await conn.OpenAsync();
+                        await cmd.ExecuteNonQueryAsync();
+                        if (aprobado)
+                        {
+                            await NotificarRH_JefeAutorizoHabilitacionAsync(habilitacionId);
+                        }
+                    }
+                }
+
+                return Json(new { success = true, message = "Decisión registrada correctamente." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Error: " + ex.Message });
+            }
+        }
 
 
 
+        //Metodo para mostrar las solicitudes anticipadas ya aprobadas por el jefe directo
 
 
 
+        [HttpGet]
+        public IActionResult SolicitudesHabilitacionRH()
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+            if (usuarioId == 0) return Unauthorized();
 
+            var lista = new List<HabilitacionPendienteRHVm>();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    // Seguridad: Solo gente de RRHH
+                    if (!EsUsuarioRecursosHumanos(conn, usuarioId)) return Forbid();
+
+                    string sql = @"
+                SELECT 
+                    h.HabilitacionID,
+                    (p.Nombre + ' ' + p.ApellidoPaterno) as NombreColaborador,
+                    h.MotivoSolicitud,
+                    (pj.Nombre + ' ' + pj.ApellidoPaterno) as NombreJefe,
+                    h.FechaAutorizacionJefe
+                FROM VacacionesHabilitacionesEspeciales h
+                INNER JOIN Usuarios u ON h.UsuarioID = u.UsuarioID
+                INNER JOIN Persona p ON u.PersonaID = p.PersonaID
+                LEFT JOIN Persona pj ON p.JefeInmediatoPersonaID = pj.PersonaID
+                WHERE h.EstatusJefe = 'Autorizado' 
+                  AND h.EstatusRH = 'Pendiente'
+                  AND h.Completada = 0";
+
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                lista.Add(new HabilitacionPendienteRHVm
+                                {
+                                    HabilitacionID = (int)reader["HabilitacionID"],
+                                    NombreColaborador = reader["NombreColaborador"].ToString(),
+                                    Motivo = reader["MotivoSolicitud"].ToString(),
+                                    NombreJefe = reader["NombreJefe"].ToString(),
+                                    FechaAutorizacionJefe = (DateTime)reader["FechaAutorizacionJefe"]
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { ViewBag.Error = ex.Message; }
+
+            return View(lista);
+        }
+
+        //Metodo de aporbación final, activa el swixh de vacaciones adelantadas 
+
+
+        [HttpPost]
+        public async Task<IActionResult> AprobarHabilitacionFinal(int habilitacionId, bool aprobado)
+        {
+            int usuarioRhId = ObtenerUsuarioIdActual();
+            if (usuarioRhId == 0) return Unauthorized();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    // Definimos el estatus basado en la decisión de RRHH
+                    string estatus = aprobado ? "Autorizado" : "Rechazado";
+
+                    // Solo actualizamos la tabla de trazabilidad que ya existe
+                    string sqlHabilitacion = @"UPDATE VacacionesHabilitacionesEspeciales 
+                                       SET EstatusRH = @Estatus, 
+                                           UsuarioRHID = @RhID, 
+                                           FechaAutorizacionRH = GETDATE(), 
+                                           Completada = 1
+                                       WHERE HabilitacionID = @ID";
+
+                    using (SqlCommand cmd = new SqlCommand(sqlHabilitacion, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Estatus", estatus);
+                        cmd.Parameters.AddWithValue("@RhID", usuarioRhId);
+                        cmd.Parameters.AddWithValue("@ID", habilitacionId);
+
+                        await cmd.ExecuteNonQueryAsync();
+                        await NotificarEmpleadoResultadoHabilitacionAsync(habilitacionId, aprobado);
+                    }
+                }
+
+                // Retornamos éxito para que SweetAlert recargue la página
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al aprobar habilitación final");
+                return Json(new { success = false, message = "Error de base de datos: " + ex.Message });
+            }
+        }
         //Helper para saber si un usuario es un jefe inmediato
         private bool EsJefeInmediato(SqlConnection conn, int personaIdJefe)
         {
@@ -1497,6 +1920,216 @@ private static (string aaMm, int anios) CalcularAntiguedad(DateTime ingreso, Dat
             }
         }
 
+        //Metodos para notificar sobre vacaciones adelantadas :// 1. Notificar al Jefe que un empleado pidió habilitar adelantadas
+        private async Task NotificarJefeSolicitudHabilitacionAsync(int habilitacionId)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    var sql = @"
+                SELECT (p.Nombre + ' ' + p.ApellidoPaterno) as Empleado, h.MotivoSolicitud, pj.PersonaID as JefeID
+                FROM VacacionesHabilitacionesEspeciales h
+                INNER JOIN Usuarios u ON h.UsuarioID = u.UsuarioID
+                INNER JOIN Persona p ON u.PersonaID = p.PersonaID
+                INNER JOIN Persona pj ON p.JefeInmediatoPersonaID = pj.PersonaID
+                WHERE h.HabilitacionID = @ID";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@ID", habilitacionId);
+                        using (var rd = cmd.ExecuteReader())
+                        {
+                            if (rd.Read())
+                            {
+                                var asunto = "Nueva solicitud de habilitación de vacaciones adelantadas";
+                                var html = $@"<h2>Solicitud de Habilitación</h2>
+                                      <p>El colaborador <b>{rd["Empleado"]}</b> solicita habilitar vacaciones adelantadas.</p>
+                                      <p><b>Motivo:</b> {rd["MotivoSolicitud"]}</p>
+                                      <p>Ingresa a la Intranet para autorizar o rechazar esta petición operativa.</p>";
+
+                                await _notif.EnviarABccPersonasAsync(new List<int> { (int)rd["JefeID"] }, asunto, html);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { _logger.LogError(ex, "Error notificar jefe habilitacion"); }
+        }
+
+        // 2. Notificar a RRHH que el Jefe ya dio el visto bueno
+        private async Task NotificarRH_JefeAutorizoHabilitacionAsync(int habilitacionId)
+        {
+            try
+            {
+                var rhPersonaIds = new List<int>();
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    // SQL Corregido: NombreDepartamento en lugar de Nombre
+                    var sqlRH = @"SELECT DISTINCT u.PersonaID 
+                          FROM Usuarios u 
+                          INNER JOIN EmpleadoDepartamentos ed ON ed.UsuarioID = u.UsuarioID AND ed.Activo = 1
+                          INNER JOIN Departamentos d ON d.DepartamentoID = ed.DepartamentoID AND d.Activo = 1
+                          WHERE (UPPER(d.NombreDepartamento) LIKE '%RECURSOS HUMANOS%' OR UPPER(d.NombreDepartamento) LIKE 'RH%')
+                            AND u.PersonaID IS NOT NULL;";
+
+                    using (var cmd = new SqlCommand(sqlRH, conn))
+                    using (var rd = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await rd.ReadAsync())
+                        {
+                            rhPersonaIds.Add(rd.GetInt32(0));
+                        }
+                    }
+
+                    if (rhPersonaIds.Count > 0)
+                    {
+                        var asunto = "Habilitación Especial: Turno de RRHH";
+                        var html = $@"
+                    <div style='font-family: Arial; border: 1px solid #ddd; padding: 20px; border-radius: 10px;'>
+                        <h2 style='color: #1a237e;'>Validación de RRHH Pendiente</h2>
+                        <p>Hola equipo de Recursos Humanos,</p>
+                        <p>Se les informa que un jefe inmediato ha <b>autorizado</b> un motivo para habilitar vacaciones adelantadas.</p>
+                        <p>Por favor, ingresen a la Bandeja de RH en la Intranet para realizar la validación final y activar el switch del colaborador.</p>
+                        <hr>
+                        <p style='font-size: 0.8em; color: #666;'>Este es un mensaje automático de Proyecto Matrix.</p>
+                    </div>";
+
+                        await _notif.EnviarABccPersonasAsync(rhPersonaIds, asunto, html);
+                        _logger.LogInformation("Notificación enviada a {0} personas de RH para la habilitación {1}", rhPersonaIds.Count, habilitacionId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("No se encontraron personas en el departamento de Recursos Humanos para enviar la notificación.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al notificar a RRHH sobre la habilitación {0}", habilitacionId);
+            }
+        }
+
+        // 3. Notificar al Empleado el resultado final (Cuando RRHH termina)
+        private async Task NotificarEmpleadoResultadoHabilitacionAsync(int habilitacionId, bool aprobado)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    var sql = "SELECT p.PersonaID FROM VacacionesHabilitacionesEspeciales h INNER JOIN Usuarios u ON h.UsuarioID = u.UsuarioID INNER JOIN Persona p ON u.PersonaID = p.PersonaID WHERE h.HabilitacionID = @ID";
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@ID", habilitacionId);
+                        var personaId = (int)cmd.ExecuteScalar();
+                        var res = aprobado ? "APROBADA" : "RECHAZADA";
+                        var asunto = $"Resultado de tu solicitud de habilitación: {res}";
+                        var html = $@"<h2>Estatus de Solicitud</h2><p>Tu petición para habilitar vacaciones adelantadas ha sido <b>{res}</b>.</p>
+                             {(aprobado ? "<p>Ya puedes entrar a 'Mis Vacaciones' y solicitar tus días.</p>" : "")}";
+                        await _notif.EnviarABccPersonasAsync(new List<int> { personaId }, asunto, html);
+                    }
+                }
+            }
+            catch (Exception ex) { _logger.LogError(ex, "Error notificar empleado habilitacion"); }
+        }
+
+        //METODO NUEV PARA DESCONTAR VAVACIONES MASIVAMENTE
+
+        [HttpPost]
+        public async Task<IActionResult> AplicarDescuentoMasivo(decimal dias, string motivo)
+        {
+            int usuarioRhId = ObtenerUsuarioIdActual();
+            if (usuarioRhId == 0) return Unauthorized();
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand("sp_Vacaciones_DescuentoMasivo", conn))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.Parameters.AddWithValue("@DiasADescontar", dias);
+                        cmd.Parameters.AddWithValue("@UsuarioRHID", usuarioRhId);
+                        cmd.Parameters.AddWithValue("@Observaciones", motivo);
+
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+                return Json(new { success = true, message = "Descuento aplicado correctamente a todos los colaboradores." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en Descuento Masivo");
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+
+
+        //NOTIFICACIOONES POR CORREO 
+
+        // 1. Notificar al Comprador que ya tiene una requisición aprobada para generar la O.C.
+        private async Task NotificarCompra_RequisicionListaAsync(int solicitudId, string idRequisicion, bool esDesviacion)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    var sql = @"SELECT Folio, PuestoAsignado FROM Compras_Solicitud WHERE SolicitudID = @id";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", solicitudId);
+                        using (var rd = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await rd.ReadAsync())
+                            {
+                                var folio = rd["Folio"].ToString();
+                                var puesto = rd["PuestoAsignado"].ToString();
+
+                                // Buscamos a las personas con ese puesto para mandarles correo
+                                var compradoresIds = new List<int>();
+                                var sqlCompradores = "SELECT PersonaID FROM Persona WHERE Puesto = @puesto AND EsColaboradorActivo = 1";
+                                // (Lógica para llenar compradoresIds...)
+
+                                var asunto = $"Requisición Lista - Folio {folio}";
+                                var html = $@"<h2>Requisición Autorizada</h2>
+                                      <p>Control Presupuestal ha liberado la requisición <b>{idRequisicion}</b>.</p>
+                                      {(esDesviacion ? "<p style='color:red;'><b>Nota:</b> Esta compra incluye una desviación aprobada.</p>" : "")}
+                                      <p>Favor de proceder con la creación de la Orden de Compra.</p>";
+
+                                await _notif.EnviarABccPersonasAsync(compradoresIds, asunto, html);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { _logger.LogError(ex, "Error notificar compra"); }
+        }
+
+        // 2. Notificar al Usuario Solicitante sobre el dictamen
+        private async Task NotificarUsuario_DictamenPresupuestalAsync(int solicitudId, bool aprobado, string motivo)
+        {
+            // Lógica similar enviando correo al UsuarioID de la solicitud
+            // Indicando si fue 'Aprobado' o 'Rechazado' por Control Presupuestal.
+        }
+
+
+
+
+
+
+
+
+
+
+        //QUITAR HELPERS
 
         //Helpers para convertir
 

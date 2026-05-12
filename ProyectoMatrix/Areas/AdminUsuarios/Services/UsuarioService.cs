@@ -237,16 +237,18 @@ WHERE fe.TienePermiso = 1;";
     new SqlParameter("@NumeroEmpleado", (object)usuario.NumeroEmpleado ?? DBNull.Value),
     new SqlParameter("@Puesto", (object)usuario.Puesto ?? DBNull.Value),
     new SqlParameter("@FechaNacimiento", (object)usuario.FechaNacimiento ?? DBNull.Value),
-    new SqlParameter("@ClaveEmpleadoNomina", (object)usuario.ClaveEmpleadoNomina ?? DBNull.Value)
+    new SqlParameter("@ClaveEmpleadoNomina", (object)usuario.ClaveEmpleadoNomina ?? DBNull.Value),
+    new SqlParameter("@DepartamentoID", (object)usuario.DepartamentoID ?? DBNull.Value)
+   
 
 
-            };
+        };
 
             await _context.Database.ExecuteSqlRawAsync(
      @"EXEC sp_ActualizarUsuario 
         @UsuarioID, @Nombre, @ApellidoPaterno, @Correo, @RolID, @Activo, 
         @ApellidoMaterno, @Telefono, @EmpresasIDs, @SubMenuIDs, 
-        @FechaIngreso, @JefeInmediatoPersonaID, @NumeroEmpleado, @Puesto,@FechaNacimiento",
+        @FechaIngreso, @JefeInmediatoPersonaID, @NumeroEmpleado, @Puesto,@FechaNacimiento,@DepartamentoID",
      parameters);
         }
 

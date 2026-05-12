@@ -1,20 +1,21 @@
 ﻿@model List<ProyectoMatrix.Models.VacacionesSolicitudRHVm>
 
-
 @{
     ViewData["Title"] = "Solicitudes pendientes autorizadas";
     Layout = "_LayoutComunicados";
 }
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <link href="~/css/stylesVacacionesSPRH.css" rel="stylesheet" />
+
 <h2>Solicitudes de vacaciones pendientes de registro en RRHH</h2>
 
-<div class="modal-footer">
-    <a asp-controller="Vacaciones" asp-action="MisVacaciones" asp-route-id="1" class="btn btn-secondary">
-        Volver a Mis Vacaciones 
+<div class="mb-3 text-end">
+    <a asp-controller="Vacaciones" asp-action="MisVacaciones" class="btn btn-secondary">
+        Volver a Mis Vacaciones
     </a>
 </div>
-
 
 @if (TempData["MensajeVacacionesRH"] != null)
 {
@@ -30,6 +31,51 @@
     </div>
 }
 
+@* BLOQUE CORREGIDO: Declaración única de la variable *@
+@{
+    var habilitaciones = ViewBag.HabilitacionesEspeciales as List<ProyectoMatrix.Models.HabilitacionPendienteRHVm>;
+}
+
+@if (habilitaciones != null && habilitaciones.Any())
+{
+    <div class="card border-primary mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white py-2">
+            <h6 class="mb-0"><i class="fas fa-key me-2"></i>Validación de Vacaciones Adelantadas</h6>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Colaborador</th>
+                        <th>Motivo</th>
+                        <th>VoBo Jefe</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var h in habilitaciones)
+                    {
+                        <tr>
+                            <td><strong>@h.NombreColaborador</strong></td>
+                            <td><small class="text-muted">@h.Motivo</small></td>
+                            <td>
+                                <span class="badge bg-success-subtle text-success border">@h.NombreJefe</span>
+                                <div class="text-muted small" style="font-size:0.7rem">@h.FechaAutorizacionJefe.ToString("g")</div>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <button onclick="finalizarHabilitacion(@h.HabilitacionID, true)" class="btn btn-primary btn-sm">Confirmar</button>
+                                    <button onclick="finalizarHabilitacion(@h.HabilitacionID, false)" class="btn btn-outline-danger btn-sm">Denegar</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
 @if (!string.IsNullOrEmpty(ViewBag.Error as string))
 {
     <div class="alert alert-danger">@ViewBag.Error</div>
@@ -42,46 +88,76 @@
 else
 {
     <div class="table-responsive">
-    <table class="table table-sm table-striped">
-        <thead>
-            <tr>
-                <th>Folio</th>
-                <th>Empleado</th>
-                <th>Nombre</th>
-                <th>Fecha solicitud</th>
-                <th>Periodo</th>
-                <th>Días</th>
-                <th>Anticipada</th>
-                <th>Estado jefe</th>
-                <th>Estado RH</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var s in Model)
-            {
+        <table class="table table-sm table-striped">
+            <thead>
                 <tr>
-                    <td>@s.SolicitudVacacionesID</td>
-                    <td>@s.NumeroEmpleado</td>
-                    <td>@s.NombreColaborador</td>
-                    <td>@s.FechaSolicitud.ToString("dd/MM/yyyy")</td>
-                    <td>@s.FechaInicio.ToString("dd/MM/yyyy") - @s.FechaFin.ToString("dd/MM/yyyy")</td>
-                    <td>@s.DiasSolicitados</td>
-                    <td>@(s.EsAnticipada ? "Sí" : "No")</td>
-                    <td>@s.EstadoAutorizacion</td>
-                    <td>@s.EstadoRecursosHumanos</td>
-                    <td>
-                        <form asp-action="RegistrarComoRH" method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
-                            <button type="submit" class="btn btn-sm btn-success">
-                                Registrar en RH
-                            </button>
-                        </form>
-                    </td>
+                    <th>Folio</th>
+                    <th>Empleado</th>
+                    <th>Nombre</th>
+                    <th>Fecha solicitud</th>
+                    <th>Periodo</th>
+                    <th>Días</th>
+                    <th>Anticipada</th>
+                    <th>Estado jefe</th>
+                    <th>Estado RH</th>
+                    <th></th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var s in Model)
+                {
+                    <tr>
+                        <td>@s.SolicitudVacacionesID</td>
+                        <td>@s.NumeroEmpleado</td>
+                        <td>@s.NombreColaborador</td>
+                        <td>@s.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                        <td>@s.FechaInicio.ToString("dd/MM/yyyy") - @s.FechaFin.ToString("dd/MM/yyyy")</td>
+                        <td>@s.DiasSolicitados</td>
+                        <td>@(s.EsAnticipada ? "Sí" : "No")</td>
+                        <td>@s.EstadoAutorizacion</td>
+                        <td>@s.EstadoRecursosHumanos</td>
+                        <td>
+                            <form asp-action="RegistrarComoRH" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
+                                <button type="submit" class="btn btn-sm btn-success">Registrar en RH</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
+}
+
+@section Scripts {
+    <script>
+        function finalizarHabilitacion(id, aprobado) {
+            const titulo = aprobado ? '¿Confirmar habilitación final?' : '¿Rechazar solicitud?';
+            const msg = aprobado ? 'Esto activará el permiso en el perfil del usuario inmediatamente.' : 'El usuario no podrá solicitar vacaciones adelantadas.';
+
+            Swal.fire({
+                title: titulo,
+                text: msg,
+                icon: aprobado ? 'info' : 'warning',
+                showCancelButton: true,
+                confirmButtonText: aprobado ? 'Sí, habilitar' : 'Sí, denegar',
+                confirmButtonColor: aprobado ? '#0d6efd' : '#dc3545'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('@Url.Action("AprobarHabilitacionFinal", "Vacaciones")', {
+                        habilitacionId: id,
+                        aprobado: aprobado
+                    }, function (res) {
+                        if (res.success) {
+                            Swal.fire('Proceso Completado', 'El switch del usuario ha sido actualizado.', 'success')
+                                .then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', res.message, 'error');
+                        }
+                    });
+                }
+            });
+        }
+    </script>
 }

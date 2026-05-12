@@ -44,5 +44,9 @@ namespace ProyectoMatrix.Areas.AdminUsuarios.DTOs
 
         public int? JefeInmediatoPersonaID { get; set; }
 
+        public int? DepartamentoID { get; set; }
+        public string? NombreDepartamento { get; set; }
+        public string? JefeInmediatoNombreCompleto { get; set; }
+
     }
 }

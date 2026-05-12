@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Mvc.Rendering;
+using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace ProyectoMatrix.Models
@@ -42,6 +43,8 @@ namespace ProyectoMatrix.Models
 
     public class MisVacacionesVm
     {
+        public int UsuarioID { get; set; }
+
         public string NombreCompleto { get; set; }
         public string NumeroEmpleado { get; set; }
         public VacacionesResumenAnualVm ResumenActual { get; set; }
@@ -94,6 +97,8 @@ namespace ProyectoMatrix.Models
         public bool EsAnticipada { get; set; }
         public string EstadoAutorizacion { get; set; }
         public string EstadoRecursosHumanos { get; set; }
+
+        public List<HabilitacionPendienteRHVm> HabilitacionesEspeciales { get; set; } = new();
     }
 
     //Modelo para el formato imprimible de solicitud de vacaiones
@@ -191,6 +196,7 @@ namespace ProyectoMatrix.Models
         public List<VacacionesVistaExcelVm> VistaExcel { get; set; } = new();
 
 
+          public List<HabilitacionPendienteRHVm> HabilitacionesEspeciales { get; set; } = new();
     }
 
     public class SolicitudesPendientesJefePantallaVm
@@ -198,7 +204,31 @@ namespace ProyectoMatrix.Models
         public List<VacacionesSolicitudJefeVm> Pendientes { get; set; } = new();
         public List<VacacionesSolicitudJefeVm> Proximas { get; set; } = new();
         public List<VacacionesSolicitudJefeVm> Historial { get; set; } = new();
+
+        public List<HabilitacionPendienteJefeVm> HabilitacionesPendientes { get; set; } = new();
+
     }
+
+    public class HabilitacionPendienteJefeVm
+    {
+        public int HabilitacionID { get; set; }
+        public string NombreColaborador { get; set; }
+        public string Motivo { get; set; }
+        public DateTime FechaSolicitud { get; set; }
+    }
+
+
+
+    //Modelo para habilitacion de RRHH
+    public class HabilitacionPendienteRHVm
+    {
+        public int HabilitacionID { get; set; }
+        public string NombreColaborador { get; set; }
+        public string Motivo { get; set; }
+        public string NombreJefe { get; set; } // Para que RRHH sepa quién autorizó
+        public DateTime FechaAutorizacionJefe { get; set; }
+    }
+
 
     public class VacacionesVistaExcelVm
     {
@@ -222,8 +252,35 @@ namespace ProyectoMatrix.Models
 
 
 
+    public class SolicitudHabilitacionDTO
+    {
+        public int UsuarioID { get; set; }
+        public string Motivo { get; set; }
+        // Podrías agregar el nombre del usuario para mostrarlo en las listas de RH
+        public string? NombreColaborador { get; set; }
+    }
 
 
+    public class RegistrarVacacionManualVm
+    {
+        public int PersonaID { get; set; }
+        public string NombreEmpleado { get; set; }
+        public DateTime FechaInicio { get; set; }
+        public DateTime FechaFin { get; set; }
+        public decimal DiasATomar { get; set; }
+        public string Observaciones { get; set; }
+
+
+    }
+
+    // Modelo para crear solicitud del equipo
+    public class CrearSolicitudEquipoVm : CrearSolicitudVacacionesVm
+    {
+        [Required(ErrorMessage = "Debe seleccionar a un colaborador.")]
+        public int PersonaID { get; set; }
+        public string? NombreColaborador { get; set; }
+        public List<SelectListItem> MiEquipo { get; set; } = new();
+    }
 
 
 }

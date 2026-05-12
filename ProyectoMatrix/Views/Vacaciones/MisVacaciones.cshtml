@@ -1,5 +1,6 @@
 ﻿@model ProyectoMatrix.Models.MisVacacionesVm
 
+
 @{
     ViewData["Title"] = "Mis vacaciones";
     Layout = "_LayoutComunicados";
@@ -28,7 +29,11 @@
         .ToList() ?? new List<ProyectoMatrix.Models.VacacionesSolicitudItemVm>();
 }
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <link href="~/css/stylesVacacionesMV.css" rel="stylesheet" />
+
 
 <h2>Mis vacaciones</h2>
 
@@ -40,25 +45,69 @@
 }
 
 <div class="mb-3">
-    <a asp-action="CrearSolicitud" class="btn btn-primary">Solicitar vacaciones</a>
+    <div class="mb-3">
+        @* Si tiene saldo o ya tiene permiso de adelantadas, botón normal *@
+        @if (Model.ResumenActual != null && (Model.ResumenActual.DiasDisponibles > 0 || ViewBag.PermiteAdelantadas == true))
+        {
+            <a asp-action="CrearSolicitud" class="btn btn-primary">Solicitar vacaciones</a>
+        }
+        else
+        {
+            @* Si NO tiene saldo y NO tiene permiso, botón de excepción *@
+            <button type="button" class="btn btn-warning" onclick="abrirModalExcepcion()">
+                <i class="fas fa-lock-open me-1"></i> Solicitar habilitación de adelantadas
+            </button>
+        }
 
-    @if (ViewBag.EsJefeInmediato == true)
-    {
-        <a asp-action="SolicitudesPendientesJefe" class="btn btn-outline-secondary ms-2">
-            Solicitudes de mi equipo
-        </a>
-    }
 
-    @if (ViewBag.EsUsuarioRH == true)
-    {
-        <a asp-action="SolicitudesPendientesRH" class="btn btn-outline-warning ms-2">
-            Solicitudes para registro RH
-        </a>
+        @if (ViewBag.EsJefeInmediato == true)
+        {
+            <a asp-action="SolicitudesPendientesJefe" class="btn btn-outline-secondary ms-2">
+                Solicitudes de mi equipo
+            </a>
 
-        <a asp-action="BandejaRH" asp-route-filtro="por_registrar" class="btn btn-outline-info ms-2">
-            Bandeja RH (consulta + saldo)
-        </a>
-    }
+            
+                <a asp-action="CrearSolicitudEquipo" class="btn btn-dark">
+                    <i class="fas fa-user-plus me-1"></i> Registrar Vacaciones de un Colaborador
+                </a>
+           
+        }
+
+        @if (ViewBag.EsUsuarioRH == true)
+        {
+            <a asp-action="SolicitudesPendientesRH" class="btn btn-outline-warning ms-2">
+                Solicitudes para registro RH
+            </a>
+
+            <a asp-action="BandejaRH" asp-route-filtro="por_registrar" class="btn btn-outline-info ms-2">
+                Bandeja RH (consulta + saldo)
+            </a>
+
+          
+        }
+    </div>
+
+    @* Agregamos el Modal de Justificación aquí mismo para que sea inmediato *@
+    <div class="modal fade" id="modalSolicitarAdelantadas" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title font-weight-bold">Justificación de Vacaciones Adelantadas</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted">Explica detalladamente por qué necesitas que se te habiliten vacaciones antes de cumplir tu aniversario.</p>
+                    <textarea id="txtMotivoAdelantadas" class="form-control" rows="4" placeholder="Escribe aquí tu motivo..."></textarea>
+                    <input type="hidden" id="hdnUsuarioID" value="@Model.UsuarioID" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-warning" onclick="enviarSolicitudHabilitacion()">Enviar a Jefe y RH</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 @if (!string.IsNullOrEmpty(ViewBag.Error as string))
@@ -121,4 +170,44 @@
 
     <h5 class="mt-4">Vacaciones rechazadas (historial)</h5>
     @Html.Partial("_TablaSolicitudesVacaciones", rechazadas)
+}
+
+@section Scripts {
+    <script>
+        function abrirModalExcepcion() {
+            $('#modalSolicitarAdelantadas').modal('show');
+        }
+
+                function enviarSolicitudHabilitacion() {
+            const motivo = $('#txtMotivoAdelantadas').val();
+            const usuarioId = $('#hdnUsuarioID').val();
+
+            // Validación básica de cliente
+            if (!motivo || motivo.trim().length < 15) {
+                
+                Swal.fire({
+                    title: 'Atención',
+                    text: 'Por favor ingresa un motivo más descriptivo (mínimo 15 caracteres).',
+                    icon: 'warning',
+                    confirmButtonColor: '#ff6d00'
+                });
+                return;
+            }
+
+            
+            const idNum = parseInt(usuarioId);
+
+            $.post('@Url.Action("SolicitarHabilitacion", "Vacaciones")', { usuarioId: idNum, motivo: motivo }, function (res) {
+                if (res.success) {
+                    Swal.fire('Solicitud Enviada', 'Tu jefe y RH revisarán tu motivo.', 'success').then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', res.message, 'error');
+                }
+            }).fail(function() {
+                Swal.fire('Error', 'No se pudo comunicar con el servidor.', 'error');
+            });
+        }
+    </script>
 }

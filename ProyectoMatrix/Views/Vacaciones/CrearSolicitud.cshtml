@@ -4,7 +4,6 @@
     ViewData["Title"] = "Solicitar vacaciones";
     Layout = "_LayoutComunicados";
 }
-<link href="~/css/stylesVacacionesCS.css" rel="stylesheet" />
 <h2>Solicitar vacaciones</h2>
 
 
@@ -50,3 +49,119 @@
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
 }
+
+        <style>
+    h2 {
+        color: #1a237e;
+        font-weight: 800;
+        margin: 20px 0 25px;
+        letter-spacing: -0.5px;
+    }
+
+        h2::after {
+            content: "";
+            display: block;
+            margin-top: 10px;
+            height: 4px;
+            width: 60px;
+            border-radius: 999px;
+            background: #ff6d00;
+        }
+
+    .alert-info {
+        background-color: #ffffff;
+        border: 2px solid #1a237e; /* Borde azul corporativo */
+        border-left: 8px solid #ff6d00; /* Acento naranja grueso */
+        color: #1a237e;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 8px 20px rgba(26, 35, 126, 0.1);
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+        .alert-info strong {
+            color: #1a237e;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+    form {
+        background: #ffffff;
+        padding: 30px;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        max-width: 600px;
+    }
+
+    .form-label {
+        color: #1a237e;
+        font-weight: 700;
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+    }
+
+    .form-control {
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 15px;
+        transition: all 0.2s ease;
+    }
+
+        .form-control:focus {
+            border-color: #ff6d00;
+            box-shadow: 0 0 0 4px rgba(255, 109, 0, 0.1);
+        }
+
+    /* --- Botones --- */
+    .btn {
+        border-radius: 10px !important;
+        font-weight: 700 !important;
+        padding: 12px 25px !important;
+        transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+        background-color: #1a237e !important;
+        border: none !important;
+        box-shadow: 0 8px 15px rgba(26, 35, 126, 0.2);
+    }
+
+        .btn-primary:hover {
+            background-color: #0d47a1 !important;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 20px rgba(26, 35, 126, 0.3);
+        }
+
+    /* Cancelar */
+    .btn-secondary {
+        background-color: #f1f5f9 !important;
+        color: #64748b !important;
+        border: none !important;
+    }
+
+        .btn-secondary:hover {
+            background-color: #e2e8f0 !important;
+            color: #1a237e !important;
+        }
+
+    /* Validación de Errores */
+    .text-danger {
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-top: 5px;
+        display: block;
+    }
+
+    .alert-danger {
+        border-radius: 12px;
+        border: none;
+        background-color: #fef2f2;
+        color: #991b1b;
+        border-left: 5px solid #ef4444;
+    }
+</style>
+   

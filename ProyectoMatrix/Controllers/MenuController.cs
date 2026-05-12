@@ -192,6 +192,12 @@ ORDER BY m.MenuID;";
                 var x when x.Contains("proyectos") => "/Proyectos/Index",
                 var x when x.Contains("comunicado") => "/Comunicados/Index",
                 var x when x.Contains("help") => "/HelpDesk/Index",
+                var x when x.Contains("compras") => "/Compras/Index",
+                var x when x.Contains("nacional") => "/Compras/Nacional",
+                var x when x.Contains("guias") => "/Logistica/Guias",
+                var x when x.Contains("transporte") => "/Logistica/Transporte",
+                var x when x.Contains("directorio") => "/Directorio/Index",
+                var x when x.Contains("KPIS") => "/Operaciones/Index",
                 _ => "/"
             };
         }
@@ -211,12 +217,17 @@ ORDER BY m.MenuID;";
                 var s when s.Contains("lider") => "fa-user-shield",  
                 var s when s.Contains("comunicado") || s.Contains("anuncio") => "fa-bullhorn",
                 var s when s.Contains("mejora") || s.Contains("continua") => "fa-chart-line",
-                var s when s.Contains("compra") => "fa-shopping-cart",
-                var s when s.Contains("logistica") => "fa-truck",
+                var s when s.Contains("nacional") => "fa-shopping-cart",
+                var s when s.Contains("transporte") => "fa-truck",
                 var s when s.Contains("embarque") => "fa-ship",
                 var s when s.Contains("help") || s.Contains("soporte") || s.Contains("asistencia") => "fa-circle-question",  // ✅ FA6 FREE
                 var s when s.Contains("ticket") => "fa-ticket",
                 var s when s.Contains("proyecto") => "fa-folder-open",
+                var s when s.Contains("internacional") => "fa-plane-departure",
+                var s when s.Contains("guias") => "fa-map-location-dot",
+                var s when s.Contains("directorio") => "fa-address-book",
+
+
                 _ => "fa-cogs"
             };
         }
@@ -252,9 +263,13 @@ ORDER BY m.MenuID;";
                 var x when x.Contains("líder") || x.Contains("lider") => "Comunicación entre líderes",
                 var x when x.Contains("comunicado") => "Anuncios y comunicaciones internas",
                 var x when x.Contains("mejora") => "Procesos de mejora continua",
-                var x when x.Contains("compra") => "Solicitudes y gestión de compras",
-                var x when x.Contains("logística") => "Gestión logística y entregas",
+                var x when x.Contains("nacional") => "Solicitudes y gestión de compras nacionales",
+                var x when x.Contains("guias") => "Gestión logística y entregas",
                 var x when x.Contains("help") => "Soporte técnico y asistencia",
+                var x when x.Contains("internacional") => "Solicitudes y gestión de compras internacionales",
+                var x when x.Contains("transporte") => "Gestión logística y entregas",
+                var x when x.Contains("directorio") => "Directorio de usuarios",
+
                 _ => $"Accede a {nombreMenu}"
             };
         }

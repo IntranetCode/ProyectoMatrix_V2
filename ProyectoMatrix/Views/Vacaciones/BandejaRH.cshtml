@@ -6,6 +6,10 @@
     var tab = (Model?.Tab ?? "autorizadas").ToLower();
 }
 
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <h2>Bandeja RH - Vacaciones</h2>
 
 @if (!string.IsNullOrEmpty(ViewBag.Error as string))
@@ -69,12 +73,13 @@
 @if (tab == "vistaexcel")
 {
     <form method="get" asp-action="BandejaRH" class="row g-2 mb-3">
-        <input type="hidden" name="tab" value="@tab" />
+        @* Es vital que el tab se envíe como "vistaexcel" *@
+        <input type="hidden" name="tab" value="vistaexcel" />
 
         <div class="col-sm-6 col-md-4 col-lg-3">
-            <input type="text" name="q" value="@(ViewBag.Q ?? "")"
+            <input type="text" name="q" value="@ViewBag.Q"
                    class="form-control form-control-sm"
-                   placeholder="Buscar..." />
+                   placeholder="Buscar por nombre o N°2..." />
         </div>
 
         <div class="col-auto">
@@ -85,63 +90,80 @@
         {
             <div class="col-auto">
                 <a class="btn btn-sm btn-outline-danger"
-                   asp-action="BandejaRH" asp-route-tab="@tab">
+                   asp-action="BandejaRH" asp-route-tab="vistaexcel">
                     Limpiar
                 </a>
             </div>
         }
     </form>
 
-
-    <table class="table table-sm table-striped align-middle">
-        <thead>
-            <tr>
-                <th>N°</th>
-                <th>N°2</th>
-                <th>Sociedad</th>
-                <th>Nombre</th>
-                <th>Puesto</th>
-                <th>Departamento</th>
-                <th>F. de ingreso</th>
-                <th>HOY</th>
-                <th>Antigüedad (AA-MM)</th>
-                <th>Antigüedad (años)</th>
-                <th>Días correspond.</th>
-                <th>Días pendientes</th>
-                <th>Días disponibles</th>
-            </tr>
-        </thead>
-        <tbody>
-            @if (Model?.VistaExcel != null && Model.VistaExcel.Any())
-            {
-                foreach (var x in Model.VistaExcel)
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>N°</th>
+                    <th>N°2</th>
+                    <th>Sociedad</th>
+                    <th>Nombre</th>
+                    <th>Puesto</th>
+                    <th>Departamento</th>
+                    <th>F. de ingreso</th>
+                    <th>HOY</th>
+                    <th>Antigüedad (AA-MM)</th>
+                    <th>Antigüedad (años)</th>
+                    <th>Días correspond.</th>
+                    <th>Días pendientes</th>
+                    <th>Días disponibles</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model?.VistaExcel != null && Model.VistaExcel.Any())
                 {
-                    <tr>
-                        <td>@x.N</td>
-                        <td>@x.N2</td>
-                        <td>@x.Sociedad</td>
-                        <td>@x.Nombre</td>
-                        <td>@x.Puesto</td>
-                        <td>@x.Departamento</td>
-                        <td>@x.FechaIngreso.ToString("dd/MM/yyyy")</td>
-                        <td>@x.Hoy.ToString("dd/MM/yyyy")</td>
-                        <td>@x.AntiguedadAniosMeses</td>
-                        <td>@x.AntiguedadAnios</td>
-                        <td>@x.DiasCorrespondientes</td>
-                        <td>@x.DiasPendientes</td>
-                        <td><strong>@x.DiasDisponibles</strong></td>
-                    </tr>
+                    foreach (var x in Model.VistaExcel)
+                    {
+                        <tr>
+                            <td>@x.N</td>
+                            <td>@x.N2</td>
+                            <td>@x.Sociedad</td>
+                            <td>@x.Nombre</td>
+                            <td>@x.Puesto</td>
+                            <td>@x.Departamento</td>
+                            <td>@x.FechaIngreso.ToString("dd/MM/yyyy")</td>
+                            <td>@x.Hoy.ToString("dd/MM/yyyy")</td>
+                            <td>@x.AntiguedadAniosMeses</td>
+                            <td>@x.AntiguedadAnios</td>
+                            <td>@x.DiasCorrespondientes</td>
+                            <td>@x.DiasPendientes</td>
+                            <td><strong>@x.DiasDisponibles</strong></td>
+                        </tr>
+                    }
                 }
-            }
-            else
-            {
-                <tr><td colspan="13" class="text-muted">No hay datos para mostrar.</td></tr>
-            }
-        </tbody>
-    </table>
+                else
+                {
+                    <tr><td colspan="13" class="text-center text-muted">No hay datos para mostrar.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 else if (tab == "usuarios")
 {
+    <div class="mb-3">
+    <form method="get" action="@Url.Action("BandejaRH")">
+        <input type="hidden" name="tab" value="usuarios" />
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="Buscar por nombre o # empleado..." value="@ViewBag.Query">
+            <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+            <a href="@Url.Action("BandejaRH", new { tab = "usuarios" })" class="btn btn-outline-danger">Limpiar</a>
+
+                <button type="button" class="btn btn-danger" onclick="abrirModalMasivo()">
+                    <i class="fas fa-users-slash me-1"></i> Descuento Masivo
+                </button>
+        </div>
+    </form>
+</div>
+
+
     <table class="table table-sm table-striped">
         <thead>
             <tr>
@@ -157,6 +179,7 @@ else if (tab == "usuarios")
                 <th>Disponibles</th>
                 <th>Anticipadas Reg.</th>
                 <th>Anticipadas Por Reg.</th>
+                <th>Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -177,6 +200,13 @@ else if (tab == "usuarios")
                         <td><strong>@u.DiasDisponibles</strong></td>
                         <td>@u.AnticipadasRegistradas</td>
                         <td>@u.AnticipadasPorRegistrar</td>
+                        <td>
+                          
+                            <button class="btn btn-sm btn-outline-primary"
+                                    onclick="abrirModalAjuste(@u.PersonaID, '@u.NombreCompleto')">
+                                <i class="fas fa-plus-circle"></i> Cargar Historial
+                            </button>
+                        </td>
                     </tr>
                 }
             }
@@ -233,6 +263,118 @@ else
         </tbody>
     </table>
 }
+
+<div class="modal fade" id="modalAjusteManual" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Registrar Vacaciones (Historial)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Cargando historial para: <strong id="lblNombreEmpleado"></strong></p>
+                <input type="hidden" id="txtPersonaID" />
+
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="form-label">Fecha Inicio</label>
+                        <input type="date" id="txtFechaInicio" class="form-control" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Fecha Fin</label>
+                        <input type="date" id="txtFechaFin" class="form-control" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Días a descontar (decimales permitidos)</label>
+                        <input type="number" step="0.5" id="txtDiasAjuste" class="form-control" placeholder="Ej. 2" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Observaciones (Referencia)</label>
+                        <textarea id="txtObsAjuste" class="form-control" rows="2" placeholder="Ej. Vacaciones tomadas en 2024 antes del sistema"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarAjusteManual()">Guardar Registro</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function abrirModalAjuste(personaId, nombre) {
+        $('#txtPersonaID').val(personaId);
+        $('#lblNombreEmpleado').text(nombre);
+        $('#modalAjusteManual').modal('show');
+    }
+
+    function guardarAjusteManual() {
+        const data = {
+            PersonaID: $('#txtPersonaID').val(),
+            FechaInicio: $('#txtFechaInicio').val(),
+            FechaFin: $('#txtFechaFin').val(),
+            DiasATomar: $('#txtDiasAjuste').val(),
+            Observaciones: $('#txtObsAjuste').val()
+        };
+
+        if (!data.FechaInicio || !data.FechaFin || !data.DiasATomar) {
+            Swal.fire('Atención', 'Por favor completa los campos de fechas y días.', 'warning');
+            return;
+        }
+
+        Swal.fire({
+            title: '¿Registrar ajuste?',
+            text: "Esto afectará el saldo disponible del usuario de inmediato.",
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, registrar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('@Url.Action("GuardarAjusteManual", "Vacaciones")', data, function (res) {
+                    if (res.success) {
+                        Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', res.message, 'error');
+                    }
+                });
+            }
+        });
+    }
+
+        function abrirModalMasivo() {
+        Swal.fire({
+            title: 'Descuento Masivo de Días',
+            html: `
+                <input type="number" id="diasMasivo" class="swal2-input" placeholder="Cantidad de días (ej. 1)" step="0.5">
+                <textarea id="motivoMasivo" class="swal2-textarea" placeholder="Motivo del descuento masivo..."></textarea>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Aplicar a TODOS',
+            confirmButtonColor: '#dc3545',
+            preConfirm: () => {
+                const dias = document.getElementById('diasMasivo').value;
+                const motivo = document.getElementById('motivoMasivo').value;
+                if (!dias || !motivo) {
+                    Swal.showValidationMessage('Ambos campos son obligatorios');
+                }
+                return { dias: dias, motivo: motivo };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('@Url.Action("AplicarDescuentoMasivo", "Vacaciones")', result.value, function(res) {
+                    if (res.success) {
+                        Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', res.message, 'error');
+                    }
+                });
+            }
+        });
+    }
+</script>
+
 
 <style>
     /* --- Ajustes Generales y Título --- */
@@ -362,3 +504,6 @@ else
         font-weight: 600;
     }
 </style>
+
+
+   

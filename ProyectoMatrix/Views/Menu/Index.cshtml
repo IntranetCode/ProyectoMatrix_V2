@@ -32,8 +32,8 @@
 
     // Enlaces externos
     var enlacesMejoraContina = "https://nsgroupmx.sharepoint.com/sites/ProcesosyMejoraContinua";
-    var enlacesCompras = "https://forms.office.com/r/K7u3UMVVKi";
-    var enlacesLogistica = "https://forms.office.com/r/77fwUyxuE0";
+  //  var enlacesCompras = "https://forms.office.com/r/K7u3UMVVKi";
+  //  var enlacesLogistica = "https://forms.office.com/r/77fwUyxuE0";
     var enlacesEmbarques = "https://forms.office.com/r/MRjsPtpUrv";
    
 
@@ -171,7 +171,7 @@
                     <h2 class="action-title">Mejora Continua</h2>
                     <p class="action-description">Procesos y mejora continua del grupo</p>
                 </article>
-                <article class="action-card compras" data-href-external="@enlacesCompras" role="button" tabindex="0">
+              @*  <article class="action-card compras" data-href-external="@enlacesCompras" role="button" tabindex="0">
                     <div class="external-link-badge">Forms</div>
                     <div class="action-icon" aria-hidden="true"><i class="fas fa-shopping-cart"></i></div>
                     <h2 class="action-title">Compras</h2>
@@ -182,7 +182,7 @@
                     <div class="action-icon" aria-hidden="true"><i class="fas fa-truck"></i></div>
                     <h2 class="action-title">Logística</h2>
                     <p class="action-description">Gestión logística y entregas</p>
-                </article>
+                </article>*@
                 <article class="action-card embarques" data-href-external="@enlacesEmbarques" role="button" tabindex="0">
                     <div class="external-link-badge">Forms</div>
                     <div class="action-icon" aria-hidden="true"><i class="fas fa-ship"></i></div>
@@ -663,6 +663,7 @@
             var x when x.Contains("líder") || x.Contains("lider") => "lider",
             var x when x.Contains("comunicados") => "comunicados",
             var x when x.Contains("proyectos") => "proyectos",
+            var x when x.Contains("directorio") => "directorio",
             _ => ""
         };
     }

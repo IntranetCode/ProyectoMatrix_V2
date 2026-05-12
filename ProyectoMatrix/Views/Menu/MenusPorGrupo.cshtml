@@ -32,8 +32,8 @@
 
     // Enlaces externos
     var enlacesMejoraContina = "https://nsgroupmx.sharepoint.com/sites/ProcesosyMejoraContinua";
-    var enlacesCompras = "https://forms.office.com/r/K7u3UMVVKi";
-    var enlacesLogistica = "https://forms.office.com/r/77fwUyxuE0";
+   // var enlacesCompras = "https://forms.office.com/r/K7u3UMVVKi";
+   // var enlacesLogistica = "https://forms.office.com/r/77fwUyxuE0";
     var enlacesEmbarques = "https://forms.office.com/r/MRjsPtpUrv";
 
 
@@ -618,12 +618,19 @@
     {
         if (string.IsNullOrEmpty(menuNombre)) return "";
         var menuLower = menuNombre.ToLowerInvariant();
+
+        var nm = menuNombre.ToLowerInvariant();
+
+        if (nm.Contains("internacional")) return "compras-internacional";
+        if (nm.Contains("nacional")) return "compras-nacional";
+
         return menuLower switch
         {
             var x when x.Contains("universidad") => "universidad",
             var x when x.Contains("líder") || x.Contains("lider") => "lider",
             var x when x.Contains("comunicados") => "comunicados",
             var x when x.Contains("proyectos") => "proyectos",
+            var x when x.Contains("directorio") => "directorio",
             _ => ""
         };
     }

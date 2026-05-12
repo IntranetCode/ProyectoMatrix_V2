@@ -4,6 +4,9 @@
     ViewData["Title"] = "Solicitudes de mi equipo";
     Layout = "_LayoutComunicados";
 }
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 
 <link href="~/css/stylesVacacionesSPJ.css" rel="stylesheet" />
 
@@ -24,8 +27,43 @@
     <div class="alert alert-danger">@ViewBag.Error</div>
 }
 
-<!-- =================== PENDIENTES =================== -->
+
 <h5 class="mt-3">Pendientes de autorización</h5>
+
+@if (Model.HabilitacionesPendientes.Any())
+{
+    <div class="alert alert-light border-warning shadow-sm mb-4">
+        <h5 class="text-warning"><i class="fas fa-exclamation-circle me-2"></i>Peticiones de Vacaciones Adelantadas</h5>
+        <p class="small text-muted">Los siguientes colaboradores solicitan permiso para adelantar vacaciones debido a motivos especiales.</p>
+
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Colaborador</th>
+                        <th>Motivo Justificado</th>
+                        <th>Fecha</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var h in Model.HabilitacionesPendientes)
+                    {
+                        <tr>
+                            <td><strong>@h.NombreColaborador</strong></td>
+                            <td><i class="text-muted">"@h.Motivo"</i></td>
+                            <td>@h.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <button onclick="decidirHabilitacion(@h.HabilitacionID, true)" class="btn btn-success btn-sm">Aprobar Motivo</button>
+                                <button onclick="decidirHabilitacion(@h.HabilitacionID, false)" class="btn btn-outline-danger btn-sm">Rechazar</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
 
 @if (Model?.Pendientes == null || !Model.Pendientes.Any())
 {
@@ -82,7 +120,6 @@ else
     </table>
 }
 
-<!-- =================== PRÓXIMAS =================== -->
 <h5 class="mt-4">Próximas vacaciones</h5>
 <p class="text-muted small mb-2">Colaboradores que iniciarán vacaciones pronto.</p>
 
@@ -123,7 +160,7 @@ else
     </table>
 }
 
-<!-- =================== HISTORIAL =================== -->
+
 <h5 class="mt-4">Historial (todas)</h5>
 
 @if (Model?.Historial == null || !Model.Historial.Any())
@@ -164,3 +201,31 @@ else
         </tbody>
     </table>
 }
+
+                    <script>
+                            function decidirHabilitacion(id, aprobado) {
+        const texto = aprobado ? "¿Aprobar este motivo para vacaciones adelantadas?" : "¿Rechazar esta solicitud?";
+
+        Swal.fire({
+            title: 'Confirmar Decisión',
+            text: texto,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: aprobado ? '#198754' : '#dc3545',
+            confirmButtonText: aprobado ? 'Sí, Aprobar' : 'Sí, Rechazar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('@Url.Action("DecidirHabilitacionJefe", "Vacaciones")', {
+                    habilitacionId: id,
+                    aprobado: aprobado
+                }, function (res) {
+                    if (res.success) {
+                        Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', res.message, 'error');
+                    }
+                });
+            }
+        });
+    }
+                    </script>

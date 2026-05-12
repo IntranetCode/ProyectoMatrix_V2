@@ -70,7 +70,17 @@ namespace ProyectoMatrix.Models.ModelUsuarios
         public string? Puesto { get; set; }
         public DateTime? FechaNacimiento { get; set; }
         // En UsuarioFormViewModel.cs
-        public int? JefeInmediatoPersonaID { get; set; }  
+        public int? JefeInmediatoPersonaID { get; set; }
+
+        [ValidateNever]
+        public string? JefeInmediatoNombreCompleto { get; set; }
+
+       
+        public int? DepartamentoID { get; set; }
+
+        [ValidateNever]
+        public string? NombreDepartamento { get; set; }
+
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
@@ -87,7 +97,7 @@ namespace ProyectoMatrix.Models.ModelUsuarios
             }
         }
 
-
+        public bool PermiteAdelantadas { get; set; }
 
     } 
 }
