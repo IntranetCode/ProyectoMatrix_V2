@@ -1,30 +1,321 @@
-﻿<div class="card shadow">
-    <div class="card-body">
-        <h4 class="mb-5">Seguimiento de Folio: @Model.Folio</h4>
+﻿@model ProyectoMatrix.Models.DetalleCompraVm
 
-        <div class="dataline-stepper">
-            <div class="step-item @(Model.PasosCompletados.Contains(1) ? "completed" : "active")">
-                <div class="step-circle"><i class="fas fa-file-invoice"></i></div>
-                <div class="step-label">Solicitud</div>
-                <small class="text-muted">@Model.FechaSolicitud.ToString("dd/MM/yy")</small>
+@{
+    ViewData["Title"] = "Detalle de Solicitud";
+    Layout = "_LayoutComunicados";
+}
+
+<div class="container-fluid">
+    @* --- BARRA DE PROGRESO --- *@
+    <div class="card shadow mb-4">
+        <div class="card-body py-2">
+            <div class="row no-gutters align-items-center">
+                <div class="col mr-2">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Progreso del Proceso</div>
+                    <div class="progress progress-sm mr-2">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: @Model.Porcentaje%" aria-valuenow="@Model.Porcentaje" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Porcentaje%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Volver a la Bandeja
+        </a>
+    </div>
+
+    <div class="row">
+        @* COLUMNA IZQUIERDA *@
+        <div class="col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Folio: @Model.Folio</h6>
+                    <span class="badge @(Model.EstatusID == 5 ? "badge-danger" : "badge-success")">
+                        <i class="fas fa-info-circle mr-1"></i> @Model.EstatusActual
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6 border-left-primary">
+                            <label class="small font-weight-bold text-primary uppercase">Solicitante</label>
+                            <p class="h6 font-weight-bold text-gray-800">@Model.NombreSolicitante</p>
+                        </div>
+                        <div class="col-md-6 border-left-info">
+                            <label class="small font-weight-bold text-info uppercase">Empresa</label>
+                            <p class="h6 font-weight-bold text-gray-800">@Model.Empresa</p>
+                        </div>
+                    </div>
+
+                    <h6 class="font-weight-bold mt-4 text-gray-800"><i class="fas fa-list mr-2"></i>Artículos Requeridos</h6>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm" width="100%">
+                            <thead class="bg-gray-100 italic">
+                                <tr>
+                                    <th>Descripción</th>
+                                    <th class="text-center" style="width: 15%">Cant.</th>
+                                    <th class="text-center" style="width: 20%">U.M.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var mat in Model.Materiales)
+                                {
+                                    <tr>
+                                        <td>@mat.Nombre</td>
+                                        <td class="text-center">@mat.Cantidad</td>
+                                        <td class="text-center">@mat.UnidadMedida</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
-            <div class="step-item @(Model.PasosCompletados.Contains(2) ? "completed" : Model.EstatusActual == 2 ? "active" : "")">
-                <div class="step-circle"><i class="fas fa-search-dollar"></i></div>
-                <div class="step-label">Cotización</div>
-                <small class="text-muted">@(Model.FechaCotizacion?.ToString("dd/MM/yy") ?? "Pendiente")</small>
-            </div>
+            @* --- SECCIÓN DE DICTAMEN DENTRO DE LA COLUMNA IZQUIERDA --- *@
+            @if (Model.EstatusID >= 3 && Model.EstatusID != 5)
+            {
+                <div class="card shadow mb-4 border-left-info animate__animated animate__fadeIn">
+                    <div class="card-header py-3 bg-info text-white">
+                        <h6 class="m-0 font-weight-bold text-white"><i class="fas fa-gavel mr-2"></i>Veredicto Presupuestal</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 text-center border-right">
+                                <label class="small font-weight-bold text-muted uppercase d-block">Proceso</label>
+                                <span class="badge badge-pill badge-primary px-3">@Model.TipoGasto</span>
+                            </div>
+                            <div class="col-md-4 text-center border-right">
+                                <label class="small font-weight-bold text-muted uppercase d-block">Presupuesto</label>
+                                @if (Model.DentroPresupuesto == true)
+                                {
+                                    <span class="text-success font-weight-bold"><i class="fas fa-check-circle"></i> Liberado</span>
+                                }
+                                else
+                                {
+                                    <span class="text-warning font-weight-bold"><i class="fas fa-exclamation-triangle"></i> Desviación</span>
+                                }
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <label class="small font-weight-bold text-muted uppercase d-block">ID Requisición</label>
+                                <span class="h6 font-weight-bold text-dark">@(string.IsNullOrEmpty(Model.NumeroRequisicion) ? "N/A" : Model.NumeroRequisicion)</span>
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(Model.ObservacionesPresupuesto))
+                        {
+                            <div class="mt-3 p-2 bg-light border-left-info rounded text-sm">
+                                <small class="font-weight-bold text-info">Notas de Finanzas:</small>
+                                <p class="mb-0 italic">"@Model.ObservacionesPresupuesto"</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (Model.EstatusID == 5)
+            {
+                <div class="card shadow mb-4 border-left-danger">
+                    <div class="card-body text-center">
+                        <h5 class="text-danger font-weight-bold"><i class="fas fa-ban mr-2"></i>SOLICITUD RECHAZADA</h5>
+                        <p class="text-muted italic mb-0">Motivo: @Model.ObservacionesPresupuesto</p>
+                    </div>
+                </div>
+            }
+        </div>
 
-            <div class="step-item @(Model.PasosCompletados.Contains(3) ? "completed" : Model.EstatusActual == 3 ? "active" : "")">
-                <div class="step-circle"><i class="fas fa-check-double"></i></div>
-                <div class="step-label">Presupuesto</div>
-                <small class="text-muted">@(Model.IdRequisicion ?? "Esperando...")</small>
-            </div>
+        @* COLUMNA DERECHA *@
+        <div class="col-lg-5">
+            <div class="card shadow mb-4 border-left-primary">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-file-invoice-dollar mr-2"></i>Cotización Registrada</h6>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(ViewBag.RutaPdf))
+                    {
+                        <div class="border rounded bg-light mb-3" style="height: 500px; overflow: hidden;">
+                            <iframe src="@Url.Action("VerPdfNas", new { ruta = ViewBag.RutaPdf })#toolbar=0" width="100%" height="100%" style="border: none;"></iframe>
+                        </div>
+                        <div class="bg-gray-100 p-2 rounded text-center mb-3">
+                            <span class="small text-muted uppercase d-block">Monto Total</span>
+                            <span class="h4 font-weight-bold text-success">@string.Format("{0:C}", ViewBag.MontoFinal ?? 0)</span>
+                        </div>
 
-            <div class="step-item @(Model.PasosCompletados.Contains(5) ? "completed" : "")">
-                <div class="step-circle"><i class="fas fa-box-open"></i></div>
-                <div class="step-label">Entregado</div>
+                        @* ID del botón  para que coincida con el Script *@
+                        <button type="button" id="btnAbrirModal" class="btn btn-primary btn-block shadow">
+                            <i class="fas fa-expand-arrows-alt mr-2"></i> Pantalla Completa
+                        </button>
+                    }
+                    else
+                    {
+                        <form asp-action="ProcesarCotizacion" method="post" enctype="multipart/form-data">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="SolicitudID" value="@Model.SolicitudID" />
+                            <div class="form-group">
+                                <label class="small font-weight-bold">Monto Total (Sin IVA):</label>
+                                <input type="number" step="0.01" name="Monto" class="form-control" required />
+                            </div>
+                            <div class="form-group">
+                                <label class="small font-weight-bold">Archivo PDF:</label>
+                                <input type="file" name="ArchivoCotizacion" class="form-control-file" required accept=".pdf" />
+                            </div>
+                            <button type="submit" class="btn btn-success btn-block shadow">Enviar Cotización</button>
+                        </form>
+                    }
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+@* --- MODAL PERSONALIZADO (SIN BOOTSTRAP JS) --- *@
+<div id="miModalPersonalizado" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background-color: rgba(0,0,0,0.8);">
+    <div style="background-color: #fefefe; margin: 2% auto; padding: 0; border: 1px solid #888; width: 95%; height: 90vh; border-radius: 8px; overflow: hidden; position: relative;">
+        <div style="background: #4e73df; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;">
+            <h5 style="margin:0;"><i class="fas fa-file-pdf mr-2"></i> Folio @Model.Folio</h5>
+            <span id="btnCerrarModal" style="cursor:pointer; font-size: 28px; font-weight: bold;">&times;</span>
+        </div>
+        <div style="height: calc(90vh - 50px);">
+            @if (!string.IsNullOrEmpty(ViewBag.RutaPdf))
+            {
+                <iframe src="@Url.Action("VerPdfNas", new { ruta = ViewBag.RutaPdf })" width="100%" height="100%" style="border: none;"></iframe>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var modal = document.getElementById("miModalPersonalizado");
+            var btnAbrir = document.getElementById("btnAbrirModal");
+            var btnCerrar = document.getElementById("btnCerrarModal");
+
+            if(btnAbrir) {
+                btnAbrir.onclick = function() {
+                    modal.style.display = "block";
+                    document.body.style.overflow = "hidden";
+                }
+            }
+
+            if(btnCerrar) {
+                btnCerrar.onclick = function() {
+                    modal.style.display = "none";
+                    document.body.style.overflow = "auto";
+                }
+            }
+
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                    document.body.style.overflow = "auto";
+                }
+            }
+        });
+    </script>
+}
+
+            <style>
+    /* --- Barra de Progreso Dinámica --- */
+    .progress {
+        height: 12px;
+        background-color: #eaecf4;
+        border-radius: 10px;
+    }
+
+    .progress-bar {
+        background-color: #ff6b00 !important; /* Naranja para el avance */
+        box-shadow: 0 3px 10px rgba(255, 107, 0, 0.2);
+    }
+
+    /* --- Badges de Estatus --- */
+    .badge-success {
+        background-color: #004a99; /* Azul Corporativo */
+        padding: 8px 12px;
+    }
+
+    .badge-danger {
+        background-color: #e74a3b;
+        padding: 8px 12px;
+    }
+
+    /* --- Estructura de Columnas y Cards --- */
+    .border-left-primary {
+        border-left: 4px solid #004a99 !important;
+    }
+
+    .border-left-info {
+        border-left: 4px solid #36b9cc !important;
+    }
+
+    .border-left-danger {
+        border-left: 4px solid #e74a3b !important;
+    }
+
+    .uppercase {
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* --- Tabla de Artículos --- */
+    .table thead.bg-gray-100 {
+        background-color: #f8f9fc;
+        border-bottom: 2px solid #004a99;
+    }
+
+    .italic {
+        font-style: italic;
+    }
+
+    /* --- Sección de Dictamen (Veredicto) --- */
+    .card-header.bg-info {
+        background-color: #004a99 !important; /* Azul para el encabezado */
+        border: none;
+    }
+
+    .bg-light.border-left-info {
+        background-color: #f1f4ff !important;
+        border-left: 4px solid #36b9cc !important;
+        color: #2c3e50;
+    }
+
+    /* --- Visualización de PDF y Cotización --- */
+    .h4.text-success {
+        color: #1cc88a !important; /* Verde para montos aprobados */
+        font-size: 1.5rem;
+    }
+
+    .btn-primary.btn-block {
+        background-color: #004a99 !important;
+        border: none;
+        font-weight: 700;
+    }
+
+    .btn-success.btn-block {
+        background-color: #ff6b00 !important; /* Naranja para enviar cotización */
+        border: none;
+        font-weight: 700;
+    }
+
+        .btn-success.btn-block:hover {
+            background-color: #e65c00 !important;
+        }
+
+    /* --- Modal Personalizado --- */
+    #miModalPersonalizado h5 {
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    #miModalPersonalizado > div {
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        border: none !important;
+    }
+
+    /* Cabecera del modal personalizada con el azul del proyecto */
+    #miModalPersonalizado div:first-child div {
+        background: #004a99 !important;
+    }
+            </style>

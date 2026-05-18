@@ -17,8 +17,8 @@ public class ProyectosController : Controller
     private readonly ProyectosBD _proyectosBD;
     private readonly IConfiguration _config;
     private readonly IWebHostEnvironment _env;
-    private readonly RutaNas _rutaNas;          // Usamos solo ObtenerNombreCarpetaProyecto
-    private readonly ISftpStorage _sftp;        // Servicio SFTP con métodos en español
+    private readonly RutaNas _rutaNas;          //  solo ObtenerNombreCarpetaProyecto
+    private readonly ISftpStorage _sftp;        // Servicio SFTP 
 
     public ProyectosController(IConfiguration config, IWebHostEnvironment env, RutaNas rutaNas, ISftpStorage sftp)
     {
@@ -30,9 +30,8 @@ public class ProyectosController : Controller
         _sftp = sftp;
     }
 
-    // ==========================
-    // LISTADO / DASHBOARD
-    // ==========================
+   
+    // LISTADO 
     [HttpGet]
     [AutorizarAccion("Ver Proyectos", "Ver")]
     public async Task<IActionResult> Index(EstadoProyecto? estado = null, PrioridadProyecto? prioridad = null, string busqueda = null)
@@ -91,9 +90,8 @@ public class ProyectosController : Controller
         return View(viewModel);
     }
 
-    // ==========================
     // DETALLE (Gestor de archivos vía SFTP)
-    // ==========================
+    
     [HttpGet]
     [AutorizarAccion("Ver Proyectos", "Ver")]
     public async Task<IActionResult> Detalle(int id, int? carpetaId = null)
@@ -154,9 +152,7 @@ public class ProyectosController : Controller
         return View(vm);
     }
 
-    // ==========================
     // CREAR
-    // ==========================
     [HttpGet]
     [AutorizarAccion("Crear Proyectos", "Crear")]
     public IActionResult Crear()
@@ -258,9 +254,7 @@ public class ProyectosController : Controller
         }
     }
 
-    // ==========================
     // EDITAR
-    // ==========================
     [HttpGet]
     [AutorizarAccion("Editar proyecto", "Editar")]
     public async Task<IActionResult> Editar(int id)
@@ -338,9 +332,7 @@ public class ProyectosController : Controller
         return RedirectToAction("Detalle", new { id = actual.ProyectoID });
     }
 
-    // ==========================
     // AJAX: progreso / estado
-    // ==========================
     [HttpPost]
     public async Task<IActionResult> ActualizarProgreso([FromBody] ActualizarProgresoModel model)
     {
@@ -376,9 +368,7 @@ public class ProyectosController : Controller
         }
     }
 
-    // ==========================
     // ELIMINAR PROYECTO
-    // ==========================
     [HttpPost]
     [ValidateAntiForgeryToken]
     [AutorizarAccion("Eliminar Proyectos", "Eliminar")]
@@ -396,9 +386,7 @@ public class ProyectosController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    // ==========================
     // LISTAR ARCHIVOS (AJAX)
-    // ==========================
     public record ListarReq(int ProyectoId, string Ruta);
 
     [HttpPost]
@@ -461,9 +449,8 @@ public class ProyectosController : Controller
         });
     }
 
-    // ==========================
+    
     // CREAR CARPETA (AJAX)
-    // ==========================
     public class CrearCarpetaDto
     {
         public int ProyectoId { get; set; }

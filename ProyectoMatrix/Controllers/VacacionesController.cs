@@ -911,7 +911,42 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
         }
 
 
+        //Metodo para ocultar solicitudes enRRHHH
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult OmitirRegistroRH(int solicitudId)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+            if (usuarioId == 0) return Unauthorized();
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    // Actualizamos el estado para que ya no salga en la bandeja de RH
+                    var sql = @"UPDATE VacacionesSolicitud 
+                        SET EstadoRecursosHumanos = 'Cancelada', 
+                            EstadoAutorizacion = 'Rechazada' 
+                        WHERE SolicitudVacacionesID = @id";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", solicitudId);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                TempData["MensajeVacacionesRH"] = "La solicitud ha sido descartada y no se registrará.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al omitir solicitud");
+                TempData["ErrorVacacionesRH"] = "No se pudo ocultar la solicitud.";
+            }
+
+            return RedirectToAction("SolicitudesPendientesRH");
+        }
 
 
         //Helper para obtener datos de un jefe y mandar correo

@@ -63,7 +63,7 @@ public sealed class SftpStorage : ISftpStorage
         return c;
     }
 
-    // ===== Helpers de ruta POSIX =====
+    //  Helpers de ruta POSIX 
     private static string UnirPosix(params string[] parts)
         => string.Join('/', parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim('/')));
 
@@ -75,7 +75,7 @@ public sealed class SftpStorage : ISftpStorage
         return ruta;
     }
 
-    // ===== Implementación =====
+    //  Implementación 
     public void SubirTexto(string rutaRelativa, string texto)
     {
         rutaRelativa = Normalizar(rutaRelativa);

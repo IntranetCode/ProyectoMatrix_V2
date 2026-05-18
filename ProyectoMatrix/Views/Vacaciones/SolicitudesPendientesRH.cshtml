@@ -117,11 +117,24 @@ else
                         <td>@s.EstadoAutorizacion</td>
                         <td>@s.EstadoRecursosHumanos</td>
                         <td>
-                            <form asp-action="RegistrarComoRH" method="post" class="d-inline">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
-                                <button type="submit" class="btn btn-sm btn-success">Registrar en RH</button>
-                            </form>
+                            <div class="d-flex justify-content-center">
+                            
+                                <form asp-action="RegistrarComoRH" method="post" class="d-inline mr-1">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
+                                    <button type="submit" class="btn btn-sm btn-success shadow-sm">
+                                        <i class="fas fa-check me-1"></i> Registrar en RH
+                                    </button>
+                                </form>
+
+                                <form asp-action="OmitirRegistroRH" method="post" class="d-inline form-omitir">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
+                                    <button type="button" class="btn btn-sm btn-naranja shadow-sm btn-confirmar-omitir">
+                                        <i class="fas fa-times me-1"></i> No Registrar
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 }
@@ -159,5 +172,32 @@ else
                 }
             });
         }
+
+                $(document).ready(function () {
+            $('.btn-confirmar-omitir').click(function (e) {
+                e.preventDefault(); // Detiene el envío del form
+
+                var form = $(this).closest('form'); // Selecciona el formulario padre
+
+                Swal.fire({
+                    title: '¿Ocultar solicitud?',
+                    text: "Esta acción descartará el registro en RH. No se afectarán los saldos del colaborador.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ff6b00', // Tu Naranja Corporativo
+                    cancelButtonColor: '#004a99',  // Tu Azul Corporativo
+                    confirmButtonText: '<i class="fas fa-eye-slash"></i> Sí, ocultar',
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true, // Pone el botón de cancelar a la izquierda
+                    customClass: {
+                        popup: 'border-radius-15' // Opcional: para redondear bordes
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit(); // Si confirma, enviamos el formulario
+                    }
+                });
+            });
+        });
     </script>
 }

@@ -12,9 +12,9 @@
         public int EmpresaID { get; set; }
         public string TipoCompra { get; set; } // "Nacional" o "Internacional"
         public bool EsProyecto { get; set; }
-        public string NombreProyecto { get; set; }
+        public string? NombreProyecto { get; set; }
         public int UrgenciaID { get; set; }
-        public string Comentarios { get; set; }
+        public string? Comentarios { get; set; }
 
         // Solo para Internacional
         public int? TransporteID { get; set; }
@@ -26,7 +26,7 @@
     public class MaterialItem
     {
         public string Nombre { get; set; }
-        public string Descripcion { get; set; }
+        public string? Descripcion { get; set; }
         public decimal Cantidad { get; set; }
         public string UnidadMedida { get; set; }
     }
@@ -95,6 +95,14 @@
         // Para la Dona: Estatus vs Cantidad
         public List<decimal> DonaValores { get; set; } = new List<decimal>();
         public List<string> DonaEtiquetas { get; set; } = new List<string>();
+
+        // Para los Cuellos de Botella
+        public List<double> TiemposPromedio { get; set; } = new List<double>();
+        public List<string> EtiquetasDepartamentos { get; set; } = new List<string> { "Compras", "Finanzas", "Dirección" };
+
+        // --- NUEVAS PROPIEDADES PARA LOS KPIs 
+        public int CriticosVencidos { get; set; }
+        public double PromedioTotal { get; set; }
     }
 
     public class HeatmapSeries
@@ -112,10 +120,83 @@
     public class DictamenPresupuestalVm
     {
         public int SolicitudID { get; set; }
-        public bool Pasa { get; set; } // SI / NO 
-        public bool DentroDePresupuesto { get; set; } // SI / NO 
-        public string NumeroRequisicion { get; set; } // ID de Requi 
-        public string Observaciones { get; set; } // Motivo de rechazo o nota de desviación 
+        public string Folio { get; set; }
+        public decimal MontoCotizado { get; set; }
+
+        // Decisiones del Dictamen
+        public bool Pasa { get; set; } // SI / NO
+        public string TipoGasto { get; set; } // GASTO / REQUISICIÓN
+        public bool DentroDePresupuesto { get; set; }
+        public string NumeroRequisicion { get; set; } // ID de Requi
+        public string Observaciones { get; set; } // En caso de rechazo o nota de desviación
     }
 
+    public class DetalleCompraVm
+    {
+        public int SolicitudID { get; set; }
+        public string Folio { get; set; }
+        public string NombreSolicitante { get; set; }
+        public string Empresa { get; set; }
+        public string EstatusActual { get; set; }
+        public int EstatusID { get; set; }
+
+        // Lista de materiales para la tabla
+        public List<MaterialItem> Materiales { get; set; } = new List<MaterialItem>();
+
+
+        public string TipoGasto { get; set; }
+        public bool? DentroPresupuesto { get; set; }
+        public string NumeroRequisicion { get; set; }
+        public string ObservacionesPresupuesto { get; set; }
+
+
+        public int Porcentaje
+        {
+            get
+            {
+                return EstatusID switch
+                {
+                    1 => 20,  // Solicitado
+                    2 => 40,  // Cotizado
+                    3 => 60,  // Presupuesto
+                    4 => 100, // Recibido/Finalizado
+                    5 => 100, // Rechazado (Barra llena pero color distinto)
+                    _ => 0
+                };
+            }
+        }
+
+        // Color de la barra según estatus
+        public string ColorProgreso => EstatusID switch
+        {
+            4 => "bg-success", // Terminado
+            5 => "bg-danger",  // Rechazado
+            3 => "bg-info",    // En presupuesto
+            _ => "bg-primary"  // Por defecto
+        };
+    
+}
+
+
+    //Model para los gráficos de dirección
+
+    public class TiempoProcesoVm
+    {
+        public string Etapa { get; set; } // "Cotización", "Dictamen", "Autorización"
+        public double PromedioHoras { get; set; }
+        public string Responsable { get; set; } // Compras, Finanzas, Dirección
+    }
+
+    public class CuelloBotellaVm
+    {
+        public string Departamento { get; set; } // "Compras", "Presupuestos", "Dirección"
+        public double HorasPromedio { get; set; }
+        public string EstatusSLA => HorasPromedio <= 24 ? "A Tiempo" : "Retrasado";
+    }
+
+    public class IndexComprasVm
+    {
+        public IEnumerable<MisComprasVm> MisCompras { get; set; }
+        public ComprasDashboardVm Estadisticas { get; set; } // Tu modelo de gráficos
+    }
 }

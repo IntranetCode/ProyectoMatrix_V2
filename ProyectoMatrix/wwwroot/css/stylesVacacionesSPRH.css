@@ -122,3 +122,15 @@
     border-radius: 12px;
     text-align: center;
 }
+
+
+/* Redondear los botones de la alerta para que sigan tu estilo */
+.swal2-styled {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+}
+
+.swal2-popup {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    border-radius: 12px !important;
+}

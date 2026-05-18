@@ -1,85 +1,209 @@
-﻿<div class="container-fluid">
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <div class="card shadow mb-4 border-bottom-primary">
-                <div class="card-header py-3 bg-white">
-                    <h5 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-file-invoice-dollar mr-2"></i>Validación de Presupuesto - Folio @Model.Folio
-                    </h5>
+﻿@model ProyectoMatrix.Models.DictamenPresupuestalVm
+
+@{
+    ViewData["Title"] = "Detalle de Solicitud";
+    Layout = "_LayoutComunicados";
+
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Volver
+    </a>
+</div>
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-dark text-white">
+            <h6 class="m-0 font-weight-bold">Dictamen de Control Presupuestal - @Model.Folio</h6>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                Monto a Dictaminar: <strong>@Model.MontoCotizado.ToString("C")</strong>
+            </div>
+
+            <form asp-action="ProcesarDictamen" method="post">
+                <input type="hidden" asp-for="SolicitudID" />
+
+                <div class="form-group">
+                    <label class="font-weight-bold">¿La solicitud procede?</label>
+                    <select asp-for="Pasa" class="form-control" id="selectPasa">
+                        <option value="true">SÍ - Procede</option>
+                        <option value="false">NO - Rechazada</option>
+                    </select>
                 </div>
-                <div class="card-body">
-                    <div class="row mb-4 bg-light p-3 rounded">
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted">Monto Cotizado:</p>
-                            <h3 class="text-dark font-weight-bold">@Model.MontoTotal.ToString("C") MXN</h3>
-                        </div>
-                        <div class="col-md-6 text-right">
-                            <a href="/uploads/cotizaciones/@Model.ArchivoPath" target="_blank" class="btn btn-outline-danger">
-                                <i class="fas fa-file-pdf mr-1"></i> Ver Cotización Adjunta
-                            </a>
+
+                <div id="seccionProcede">
+                    <div class="form-group">
+                        <label class="font-weight-bold">Tipo de Proceso</label>
+                        <div class="btn-group btn-group-toggle d-block" data-toggle="buttons">
+                            <label class="btn btn-outline-primary active">
+                                <input type="radio" asp-for="TipoGasto" value="GASTO" checked> GASTO DIRECTO
+                            </label>
+                            <label class="btn btn-outline-primary">
+                                <input type="radio" asp-for="TipoGasto" value="REQUISICION"> CON REQUISICIÓN
+                            </label>
                         </div>
                     </div>
 
-                    <form asp-action="ProcesarDictamen" method="post" id="formDictamen">
-                        <input type="hidden" name="SolicitudID" value="@Model.SolicitudID" />
-
-                        <div class="form-group mb-4">
-                            <label class="d-block font-weight-bold">¿La solicitud procede?</label>
-                            <div class="custom-control custom-radio custom-control-inline">
-                                <input type="radio" id="pasaSi" name="Pasa" value="true" class="custom-control-input" checked>
-                                <label class="custom-control-label text-success" for="pasaSi">Aprobar</label>
-                            </div>
-                            <div class="custom-control custom-radio custom-control-inline">
-                                <input type="radio" id="pasaNo" name="Pasa" value="false" class="custom-control-input">
-                                <label class="custom-control-label text-danger" for="pasaNo">Rechazar</label>
-                            </div>
+                    <div id="seccionRequisicion" style="display:none;">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Estatus Presupuestal</label>
+                            <select asp-for="DentroDePresupuesto" class="form-control">
+                                <option value="true">Dentro del Presupuesto</option>
+                                <option value="false">Fuera de Presupuesto (Desviación)</option>
+                            </select>
                         </div>
-
-                        <div id="seccionAprobacion">
-                            <div class="form-group">
-                                <label class="font-weight-bold">ID de Requisición (SAP/Sistema):</label>
-                                <input type="text" name="NumeroRequisicion" class="form-control" placeholder="Ej: REQ-2026-XXXXX">
-                            </div>
-
-                            <div class="form-group">
-                                <div class="custom-control custom-switch">
-                                    <input type="checkbox" class="custom-control-input" id="swPresupuesto" name="DentroDePresupuesto" checked>
-                                    <label class="custom-control-label" for="swPresupuesto">¿Está dentro del presupuesto anual?</label>
-                                </div>
-                                <small class="text-muted" id="msgDesviacion">Si se desactiva, se marcará automáticamente como <b>Desviación</b>.</small>
-                            </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold">ID de Requisición</label>
+                            <input asp-for="NumeroRequisicion" class="form-control" placeholder="Ingrese ID de Requi..." />
                         </div>
-
-                        <div id="seccionRechazo" style="display:none;">
-                            <div class="form-group">
-                                <label class="font-weight-bold">Motivo del Rechazo:</label>
-                                <textarea name="Observaciones" class="form-control" rows="3" placeholder="Escriba aquí por qué no procede la compra..."></textarea>
-                            </div>
-                        </div>
-
-                        <div class="mt-5">
-                            <button type="submit" class="btn btn-primary btn-block btn-lg shadow">
-                                <i class="fas fa-save mr-2"></i>Guardar Dictamen Final
-                            </button>
-                        </div>
-                    </form>
+                    </div>
                 </div>
-            </div>
+
+                <div id="seccionRechazo" style="display:none;">
+                    <div class="form-group">
+                        <label class="font-weight-bold text-danger">Motivo de Rechazo</label>
+                        <textarea asp-for="Observaciones" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+
+                <hr />
+                <button type="submit" class="btn btn-success btn-block">Aplicar Dictamen Final</button>
+            </form>
         </div>
     </div>
 </div>
 
-<script>
-    // Lógica para mostrar/ocultar campos dinámicamente
-    document.querySelectorAll('input[name="Pasa"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.value === 'true') {
-                document.getElementById('seccionAprobacion').style.display = 'block';
-                document.getElementById('seccionRechazo').style.display = 'none';
-            } else {
-                document.getElementById('seccionAprobacion').style.display = 'none';
-                document.getElementById('seccionRechazo').style.display = 'block';
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // 1. Lógica inicial (por si cargan la página con datos)
+            toggleSecciones($('#selectPasa').val());
+
+            // 2. Cambio en Procede/Rechaza
+            $('#selectPasa').change(function () {
+                toggleSecciones($(this).val());
+            });
+
+            function toggleSecciones(valor) {
+                if (valor === "true") {
+                    $('#seccionProcede').show();
+                    $('#seccionRechazo').hide();
+                } else {
+                    $('#seccionProcede').hide();
+                    $('#seccionRechazo').show();
+                }
             }
+
+            // 3. Cambio en Radio Buttons (Corregido para ASP.NET)
+            // Usamos el selector de tipo radio para evitar problemas de nombre
+            $('input[type=radio][name="TipoGasto"]').change(function () {
+                if (this.value === "REQUISICION") {
+                    $('#seccionRequisicion').stop(true, true).fadeIn();
+                } else {
+                    $('#seccionRequisicion').stop(true, true).fadeOut();
+                    // Limpiamos los campos si vuelve a GASTO
+                    $('#NumeroRequisicion').val('');
+                }
+            });
         });
-    });
-</script>
+    </script>
+}
+
+            <style>
+    /* --- Encabezado de Dictamen --- */
+    .card-header.bg-dark {
+        background-color: #004a99 !important; /* Azul Profundo */
+        border-bottom: 3px solid #ff6b00; /* Línea divisoria Naranja */
+    }
+
+    /* --- Alerta de Monto --- */
+    .alert-info {
+        background-color: #f0f7ff;
+        border-left: 5px solid #004a99;
+        color: #004a99;
+        font-size: 1.1rem;
+        border-radius: 8px;
+    }
+
+        .alert-info strong {
+            color: #ff6b00; /* Resaltamos el monto en Naranja */
+        }
+
+    /* --- Controles de Formulario --- */
+    .form-group label {
+        color: #2c3e50;
+        margin-top: 10px;
+    }
+
+    .form-control:focus {
+        border-color: #004a99;
+        box-shadow: 0 0 0 0.2rem rgba(0, 74, 153, 0.15);
+    }
+
+    /* --- Botones de Radio (Tipo de Gasto) --- */
+    .btn-group-toggle .btn-outline-primary {
+        color: #004a99;
+        border-color: #004a99;
+        font-weight: 600;
+        margin-right: 5px;
+        border-radius: 5px !important;
+    }
+
+        .btn-group-toggle .btn-outline-primary.active,
+        .btn-group-toggle .btn-outline-primary:hover {
+            background-color: #004a99 !important;
+            color: white !important;
+        }
+
+    /* --- Secciones Dinámicas --- */
+    #seccionRequisicion {
+        background-color: #f8f9fc;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px dashed #004a99;
+        margin-top: 15px;
+    }
+
+    /* Estilo para el campo ID Requisición cuando es obligatorio */
+    #NumeroRequisicion {
+        border: 1px solid #004a99;
+        font-weight: bold;
+        color: #004a99;
+    }
+
+    /* --- Sección de Rechazo --- */
+    .text-danger {
+        color: #e74a3b !important;
+    }
+
+    #seccionRechazo textarea {
+        border: 1px solid #ff6b00; /* Borde naranja para indicar atención */
+    }
+
+        #seccionRechazo textarea:focus {
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 0, 0.15);
+        }
+
+    /* --- Botón de Aplicar Dictamen --- */
+    .btn-success.btn-block {
+        background-color: #1cc88a; /* Verde éxito para procedencia */
+        border: none;
+        padding: 15px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        text-transform: uppercase;
+        transition: all 0.3s;
+    }
+
+        .btn-success.btn-block:hover {
+            background-color: #16a06e;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(28, 200, 138, 0.3);
+        }
+
+    /* --- Separador --- */
+    hr {
+        border-top: 2px solid #e3e6f0;
+        margin: 2rem 0;
+    }
+            </style>

@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Servicios;
 using System.Data;
 using System.Security.Claims;
+using static System.Net.WebRequestMethods;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -12,33 +14,43 @@ namespace ProyectoMatrix.Controllers
         private readonly string _connectionString;
         private readonly ILogger<ComprasController> _logger;
         private readonly ServicioNotificaciones _notif;
+        private readonly RutaNas _rutaNas;          // Usamos solo ObtenerNombreCarpetaProyecto
+        private readonly ISftpStorage _sftp;
 
-        public ComprasController(IConfiguration configuration, ILogger<ComprasController> logger, ServicioNotificaciones notif)
+        public ComprasController(IConfiguration configuration, ILogger<ComprasController> logger, ServicioNotificaciones notif, RutaNas rutaNas, ISftpStorage sftp)
         {
             _connectionString = configuration.GetConnectionString("DefaultConnection");
             _logger = logger;
             _notif = notif;
-        }
+            _sftp = sftp;
+            _rutaNas = rutaNas;
 
+
+        }
         [HttpGet]
         public async Task<IActionResult> Index()
         {
+            var model = new IndexComprasVm();
             var solicitudes = new List<MisComprasVm>();
+            var stats = new ComprasDashboardVm();
             int usuarioId = ObtenerUsuarioIdActual();
+            string puesto = ViewBag.Puesto; // Asumiendo que ya lo llenas en el Login o un ActionFilter
 
             using (var conn = new SqlConnection(_connectionString))
             {
                 await conn.OpenAsync();
-                // Consulta que trae el nombre de la empresa y el estatus actual
-                string sql = @"SELECT S.SolicitudID, S.EmpresaID, S.TipoCompra, S.FechaCreacion, 
-                              S.EstatusID, E.Nombre as EstatusNombre, Em.EmpresaID
-                       FROM Compras_Solicitud S
-                       INNER JOIN Cat_EstatusCompra E ON S.EstatusID = E.EstatusID
-                       INNER JOIN Empresas Em ON S.EmpresaID = Em.EmpresaID
-                       WHERE S.UsuarioID = @uid
-                       ORDER BY S.FechaCreacion DESC";
 
-                using (var cmd = new SqlCommand(sql, conn))
+                // 1. LLENADO DE LA TABLA (Tus compras personales)
+                string sqlTabla = @"SELECT S.SolicitudID, S.TipoCompra, S.FechaCreacion, 
+                                   S.EstatusID, E.Nombre as EstatusNombre, 
+                                   Em.Nombre as NombreEmpresa
+                            FROM Compras_Solicitud S
+                            INNER JOIN Cat_EstatusCompra E ON S.EstatusID = E.EstatusID
+                            INNER JOIN Empresas Em ON S.EmpresaID = Em.EmpresaID
+                            WHERE S.UsuarioID = @uid
+                            ORDER BY S.FechaCreacion DESC";
+
+                using (var cmd = new SqlCommand(sqlTabla, conn))
                 {
                     cmd.Parameters.AddWithValue("@uid", usuarioId);
                     using (var reader = await cmd.ExecuteReaderAsync())
@@ -50,7 +62,7 @@ namespace ProyectoMatrix.Controllers
                                 SolicitudID = (int)reader["SolicitudID"],
                                 Folio = "COM-" + reader["SolicitudID"].ToString().PadLeft(5, '0'),
                                 Tipo = reader["TipoCompra"].ToString(),
-                                Empresa = reader["Empresa"].ToString(),
+                                Empresa = reader["NombreEmpresa"].ToString(),
                                 Fecha = (DateTime)reader["FechaCreacion"],
                                 Estatus = reader["EstatusNombre"].ToString(),
                                 EstatusID = (int)reader["EstatusID"]
@@ -58,10 +70,69 @@ namespace ProyectoMatrix.Controllers
                         }
                     }
                 }
-            }
-            return View(solicitudes);
-        }
 
+                // 2. LLENADO DE ESTADÍSTICAS (Solo si es Director)
+                if (puesto == "DIRECCION COMPRAS")
+                {
+                    // Query para KPIs y Gráfico de Barras (Cuellos de Botella)
+                    string sqlStats = @"
+                SELECT 
+                    -- KPI: Críticos Vencidos (>24h sin finalizar)
+                    (SELECT COUNT(*) FROM Compras_Solicitud WHERE UrgenciaID = 4 AND EstatusID < 4 AND DATEDIFF(HOUR, FechaCreacion, GETDATE()) > 24) as Criticos,
+                    
+                    -- KPI: Promedio Total de ciclo (Horas)
+                    (SELECT ISNULL(AVG(DATEDIFF(HOUR, FechaCreacion, FechaAutorizacion)), 0) FROM Compras_Solicitud WHERE EstatusID = 4) as PromedioGlobal,
+
+                    -- Tiempos por Depto (Promedios para la gráfica de barras)
+                    ISNULL(AVG(DATEDIFF(HOUR, FechaCreacion, ISNULL(FechaCotizacion, GETDATE()))), 0) as PromCompras,
+                    ISNULL(AVG(DATEDIFF(HOUR, FechaCotizacion, ISNULL(FechaDictamen, GETDATE()))), 0) as PromFinanzas,
+                    ISNULL(AVG(DATEDIFF(HOUR, FechaDictamen, ISNULL(FechaAutorizacion, GETDATE()))), 0) as PromDireccion
+                FROM Compras_Solicitud 
+                WHERE EstatusID != 5"; // No contamos rechazadas para el promedio de éxito
+
+                    using (var cmd = new SqlCommand(sqlStats, conn))
+                    {
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                stats.CriticosVencidos = (int)reader["Criticos"];
+                                stats.PromedioTotal = Convert.ToDouble(reader["PromedioGlobal"]);
+
+                                // Llenamos la lista para ApexCharts (Compras, Finanzas, Dirección)
+                                stats.TiemposPromedio.Add(Convert.ToDouble(reader["PromCompras"]));
+                                stats.TiemposPromedio.Add(Convert.ToDouble(reader["PromFinanzas"]));
+                                stats.TiemposPromedio.Add(Convert.ToDouble(reader["PromDireccion"]));
+                            }
+                        }
+                    }
+
+                    // Query para la Dona (Distribución de Estatus)
+                    string sqlDona = @"SELECT E.Nombre, COUNT(S.SolicitudID) as Total 
+                               FROM Cat_EstatusCompra E
+                               LEFT JOIN Compras_Solicitud S ON E.EstatusID = S.EstatusID
+                               GROUP BY E.Nombre";
+
+                    using (var cmd = new SqlCommand(sqlDona, conn))
+                    {
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                stats.DonaEtiquetas.Add(reader["Nombre"].ToString());
+                                stats.DonaValores.Add(Convert.ToDecimal(reader["Total"]));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Unimos todo en el modelo híbrido
+            model.MisCompras = solicitudes;
+            model.Estadisticas = stats;
+
+            return View(model);
+        }
 
         //METODO GET PARA CREAR NUEVAS SOLICITUDES
 
@@ -119,16 +190,26 @@ namespace ProyectoMatrix.Controllers
             return View(model);
         }
 
-
         [HttpPost("NuevaSolicitud")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> NuevaSolicitud(CompraViewModel model)
         {
-            // 1. Obtener datos del solicitante (Basado en tu lógica de Proyecto Matrix)
             int usuarioId = ObtenerUsuarioIdActual();
             if (usuarioId == 0) return Unauthorized();
 
-            // Nombre para el campo 'UsuarioResponsable' del historial
+            // 1. Validación de Materiales (Punto 6)
+            if (model.Materiales == null || !model.Materiales.Any())
+            {
+                ModelState.AddModelError("", "Debes agregar al menos un material a la lista.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                await CargarCatalogosAsync(); // Punto 5
+                return View(model);
+            }
+
+            string puestoAsignado = model.TipoCompra == "Nacional" ? "Comprador Nacional" : "Comprador Internacional";
             string nombreSolicitante = User.Identity.Name ?? "Sistema";
 
             try
@@ -140,11 +221,11 @@ namespace ProyectoMatrix.Controllers
                     {
                         try
                         {
-                            // 2. Insertar la Solicitud Principal
-                            // Nota: EstatusID 1 = 'Solicitado'
+                            // 2. Insertar Solicitud
                             string sqlSolicitud = @"INSERT INTO Compras_Solicitud 
-                        (UsuarioID, EmpresaID, TipoCompra, EsProyecto, NombreProyecto, UrgenciaID, Comentarios, FechaCreacion, EstatusID) 
-                        VALUES (@uid, @eid, @tipo, @esp, @nom, @urg, @com, GETDATE(), 1); 
+                        (UsuarioID, EmpresaID, TipoCompra, EsProyecto, NombreProyecto, UrgenciaID, 
+                         TransporteID, ComentariosExtra, FechaCreacion, EstatusID, PuestoAsignado) 
+                        VALUES (@uid, @eid, @tipo, @esp, @nom, @urg, @trans, @com, GETDATE(), 1, @puesto); 
                         SELECT SCOPE_IDENTITY();";
 
                             int nuevaSolicitudId;
@@ -156,29 +237,21 @@ namespace ProyectoMatrix.Controllers
                                 cmd.Parameters.AddWithValue("@esp", model.EsProyecto);
                                 cmd.Parameters.AddWithValue("@nom", (object)model.NombreProyecto ?? DBNull.Value);
                                 cmd.Parameters.AddWithValue("@urg", model.UrgenciaID);
+                                cmd.Parameters.AddWithValue("@trans", (object)model.TransporteID ?? DBNull.Value);
                                 cmd.Parameters.AddWithValue("@com", (object)model.Comentarios ?? DBNull.Value);
+                                cmd.Parameters.AddWithValue("@puesto", puestoAsignado);
+                               
 
                                 nuevaSolicitudId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
                             }
 
-                            // 3. INSERTAR EN EL HISTORIAL (Esto activa el Dataline Time)
-                            string sqlHistorial = @"INSERT INTO Compras_Historico_Pasos 
-                        (SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable) 
-                        VALUES (@sid, 1, GETDATE(), @resp)";
-
-                            using (var cmdHist = new SqlCommand(sqlHistorial, conn, transaction))
-                            {
-                                cmdHist.Parameters.AddWithValue("@sid", nuevaSolicitudId);
-                                cmdHist.Parameters.AddWithValue("@resp", nombreSolicitante);
-                                await cmdHist.ExecuteNonQueryAsync();
-                            }
 
                             // 4. Insertar la lista de materiales
                             if (model.Materiales != null && model.Materiales.Count > 0)
                             {
                                 foreach (var mat in model.Materiales)
                                 {
-                                    string sqlMat = @"INSERT INTO Compras_Materiales (SolicitudID, Nombre, Cantidad, UnidadMedida, Descripcion) 
+                                    string sqlMat = @"INSERT INTO Compras_Detalle_Materiales (SolicitudID, NombreMaterial, Cantidad, UnidadMedida, Descripcion) 
                                               VALUES (@sid, @n, @c, @u, @d)";
                                     using (var cmdMat = new SqlCommand(sqlMat, conn, transaction))
                                     {
@@ -193,31 +266,177 @@ namespace ProyectoMatrix.Controllers
                             }
 
                             transaction.Commit();
+
+                            TempData["Mensaje"] = "Solicitud creada con éxito. Folio: COM-" + nuevaSolicitudId.ToString().PadLeft(5, '0');
                             return RedirectToAction("Index");
                         }
                         catch (Exception ex)
                         {
                             transaction.Rollback();
-                            throw ex;
+                            _logger.LogError(ex, "Error en la transacción de NuevaSolicitud");
+                            throw;
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error crítico al crear solicitud y paso de historial");
-                ModelState.AddModelError("", "No se pudo guardar la solicitud. Intente de nuevo.");
+                _logger.LogError(ex, "Error crítico al crear solicitud");
+                ModelState.AddModelError("", "Ocurrió un error técnico: " + ex.Message);
                 return View(model);
             }
         }
+
+
+        public async Task<IActionResult> Detalle(int id)
+        {
+            var vm = new DetalleCompraVm();
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+
+                string sqlCabecera = @"
+            SELECT S.SolicitudID, S.Folio, 
+                   (P.Nombre + ' ' + P.ApellidoPaterno) AS NombreCompleto, 
+                   E.Nombre AS EmpresaNombre, 
+                   Est.Nombre AS EstatusTexto, 
+                   S.EstatusID,
+                   S.ComentariosExtra, 
+S.TipoGasto,           
+                   S.NumeroRequisicion,    
+                   S.DentroPresupuesto, 
+                   S.ObservacionesPresupuesto
+            FROM Compras_Solicitud S
+            INNER JOIN Usuarios U ON S.UsuarioID = U.UsuarioID
+            INNER JOIN Persona P ON U.PersonaID = P.PersonaID
+            INNER JOIN Empresas E ON S.EmpresaID = E.EmpresaID
+            INNER JOIN Cat_EstatusCompra Est ON S.EstatusID = Est.EstatusID
+            WHERE S.SolicitudID = @id";
+
+                using (var cmd = new SqlCommand(sqlCabecera, conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            vm.SolicitudID = (int)reader["SolicitudID"];
+                            vm.Folio = reader["Folio"].ToString();
+                            vm.NombreSolicitante = reader["NombreCompleto"].ToString();
+                            vm.Empresa = reader["EmpresaNombre"].ToString();
+                            vm.EstatusActual = reader["EstatusTexto"].ToString();
+                            vm.EstatusID = (int)reader["EstatusID"];
+                            vm.TipoGasto = reader["TipoGasto"]?.ToString();
+                            vm.DentroPresupuesto = reader["DentroPresupuesto"] as bool?;
+                            vm.NumeroRequisicion = reader["NumeroRequisicion"]?.ToString();
+                            vm.ObservacionesPresupuesto = reader["ObservacionesPresupuesto"]?.ToString();
+
+                            // vm.Comentarios = reader["ComentariosExtra"].ToString();
+                        }
+                    }
+                }
+                string sqlCot = "SELECT MontoTotal, ArchivoPath FROM Compras_Cotizaciones WHERE SolicitudID = @id";
+                using (var cmd = new SqlCommand(sqlCot, conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            // ESTA ES LA LÍNEA CLAVE: 
+                            // Asegúrate que el nombre coincida con la vista (MontoFinal)
+                            ViewBag.MontoFinal = reader["MontoTotal"];
+                            ViewBag.RutaPdf = reader["ArchivoPath"].ToString();
+                        }
+                        else
+                        {
+                            // Si no hay cotización, inicializamos en 0 para que string.Format no truene
+                            ViewBag.MontoFinal = 0m;
+                        }
+                    }
+                }
+
+                string sqlMateriales = "SELECT NombreMaterial, Cantidad, UnidadMedida FROM Compras_Detalle_Materiales WHERE SolicitudID = @id";
+
+                using (var cmdM = new SqlCommand(sqlMateriales, conn))
+                {
+                    cmdM.Parameters.AddWithValue("@id", id);
+                    using (var reader = await cmdM.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            vm.Materiales.Add(new MaterialItem
+                            {
+                                Nombre = reader["NombreMaterial"].ToString(),
+                                Cantidad = Convert.ToDecimal(reader["Cantidad"]),
+                                UnidadMedida = reader["UnidadMedida"].ToString()
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (string.IsNullOrEmpty(vm.Folio)) return NotFound();
+
+            return View(vm);
+        }
+
+
+
+
+        [HttpGet]
+        public IActionResult VerPdfNas(string ruta)
+        {
+            try
+            {
+                var bytes = _sftp.DescargarBytes(ruta);
+                return File(bytes, "application/pdf");
+            }
+            catch (Exception)
+            {
+                return NotFound();
+            }
+        }
+
+
+
+        private async Task CargarCatalogosAsync()
+        {
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+
+                // Cargar Empresas
+                var empresas = new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
+                using (var cmd = new SqlCommand("SELECT EmpresaID, Nombre FROM Empresas WHERE Activa = 1", conn))
+                using (var rd = await cmd.ExecuteReaderAsync())
+                {
+                    while (await rd.ReadAsync())
+                        empresas.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem { Value = rd["EmpresaID"].ToString(), Text = rd["Nombre"].ToString() });
+                }
+                ViewBag.Empresas = empresas;
+
+                // Cargar Urgencias
+                var urgencias = new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
+                using (var cmd = new SqlCommand("SELECT UrgenciaID, Descripcion FROM Cat_Urgencia", conn))
+                using (var rd = await cmd.ExecuteReaderAsync())
+                {
+                    while (await rd.ReadAsync())
+                        urgencias.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem { Value = rd["UrgenciaID"].ToString(), Text = rd["Descripcion"].ToString() });
+                }
+                ViewBag.Urgencias = urgencias;
+            }
+        }
+
         private int ObtenerUsuarioIdActual()
         {
             var claim = User.FindFirst(ClaimTypes.NameIdentifier);
             return (claim != null && int.TryParse(claim.Value, out int id)) ? id : 0;
         }
 
-        [HttpGet("BandejaAdmin")]
-        public async Task<IActionResult> BandejaAdmin()
+        [HttpGet("BandejaCompras")]
+        public async Task<IActionResult> BandejaCompras()
         {
             int usuarioId = ObtenerUsuarioIdActual();
             var solicitudes = new List<BandejaComprasVm>();
@@ -226,15 +445,16 @@ namespace ProyectoMatrix.Controllers
             {
                 await conn.OpenAsync();
 
-                // Obtener el puesto de la persona
+                // 1. Obtener el puesto de la persona para saber qué mostrar
                 string puesto = "";
-                using (var cmd = new SqlCommand("SELECT Puesto FROM Persona p INNER JOIN Usuarios u ON p.PersonaID = u.PersonaID WHERE u.UsuarioID = @Uid", conn))
+                using (var cmdP = new SqlCommand("SELECT Puesto FROM Persona p INNER JOIN Usuarios u ON p.PersonaID = u.PersonaID WHERE u.UsuarioID = @Uid", conn))
                 {
-                    cmd.Parameters.AddWithValue("@Uid", usuarioId);
-                    puesto = (await cmd.ExecuteScalarAsync())?.ToString() ?? "";
+                    cmdP.Parameters.AddWithValue("@Uid", usuarioId);
+                    puesto = (await cmdP.ExecuteScalarAsync())?.ToString() ?? "";
                 }
 
-                // Consulta dinámica: Si es DIRECCION COMPRAS ve TODO, si no, filtra por su puesto asignado
+                // 2. Consulta SQL ajustada a tus columnas reales
+                // Usamos S.TipoCompra para filtrar en lugar de PuestoAsignado si esa columna no existe
                 string sql = @"
             SELECT s.SolicitudID, s.Folio, (p.Nombre + ' ' + p.ApellidoPaterno) as Solicitante, 
                    s.TipoCompra, u.Descripcion as Urgencia, s.FechaCreacion, e.Nombre as Estatus
@@ -243,22 +463,38 @@ namespace ProyectoMatrix.Controllers
             INNER JOIN Persona p ON us.PersonaID = p.PersonaID
             INNER JOIN Cat_Urgencia u ON s.UrgenciaID = u.UrgenciaID
             INNER JOIN Cat_EstatusCompra e ON s.EstatusID = e.EstatusID
-            WHERE s.EstatusID = 1"; // Paso inicial: Solicitado
+            WHERE s.EstatusID = 1"; // Solo lo pendiente (Solicitado)
 
-                if (puesto != "DIRECCION COMPRAS")
-                {
-                    sql += " AND s.PuestoAsignado = @Puesto";
-                }
+                // Filtro lógico: Nacionales para Comprador Nacional, etc.
+                if (puesto == "COMPRADOR NACIONAL")
+                    sql += " AND s.TipoCompra = 'Nacional'";
+                else if (puesto == "COMPRADOR INTERNACIONAL")
+                    sql += " AND s.TipoCompra = 'Internacional'";
+                // Si es DIRECCION COMPRAS, no entra aquí y ve ambos.
 
                 using (var cmd = new SqlCommand(sql, conn))
                 {
-                    if (puesto != "DIRECCION COMPRAS") cmd.Parameters.AddWithValue("@Puesto", puesto);
-                    // ... resto del mapeo ...
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            solicitudes.Add(new BandejaComprasVm
+                            {
+                                SolicitudID = (int)reader["SolicitudID"],
+                                Folio = reader["Folio"].ToString(),
+                                Solicitante = reader["Solicitante"].ToString(),
+                                TipoCompra = reader["TipoCompra"].ToString(),
+                                Urgencia = reader["Urgencia"].ToString(),
+                                FechaCreacion = (DateTime)reader["FechaCreacion"]
+                                // El campo Estatus se puede asignar si el VM lo requiere
+                            });
+                        }
+                    }
                 }
             }
+
             return View(solicitudes);
         }
-
 
         [HttpPost("ProcesarCotizacion")]
         [ValidateAntiForgeryToken]
@@ -270,32 +506,35 @@ namespace ProyectoMatrix.Controllers
             if (ArchivoCotizacion == null || ArchivoCotizacion.Length == 0)
             {
                 TempData["Error"] = "Debes subir un archivo de cotización.";
-                return RedirectToAction("BandejaAdmin");
+                return RedirectToAction("BandejaCompras");
             }
 
             try
             {
+                // 1. Obtener rutas
+                string rutaContenedor = _rutaNas.ObtenerRutaUnicaCompras();
+                string folioStr = SolicitudID.ToString().PadLeft(5, '0');
+                string nombreArchivo = $"COM-{folioStr}_Cotizacion_{DateTime.Now.Ticks}.pdf";
+                string rutaArchivoSftp = $"{rutaContenedor}/{nombreArchivo}";
+
+                // 2. Subir al Synology (AsegurarDirectorio crea la carpeta si no existe)
+                _sftp.AsegurarDirectorio(rutaContenedor);
+                using (var stream = ArchivoCotizacion.OpenReadStream())
+                {
+                    _sftp.SubirStream(stream, rutaArchivoSftp);
+                }
+
+                // 3. Proceso de Base de Datos con Transacción correctamente declarada
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     await conn.OpenAsync();
 
-                    // 1. Guardar el archivo en el servidor (Carpeta de Intranet)
-                    string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/compras/cotizaciones");
-                    if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
-
-                    string fileName = $"Cot_Folio_{SolicitudID}_{DateTime.Now.Ticks}{Path.GetExtension(ArchivoCotizacion.FileName)}";
-                    string fullPath = Path.Combine(folderPath, fileName);
-
-                    using (var stream = new FileStream(fullPath, FileMode.Create))
-                    {
-                        await ArchivoCotizacion.CopyToAsync(stream);
-                    }
-
+                    // IMPORTANTE: Aquí se inicia la transacción
                     using (var trans = conn.BeginTransaction())
                     {
                         try
                         {
-                            // 2. Registrar la Cotización
+                            // A. Insertar Cotización
                             string sqlCot = @"
                         INSERT INTO Compras_Cotizaciones (SolicitudID, ArchivoPath, MontoTotal, FechaEnvioAlUsuario)
                         VALUES (@Sid, @Path, @Monto, GETDATE())";
@@ -303,23 +542,27 @@ namespace ProyectoMatrix.Controllers
                             using (var cmdCot = new SqlCommand(sqlCot, conn, trans))
                             {
                                 cmdCot.Parameters.AddWithValue("@Sid", SolicitudID);
-                                cmdCot.Parameters.AddWithValue("@Path", fileName);
+                                cmdCot.Parameters.AddWithValue("@Path", rutaArchivoSftp);
                                 cmdCot.Parameters.AddWithValue("@Monto", Monto);
                                 await cmdCot.ExecuteNonQueryAsync();
                             }
 
-                            // 3. Actualizar Estatus de la Solicitud (2 = Cotizado)
-                            string sqlUpdate = "UPDATE Compras_Solicitud SET EstatusID = 2 WHERE SolicitudID = @Sid";
-                            using (var cmdUpd = new SqlCommand(sqlUpdate, conn, trans))
+                            // B. Actualizar Estatus de la Solicitud
+                            string sqlUpd = "UPDATE Compras_Solicitud SET EstatusID = 2 WHERE SolicitudID = @Sid";
+                            using (var cmdUpd = new SqlCommand(sqlUpd, conn, trans))
                             {
                                 cmdUpd.Parameters.AddWithValue("@Sid", SolicitudID);
                                 await cmdUpd.ExecuteNonQueryAsync();
                             }
 
-                            // 4. Registrar en Histórico (Timeline)
+                            // C. Registrar en Histórico
                             string sqlH = @"
                         INSERT INTO Compras_Historico_Pasos (SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
-                        VALUES (@Sid, 2, GETDATE(), (SELECT Nombre + ' ' + ApellidoPaterno FROM Persona p INNER JOIN Usuarios u ON p.PersonaID = u.PersonaID WHERE u.UsuarioID = @Uid))";
+                        VALUES (@Sid, 2, GETDATE(), 
+                               (SELECT TOP 1 P.Nombre + ' ' + P.ApellidoPaterno 
+                                FROM Persona P 
+                                INNER JOIN Usuarios U ON P.PersonaID = U.PersonaID 
+                                WHERE U.UsuarioID = @Uid))";
 
                             using (var cmdH = new SqlCommand(sqlH, conn, trans))
                             {
@@ -328,22 +571,45 @@ namespace ProyectoMatrix.Controllers
                                 await cmdH.ExecuteNonQueryAsync();
                             }
 
+                            // Si todo salió bien, guardamos cambios
                             trans.Commit();
-                            TempData["Mensaje"] = "Cotización procesada y enviada a validación.";
+                            TempData["Mensaje"] = "Cotización procesada correctamente.";
+
+                            string sqlUpdate = @"
+    UPDATE Compras_Solicitud 
+    SET EstatusID = 2, 
+        Progreso = 50 
+    WHERE SolicitudID = @Sid";
+
+                            using (var cmdUpd = new SqlCommand(sqlUpdate, conn, trans))
+                            {
+                                cmdUpd.Parameters.AddWithValue("@Sid", SolicitudID);
+                                await cmdUpd.ExecuteNonQueryAsync();
+                            }
+
+
+
                         }
-                        catch (Exception) { trans.Rollback(); throw; }
+
+
+                        catch (Exception ex)
+                        {
+                            // Si algo falla en la BD, deshacemos los inserts/updates
+                            trans.Rollback();
+                            _logger.LogError(ex, "Error en la transacción de base de datos");
+                            throw; // Re-lanzamos para que lo atrape el catch externo
+                        }
                     }
                 }
-                return RedirectToAction("BandejaAdmin");
+                return RedirectToAction("BandejaCompras");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al procesar cotización");
-                TempData["Error"] = "Ocurrió un error: " + ex.Message;
-                return RedirectToAction("BandejaAdmin");
+                _logger.LogError(ex, "Error crítico en ProcesarCotizacion");
+                TempData["Error"] = "Error técnico: " + ex.Message;
+                return RedirectToAction("BandejaCompras");
             }
         }
-
 
         [HttpGet("BandejaPresupuestal")]
         public async Task<IActionResult> BandejaPresupuestal()
@@ -456,75 +722,51 @@ namespace ProyectoMatrix.Controllers
         }
 
 
-        [HttpPost("AplicarDictamen")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AplicarDictamen(int SolicitudID, bool Aprobado, string IdRequisicion, bool EsDesviacion, string MotivoRechazo)
-        {
-            int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0) return Unauthorized();
+     
 
-            try
+
+
+        //Metodo para que control presupuestal decida si se aprueba o no el gasto
+        [HttpGet("Dictamen/{id}")]
+        public async Task<IActionResult> Dictamen(int id)
+        {
+            var model = new DictamenPresupuestalVm();
+
+            using (var conn = new SqlConnection(_connectionString))
             {
-                using (var conn = new SqlConnection(_connectionString))
+                await conn.OpenAsync();
+                string sql = @"
+            SELECT S.SolicitudID, S.Folio, C.MontoTotal 
+            FROM Compras_Solicitud S
+            INNER JOIN Compras_Cotizaciones C ON S.SolicitudID = C.SolicitudID
+            WHERE S.SolicitudID = @id";
+
+                using (var cmd = new SqlCommand(sql, conn))
                 {
-                    await conn.OpenAsync();
-                    using (var trans = conn.BeginTransaction())
+                    cmd.Parameters.AddWithValue("@id", id);
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        try
+                        if (await reader.ReadAsync())
                         {
-                            // 1. Guardar en Base de Datos
-                            // (Lógica de Update mostrada anteriormente...)
-                            trans.Commit();
+                            model.SolicitudID = (int)reader["SolicitudID"];
+                            model.Folio = reader["Folio"].ToString();
+                            model.MontoCotizado = (decimal)reader["MontoTotal"];
                         }
-                        catch (Exception) { trans.Rollback(); throw; }
                     }
                 }
-
-                // --- ENVÍO DE CORREOS (Sin romper el flujo) ---
-                if (Aprobado)
-                {
-                    // Avisa a Compras que ya puede comprar
-                    await NotificarCompra_RequisicionListaAsync(SolicitudID, IdRequisicion, EsDesviacion);
-                }
-
-                // Avisa al Usuario si pasó o por qué se rechazó
-                await NotificarUsuario_DictamenPresupuestalAsync(SolicitudID, Aprobado, MotivoRechazo);
-
-                TempData["Mensaje"] = "Dictamen aplicado correctamente.";
-                return RedirectToAction("BandejaPresupuestal");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error en dictamen");
-                return View();
-            }
+            return View(model);
         }
 
 
+        //metodo post para CP
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ProcesarDictamen(DictamenPresupuestalVm model)
+        public async Task<IActionResult> ProcesarDictamen(DictamenPresupuestalVm vm)
         {
-            int usuarioId = ObtenerUsuarioIdActual();
-            int nuevoEstatus;
-            string notaHistorial;
-
-            // Determinamos el rumbo de la solicitud
-            if (!model.Pasa)
-            {
-                nuevoEstatus = 4; // Rechazado
-                notaHistorial = "Rechazado por Control Presupuestal: " + model.Observaciones;
-            }
-            else if (model.DentroDePresupuesto)
-            {
-                nuevoEstatus = 3; // Aprobado / Generar OC
-                notaHistorial = $"Aprobado (Dentro de Presupuesto). Requisición: {model.NumeroRequisicion}";
-            }
-            else
-            {
-                nuevoEstatus = 3; // Aprobado con Desviación 
-                notaHistorial = $"Aprobado con DESVIACIÓN. Requisición: {model.NumeroRequisicion}";
-            }
+            // Si el ID es 0, la vista no está mandando el hidden input correctamente
+            if (vm.SolicitudID == 0) return BadRequest("Error: No se recibió el ID de la solicitud.");
 
             using (var conn = new SqlConnection(_connectionString))
             {
@@ -533,54 +775,97 @@ namespace ProyectoMatrix.Controllers
                 {
                     try
                     {
-                        // 1. Actualizar la Solicitud Principal
-                        string sqlUpdate = @"UPDATE Compras_Solicitud 
-                                     SET EstatusID = @Est, IdRequisicion = @Req, EsDesviacion = @Desv 
-                                     WHERE SolicitudID = @Sid";
+                        int nuevoEstatus = vm.Pasa ? 3 : 5;
 
-                        using (var cmd = new SqlCommand(sqlUpdate, conn, trans))
+                        string queryUpdate = @"
+                    UPDATE Compras_Solicitud 
+                    SET EstatusID = @Est, 
+FechaDictamen = GETDATE(),
+                        TipoGasto = @Tipo,
+                        DentroPresupuesto = @Dentro,
+                        NumeroRequisicion = @Requi,
+                        ObservacionesPresupuesto = @Obs
+                    WHERE SolicitudID = @Sid";
+
+                        using (var cmd = new SqlCommand(queryUpdate, conn, trans))
                         {
                             cmd.Parameters.AddWithValue("@Est", nuevoEstatus);
-                            cmd.Parameters.AddWithValue("@Req", (object)model.NumeroRequisicion ?? DBNull.Value);
-                            cmd.Parameters.AddWithValue("@Desv", !model.DentroDePresupuesto);
-                            cmd.Parameters.AddWithValue("@Sid", model.SolicitudID);
+                            cmd.Parameters.AddWithValue("@Sid", vm.SolicitudID);
+
+                            // Si es RECHAZO (Pasa = false), mandamos NULL a los campos de dinero
+                            cmd.Parameters.AddWithValue("@Tipo", vm.Pasa ? (object)vm.TipoGasto : DBNull.Value);
+                            cmd.Parameters.AddWithValue("@Dentro", vm.Pasa ? (object)vm.DentroDePresupuesto : DBNull.Value);
+                            cmd.Parameters.AddWithValue("@Requi", (vm.Pasa && vm.TipoGasto == "REQUISICION") ? (object)vm.NumeroRequisicion : DBNull.Value);
+                            cmd.Parameters.AddWithValue("@Obs", (object)vm.Observaciones ?? DBNull.Value);
+
                             await cmd.ExecuteNonQueryAsync();
                         }
 
-                        // 2. Insertar en Historial para alimentar el Dataline Time
-                        string sqlH = @"INSERT INTO Compras_Historico_Pasos (SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
-                                VALUES (@Sid, @Est, GETDATE(), @User)";
-
-                        using (var cmdH = new SqlCommand(sqlH, conn, trans))
-                        {
-                            cmdH.Parameters.AddWithValue("@Sid", model.SolicitudID);
-                            cmdH.Parameters.AddWithValue("@Est", nuevoEstatus);
-                            cmdH.Parameters.AddWithValue("@User", "Control Presupuestal");
-                            await cmdH.ExecuteNonQueryAsync();
-                        }
-
                         trans.Commit();
+                        return RedirectToAction("BandejaPresupuestos");
                     }
-                    catch
+                    catch (Exception ex)
                     {
                         trans.Rollback();
-                        throw;
+                        _logger.LogError(ex, "Error al actualizar Compras_Solicitud");
+                        return View("Dictamen", vm);
                     }
                 }
             }
-
-            // 3. Notificaciones automáticas (Se ejecutan después del Commit)
-            if (model.Pasa)
-            {
-                await NotificarACompras_NuevaRequisicion(model.SolicitudID, model.NumeroRequisicion);
-            }
-            else
-            {
-                await NotificarUsuario_Rechazo(model.SolicitudID, model.Observaciones);
-            }
-
-            return RedirectToAction("BandejaPresupuestal");
         }
+        [HttpGet("BandejaPresupuestos")]
+        public async Task<IActionResult> BandejaPresupuestos()
+        {
+            // Usamos el modelo que ya tienes en tu lista
+            var solicitudes = new List<BandejaComprasVm>();
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+
+                // Filtramos por EstatusID = 2 (Cotizado) que son las que CP debe revisar
+                string sql = @"
+            SELECT S.SolicitudID, S.Folio, 
+                   (P.Nombre + ' ' + P.ApellidoPaterno) AS Solicitante,
+                   S.TipoCompra, S.FechaCreacion, Est.Nombre AS Estatus
+            FROM Compras_Solicitud S
+            INNER JOIN Usuarios U ON S.UsuarioID = U.UsuarioID
+            INNER JOIN Persona P ON U.PersonaID = P.PersonaID
+            INNER JOIN Cat_EstatusCompra Est ON S.EstatusID = Est.EstatusID
+            WHERE S.EstatusID = 2";
+
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            solicitudes.Add(new BandejaComprasVm
+                            {
+                                SolicitudID = (int)reader["SolicitudID"],
+                                Folio = reader["Folio"].ToString(),
+                                Solicitante = reader["Solicitante"].ToString(),
+                                TipoCompra = reader["TipoCompra"].ToString(),
+                                FechaCreacion = (DateTime)reader["FechaCreacion"],
+                                Estatus = reader["Estatus"].ToString()
+                            });
+                        }
+                    }
+                }
+            }
+            return View(solicitudes);
+        }
+
+        // Lógica para detectar si Control Presupuestal se pasó de sus 24h
+        public string ObtenerAlertaPresupuesto(DateTime fechaCotizacion)
+        {
+            var horasTranscurridas = (DateTime.Now - fechaCotizacion).TotalHours;
+
+            if (horasTranscurridas > 48) return "text-danger font-weight-bold"; // Muy retrasado
+            if (horasTranscurridas > 24) return "text-warning"; // Al límite
+            return "text-success"; // A tiempo
+        }
+
 
         // --- MÉTODOS DE NOTIFICACIÓN QUE FALTABAN ---
 

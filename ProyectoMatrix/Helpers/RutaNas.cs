@@ -80,5 +80,28 @@ namespace ProyectoMatrix.Helpers
         }
 
         // Si se necesitan mas carpetas, en este apartado se agregan
+
+
+        // Agregando carpeta de compras
+        public string ObtenerRutaUnicaCompras()
+        {
+            // Esto devolverá siempre "Compras/Cotizaciones"
+            // Sin importar el ID de la solicitud.
+            return CombinarRuta("Compras", "Cotizaciones");
+        }
+
+        public string CrearCarpetaUnicaCompras()
+        {
+            var baseNas = ObtenerRutaBaseNAS();
+            var rutaRelativa = ObtenerRutaUnicaCompras();
+
+            var rutaFisica = Path.Combine(baseNas, rutaRelativa)
+                                 .Replace("/", Path.DirectorySeparatorChar.ToString());
+
+            if (!Directory.Exists(rutaFisica))
+                Directory.CreateDirectory(rutaFisica);
+
+            return rutaFisica;
+        }
     }
 }

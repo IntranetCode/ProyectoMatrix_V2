@@ -1,51 +1,104 @@
-﻿@model IEnumerable<ProyectoMatrix.Models.MisComprasVm>
+﻿@model ProyectoMatrix.Models.IndexComprasVm
 
 @{
-    ViewData["Title"] = "Mis Compras";
+    ViewData["Title"] = "Gestión de Compras";
     Layout = "_LayoutComunicados";
 }
 
+@* --- ENCABEZADO Y BOTONES --- *@
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Gestión de Compras</h2>
     <div>
-        <a asp-action="NuevaSolicitud" class="btn btn-primary">
+        <h2 class="mb-0">Gestión de Compras</h2>
+        <small class="text-muted">Panel de Control Unificado</small>
+    </div>
+    <div class="d-flex flex-wrap justify-content-end">
+        @* Solicitante *@
+        <a asp-action="NuevaSolicitud" class="btn btn-primary shadow-sm m-1">
             <i class="fas fa-plus me-1"></i> Nueva Solicitud
         </a>
 
-        @if (ViewBag.Puesto == "DIRECCION COMPRAS")
-        {
-            <a asp-action="BandejaAdmin" class="btn btn-dark ms-2">
-                <i class="fas fa-user-shield me-1"></i> Bandeja Maestra
-            </a>
-            <a asp-action="DashboardDireccion" class="btn btn-outline-primary ms-2">
-                <i class="fas fa-chart-line me-1"></i> Ver Gráficos
-            </a>
-        }
+        @* Compras (Bandeja Maestra) *@
+        <a asp-action="BandejaCompras" class="btn btn-dark shadow-sm m-1">
+            <i class="fas fa-user-shield me-1"></i> Bandeja Compras
+        </a>
 
-        @if (ViewBag.Puesto == "CONTROL PRESUPUESTAL")
-        {
-            <a asp-action="BandejaPresupuestal" class="btn btn-info ms-2">
-                <i class="fas fa-wallet me-1"></i> Validar Presupuestos
-            </a>
-        }
+        @* Control Presupuestal *@
+        <a asp-action="BandejaPresupuestos" class="btn btn-info shadow-sm m-1">
+            <i class="fas fa-wallet me-1"></i> Validar Presupuestos
+        </a>
+
+        @* Dirección (Próximamente vista de autorización final) *@
+        <button class="btn btn-warning shadow-sm m-1" disabled>
+            <i class="fas fa-signature me-1"></i> Autorización Final
+        </button>
     </div>
 </div>
 
-<div class="card shadow">
+@* --- SECCIÓN EXCLUSIVA PARA DIRECCIÓN (KPIs y Gráficos) --- *@
+@if (ViewBag.Puesto == "DIRECCION COMPRAS")
+{
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Críticos Vencidos</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Estadisticas.CriticosVencidos</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Promedio Atención</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Estadisticas.PromedioTotal Horas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-white">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-hourglass-half me-2"></i>Cuellos de Botella por Departamento (Horas)</h6>
+                </div>
+                <div class="card-body">
+                    <div id="chartCuellosBotella" style="min-height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-white">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-pie me-2"></i>Estatus General</h6>
+                </div>
+                <div class="card-body text-center">
+                    <div id="chartDonaEstatus"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* --- TABLA DE MIS COMPRAS (Para todos los usuarios) --- *@
+<div class="card shadow mb-5">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Mi Historial de Solicitudes</h6>
+    </div>
     <div class="card-body">
-        <table class="table table-hover">
+        <table class="table table-hover datatable-compras">
             <thead>
                 <tr>
                     <th>Folio</th>
                     <th>Fecha</th>
                     <th>Tipo</th>
                     <th>Empresa</th>
-                    <th>Estatus / Progreso</th>
+                    <th style="width: 25%;">Estatus / Progreso</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var item in Model)
+                @foreach (var item in Model.MisCompras)
                 {
                     <tr>
                         <td><strong>@item.Folio</strong></td>
@@ -53,15 +106,15 @@
                         <td>@item.Tipo</td>
                         <td>@item.Empresa</td>
                         <td>
-                            <div class="progress" style="height: 10px;">
-                                <div class="progress-bar @(item.EstatusID == 4 ? "bg-success" : "bg-primary")"
-                                     style="width: @(item.EstatusID * 25)%"></div>
+                            <div class="progress mb-1" style="height: 8px;">
+                                <div class="progress-bar @item.ColorProgreso"
+                                     style="width: @item.Porcentaje%"></div>
                             </div>
-                            <small>@item.Estatus</small>
+                            <small class="text-muted">@item.Estatus (@item.Porcentaje%)</small>
                         </td>
                         <td>
-                            <a asp-action="Detalle" asp-route-id="@item.SolicitudID" class="btn btn-sm btn-outline-secondary">
-                                <i class="fas fa-search"></i> Seguimiento
+                            <a asp-action="Detalle" asp-route-id="@item.SolicitudID" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-search me-1"></i> Seguimiento
                             </a>
                         </td>
                     </tr>
@@ -70,3 +123,161 @@
         </table>
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // 1. Gráfico de Cuellos de Botella
+            var optionsBar = {
+                series: [{
+                    name: 'Horas Promedio',
+                    data: @Html.Raw(Json.Serialize(Model.Estadisticas.TiemposPromedio))
+                }],
+                chart: { type: 'bar', height: 300, toolbar: {show: false} },
+                plotOptions: {
+                    bar: {
+                        distributed: true,
+                        horizontal: true,
+                        borderRadius: 4
+                    }
+                },
+                colors: ['#4e73df', '#f6c23e', '#e74a3b'], // Azul Compras, Amarillo Finanzas, Rojo Dirección
+                xaxis: { categories: ["Compras", "Finanzas", "Dirección"] },
+                legend: { show: false }
+            };
+            new ApexCharts(document.querySelector("#chartCuellosBotella"), optionsBar).render();
+
+            // 2. Gráfico de Dona
+            var optionsDona = {
+                series: @Html.Raw(Json.Serialize(Model.Estadisticas.DonaValores)),
+                chart: { type: 'donut', height: 300 },
+                labels: @Html.Raw(Json.Serialize(Model.Estadisticas.DonaEtiquetas)),
+                colors: ['#858796', '#f6c23e', '#36b9cc', '#1cc88a', '#e74a3b'],
+                responsive: [{ breakpoint: 480, options: { chart: { width: 200 }, legend: { position: 'bottom' } } }]
+            };
+            new ApexCharts(document.querySelector("#chartDonaEstatus"), optionsDona).render();
+        });
+    </script>
+}
+
+
+                <style>
+    /* --- Estructura y Títulos --- */
+    h2 {
+        color: #2c3e50; /* Azul Oscuro Corporativo */
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+
+    .text-muted {
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+    }
+
+    /* --- Botones con Identidad Visual --- */
+    .btn {
+        border-radius: 8px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+        }
+
+    /* Naranja para acciones principales (Nueva Solicitud) */
+    .btn-primary {
+        background-color: #ff6b00 !important;
+        color: white !important;
+    }
+
+    /* Azul para controles secundarios */
+    .btn-dark {
+        background-color: #004a99 !important;
+    }
+
+    .btn-info {
+        background-color: #0066cc !important;
+        color: white;
+    }
+
+    /* --- Cards de KPI --- */
+    .card {
+        border-radius: 12px;
+        border: 1px solid #e3e6f0;
+    }
+
+    .card-header {
+        background-color: #ffffff !important;
+        border-bottom: 1px solid #e3e6f0;
+        color: #004a99; /* Título en azul */
+    }
+
+    /* Indicadores laterales */
+    .border-left-danger {
+        border-left: 5px solid #e74a3b !important;
+    }
+
+    .border-left-warning {
+        border-left: 5px solid #ff9f1a !important;
+    }
+    /* Naranja suave */
+
+    /* --- Tabla de Compras --- */
+    .datatable-compras {
+        border-collapse: separate;
+        border-spacing: 0 8px;
+    }
+
+        .datatable-compras thead th {
+            background-color: #f8f9fc;
+            color: #004a99;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            border: none;
+            padding: 15px;
+        }
+
+        .datatable-compras tbody tr {
+            background-color: white;
+            transition: all 0.2s;
+        }
+
+            .datatable-compras tbody tr:hover {
+                background-color: #fff5ed !important; /* Toque naranja muy tenue al pasar el mouse */
+            }
+
+        .datatable-compras td {
+            vertical-align: middle;
+            padding: 15px;
+            border-top: 1px solid #e3e6f0;
+            border-bottom: 1px solid #e3e6f0;
+        }
+
+    /* --- Barras de Progreso --- */
+    .progress {
+        background-color: #eaecf4;
+        border-radius: 10px;
+    }
+
+    /* Color naranja para el progreso */
+    .progress-bar {
+        background-color: #ff6b00 !important;
+        border-radius: 10px;
+    }
+
+    /* --- Acciones --- */
+    .btn-outline-primary {
+        border: 1px solid #004a99;
+        color: #004a99;
+    }
+
+        .btn-outline-primary:hover {
+            background-color: #004a99;
+            color: white;
+        }
+                </style>
