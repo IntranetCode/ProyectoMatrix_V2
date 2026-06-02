@@ -14,6 +14,7 @@ using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Models.Opciones;
 using ProyectoMatrix.Servicios;
+using ProyectoMatrix.Hubs;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
@@ -138,11 +139,16 @@ builder.Services.AddDistributedMemoryCache();
 builder.Services.AddHttpContextAccessor();
 
 
+builder.Services.AddSignalR();
+
+
 //Registrando el nuevo servicio creado que es sobre acceso
 
 builder.Services.AddScoped<IServicioAcceso, ServicioAcceso>();
 
 var app = builder.Build();
+// Activa el motor de creación de PDFs de Rotativa
+Rotativa.AspNetCore.RotativaConfiguration.Setup(app.Environment.WebRootPath, "Rotativa");
 if (app.Environment.IsDevelopment())
 {
     // /dev/test-smtp-connect: prueba combos puerto/seguridad
@@ -451,6 +457,8 @@ app.UseAuthorization();
 
 
 app.MapControllers();
+
+app.MapHub<LogisticaHub>("/logisticaHub");
 
 // ? MAPEAR Controllers ANTES de RazorPages
 app.MapControllerRoute(

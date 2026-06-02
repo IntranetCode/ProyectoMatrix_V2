@@ -29,6 +29,7 @@
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="bootstrap" Version="5.3.6" />
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="EntityFramework" Version="6.5.1" />
     <PackageReference Include="jQuery" Version="3.7.1" />
@@ -42,6 +43,7 @@
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="QuestPDF" Version="2025.7.1" />
+    <PackageReference Include="Rotativa.AspNetCore" Version="1.4.0" />
     <PackageReference Include="SSH.NET" Version="2025.0.0" />
   </ItemGroup>
 

@@ -46,6 +46,18 @@ namespace ProyectoMatrix.Models
         public DbSet<PermisosPorRol> PermisosPorRol { get; set; }
         public DbSet<SubMenuAcciones> SubMenuAcciones { get; set; }
 
+        // ==========================================
+        // MÓDULO LOGÍSTICA (Axel)
+        // ==========================================
+        public DbSet<Guia> Guias { get; set; }
+        public DbSet<Transporte> Transporte { get; set; }
+        public DbSet<TransporteDestino> TransporteDestinos { get; set; }
+        public DbSet<Vehiculo> Vehiculos { get; set; } 
+        public DbSet<TransportePlanEmbarque> TransportePlanEmbarque { get; set; }
+        public DbSet<TransporteHistorialEstado> TransporteHistorialEstados { get; set; }
+        public DbSet<ProyectoMatrix.Models.EmpleadoDepartamento> EmpleadoDepartamentos { get; set; }
+        public DbSet<Departamento> Departamentos { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -115,12 +127,7 @@ namespace ProyectoMatrix.Models
                 .HasForeignKey(x => x.NotificacionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-
-            base.OnModelCreating(modelBuilder);
-
             // Configurar el ViewModel como sin clave (keyless)
-            modelBuilder.Entity<UsuarioPerfilViewModel>().HasNoKey();
-
             modelBuilder.Entity<UsuarioPerfilViewModel>().HasNoKey();
         }
     }
