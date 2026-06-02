@@ -184,35 +184,50 @@ namespace ProyectoMatrix.Controllers
             return empresas;
         }
 
-public IActionResult Transporte()
+        public IActionResult Transporte()
         {
-            Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-
             int usuarioId = ObtenerUsuarioIDActual();
-            string nombreUsuarioActual = ObtenerNombreUsuarioActual(usuarioId);
-            string areaUsuarioActual = ObtenerAreaUsuarioActual(usuarioId);
+            bool esLogistica = ValidarSiEsDepartamentoLogistica(usuarioId);
 
-            ViewBag.EsLogistica = ValidarSiEsDepartamentoLogistica(usuarioId);
+            ViewBag.EsLogistica = esLogistica;
             ViewBag.UsuarioActualId = usuarioId;
-            ViewBag.UsuarioActualNombre = nombreUsuarioActual;
-            ViewBag.UsuarioActualArea = areaUsuarioActual;
-            ViewBag.FirmaPanelTransporte = CrearFirmaPanelTransporte();
-            ViewBag.EmpresasTransporte = ObtenerEmpresasSelectList();
+            ViewBag.UsuarioActualNombre = ObtenerNombreUsuarioActual(usuarioId);
+            ViewBag.UsuarioActualArea = ObtenerAreaUsuarioActual(usuarioId);
+            ViewBag.Empresas = ObtenerEmpresasSelectList();
 
-            var listaTransportes = _context.Transporte
-                .Include(x => x.Destinos)
-                .Include(x => x.PlanEmbarque)
-                .Include(x => x.HistorialEstados)
-                .OrderByDescending(x => x.IdTransporte)
-                .ToList();
-
-            ViewBag.UsuariosIntranet = _context.Usuarios
+            // Carga de diccionario de usuarios
+            var usuarios = _context.Usuarios
+                .Include(u => u.Persona)
                 .AsNoTracking()
-                .Select(u => u.UsuarioID)
-                .ToList()
-                .ToDictionary(id => id, id => ObtenerNombreCompletoUsuario(id));
+                .AsEnumerable();
 
-            return View(listaTransportes);
+            ViewBag.UsuariosIntranet = usuarios.ToDictionary(
+                u => u.UsuarioID,
+                u =>
+                {
+                    var nombreCompleto = string.Concat(u.Persona?.Nombre, " ", u.Persona?.ApellidoPaterno, " ", u.Persona?.ApellidoMaterno).Trim();
+                    return string.IsNullOrWhiteSpace(nombreCompleto)
+                        ? u.Username ?? "Usuario"
+                        : nombreCompleto;
+                });
+
+            List<Transporte> lista;
+            if (esLogistica)
+            {
+                lista = _context.Transporte.Include(t => t.Destinos).Include(t => t.PlanEmbarque).ToList();
+            }
+            else
+            {
+                lista = _context.Transporte
+                    .Include(t => t.Destinos)
+                    .Include(t => t.PlanEmbarque)
+                    .Where(t => t.UsuarioID == usuarioId
+                             && !t.EstaBorrado
+                             && (t.EstadoSolicitud == "Autorizada" || t.EstadoSolicitud == "Finalizada" || t.EstadoSolicitud == "Activo"))
+                    .ToList();
+            }
+
+            return View(lista);
         }
 
         [HttpGet]
@@ -638,22 +653,46 @@ public IActionResult Transporte()
         // ==========================================
         // MÓDULO: GUÍAS (PAQUETERÍA EXTERNA)
         // ==========================================
-        public IActionResult Guias()
-        {
-            Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-            int usuarioId = ObtenerUsuarioIDActual();
-            ViewBag.EsLogistica = ValidarSiEsDepartamentoLogistica(usuarioId);
-            ViewBag.EmpresasGuias = ObtenerEmpresasSelectList();
+public IActionResult Guias()
+{
+    int usuarioId = ObtenerUsuarioIDActual();
+    bool esLogistica = ValidarSiEsDepartamentoLogistica(usuarioId);
 
-            var listaGuias = _context.Guias.ToList();
-            ViewBag.UsuariosIntranet = _context.Usuarios
-                .AsNoTracking()
-                .Select(u => u.UsuarioID)
-                .ToList()
-                .ToDictionary(id => id, id => ObtenerNombreCompletoUsuario(id));
+    ViewBag.EsLogistica = esLogistica;
+    ViewBag.UsuarioActualId = usuarioId;
+    ViewBag.EmpresasGuias = ObtenerEmpresasSelectList();
 
-            return View(listaGuias);
-        }
+    ViewBag.UsuariosIntranet = _context.Usuarios
+        .Include(u => u.Persona)
+        .AsNoTracking()
+        .ToDictionary(
+            u => u.UsuarioID,
+            u =>
+            {
+                var nombreCompleto = string.Concat(u.Persona?.Nombre, " ", u.Persona?.ApellidoPaterno, " ", u.Persona?.ApellidoMaterno).Trim();
+                return string.IsNullOrWhiteSpace(nombreCompleto)
+                    ? u.Username ?? "Usuario"
+                    : nombreCompleto;
+            });
+
+    List<Guia> lista;
+    if (esLogistica)
+    {
+        // Logística ve todas las guías
+        lista = _context.Guias.ToList();
+    }
+    else
+    {
+        // USUARIO FINAL: Solo sus guías, no borradas y ya autorizadas/finalizadas/activas
+        lista = _context.Guias
+            .Where(g => g.UsuarioID == usuarioId 
+                     && !g.EstaBorrado 
+                     && (g.EstadoEdicion == "Autorizada" || g.EstadoEdicion == "Finalizada" || g.EstadoEdicion == "Activa"))
+            .ToList();
+    }
+
+    return View(lista);
+}
 
         [HttpGet]
         public IActionResult ObtenerGuia(int id)
@@ -738,7 +777,10 @@ public IActionResult Transporte()
                 if (resolucion == "Rechazada" && !string.IsNullOrEmpty(registro.DatosAntiguos))
                 {
                     var datosViejos = JsonSerializer.Deserialize<Guia>(registro.DatosAntiguos);
-                    _context.Entry(registro).CurrentValues.SetValues(datosViejos);
+                    if (datosViejos != null)
+                    {
+                        _context.Entry(registro).CurrentValues.SetValues(datosViejos);
+                    }
                 }
 
                 registro.EstadoEdicion = resolucion;
