@@ -1,0 +1,438 @@
+@model ProyectoMatrix.Models.Transporte
+@{
+    Layout = null;
+
+    // CONSTANTES OFICIALES DEL FORMATO
+    const string FORMATO_AREA = "Logística";
+    const string FORMATO_ELABORADO_POR = "Ing. Axel Delgado";
+    const string FORMATO_LIBERADO_POR = "Lic. Pedro Bello";
+    const string FORMATO_VERSION = "'03-2025";
+    const string FORMATO_FECHA_EMISION = "17/09/2025";
+    const string FORMATO_CODIGO = "F-19-06";
+
+    var destinos = Model.Destinos?.OrderBy(x => x.NumeroDestino).ToList() ?? new List<ProyectoMatrix.Models.TransporteDestino>();
+    var plan = Model.PlanEmbarque?.ToList() ?? new List<ProyectoMatrix.Models.TransportePlanEmbarque>();
+
+    string folio = !string.IsNullOrWhiteSpace(Model.Folio) ? Model.Folio : $"TR-{Model.IdTransporte}";
+    string numeroFactura = Model.NumeroFactura ?? "";
+    string fechaCarga = Model.FechaCarga.HasValue ? Model.FechaCarga.Value.ToString("dd/MM/yyyy") : "";
+    string horarioCarga = Model.HorarioCarga ?? "";
+    string horarioLlegadaDestino = Model.HorarioLlegadaDestino ?? "";
+    string duracionAproxFlete = Model.DuracionAproxFlete ?? "";
+    string cliente = Model.Cliente ?? "";
+    string proyecto = Model.Proyecto ?? "";
+    string solicitante = Model.NombreSolicitante ?? Model.ElaboradoPor ?? "";
+    string departamento = Model.Departamento ?? "";
+    string compania = Model.CompaniaSolicitante ?? "";
+    string centroCosto = Model.CentroCosto ?? "";
+    string autorizadoPresupuesto = Model.AutorizadoPresupuesto ?? "";
+    string tipoRuta = Model.TipoRuta ?? "";
+    string direccionRecoleccion = Model.DireccionRecoleccion ?? "";
+    string volumetria = Model.Volumetria ?? "";
+    string tipoUnidad = Model.TipoUnidad ?? "";
+    string comentariosUnidad = Model.ComentariosUnidad ?? "";
+    string fletero = Model.Fletero ?? "";
+    string costoFlete = Model.CostoFlete.HasValue && Model.CostoFlete.Value > 0 ? Model.CostoFlete.Value.ToString("C") + " MXN + IVA" : "";
+    decimal totalValor = plan.Sum(x => x.Valor ?? 0);
+    decimal totalPeso = plan.Sum(x => x.Peso ?? 0);
+    string fechaImpresion = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Solicitud de Transporte - @folio</title>
+    <style>
+        @@page {
+            size: Letter portrait;
+            margin: 7mm;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            color: #000;
+            background: #fff;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 7.6px;
+            line-height: 1.08;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            page-break-inside: auto;
+            border: 1px solid #000;
+        }
+
+        tr { page-break-inside: avoid; }
+
+        th, td {
+            border: 1px solid #000;
+            padding: 3px 4px;
+            vertical-align: middle;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .page-wrapper {
+            width: 100%;
+        }
+
+        .header-repeat {
+            display: table-header-group;
+        }
+
+        .no-border { border: none !important; }
+
+        .logo-cell {
+            width: 11%;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .logo-mark {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 2px solid #000;
+            border-radius: 50%;
+            line-height: 36px;
+            font-weight: 900;
+            font-size: 18px;
+        }
+
+        .logo-text {
+            font-weight: 900;
+            font-size: 5.5px;
+            margin-top: 1px;
+        }
+
+        .company {
+            font-size: 8px;
+            font-weight: 900;
+            text-align: left;
+        }
+
+        .process {
+            font-size: 7px;
+            font-weight: 900;
+            text-align: left;
+        }
+
+        .title {
+            font-size: 9px;
+            font-weight: 900;
+            text-align: center;
+        }
+
+        .label {
+            background: #ededed;
+            font-weight: 900;
+        }
+
+        .value {
+            background: #fff;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .bold { font-weight: 900; }
+        .tiny { font-size: 6.1px; }
+        .small { font-size: 6.6px; }
+
+        .section-title {
+            background: #ededed;
+            text-align: center;
+            font-weight: 900;
+        }
+
+        .destinos {
+            width: 100%;
+        }
+
+        .destinos th,
+        .embarque th,
+        .checklist th {
+            background: #ededed;
+            text-align: center;
+            font-weight: 900;
+        }
+
+        .destinos .col-numero { width: 7%; }
+        .destinos .col-nombre { width: 28%; }
+        .destinos .col-contacto { width: 22%; }
+        .destinos .col-direccion { width: 43%; }
+
+        .destinos td,
+        .embarque td {
+            height: 13px;
+        }
+
+        .firma-line {
+            border-left: none;
+            border-right: none;
+            border-top: none;
+            border-bottom: 1px solid #000;
+            height: 23px;
+        }
+
+        .firma-label {
+            border: none;
+            text-align: center;
+            font-weight: 700;
+            font-size: 6.4px;
+            height: 10px;
+        }
+
+        .firma-space { height: 22px; }
+
+        .mt-2 { margin-top: 2px; }
+        .mt-4 { margin-top: 4px; }
+
+        .footer-note {
+            margin-top: 2px;
+            font-size: 5.8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <table class="page-wrapper">
+        <thead class="header-repeat">
+            <tr>
+                <td class="no-border">
+                    <table>
+                        <tr>
+                            <td rowspan="5" class="logo-cell">
+                                <div class="logo-mark">NS</div>
+                                <div class="logo-text">GROUP</div>
+                            </td>
+                            <td colspan="9" class="company">NS GROUP</td>
+                            <td colspan="2" class="right tiny no-border">@fechaImpresion</td>
+                        </tr>
+                        <tr>
+                            <td colspan="11" class="process">PROCESOS Y MEJORA CONTINUA</td>
+                        </tr>
+                        <tr>
+                            <td colspan="11" class="title">Formato de Solicitud de Transporte</td>
+                        </tr>
+                        <tr>
+                            <td class="label center">Área:</td>
+                            <td colspan="2" class="label center">Elaborado Por:</td>
+                            <td colspan="2" class="label center">Liberado Por:</td>
+                            <td class="label center">Versión:</td>
+                            <td colspan="2" class="label center">Fecha de Emisión:</td>
+                            <td class="label center">Página:</td>
+                            <td colspan="2" class="label center">Código:</td>
+                        </tr>
+                        <tr>
+                            <td class="value">@FORMATO_AREA</td>
+                            <td colspan="2" class="value">@FORMATO_ELABORADO_POR</td>
+                            <td colspan="2" class="value">@FORMATO_LIBERADO_POR</td>
+                            <td class="value">@FORMATO_VERSION</td>
+                            <td colspan="2" class="value">@FORMATO_FECHA_EMISION</td>
+                            <td class="value">1 de 1</td>
+                            <td colspan="2" class="value">@FORMATO_CODIGO</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                <td class="no-border">
+                    <table>
+                        <tr>
+                            <td colspan="2" class="label"># Factura</td>
+                            <td colspan="4" class="value">@numeroFactura</td>
+                            <td colspan="2" class="label"># ID Folio</td>
+                            <td colspan="4" class="value">@folio</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="label">Fecha de Carga</td>
+                            <td colspan="4" class="value">@fechaCarga</td>
+                            <td colspan="2" class="label">Duración aprox. De Flete</td>
+                            <td colspan="4" class="value">@duracionAproxFlete</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="label">Horario de Carga</td>
+                            <td colspan="4" class="value">@horarioCarga</td>
+                            <td colspan="2" class="label">Horario De Llegada a Destino</td>
+                            <td colspan="4" class="value">@horarioLlegadaDestino</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="label">Cliente</td>
+                            <td colspan="4" class="value">@cliente</td>
+                            <td colspan="2" class="label">Proyecto</td>
+                            <td colspan="4" class="value">@proyecto</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="label">Nombre del Solicitante</td>
+                            <td colspan="4" class="value">@solicitante</td>
+                            <td colspan="2" class="label">Departamento</td>
+                            <td colspan="4" class="value">@departamento</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="label">Compañía Solicitante</td>
+                            <td colspan="4" class="value">@compania</td>
+                            <td colspan="2" class="label">Autorizado Presupuesto</td>
+                            <td colspan="4" class="value">@autorizadoPresupuesto</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="label">Centro de Costo</td>
+                            <td colspan="4" class="value">@centroCosto</td>
+                            <td colspan="2" rowspan="2" class="label center">Presupuesto de Flete</td>
+                            <td colspan="4" rowspan="2" class="value">@costoFlete</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="label">Tipo de Ruta</td>
+                            <td colspan="4" class="value">@tipoRuta</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="label">Dirección de Recolección</td>
+                            <td colspan="4" class="value">@direccionRecoleccion</td>
+                            <td colspan="2" class="label center">Tipo de Unidad</td>
+                            <td colspan="4" class="value">@tipoUnidad</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" rowspan="2" class="label center">Volumetría<br><span class="tiny">(Ancho y Largo - mts)</span></td>
+                            <td colspan="4" rowspan="2" class="value">@volumetria</td>
+                            <td colspan="2" class="label center">Comentarios de Unidad<br><span class="tiny">(Otros...)</span></td>
+                            <td colspan="4" class="value">@comentariosUnidad</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="label">Fletero</td>
+                            <td colspan="4" class="value">@fletero</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="label">Costo de Flete</td>
+                            <td colspan="10" class="value">@costoFlete</td>
+                        </tr>
+                    </table>
+
+                    <table class="destinos mt-2">
+                        <tr>
+                            <th colspan="4" class="section-title">Destinos</th>
+                        </tr>
+                        <tr>
+                            <th class="col-numero">#</th>
+                            <th class="col-nombre">Nombre de la Persona quien recibe Carga</th>
+                            <th class="col-contacto">Contacto de quien recibe</th>
+                            <th class="col-direccion">Dirección de Destino</th>
+                        </tr>
+
+                        @if (destinos.Any())
+                        {
+                            foreach (var destino in destinos)
+                            {
+                                <tr>
+                                    <td class="center">@destino.NumeroDestino</td>
+                                    <td>@(destino.NombreRecibe ?? "")</td>
+                                    <td>@(destino.ContactoRecibe ?? "")</td>
+                                    <td>@(destino.DireccionDestino ?? "")</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td class="center"></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                        }
+                    </table>
+
+                    <table class="embarque mt-2">
+                        <tr>
+                            <th colspan="7" class="section-title">Plan de Embarque</th>
+                        </tr>
+                        <tr>
+                            <th style="width: 12%;">Clave SAT</th>
+                            <th style="width: 35%;">Descripción</th>
+                            <th style="width: 9%;">Cantidad</th>
+                            <th style="width: 7%;">UM</th>
+                            <th style="width: 10%;">PESO</th>
+                            <th style="width: 13%;">VALOR</th>
+                            <th style="width: 14%;">VALE DE SALIDA / FACTURA</th>
+                        </tr>
+
+                        @if (plan.Any())
+                        {
+                            foreach (var item in plan)
+                            {
+                                <tr>
+                                    <td class="center">@(item.ClaveSAT ?? "")</td>
+                                    <td>@(item.Descripcion ?? "")</td>
+                                    <td class="center">@(item.Cantidad.HasValue ? item.Cantidad.Value.ToString("N0") : "")</td>
+                                    <td class="center">@(item.UnidadMedida ?? "")</td>
+                                    <td class="right">@(item.Peso.HasValue ? item.Peso.Value.ToString("N2") : "")</td>
+                                    <td class="right">@(item.Valor.HasValue ? item.Valor.Value.ToString("C") : "")</td>
+                                    <td class="center">@(item.ValeSalidaFactura ?? "")</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                            </tr>
+                        }
+
+                        <tr>
+                            <td colspan="4" class="right bold">Totales</td>
+                            <td class="right bold">@(totalPeso > 0 ? totalPeso.ToString("N2") : "")</td>
+                            <td class="right bold">@(totalValor > 0 ? totalValor.ToString("C") : "")</td>
+                            <td class="center bold">MXN</td>
+                        </tr>
+                    </table>
+
+                    <table class="mt-2">
+                        <tr>
+                            <td class="no-border" style="width: 56%; vertical-align: top;">
+                                <table>
+                                    <tr><td class="no-border firma-space"></td></tr>
+                                    <tr><td class="firma-line"></td></tr>
+                                    <tr><td class="firma-label">Nombre y Firma del solicitante</td></tr>
+                                    <tr><td class="firma-line"></td></tr>
+                                    <tr><td class="firma-label">Nombre y firma de Logística</td></tr>
+                                    <tr><td class="firma-line"></td></tr>
+                                    <tr><td class="firma-label">Nombre y Firma de Conformidad de Costo<br>Director del Solicitante</td></tr>
+                                </table>
+                            </td>
+                            <td class="no-border" style="width: 12%;"></td>
+                            <td class="no-border" style="width: 32%; vertical-align: top;">
+                                <table class="checklist">
+                                    <tr>
+                                        <th colspan="2">Checklist</th>
+                                    </tr>
+                                    <tr>
+                                        <td style="width: 82%;">1. Formato de Solicitud de Transporte</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr><td>2. Carta Porte</td><td></td></tr>
+                                    <tr><td>3. Factura</td><td></td></tr>
+                                    <tr><td>4. Evidencia (Documentos Firmados)</td><td></td></tr>
+                                    <tr><td>5. Fotografías</td><td></td></tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="footer-note">
+                        Folio sistema: @folio
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>
