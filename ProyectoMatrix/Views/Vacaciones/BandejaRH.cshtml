@@ -6,9 +6,188 @@
     var tab = (Model?.Tab ?? "autorizadas").ToLower();
 }
 
+<style>
+    .bandeja-rh-page {
+        background: #f5f7fb;
+        color: #26324a;
+        padding-bottom: 30px;
+    }
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    .bandeja-rh-page h2 {
+        color: #16376d;
+        font-weight: 800;
+        font-size: 2rem;
+        padding-left: 18px;
+        margin-top: 22px;
+        margin-bottom: 26px;
+        border-left: 6px solid #f47b20;
+        letter-spacing: .2px;
+        text-shadow: 0 2px 5px rgba(22, 55, 109, .08);
+    }
+
+    .bandeja-rh-page .row.g-2.mb-3 {
+        margin-bottom: 24px !important;
+    }
+
+    .bandeja-rh-page .btn {
+        border-radius: 10px !important;
+        font-weight: 700;
+        transition: all .2s ease;
+    }
+
+    .bandeja-rh-page .btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .bandeja-rh-page .btn-outline-primary {
+        color: #173b78 !important;
+        border: 1px solid #cbd8ef !important;
+        background: #ffffff !important;
+        padding: 12px 20px;
+        box-shadow: 0 4px 12px rgba(22, 55, 109, .06);
+    }
+
+    .bandeja-rh-page .btn-outline-primary:hover {
+        color: #173b78 !important;
+        border-color: #f47b20 !important;
+        background: #fff7f0 !important;
+        box-shadow: 0 8px 18px rgba(244, 123, 32, .16);
+    }
+
+    .bandeja-rh-page .btn-primary {
+        background: linear-gradient(135deg, #173b78, #234f9a) !important;
+        border: none !important;
+        color: #ffffff !important;
+        padding: 12px 20px;
+        box-shadow: 0 8px 20px rgba(22, 55, 109, .28);
+        position: relative;
+    }
+
+    .bandeja-rh-page .btn-primary::after {
+        content: "";
+        position: absolute;
+        left: 10px;
+        right: 10px;
+        bottom: -3px;
+        height: 3px;
+        border-radius: 20px;
+        background: #f47b20;
+    }
+
+    .bandeja-rh-page .modal-footer {
+        border-top: 1px solid #e5ebf5;
+        margin-top: 12px;
+        padding-top: 16px;
+    }
+
+    .bandeja-rh-page .btn-secondary {
+        background: #6f7b90 !important;
+        border: none !important;
+        color: #ffffff !important;
+        padding: 10px 18px;
+        box-shadow: 0 5px 14px rgba(111, 123, 144, .20);
+    }
+
+    .bandeja-rh-page .input-group,
+    .bandeja-rh-page form.row.g-2 {
+        background: #ffffff;
+        padding: 18px;
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(22, 55, 109, .07);
+        border: 1px solid #e4ebf7;
+    }
+
+    .bandeja-rh-page .form-control,
+    .bandeja-rh-page .form-control-sm {
+        border: 1px solid #d6e0ef;
+        border-radius: 10px !important;
+        background: #ffffff;
+        color: #26324a;
+        padding: 11px 14px;
+        font-weight: 500;
+    }
+
+    .bandeja-rh-page .form-control:focus,
+    .bandeja-rh-page .form-control-sm:focus {
+        border-color: #f47b20;
+        box-shadow: 0 0 0 .18rem rgba(244, 123, 32, .17);
+    }
+
+    .bandeja-rh-page .table-responsive {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: visible;
+        border-radius: 18px;
+        background: #ffffff;
+        box-shadow: 0 10px 28px rgba(22, 55, 109, .08);
+    }
+
+    .bandeja-rh-page .table {
+        background: #ffffff;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid #e2e9f5;
+        margin-top: 18px;
+        margin-bottom: 0;
+    }
+
+    .bandeja-rh-page .table thead th {
+        background: linear-gradient(135deg, #173b78, #234f9a) !important;
+        color: #ffffff !important;
+        font-size: .76rem;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        padding: 16px 12px;
+        border: none !important;
+        text-align: center;
+        font-weight: 800;
+    }
+
+    .bandeja-rh-page .table tbody td {
+        padding: 15px 12px;
+        vertical-align: middle;
+        border-bottom: 1px solid #edf2f8;
+        color: #26324a;
+        font-size: .92rem;
+    }
+
+    .bandeja-rh-page .table-striped tbody tr:nth-of-type(odd) {
+        background-color: #fbfdff !important;
+    }
+
+    .bandeja-rh-page .table tbody tr:hover {
+        background: #fff5ed !important;
+        box-shadow: inset 4px 0 0 #f47b20;
+    }
+
+    .bandeja-rh-page .table td strong {
+        color: #ff5f15;
+        font-size: 1.04rem;
+        font-weight: 900;
+    }
+
+    .bandeja-rh-page .tabla-usuarios-rh {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-radius: 18px;
+        background: #ffffff;
+    }
+
+    .bandeja-rh-page .tabla-usuarios-rh table {
+        min-width: 1450px;
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
+    .bandeja-rh-page .tabla-usuarios-rh th,
+    .bandeja-rh-page .tabla-usuarios-rh td {
+        white-space: nowrap;
+    }
+</style>
+
+<div class="bandeja-rh-page">
 
 <h2>Bandeja RH - Vacaciones</h2>
 
@@ -18,50 +197,29 @@
 }
 
 <div class="row g-2 mb-3">
-
-    @*
-         <div class="col-auto">
-        <a asp-action="BandejaRH" asp-route-tab="pendientes" class="btn @(tab=="pendientes"?"btn-primary":"btn-outline-primary")">
-            Pendientes de autorizar por Jefe Directo (@(ViewBag.Pendientes ?? 0))
-        </a>
-    </div>
-    *@
-   
-
     <div class="col-auto">
-        <a asp-action="BandejaRH" asp-route-tab="autorizadas" class="btn @(tab=="autorizadas"?"btn-primary":"btn-outline-primary")">
-            Autorizadas (@(ViewBag.Autorizadas ?? 0))
+        <a asp-action="BandejaRH" asp-route-tab="autorizadas" class="btn @(tab == "autorizadas" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fa-solid fa-clipboard-check me-2"></i> Autorizadas
         </a>
     </div>
 
     <div class="col-auto">
-        <a asp-action="BandejaRH" asp-route-tab="registradas" class="btn @(tab=="registradas"?"btn-primary":"btn-outline-primary")">
-            Registradas por RRHH (@(ViewBag.Registradas ?? 0))
-        </a>
-    </div>
-    @*
-        <div class="col-auto">
-        <a asp-action="BandejaRH" asp-route-tab="rechazadas" class="btn @(tab=="rechazadas"?"btn-primary":"btn-outline-primary")">
-            Rechazadas por Jefe Directo (@(ViewBag.Rechazadas ?? 0))
-        </a>
-    </div>
-    *@
-    
-
-    <div class="col-auto">
-        <a asp-action="BandejaRH" asp-route-tab="usuarios" class="btn @(tab == "usuarios" ? "btn-primary" : "btn-outline-primary")">
-            Saldo de usuarios
+        <a asp-action="BandejaRH" asp-route-tab="registradas" class="btn @(tab == "registradas" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fa-solid fa-circle-check me-2"></i> Registradas por RRHH
         </a>
     </div>
 
     <div class="col-auto">
-        <a asp-action="BandejaRH" asp-route-tab="vistaexcel"
-           class="btn @(tab == "vistaexcel" ? "btn-primary" : "btn-outline-primary")">
-            Vista general
+        <a asp-action="BandejaRH" asp-route-tab="usuarios" class="btn @(tab == "usuarios" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fa-solid fa-users me-2"></i> Saldo de usuarios
         </a>
     </div>
 
-
+    <div class="col-auto">
+        <a asp-action="BandejaRH" asp-route-tab="vistaexcel" class="btn @(tab == "vistaexcel" ? "btn-primary" : "btn-outline-primary")">
+            <i class="fa-solid fa-chart-column me-2"></i> Vista general
+        </a>
+    </div>
 </div>
 
 
@@ -70,10 +228,10 @@
         Volver a Mis Vacaciones
     </a>
 </div>
+
 @if (tab == "vistaexcel")
 {
     <form method="get" asp-action="BandejaRH" class="row g-2 mb-3">
-        @* Es vital que el tab se envíe como "vistaexcel" *@
         <input type="hidden" name="tab" value="vistaexcel" />
 
         <div class="col-sm-6 col-md-4 col-lg-3">
@@ -149,22 +307,21 @@
 else if (tab == "usuarios")
 {
     <div class="mb-3">
-    <form method="get" action="@Url.Action("BandejaRH")">
-        <input type="hidden" name="tab" value="usuarios" />
-        <div class="input-group">
-            <input type="text" name="q" class="form-control" placeholder="Buscar por nombre o # empleado..." value="@ViewBag.Query">
-            <button class="btn btn-outline-secondary" type="submit">Buscar</button>
-            <a href="@Url.Action("BandejaRH", new { tab = "usuarios" })" class="btn btn-outline-danger">Limpiar</a>
+        <form method="get" action="@Url.Action("BandejaRH")">
+            <input type="hidden" name="tab" value="usuarios" />
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="Buscar por nombre o # empleado..." value="@ViewBag.Q">
+                <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+                <a href="@Url.Action("BandejaRH", new { tab = "usuarios" })" class="btn btn-outline-danger">Limpiar</a>
 
                 <button type="button" class="btn btn-danger" onclick="abrirModalMasivo()">
                     <i class="fas fa-users-slash me-1"></i> Descuento Masivo
                 </button>
-        </div>
-    </form>
-</div>
-
-
-    <table class="table table-sm table-striped">
+            </div>
+        </form>
+    </div>
+    <div class="table-responsive tabla-usuarios-rh">
+        <table class="table table-sm table-striped align-middle w-100">
         <thead>
             <tr>
                 <th>Empleado</th>
@@ -179,7 +336,7 @@ else if (tab == "usuarios")
                 <th>Disponibles</th>
                 <th>Anticipadas Reg.</th>
                 <th>Anticipadas Por Reg.</th>
-                <th>Acciones</th>
+                <th style="min-width: 280px;">Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -201,21 +358,28 @@ else if (tab == "usuarios")
                         <td>@u.AnticipadasRegistradas</td>
                         <td>@u.AnticipadasPorRegistrar</td>
                         <td>
-                          
-                            <button class="btn btn-sm btn-outline-primary"
-                                    onclick="abrirModalAjuste(@u.PersonaID, '@u.NombreCompleto')">
-                                <i class="fas fa-plus-circle"></i> Cargar Historial
-                            </button>
+                            <div class="d-flex gap-1 justify-content-center">
+                                <button class="btn btn-sm btn-outline-primary"
+                                        onclick="abrirModalAjuste(@u.PersonaID, '@u.NombreCompleto')">
+                                    <i class="fas fa-plus-circle me-1"></i> Historial
+                                </button>
+
+                                <button class="btn btn-sm btn-success text-white fw-semibold"
+                                        onclick="abrirModalDiasExtra(@u.PersonaID, '@u.NombreCompleto')">
+                                    <i class="fas fa-gift me-1"></i> Días Extra
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 }
             }
             else
             {
-                <tr><td colspan="12" class="text-muted">No hay usuarios para mostrar.</td></tr>
+                <tr><td colspan="13" class="text-muted text-center">No hay usuarios para mostrar.</td></tr>
             }
         </tbody>
     </table>
+    </div>
 }
 else
 {
@@ -264,6 +428,8 @@ else
     </table>
 }
 
+@* Modales del sistema *@
+
 <div class="modal fade" id="modalAjusteManual" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -300,6 +466,36 @@ else
             </div>
         </div>
     </div>
+</div>
+
+@* Interfaz para la captura de días de premio (Días Extra) *@
+<div class="modal fade" id="modalDiasExtra" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-star me-2"></i>Otorgar Días Extra</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Vas a asignar días adicionales al saldo actual de: <strong id="lblNombreEmpleadoExtra"></strong></p>
+                <input type="hidden" id="txtPersonaIDExtra" />
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Cantidad de días a otorgar:</label>
+                    <input type="number" id="txtCantidadDiasExtra" class="form-control" step="0.5" min="0.5" placeholder="Ej. 1 o 2" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Motivo / Justificación:</label>
+                    <textarea id="txtMotivoExtra" class="form-control" rows="3" placeholder="Ej. Por trabajar en fin de semana en migración crítica..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success text-white fw-semibold" onclick="guardarDiasExtra()">Confirmar Otorgamiento</button>
+            </div>
+        </div>
+    </div>
+</div>
 </div>
 
 <script>
@@ -342,7 +538,7 @@ else
         });
     }
 
-        function abrirModalMasivo() {
+    function abrirModalMasivo() {
         Swal.fire({
             title: 'Descuento Masivo de Días',
             html: `
@@ -373,137 +569,54 @@ else
             }
         });
     }
+
+    /*  Lógica para controlar la ventana emergente de Días Extra */
+    function abrirModalDiasExtra(personaId, nombreCompleto) {
+        $('#txtPersonaIDExtra').val(personaId);
+        $('#lblNombreEmpleadoExtra').text(nombreCompleto);
+        $('#txtCantidadDiasExtra').val('');
+        $('#txtMotivoExtra').val('');
+        $('#modalDiasExtra').modal('show');
+    }
+        function guardarDiasExtra() {
+        const id = $('#txtPersonaIDExtra').val();
+        const dias = $('#txtCantidadDiasExtra').val();
+        const motivo = $('#txtMotivoExtra').val();
+
+        if (!dias || parseFloat(dias) <= 0) {
+            Swal.fire('Atención', 'Por favor ingresa una cantidad válida de días.', 'warning');
+            return;
+        }
+
+        if (!motivo || motivo.trim().length < 5) {
+            Swal.fire('Atención', 'Por favor ingresa una justificación descriptiva (mínimo 5 caracteres).', 'warning');
+            return;
+        }
+
+        
+        const token = '@Html.AntiForgeryToken()'.match(/value="([^"]+)"/)[1];
+
+        const dataSubmit = {
+            PersonaID: parseInt(id),
+            DiasRegalo: parseFloat(dias),
+            Motivo: motivo,
+            __RequestVerificationToken: token 
+        };
+
+        $.post('@Url.Action("OtorgarDiasExtra", "Vacaciones")', dataSubmit, function (res) {
+            if (res.success) {
+                $('#modalDiasExtra').modal('hide');
+                Swal.fire('¡Proceso Correcto!', res.message, 'success').then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire('Error', res.message, 'error');
+            }
+        }).fail(function(xhr, status, error) {
+            console.error("Detalle del fallo de red:", xhr.status, xhr.responseText);
+            Swal.fire('Error', 'No se pudo comunicar con el servidor. Código de estado: ' + xhr.status, 'error');
+        });
+    }
 </script>
 
 
-<style>
-    /* --- Ajustes Generales y Título --- */
-    h2 {
-        color: #1a237e;
-        font-weight: 700;
-        border-left: 6px solid #ff6d00;
-        padding-left: 15px;
-        margin-top: 20px;
-        margin-bottom: 25px;
-    }
-
-    /* --- Botones de Navegación (Tabs) --- */
-    /* Estado Inactivo (Outline) */
-    .btn-outline-primary {
-        color: #1a237e !important;
-        border-color: #1a237e !important;
-        background-color: #ffffff !important;
-        font-weight: 600;
-        border-radius: 8px;
-        padding: 8px 16px;
-        transition: all 0.3s ease;
-    }
-
-        .btn-outline-primary:hover {
-            background-color: #f1f4f9 !important;
-            transform: translateY(-1px);
-        }
-
-    /* Estado Activo (Solid) */
-    .btn-primary {
-        background-color: #1a237e !important;
-        border-color: #1a237e !important;
-        color: #ffffff !important;
-        font-weight: 600;
-        border-radius: 8px;
-        padding: 8px 16px;
-        box-shadow: 0 4px 8px rgba(26, 35, 126, 0.2);
-    }
-
-    /* --- Tablas Corporativas --- */
-    .table {
-        background-color: #ffffff;
-        border-radius: 8px;
-        overflow: hidden;
-        margin-top: 15px;
-        border: 1px solid #e1e8ed;
-    }
-
-        .table thead th {
-            background-color: #1a237e !important;
-            color: #ffffff !important;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 12px;
-            border: none;
-            text-align: center;
-        }
-
-        .table tbody td {
-            padding: 12px;
-            vertical-align: middle;
-            border-bottom: 1px solid #f1f4f7;
-            color: #2c3e50;
-            font-size: 0.9rem;
-        }
-
-    /* Cebra de la tabla */
-    .table-striped tbody tr:nth-of-type(odd) {
-        background-color: rgba(26, 35, 126, 0.02) !important;
-    }
-
-    /* Hover en filas */
-    .table-hover tbody tr:hover,
-    .table tbody tr:hover {
-        background-color: rgba(255, 109, 0, 0.05) !important;
-    }
-
-    /* Resalte de números y celdas importantes */
-    .table td strong {
-        color: #ff6d00; /* Naranja para los saldos disponibles */
-        font-weight: 700;
-    }
-
-    /* --- Formulario de Búsqueda y Filtros --- */
-    .form-control-sm {
-        border: 1px solid #dce1e7;
-        border-radius: 6px;
-        padding: 8px 12px;
-    }
-
-        .form-control-sm:focus {
-            border-color: #ff6d00;
-            box-shadow: 0 0 0 0.2rem rgba(255, 109, 0, 0.1);
-        }
-
-    .btn-outline-secondary {
-        border-color: #dce1e7;
-        color: #1a237e;
-        font-weight: 600;
-    }
-
-        .btn-outline-secondary:hover {
-            background-color: #1a237e;
-            color: #ffffff;
-        }
-
-    /* --- Alertas y Footer --- */
-    .alert-danger {
-        background-color: #fff5f5;
-        border: 1px solid #feb2b2;
-        color: #c53030;
-        border-radius: 8px;
-        font-weight: 500;
-    }
-
-    .modal-footer {
-        border-top: 1px solid #e1e8ed;
-        margin-top: 20px;
-        padding-top: 15px;
-    }
-
-    .btn-secondary {
-        background-color: #64748b !important;
-        border: none !important;
-        font-weight: 600;
-    }
-</style>
-
-
-   

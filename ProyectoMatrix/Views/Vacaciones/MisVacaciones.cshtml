@@ -17,14 +17,16 @@
         .ToList() ?? new List<ProyectoMatrix.Models.VacacionesSolicitudItemVm>();
 
     var autorizadas = Model?.Solicitudes?
-        .Where(s => (s.EstadoAutorizacion ?? "").Trim().ToLower() == "autorizada"
-                 && (s.EstadoRecursosHumanos ?? "").Trim().ToLower() == "autorizada")
-        .OrderByDescending(s => s.FechaSolicitud)
-        .ToList() ?? new List<ProyectoMatrix.Models.VacacionesSolicitudItemVm>();
+         .Where(s => (s.EstadoAutorizacion ?? "").Trim().ToLower() == "autorizada"
+                  && ((s.EstadoRecursosHumanos ?? "").Trim().ToLower() == "autorizada"
+                   || (s.EstadoRecursosHumanos ?? "").Trim().ToLower() == "registrado"))
+         .OrderByDescending(s => s.FechaSolicitud)
+         .ToList() ?? new List<ProyectoMatrix.Models.VacacionesSolicitudItemVm>();
 
     var rechazadas = Model?.Solicitudes?
         .Where(s => (s.EstadoAutorizacion ?? "").Trim().ToLower() == "rechazada"
-                 || (s.EstadoRecursosHumanos ?? "").Trim().ToLower() == "rechazada")
+                 || (s.EstadoRecursosHumanos ?? "").Trim().ToLower() == "rechazada"
+                 || (s.EstadoRecursosHumanos ?? "").Trim().ToLower() == "cancelada")
         .OrderByDescending(s => s.FechaSolicitud)
         .ToList() ?? new List<ProyectoMatrix.Models.VacacionesSolicitudItemVm>();
 }
@@ -66,11 +68,11 @@
                 Solicitudes de mi equipo
             </a>
 
-            
-                <a asp-action="CrearSolicitudEquipo" class="btn btn-dark">
-                    <i class="fas fa-user-plus me-1"></i> Registrar Vacaciones de un Colaborador
-                </a>
-           
+
+            <a asp-action="CrearSolicitudEquipo" class="btn btn-dark">
+                <i class="fas fa-user-plus me-1"></i> Registrar Vacaciones de un Colaborador
+            </a>
+
         }
 
         @if (ViewBag.EsUsuarioRH == true)
@@ -83,11 +85,11 @@
                 Bandeja RH (consulta + saldo)
             </a>
 
-          
+
         }
     </div>
 
-    @* Agregamos el Modal de Justificación aquí mismo para que sea inmediato *@
+    @*  Modal de Justificación  *@
     <div class="modal fade" id="modalSolicitarAdelantadas" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -122,32 +124,66 @@
     <div class="card mb-4">
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="text-muted small">Fecha de ingreso</div>
                     <div class="fw-semibold">
                         @(fechaIngreso.HasValue? fechaIngreso.Value.ToString("dd/MM/yyyy") : "—")
                     </div>
                 </div>
 
-                <div class="col-md-8">
+                <div class="col-md-9">
                     @if (Model.ResumenActual != null)
                     {
-                        <div class="row g-3">
-                            <div class="col-6 col-lg-3">
+                        @* Cambiamos a row-cols-lg-6 para que quepan los 6 bloques en una sola línea en pantallas grandes *@
+                        <div class="row g-3 row-cols-2 row-cols-sm-3 row-cols-lg-6 text-center">
+                            <div class="col">
                                 <div class="text-muted small">Año</div>
-                                <div class="fw-semibold">@Model.ResumenActual.Anio</div>
+                                <div class="fw-semibold fs-5">@Model.ResumenActual.Anio</div>
                             </div>
-                            <div class="col-6 col-lg-3">
+                            <div class="col">
                                 <div class="text-muted small">Corresponden</div>
-                                <div class="fw-semibold">@Model.ResumenActual.DiasCorrespondientes</div>
+                                <div class="fw-semibold fs-5">@Model.ResumenActual.DiasCorrespondientes</div>
                             </div>
-                            <div class="col-6 col-lg-3">
+                            <div class="col">
                                 <div class="text-muted small">Tomados</div>
-                                <div class="fw-semibold">@Model.ResumenActual.DiasTomados</div>
+                                <div class="fw-semibold fs-5">@Model.ResumenActual.DiasTomados</div>
                             </div>
-                            <div class="col-6 col-lg-3">
+
+                            @if (Model.ResumenActual.DiasDeuda > 0)
+                            {
+                                <div class="col">
+                                    <div class="text-danger small fw-bold">Adelantados</div>
+                                    <div class="fw-semibold text-danger fs-5">@Model.ResumenActual.DiasDeuda</div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="col">
+                                    <div class="text-muted small">Adelantados</div>
+                                    <div class="fw-semibold fs-5">0</div>
+                                </div>
+                            }
+
+                            @* Resaltamos los días extra con un tono verde corporativo suave si tiene días asignados *@
+                            @if (Model.ResumenActual.DiasExtra > 0)
+                            {
+                                <div class="col">
+                                    <div class="text-success small fw-bold">Días Extra</div>
+                                    <div class="fw-semibold text-success fs-5">+@Model.ResumenActual.DiasExtra</div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="col">
+                                    <div class="text-muted small">Días Extra</div>
+                                    <div class="fw-semibold fs-5">0</div>
+                                </div>
+                            }
+
+                            <div class="col">
                                 <div class="text-muted small">Disponibles</div>
-                                <div class="fw-semibold">@Model.ResumenActual.DiasDisponibles</div>
+                                @* Tu estilo CSS naranja para resaltar la columna más importante *@
+                                <div class="fw-bold fs-5 text-primary" style="color: #ff6d00 !important;">@Model.ResumenActual.DiasDisponibles</div>
                             </div>
                         </div>
                     }
@@ -160,7 +196,7 @@
         </div>
     </div>
 
-    <!-- ====== HISTORIAL POR SECCIONES ====== -->
+    <!-- HISTORIAL POR SECCIONES  -->
 
     <h5 class="mt-3">Vacaciones solicitadas</h5>
     @Html.Partial("_TablaSolicitudesVacaciones", solicitadas)
@@ -184,7 +220,7 @@
 
             // Validación básica de cliente
             if (!motivo || motivo.trim().length < 15) {
-                
+
                 Swal.fire({
                     title: 'Atención',
                     text: 'Por favor ingresa un motivo más descriptivo (mínimo 15 caracteres).',
@@ -194,7 +230,7 @@
                 return;
             }
 
-            
+
             const idNum = parseInt(usuarioId);
 
             $.post('@Url.Action("SolicitarHabilitacion", "Vacaciones")', { usuarioId: idNum, motivo: motivo }, function (res) {

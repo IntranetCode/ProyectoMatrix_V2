@@ -1,5 +1,4 @@
-﻿@model IEnumerable<ProyectoMatrix.Models.BandejaComprasVm>
-
+﻿@model ProyectoMatrix.Models.BandejaComprasDashboardVm
 @{
     ViewData["Title"] = "Bandeja de Compras";
     Layout = "_LayoutComunicados"; 
@@ -15,13 +14,70 @@
         <h1 class="h3 mb-0 text-gray-800">Bandeja de Gestión de Compras</h1>
     </div>
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 bg-white">
-            <h6 class="m-0 font-weight-bold text-primary">Solicitudes Pendientes por Cotizar</h6>
+
+    @if (Model.EsDireccionCompras)
+    {
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 bg-white">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    Carga de Trabajo por Comprador
+                </h6>
+            </div>
+
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Comprador</th>
+                                <th>Puesto</th>
+                                <th>Pendientes</th>
+                                <th>Cotizadas</th>
+                                <th>Total Asignadas</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var item in Model.CargaCompradores)
+                            {
+                                <tr>
+                                    <td><strong>@item.NombreCompleto</strong></td>
+                                    <td>@item.Puesto</td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark">@item.Pendientes</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info text-white">@item.Cotizadas</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary text-white">@item.TotalAsignadas</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
+    }
+
+
+    <div class="card shadow mb-4">
+
+        <div class="card-header py-3 bg-white">
+            <h6 class="m-0 font-weight-bold text-primary">
+                Solicitudes Pendientes por Cotizar
+            </h6>
+        </div>
+
         <div class="card-body">
+
+            
+
             <div class="table-responsive">
-                <table class="table table-hover" id="tablaBandeja" width="100%" cellspacing="0">
+
+                <table class="table table-hover" id="tablaBandeja">
+
                     <thead class="thead-light">
                         <tr>
                             <th>Folio</th>
@@ -30,149 +86,541 @@
                             <th>Tipo</th>
                             <th>Urgencia</th>
                             <th>Fecha</th>
+                            @if (Model.EsDireccionCompras)
+                            {
+                                <th>Asignado a</th>
+                            }
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
+
                     <tbody>
-                        @foreach (var item in Model)
+
+                        @foreach (var item in Model.Pendientes)
                         {
                             <tr>
-                                <td><strong>@item.Folio</strong></td>
-                                <td>@item.Solicitante</td>
-                                <td>@item.Departamento</td>
+
                                 <td>
-                                    <span class="badge @(item.TipoCompra == "Internacional" ? "bg-warning text-dark" : "bg-info text-white")">
-                                        @item.TipoCompra
-                                    </span>
+                                    <strong>@item.Folio</strong>
                                 </td>
+
+                                <td>@item.Solicitante</td>
+
+                                <td>@item.Departamento</td>
+
                                 <td>
-                                    @* Lógica visual para la urgencia *@
-                                    @if (item.Urgencia == "Alta" || item.Urgencia == "Crítica")
+                                    <span class="badge @(item.TipoCompra == "Internacional"
+                                                                              ? "bg-warning text-dark"
+                                                                              : "bg-info text-white")">
+
+                                    @item.TipoCompra
+                                </span>
+                            </td>
+
+                                <td>
+
+                                @if (item.Urgencia == "Alta" || item.Urgencia == "Crítica")
                                     {
                                         <span class="text-danger font-weight-bold">
-                                            <i class="fas fa-exclamation-triangle"></i> @item.Urgencia
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            @item.Urgencia
                                         </span>
                                     }
                                     else
                                     {
                                         <span>@item.Urgencia</span>
                                     }
+
                                 </td>
-                                <td>@item.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td>
+
+                                <td>
+                                    @item.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+                                </td>
+                                @if (Model.EsDireccionCompras)
+{
+    <td>
+        <form asp-action="AsignarComprador"
+              asp-controller="Compras"
+              method="post"
+              class="d-flex align-items-center gap-2">
+
+            @Html.AntiForgeryToken()
+
+            <input type="hidden" name="solicitudId" value="@item.SolicitudID" />
+
+                                            <select name="compradorUsuarioId"
+                                                    class="form-control form-control-sm"
+                                                    style="min-width:220px;">
+                @foreach (var comprador in Model.CompradoresDisponibles)
+                {
+                                                    <option value="@comprador.UsuarioID"
+                                                            selected="@(item.CompradorAsignadoUsuarioID == comprador.UsuarioID ? "selected" : null)">
+                                                        @comprador.NombreCompleto - @comprador.Puesto
+                                                    </option>
+                }
+            </select>
+
+            <button type="submit" class="btn btn-outline-primary btn-sm">
+                Guardar
+            </button>
+        </form>
+    </td>
+}
+
                                 <td class="text-center">
-                                    @* Enlace a la vista detalle que mencionaste *@
-                                    <a asp-action="Detalle" asp-route-id="@item.SolicitudID" class="btn btn-primary btn-sm shadow-sm">
-                                        <i class="fas fa-file-invoice-dollar fa-sm text-white-50"></i> Gestionar
+
+                                    <a asp-action="Detalle"
+                                       asp-route-id="@item.SolicitudID"
+                                       class="btn btn-primary btn-sm shadow-sm">
+
+                                        <i class="fas fa-file-invoice-dollar fa-sm text-white-50"></i>
+                                        Gestionar
                                     </a>
+
                                 </td>
+
                             </tr>
                         }
+
                     </tbody>
+
                 </table>
+
             </div>
+
         </div>
+
+    </div>
+
+    
+    @{
+        var seguimiento = Model.Historico
+        .Where(x => new[] { 2, 3, 4, 5, 6, 8 }.Contains(x.EstatusID))
+        .ToList();
+
+        var finalizadas = Model.Historico
+        .Where(x => new[] { 9, 10, 11 }.Contains(x.EstatusID))
+        .ToList();
+    }
+    
+    <div class="card shadow mb-4">
+
+        <div class="card-header py-3 bg-secondary">
+            <h6 class="m-0 font-weight-bold text-white">
+                Seguimiento e Histórico
+            </h6>
+        </div>
+
+        <div class="card-body">
+
+            <ul class="nav nav-tabs mb-4" id="tabsCompras">
+
+                <li class="nav-item">
+                    <button class="nav-link active"
+                            data-bs-toggle="tab"
+                            data-bs-target="#tabSeguimiento">
+
+                        En Seguimiento
+                        <span class="badge bg-warning text-dark ms-1">
+                            @seguimiento.Count
+                        </span>
+
+                    </button>
+                </li>
+
+                <li class="nav-item">
+                    <button class="nav-link"
+                            data-bs-toggle="tab"
+                            data-bs-target="#tabFinalizadas">
+
+                        Finalizadas
+                        <span class="badge bg-success ms-1">
+                            @finalizadas.Count
+                        </span>
+
+                    </button>
+                </li>
+
+            </ul>
+
+            <div class="tab-content">
+
+                <!-- SEGUIMIENTO -->
+
+                <div class="tab-pane fade show active" id="tabSeguimiento">
+
+                    <div class="table-responsive">
+
+                        <table class="table table-hover">
+
+                            <thead>
+                                <tr>
+                                    <th>Folio</th>
+                                    <th>Solicitante</th>
+                                    <th>Departamento</th>
+                                    <th>Tipo</th>
+                                    <th>Monto</th>
+                                    <th>Estatus</th>
+                                    <th>Detalle</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                @foreach (var item in seguimiento)
+                                {
+                                    <tr>
+                                        <td><strong>@item.Folio</strong></td>
+                                        <td>@item.Solicitante</td>
+                                        <td>@item.Departamento</td>
+                                        <td>@item.TipoCompra</td>
+                                        <td>@item.MontoTotal.ToString("C")</td>
+
+                                        <td>
+                                            <span class="badge bg-info">
+                                                @item.Estatus
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            <a asp-action="Detalle"
+                                               asp-route-id="@item.SolicitudID"
+                                               class="btn btn-outline-primary btn-sm">
+                                                Ver
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+                <!-- FINALIZADAS -->
+
+                <div class="tab-pane fade" id="tabFinalizadas">
+
+                    <div class="table-responsive">
+
+                        <table class="table table-hover">
+
+                            <thead>
+                                <tr>
+                                    <th>Folio</th>
+                                    <th>Solicitante</th>
+                                    <th>Departamento</th>
+                                    <th>Tipo</th>
+                                    <th>Monto</th>
+                                    <th>Estatus</th>
+                                    <th>Detalle</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                @foreach (var item in finalizadas)
+                                {
+                                    <tr>
+                                        <td><strong>@item.Folio</strong></td>
+                                        <td>@item.Solicitante</td>
+                                        <td>@item.Departamento</td>
+                                        <td>@item.TipoCompra</td>
+                                        <td>@item.MontoTotal.ToString("C")</td>
+
+                                        <td>
+
+                                            @{
+                                                string badge = item.EstatusID == 10
+                                                ? "bg-success"
+                                                : "bg-danger";
+                                            }
+
+                                            <span class="badge @badge">
+                                                @item.Estatus
+                                            </span>
+
+                                        </td>
+
+                                        <td>
+                                            <a asp-action="Detalle"
+                                               asp-route-id="@item.SolicitudID"
+                                               class="btn btn-outline-primary btn-sm">
+                                                Ver
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
     </div>
 </div>
 
-                                    <style>
-    /* --- Títulos y Encabezado --- */
+
+
+<style>
+
+    body {
+        background: #f5f7fb;
+    }
+
+    
+
     .h3.text-gray-800 {
-        color: #2c3e50 !important;
+        color: #0f172a !important;
         font-weight: 800;
-        text-transform: uppercase;
-        font-size: 1.25rem;
-        letter-spacing: 1px;
+        letter-spacing: -0.5px;
+        text-transform: none;
     }
 
-    .card-header.bg-white {
-        border-bottom: 2px solid #004a99; /* Azul Corporativo */
+    .btn {
+        border-radius: 10px;
+        font-weight: 700;
+        transition: .25s;
     }
 
-    /* --- Estilo de Tabla Operativa --- */
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+    .btn-outline-secondary {
+        border-color: #cbd5e1;
+        color: #475569;
+    }
+
+        .btn-outline-secondary:hover {
+            background: #475569;
+            color: #fff;
+        }
+
+
+
+    .card {
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 18px !important;
+        overflow: hidden;
+        box-shadow: 0 12px 28px rgba(15,23,42,.08) !important;
+    }
+
+    .card-header {
+        background: white !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+        .card-header h6 {
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .card-header.bg-secondary {
+            background: linear-gradient( 135deg, #475569, #334155 ) !important;
+        }
+
+    
+
     #tablaBandeja {
         border-collapse: separate;
-        border-spacing: 0 5px;
+        border-spacing: 0 .6rem;
     }
 
         #tablaBandeja thead th {
-            background-color: #f8f9fc;
-            color: #004a99;
-            font-weight: 700;
+            background: #f8fafc;
+            color: #334155;
             text-transform: uppercase;
-            font-size: 0.7rem;
+            font-size: .72rem;
+            letter-spacing: .5px;
             border: none;
-            padding: 12px;
+            padding: 14px;
+            font-weight: 800;
         }
 
         #tablaBandeja tbody tr {
-            background-color: #ffffff;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            background: white;
+            transition: .2s;
         }
 
             #tablaBandeja tbody tr:hover {
-                background-color: #f1f4ff !important; /* Azul muy tenue */
-                transform: scale(1.005);
+                background: #fff7ed !important;
+                transform: translateY(-1px);
             }
 
         #tablaBandeja td {
             vertical-align: middle;
-            border-top: 1px solid #e3e6f0;
-            border-bottom: 1px solid #e3e6f0;
-            padding: 12px;
+            padding: 14px;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
         }
 
-    /* --- Badges y Alertas de Prioridad --- */
-    /* Internacional - Naranja Corporativo */
-    .bg-warning.text-dark {
-        background-color: #ff6b00 !important;
-        color: #ffffff !important;
+            #tablaBandeja td:first-child {
+                border-left: 1px solid #e2e8f0;
+                border-radius: 12px 0 0 12px;
+            }
+
+            #tablaBandeja td:last-child {
+                border-right: 1px solid #e2e8f0;
+                border-radius: 0 12px 12px 0;
+            }
+
+        #tablaBandeja strong {
+            color: #2563eb;
+            font-weight: 800;
+        }
+
+   
+
+    .table-hover tbody tr:hover {
+        background: #fff7ed;
+    }
+
+    .table thead th {
+        background: #f8fafc;
+        color: #334155;
+        border-bottom: 2px solid #e2e8f0;
+        text-transform: uppercase;
+        font-size: .72rem;
+    }
+
+  
+
+    .badge {
+        padding: .5rem .75rem;
+        border-radius: 999px;
         font-weight: 700;
-        border-radius: 4px;
     }
 
-    /* Nacional - Azul Corporativo */
+    /* Nacional */
+
     .bg-info.text-white {
-        background-color: #004a99 !important;
-        font-weight: 600;
-        border-radius: 4px;
+        background: #2563eb !important;
+        color: white !important;
     }
 
-    /* Urgencias Críticas */
+    /* Internacional */
+
+    .bg-warning.text-dark {
+        background: #f97316 !important;
+        color: white !important;
+    }
+
+    /* Presupuesto */
+
+    .bg-warning {
+        background: #f59e0b !important;
+    }
+
+    /* Rechazada */
+
+    .bg-danger {
+        background: #dc2626 !important;
+    }
+
+    /* Cerrada */
+
+    .bg-success {
+        background: #16a34a !important;
+    }
+
+    /* Solicitada */
+
+    .bg-secondary {
+        background: #64748b !important;
+    }
+
+    
+
     .text-danger.font-weight-bold {
-        color: #e74a3b !important;
-        animation: blinker 2s linear infinite;
+        color: #dc2626 !important;
+        font-weight: 800 !important;
     }
 
-    @@keyframes blinker {
-        50%
+        .text-danger.font-weight-bold i {
+            margin-right: 4px;
+        }
 
-    {
-        opacity: 0.6;
+
+    select.form-control-sm {
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        min-height: 38px;
     }
 
+        select.form-control-sm:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 .15rem rgba(37,99,235,.15);
+        }
+
+    
+
+    .btn-outline-primary {
+        border-color: #2563eb;
+        color: #2563eb;
+        font-weight: 700;
     }
 
-    /* --- Botón Gestionar --- */
+        .btn-outline-primary:hover {
+            background: #2563eb;
+            color: white;
+        }
+
+   
+
     .btn-primary.btn-sm {
-        background-color: #004a99 !important;
+        background: #2563eb !important;
         border: none;
-        padding: 5px 15px;
-        font-weight: 600;
-        border-radius: 6px;
-        transition: all 0.3s;
+        padding: .5rem .9rem;
+        border-radius: 10px;
+        font-weight: 700;
     }
 
         .btn-primary.btn-sm:hover {
-            background-color: #ff6b00 !important; /* Cambia a Naranja al pasar el mouse */
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(255, 107, 0, 0.3) !important;
+            background: #f97316 !important;
+            box-shadow: 0 8px 18px rgba(249,115,22,.25);
         }
 
-    /* --- Detalles de Texto --- */
-    #tablaBandeja strong {
-        color: #004a99;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  
+
+    .table-responsive table tbody tr td {
+        vertical-align: middle;
     }
 
-                                    </style>
+    .table-responsive table strong {
+        color: #0f172a;
+    }
+
+
+    @@media(max - width:768px) {
+        .btn
+
+    {
+        width: 100%;
+        margin-bottom: 6px;
+    }
+
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 10px;
+    }
+
+    select.form-control-sm {
+        min-width: 100% !important;
+    }
+
+    }
+</style>
+ 

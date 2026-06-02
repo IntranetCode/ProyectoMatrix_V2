@@ -3,281 +3,713 @@
 @{
     ViewData["Title"] = "Gestión de Compras";
     Layout = "_LayoutComunicados";
+
+    string puesto = (ViewBag.Puesto ?? "").ToString().ToUpper().Trim();
+    string departamentos = (ViewBag.DepartamentosUsuario ?? "").ToString().ToUpper().Trim();
+
+    bool esDireccion =
+        puesto.Contains("DIRECCION") ||
+        puesto.Contains("DIRECCIÓN") ||
+        puesto.Contains("DIRECTOR") ||
+        puesto.Contains("DIRECTORA") ||
+        puesto.StartsWith("DIR.");
+
+    bool esCompras =
+        esDireccion ||
+        puesto.Contains("COMPRAS") ||
+        puesto.Contains("COMPRADOR") ||
+        departamentos.Contains("COMPRAS");
+
+    bool esPresupuestos =
+        departamentos.Contains("PRESUPUEST") ||
+        departamentos.Contains("CONTROL PRESUPUESTAL") ||
+        departamentos.Contains("CIS");
+
+    bool esAlmacen =
+        departamentos.Contains("ALMACEN") ||
+        departamentos.Contains("ALMACÉN");
+
+    bool esCxP =
+        departamentos.Contains("CUENTAS") ||
+        departamentos.Contains("PAGAR") ||
+        departamentos.Contains("CXP");
+
 }
 
-@* --- ENCABEZADO Y BOTONES --- *@
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="mb-0">Gestión de Compras</h2>
-        <small class="text-muted">Panel de Control Unificado</small>
+<div class="compras-page">
+
+    <div class="compras-header mb-4">
+
+        <div>
+            <h2 class="mb-1">Gestión de Compras</h2>
+            <small class="text-muted">Panel de Control Unificado</small>
+        </div>
+
+        <div class="compras-actions">
+
+            <a asp-action="NuevaSolicitud" class="btn btn-ns-orange">
+                <i class="fas fa-plus me-1"></i>
+                Nueva Solicitud
+            </a>
+
+            @if (esCompras)
+            {
+                <a asp-action="BandejaCompras" class="btn btn-ns-blue">
+                    <i class="fas fa-user-shield me-1"></i>
+                    Bandeja Compras
+                </a>
+            }
+
+            @if (esPresupuestos)
+            {
+                <a asp-action="BandejaPresupuestos" class="btn btn-ns-cyan">
+                    <i class="fas fa-wallet me-1"></i>
+                    Validar Presupuestos
+                </a>
+            }
+
+            @if (esDireccion)
+            {
+                <a asp-action="Seguimiento" class="btn btn-ns-green">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Seguimiento
+                </a>
+            }
+
+            @if (esAlmacen)
+            {
+                <a asp-action="BandejaAlmacen" class="btn btn-ns-purple">
+                    <i class="fas fa-boxes me-1"></i>
+                    Bandeja Almacén
+                </a>
+            }
+
+            @if (esCxP)
+            {
+                <a asp-action="BandejaCuentasPorPagar" class="btn btn-ns-dark">
+                    <i class="fas fa-file-invoice-dollar me-1"></i>
+                    Bandeja CxP
+                </a>
+            }
+
+        </div>
+
     </div>
-    <div class="d-flex flex-wrap justify-content-end">
-        @* Solicitante *@
-        <a asp-action="NuevaSolicitud" class="btn btn-primary shadow-sm m-1">
-            <i class="fas fa-plus me-1"></i> Nueva Solicitud
-        </a>
 
-        @* Compras (Bandeja Maestra) *@
-        <a asp-action="BandejaCompras" class="btn btn-dark shadow-sm m-1">
-            <i class="fas fa-user-shield me-1"></i> Bandeja Compras
-        </a>
-
-        @* Control Presupuestal *@
-        <a asp-action="BandejaPresupuestos" class="btn btn-info shadow-sm m-1">
-            <i class="fas fa-wallet me-1"></i> Validar Presupuestos
-        </a>
-
-        @* Dirección (Próximamente vista de autorización final) *@
-        <button class="btn btn-warning shadow-sm m-1" disabled>
-            <i class="fas fa-signature me-1"></i> Autorización Final
-        </button>
-    </div>
-</div>
-
-@* --- SECCIÓN EXCLUSIVA PARA DIRECCIÓN (KPIs y Gráficos) --- *@
-@if (ViewBag.Puesto == "DIRECCION COMPRAS")
-{
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card border-left-danger shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Críticos Vencidos</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Estadisticas.CriticosVencidos</div>
+    @if (!esCompras && !esPresupuestos && !esDireccion && !esAlmacen && !esCxP)
+    {
+        <div class="alert ns-alert-info mb-4">
+            <div class="d-flex align-items-start">
+                <i class="fas fa-info-circle me-2 mt-1"></i>
+                <div>
+                    <strong>--</strong><br />
+                    
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Promedio Atención</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Estadisticas.PromedioTotal Horas</div>
+    }
+
+    @if (esDireccion)
+    {
+        <div class="row mb-4">
+
+            <div class="col-md-3 mb-3">
+                <div class="ns-kpi-card ns-kpi-danger">
+                    <div class="ns-kpi-label">Críticos Vencidos</div>
+                    <div class="ns-kpi-value">@Model.Estadisticas.CriticosVencidos</div>
                 </div>
             </div>
+            @*
+            <div class="col-md-3 mb-3">
+                <div class="ns-kpi-card ns-kpi-warning">
+                    <div class="ns-kpi-label">Promedio Atención</div>
+                    <div class="ns-kpi-value">@Model.Estadisticas.PromedioTotal.ToString("N1") Horas</div>
+                </div>
+            </div>*@
+
         </div>
+
+        <div class="row mb-4">
+
+            <div class="col-lg-4 mb-4">
+                <div class="ns-card h-100">
+                    <div class="ns-card-header">
+                        <h6>
+                            <i class="fas fa-hourglass-half me-2"></i>
+                            Cuellos de Botella
+                        </h6>
+                    </div>
+
+                    <div class="ns-card-body">
+                        <div id="chartCuellosBotella" style="min-height: 350px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8 mb-4">
+                <div class="ns-card h-100">
+                    <div class="ns-card-header">
+                        <h6>
+                            <i class="fas fa-chart-pie me-2"></i>
+                            Estatus General
+                        </h6>
+                    </div>
+
+                    <div class="ns-card-body">
+                        <div id="chartDonaEstatus" style="min-height: 350px;"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    }
+
+    <div class="ns-card mb-5">
+
+        <div class="ns-card-header">
+            <h6>
+                <i class="fas fa-list me-2"></i>
+                Mi Historial de Solicitudes
+            </h6>
+        </div>
+
+        <div class="ns-card-body">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover datatable-compras">
+
+                    <thead>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Empresa</th>
+                            <th style="width: 25%;">Estatus / Progreso</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        @if (Model.MisCompras != null && Model.MisCompras.Any())
+                        {
+                            foreach (var item in Model.MisCompras)
+                            {
+                                <tr>
+
+                                    <td>
+                                        <strong>@item.Folio</strong>
+                                    </td>
+
+                                    <td>
+                                        @item.Fecha.ToString("dd/MM/yyyy")
+                                    </td>
+
+                                    <td>
+                                        @item.Tipo
+                                    </td>
+
+                                    <td>
+                                        @item.Empresa
+                                    </td>
+
+                                    <td>
+                                        <div class="progress ns-progress mb-1">
+                                            <div class="progress-bar @item.ColorProgreso"
+                                                 style="width: @item.Porcentaje%">
+                                            </div>
+                                        </div>
+
+                                        <small class="text-muted">
+                                            @item.Estatus (@item.Porcentaje%)
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        <a asp-action="Detalle"
+                                           asp-route-id="@item.SolicitudID"
+                                           class="btn btn-sm btn-outline-ns">
+                                            <i class="fas fa-search me-1"></i>
+                                            Seguimiento
+                                        </a>
+                                    </td>
+
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="fas fa-folder-open d-block mb-2 fs-4"></i>
+                                    Aún no tienes solicitudes registradas.
+                                </td>
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
     </div>
 
-    <div class="row mb-4">
-        <div class="col-lg-8">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-hourglass-half me-2"></i>Cuellos de Botella por Departamento (Horas)</h6>
-                </div>
-                <div class="card-body">
-                    <div id="chartCuellosBotella" style="min-height: 300px;"></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-pie me-2"></i>Estatus General</h6>
-                </div>
-                <div class="card-body text-center">
-                    <div id="chartDonaEstatus"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@* --- TABLA DE MIS COMPRAS (Para todos los usuarios) --- *@
-<div class="card shadow mb-5">
-    <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">Mi Historial de Solicitudes</h6>
-    </div>
-    <div class="card-body">
-        <table class="table table-hover datatable-compras">
-            <thead>
-                <tr>
-                    <th>Folio</th>
-                    <th>Fecha</th>
-                    <th>Tipo</th>
-                    <th>Empresa</th>
-                    <th style="width: 25%;">Estatus / Progreso</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model.MisCompras)
-                {
-                    <tr>
-                        <td><strong>@item.Folio</strong></td>
-                        <td>@item.Fecha.ToString("dd/MM/yyyy")</td>
-                        <td>@item.Tipo</td>
-                        <td>@item.Empresa</td>
-                        <td>
-                            <div class="progress mb-1" style="height: 8px;">
-                                <div class="progress-bar @item.ColorProgreso"
-                                     style="width: @item.Porcentaje%"></div>
-                            </div>
-                            <small class="text-muted">@item.Estatus (@item.Porcentaje%)</small>
-                        </td>
-                        <td>
-                            <a asp-action="Detalle" asp-route-id="@item.SolicitudID" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-search me-1"></i> Seguimiento
-                            </a>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            // 1. Gráfico de Cuellos de Botella
-            var optionsBar = {
-                series: [{
-                    name: 'Horas Promedio',
-                    data: @Html.Raw(Json.Serialize(Model.Estadisticas.TiemposPromedio))
-                }],
-                chart: { type: 'bar', height: 300, toolbar: {show: false} },
-                plotOptions: {
-                    bar: {
-                        distributed: true,
-                        horizontal: true,
-                        borderRadius: 4
-                    }
-                },
-                colors: ['#4e73df', '#f6c23e', '#e74a3b'], // Azul Compras, Amarillo Finanzas, Rojo Dirección
-                xaxis: { categories: ["Compras", "Finanzas", "Dirección"] },
-                legend: { show: false }
-            };
-            new ApexCharts(document.querySelector("#chartCuellosBotella"), optionsBar).render();
 
-            // 2. Gráfico de Dona
-            var optionsDona = {
-                series: @Html.Raw(Json.Serialize(Model.Estadisticas.DonaValores)),
-                chart: { type: 'donut', height: 300 },
-                labels: @Html.Raw(Json.Serialize(Model.Estadisticas.DonaEtiquetas)),
-                colors: ['#858796', '#f6c23e', '#36b9cc', '#1cc88a', '#e74a3b'],
-                responsive: [{ breakpoint: 480, options: { chart: { width: 200 }, legend: { position: 'bottom' } } }]
-            };
-            new ApexCharts(document.querySelector("#chartDonaEstatus"), optionsDona).render();
-        });
-    </script>
+    @if (esDireccion)
+    {
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+
+                const cuellosElement = document.querySelector("#chartCuellosBotella");
+                const donaElement = document.querySelector("#chartDonaEstatus");
+
+                const tiemposRaw = @Html.Raw(Json.Serialize(Model.Estadisticas.TiemposPromedio));
+                const tiemposCuellos = [
+                    Number(tiemposRaw[0] || 0),
+                    Number(tiemposRaw[1] || 0)
+                ];
+
+                if (cuellosElement) {
+
+                    const optionsBar = {
+                        series: [{
+                            name: 'Horas Promedio',
+                            data: tiemposCuellos
+                        }],
+                        chart: {
+                            type: 'bar',
+                            height: 350,
+                            toolbar: {
+                                show: false
+                            },
+                            fontFamily: 'Segoe UI, Arial, sans-serif'
+                        },
+                        plotOptions: {
+                            bar: {
+                                distributed: true,
+                                horizontal: true,
+                                borderRadius: 8,
+                                barHeight: '45%'
+                            }
+                        },
+                        colors: [
+                            '#2563EB',
+                            '#F59E0B'
+                        ],
+                        xaxis: {
+                            categories: [
+                                "Compras",
+                                "Control Presupuestal"
+                            ],
+                            labels: {
+                                style: {
+                                    colors: '#475569',
+                                    fontSize: '12px'
+                                }
+                            }
+                        },
+                        yaxis: {
+                            labels: {
+                                style: {
+                                    colors: '#0F172A',
+                                    fontSize: '12px'
+                                }
+                            }
+                        },
+                        dataLabels: {
+                            enabled: true,
+                            formatter: function (val) {
+                                return val + " h";
+                            },
+                            style: {
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                colors: ['#ffffff']
+                            }
+                        },
+                        tooltip: {
+                            y: {
+                                formatter: function (val) {
+                                    return val + " horas";
+                                }
+                            }
+                        },
+                        legend: {
+                            show: false
+                        },
+                        grid: {
+                            borderColor: '#E2E8F0'
+                        }
+                    };
+
+                    new ApexCharts(cuellosElement, optionsBar).render();
+                }
+
+                if (donaElement) {
+
+                    const optionsDona = {
+                        series: @Html.Raw(Json.Serialize(Model.Estadisticas.DonaValores)),
+                        chart: {
+                            type: 'donut',
+                            height: 360,
+                            fontFamily: 'Segoe UI, Arial, sans-serif'
+                        },
+                        labels: @Html.Raw(Json.Serialize(Model.Estadisticas.DonaEtiquetas)),
+                        colors: [
+                            '#2563EB',
+                            '#16A34A',
+                            '#F97316',
+                            '#DC2626',
+                            '#7C3AED',
+                            '#0891B2',
+                            '#DB2777',
+                            '#65A30D',
+                            '#9333EA',
+                            '#EA580C',
+                            '#0F766E',
+                            '#475569',
+                            '#B45309',
+                            '#1D4ED8',
+                            '#BE123C'
+                        ],
+                        legend: {
+                            position: 'right',
+                            fontSize: '13px',
+                            markers: {
+                                width: 11,
+                                height: 11,
+                                radius: 12
+                            },
+                            labels: {
+                                colors: '#0F172A'
+                            }
+                        },
+                        stroke: {
+                            width: 3,
+                            colors: ['#ffffff']
+                        },
+                        plotOptions: {
+                            pie: {
+                                donut: {
+                                    size: '65%',
+                                    labels: {
+                                        show: true,
+                                        name: {
+                                            show: true,
+                                            color: '#334155'
+                                        },
+                                        value: {
+                                            show: true,
+                                            color: '#0F172A',
+                                            fontSize: '22px',
+                                            fontWeight: 700
+                                        },
+                                        total: {
+                                            show: true,
+                                            label: 'Total',
+                                            color: '#334155'
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        dataLabels: {
+                            enabled: true,
+                            formatter: function (val) {
+                                return val.toFixed(1) + "%";
+                            },
+                            style: {
+                                fontSize: '11px',
+                                fontWeight: '700'
+                            },
+                            dropShadow: {
+                                enabled: false
+                            }
+                        },
+                        tooltip: {
+                            y: {
+                                formatter: function (val) {
+                                    return val + " solicitudes";
+                                }
+                            }
+                        },
+                        responsive: [{
+                            breakpoint: 768,
+                            options: {
+                                chart: {
+                                    height: 320
+                                },
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }]
+                    };
+
+                    new ApexCharts(donaElement, optionsDona).render();
+                }
+
+            });
+        </script>
+    }
+
 }
 
-
-                <style>
-    /* --- Estructura y Títulos --- */
-    h2 {
-        color: #2c3e50; /* Azul Oscuro Corporativo */
-        font-weight: 700;
-        letter-spacing: -0.5px;
+<style>
+    .compras-page {
+        padding: 1rem 0;
     }
 
-    .text-muted {
-        font-size: 0.85rem;
-        letter-spacing: 0.5px;
+    .compras-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
     }
 
-    /* --- Botones con Identidad Visual --- */
-    .btn {
-        border-radius: 8px;
-        padding: 0.6rem 1.2rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        border: none;
-    }
-
-        .btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+        .compras-header h2 {
+            color: #0F172A;
+            font-weight: 800;
+            letter-spacing: -0.5px;
         }
 
-    /* Naranja para acciones principales (Nueva Solicitud) */
-    .btn-primary {
-        background-color: #ff6b00 !important;
-        color: white !important;
+    .compras-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.5rem;
     }
 
-    /* Azul para controles secundarios */
-    .btn-dark {
-        background-color: #004a99 !important;
+        .compras-actions .btn,
+        .btn-outline-ns {
+            border-radius: 10px;
+            padding: 0.6rem 1rem;
+            font-weight: 700;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+            transition: all 0.2s ease;
+            border: 0;
+        }
+
+            .compras-actions .btn:hover,
+            .btn-outline-ns:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+            }
+
+    .btn-ns-orange {
+        background: #F97316;
+        color: #ffffff;
     }
 
-    .btn-info {
-        background-color: #0066cc !important;
-        color: white;
+    .btn-ns-blue {
+        background: #2563EB;
+        color: #ffffff;
     }
 
-    /* --- Cards de KPI --- */
-    .card {
-        border-radius: 12px;
-        border: 1px solid #e3e6f0;
+    .btn-ns-cyan {
+        background: #0891B2;
+        color: #ffffff;
     }
 
-    .card-header {
-        background-color: #ffffff !important;
-        border-bottom: 1px solid #e3e6f0;
-        color: #004a99; /* Título en azul */
+    .btn-ns-green {
+        background: #16A34A;
+        color: #ffffff;
     }
 
-    /* Indicadores laterales */
-    .border-left-danger {
-        border-left: 5px solid #e74a3b !important;
+    .btn-ns-purple {
+        background: #7C3AED;
+        color: #ffffff;
     }
 
-    .border-left-warning {
-        border-left: 5px solid #ff9f1a !important;
+    .btn-ns-dark {
+        background: #334155;
+        color: #ffffff;
     }
-    /* Naranja suave */
 
-    /* --- Tabla de Compras --- */
+        .btn-ns-orange:hover,
+        .btn-ns-blue:hover,
+        .btn-ns-cyan:hover,
+        .btn-ns-green:hover,
+        .btn-ns-purple:hover,
+        .btn-ns-dark:hover {
+            color: #ffffff;
+        }
+
+    .btn-outline-ns {
+        background: #ffffff;
+        color: #2563EB;
+        border: 1px solid #BFDBFE;
+        box-shadow: none;
+    }
+
+        .btn-outline-ns:hover {
+            background: #2563EB;
+            color: #ffffff;
+            border-color: #2563EB;
+        }
+
+    .ns-alert-info {
+        border: 1px solid #BFDBFE;
+        background: #EFF6FF;
+        color: #1E3A8A;
+        border-radius: 14px;
+    }
+
+    .ns-kpi-card {
+        background: #ffffff;
+        border: 1px solid #E2E8F0;
+        border-radius: 16px;
+        padding: 1.4rem;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+        min-height: 110px;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .ns-kpi-card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 5px;
+            height: 100%;
+        }
+
+    .ns-kpi-danger::before {
+        background: #DC2626;
+    }
+
+    .ns-kpi-warning::before {
+        background: #F59E0B;
+    }
+
+    .ns-kpi-label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        color: #64748B;
+        margin-bottom: 0.5rem;
+    }
+
+    .ns-kpi-danger .ns-kpi-label {
+        color: #DC2626;
+    }
+
+    .ns-kpi-warning .ns-kpi-label {
+        color: #D97706;
+    }
+
+    .ns-kpi-value {
+        color: #0F172A;
+        font-size: 1.35rem;
+        font-weight: 800;
+    }
+
+    .ns-card {
+        background: #ffffff;
+        border: 1px solid #E2E8F0;
+        border-radius: 18px;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.10);
+        overflow: hidden;
+    }
+
+    .ns-card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #E2E8F0;
+        background: #ffffff;
+    }
+
+        .ns-card-header h6 {
+            margin: 0;
+            color: #2563EB;
+            font-weight: 800;
+        }
+
+    .ns-card-body {
+        padding: 1.25rem;
+    }
+
     .datatable-compras {
         border-collapse: separate;
-        border-spacing: 0 8px;
+        border-spacing: 0 0.6rem;
+        margin-bottom: 0;
     }
 
         .datatable-compras thead th {
-            background-color: #f8f9fc;
-            color: #004a99;
+            background: #F8FAFC;
+            color: #334155;
             text-transform: uppercase;
             font-size: 0.75rem;
-            border: none;
-            padding: 15px;
+            letter-spacing: 0.4px;
+            border: 0;
+            padding: 0.9rem 1rem;
         }
 
         .datatable-compras tbody tr {
-            background-color: white;
-            transition: all 0.2s;
+            background: #ffffff;
+            transition: all 0.2s ease;
         }
 
             .datatable-compras tbody tr:hover {
-                background-color: #fff5ed !important; /* Toque naranja muy tenue al pasar el mouse */
+                background: #FFF7ED;
+                transform: translateY(-1px);
             }
 
         .datatable-compras td {
             vertical-align: middle;
-            padding: 15px;
-            border-top: 1px solid #e3e6f0;
-            border-bottom: 1px solid #e3e6f0;
+            padding: 1rem;
+            border-top: 1px solid #E2E8F0;
+            border-bottom: 1px solid #E2E8F0;
         }
 
-    /* --- Barras de Progreso --- */
-    .progress {
-        background-color: #eaecf4;
-        border-radius: 10px;
+            .datatable-compras td:first-child {
+                border-left: 1px solid #E2E8F0;
+                border-radius: 12px 0 0 12px;
+            }
+
+            .datatable-compras td:last-child {
+                border-right: 1px solid #E2E8F0;
+                border-radius: 0 12px 12px 0;
+            }
+
+    .ns-progress {
+        height: 9px;
+        background: #E2E8F0;
+        border-radius: 999px;
+        overflow: hidden;
     }
 
-    /* Color naranja para el progreso */
-    .progress-bar {
-        background-color: #ff6b00 !important;
-        border-radius: 10px;
-    }
-
-    /* --- Acciones --- */
-    .btn-outline-primary {
-        border: 1px solid #004a99;
-        color: #004a99;
-    }
-
-        .btn-outline-primary:hover {
-            background-color: #004a99;
-            color: white;
+        .ns-progress .progress-bar {
+            border-radius: 999px;
         }
-                </style>
+
+    .text-muted {
+        color: #64748B !important;
+    }
+
+    @@media (max-width: 768px) {
+        .compras-header {
+            align-items: stretch;
+        }
+
+        .compras-actions {
+            justify-content: flex-start;
+            width: 100%;
+        }
+
+            .compras-actions .btn {
+                width: 100%;
+            }
+    }
+</style>

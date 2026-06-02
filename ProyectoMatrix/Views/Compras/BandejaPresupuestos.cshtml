@@ -1,4 +1,4 @@
-﻿@model List<ProyectoMatrix.Models.BandejaComprasVm>
+﻿@model ProyectoMatrix.Models.ControlPresupuestalVm
 
 @{
     ViewData["Title"] = "Bandeja Presupuestal";
@@ -12,16 +12,75 @@
 </div>
 
 <div class="container-fluid">
-    <h3 class="h3 mb-2 text-gray-800">Control Presupuestal</h3>
-    <p class="mb-4">Solicitudes pendientes de dictamen y asignación de presupuesto.</p>
 
+    <h3 class="h3 mb-2 text-gray-800">Control Presupuestal</h3>
+    <p class="mb-4">
+        Solicitudes pendientes de dictamen, indicadores generales e histórico de presupuestos procesados.
+    </p>
+
+    <!-- KPIs -->
+    <div class="row mb-4">
+
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="card kpi-card border-left-warning shadow h-100">
+                <div class="card-body">
+                    <div class="kpi-title text-warning">Pendientes</div>
+                    <div class="kpi-value">@Model.TotalPendientes</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="card kpi-card border-left-success shadow h-100">
+                <div class="card-body">
+                    <div class="kpi-title text-success">Aprobadas</div>
+                    <div class="kpi-value">@Model.TotalAprobadas</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="card kpi-card border-left-danger shadow h-100">
+                <div class="card-body">
+                    <div class="kpi-title text-danger">Rechazadas</div>
+                    <div class="kpi-value">@Model.TotalRechazadas</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card kpi-card border-left-primary shadow h-100">
+                <div class="card-body">
+                    <div class="kpi-title text-primary">Monto aprobado</div>
+                    <div class="kpi-value">
+                        @Model.MontoAprobado.ToString("C")
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card kpi-card border-left-danger shadow h-100">
+                <div class="card-body">
+                    <div class="kpi-title text-danger">Monto rechazado</div>
+                    <div class="kpi-value">
+                        @Model.MontoRechazado.ToString("C")
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Solicitudes pendientes -->
     <div class="card shadow mb-4">
         <div class="card-header py-3 bg-dark">
             <h6 class="m-0 font-weight-bold text-white">Solicitudes por Revisar</h6>
         </div>
+
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered data-table" width="100%" cellspacing="0">
                     <thead class="bg-light">
                         <tr>
                             <th>Folio</th>
@@ -32,23 +91,34 @@
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
+
                     <tbody>
-                        @foreach (var item in Model)
+                        @if (Model.Pendientes != null && Model.Pendientes.Any())
+                        {
+                            foreach (var item in Model.Pendientes)
+                            {
+                                <tr>
+                                    <td class="font-weight-bold text-primary">@item.Folio</td>
+                                    <td>@item.Solicitante</td>
+                                    <td>@item.TipoCompra</td>
+                                    <td>@item.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>
+                                        <span class="badge badge-warning">@item.Estatus</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="@Url.Action("Dictamen", "Compras", new { id = item.SolicitudID })"
+                                           class="btn btn-info btn-sm shadow-sm">
+                                            <i class="fas fa-gavel fa-sm text-white-50 mr-1"></i> Dictaminar
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
                         {
                             <tr>
-                                <td class="font-weight-bold text-primary">@item.Folio</td>
-                                <td>@item.Solicitante</td>
-                                <td>@item.TipoCompra</td>
-                                <td>@item.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td>
-                                <td>
-                                    <span class="badge badge-warning">@item.Estatus</span>
-                                </td>
-                                <td class="text-center">
-                                    @* Este botón manda a la vista que ya configuramos *@
-                                    <a href="@Url.Action("Dictamen", "Compras", new { id = item.SolicitudID })"
-                                       class="btn btn-info btn-sm shadow-sm">
-                                        <i class="fas fa-gavel fa-sm text-white-50 mr-1"></i> Dictaminar
-                                    </a>
+                                <td colspan="6" class="text-center text-muted">
+                                    No hay solicitudes pendientes de dictamen.
                                 </td>
                             </tr>
                         }
@@ -57,93 +127,336 @@
             </div>
         </div>
     </div>
+
+    <!-- Histórico -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-secondary">
+            <h6 class="m-0 font-weight-bold text-white">Histórico de Dictámenes</h6>
+        </div>
+
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered data-table" width="100%" cellspacing="0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Folio</th>
+                            <th>Solicitante</th>
+                            <th>Tipo</th>
+                            <th>Monto</th>
+                            <th>Resultado</th>
+                            <th>Presupuesto</th>
+                            <th>Requisición</th>
+                            <th>Fecha Dictamen</th>
+                            <th>Detalle</th>
+                            <th>Observaciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @if (Model.Historico != null && Model.Historico.Any())
+                        {
+                            foreach (var item in Model.Historico)
+                            {
+                                <tr>
+                                    <td class="font-weight-bold text-primary">@item.Folio</td>
+                                    <td>@item.Solicitante</td>
+                                    <td>@item.TipoCompra</td>
+                                    <td>@item.MontoTotal.ToString("C")</td>
+                                    <td>
+                                        @if (item.Resultado == "Aprobado")
+                                        {
+                                            <span class="badge badge-success">Aprobado</span>
+                                        }
+                                        else if (item.Resultado == "Rechazado")
+                                        {
+                                            <span class="badge badge-danger">Rechazado</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-secondary">@item.Resultado</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.DentroPresupuesto == true)
+                                        {
+                                            <span class="badge badge-success">Dentro</span>
+                                        }
+                                        else if (item.DentroPresupuesto == false)
+                                        {
+                                            <span class="badge badge-warning">Fuera</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-secondary">N/A</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @(string.IsNullOrEmpty(item.NumeroRequisicion) ? "N/A" : item.NumeroRequisicion)
+                                    </td>
+                                    <td>
+                                        @(item.FechaDictamen == DateTime.MinValue ? "N/A" : item.FechaDictamen.ToString("dd/MM/yyyy HH:mm"))
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="@Url.Action("Detalle", "Compras", new { id = item.SolicitudID })"
+                                           class="btn btn-outline-primary btn-sm">
+                                            Ver
+                                        </a>
+                                    </td>
+
+                            <td>
+                                @(string.IsNullOrWhiteSpace(item.Observaciones)
+                                                                ? "N/A"
+                                                                : item.Observaciones)
+                            </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="9" class="text-center text-muted">
+                                    Aún no hay dictámenes registrados.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
 </div>
 
+<style>
 
-                                    <style>
-    /* --- Encabezado y Títulos --- */
+    body {
+        background: #f5f7fb;
+    }
+
+
     h3.text-gray-800 {
-        color: #004a99 !important; /* Azul Corporativo */
+        color: #166534 !important;
         font-weight: 800;
-        text-transform: uppercase;
+        letter-spacing: -.5px;
+        text-transform: none;
     }
 
-    .card-header.bg-dark {
-        background-color: #004a99 !important; /* Azul Sólido */
-        border-bottom: 3px solid #ff6b00; /* Acento Naranja */
+    p.mb-4 {
+        color: #64748b;
+        border-left: 4px solid #16a34a;
+        padding-left: 12px;
+        margin-top: 8px;
     }
 
-    /* --- Tabla de Dictamen --- */
-    #dataTable {
-        border-collapse: separate;
-        border-spacing: 0 5px;
-    }
-
-        #dataTable thead.bg-light {
-            background-color: #f0f4f8 !important;
-            color: #004a99;
-        }
-
-        #dataTable thead th {
-            border: none;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 0.5px;
-            padding: 15px;
-        }
-
-        #dataTable tbody tr {
-            background-color: white;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-            #dataTable tbody tr:hover {
-                transform: scale(1.01);
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                background-color: #fdfdfd;
-            }
-
-        #dataTable td {
-            vertical-align: middle;
-            padding: 12px;
-            border-top: 1px solid #e3e6f0;
-            border-bottom: 1px solid #e3e6f0;
-        }
-
-    /* --- Folio y Estatus --- */
-    td.text-primary {
-        color: #004a99 !important;
-        font-family: 'Consolas', monospace; /* Estilo técnico para Folios */
-    }
-
-    .badge-warning {
-        background-color: #ff6b00 !important; /* Naranja para pendientes */
-        color: white !important;
-        padding: 6px 10px;
-        font-weight: 600;
-        border-radius: 4px;
-        text-transform: uppercase;
-    }
-
-    /* --- Botón de Acción: Dictaminar --- */
-    .btn-info.btn-sm {
-        background-color: #004a99 !important; /* Azul para el mazo */
-        border: none;
+ 
+    .btn {
+        border-radius: 10px;
         font-weight: 700;
-        padding: 8px 16px;
-        transition: all 0.3s;
+        transition: .25s;
+    }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+    .btn-outline-secondary {
+        border-color: #cbd5e1;
+        color: #475569;
+    }
+
+        .btn-outline-secondary:hover {
+            background: #475569;
+            color: white;
+        }
+
+    .btn-outline-primary {
+        border-color: #16a34a;
+        color: #16a34a;
+    }
+
+        .btn-outline-primary:hover {
+            background: #16a34a;
+            color: white;
+        }
+
+    /* Dictaminar */
+
+    .btn-info.btn-sm {
+        background: #16a34a !important;
+        border: none;
+        color: white !important;
+        border-radius: 10px;
+        padding: .55rem .9rem;
+        font-weight: 700;
     }
 
         .btn-info.btn-sm:hover {
-            background-color: #ff6b00 !important; /* Switch a Naranja en hover */
-            box-shadow: 0 4px 10px rgba(255, 107, 0, 0.3) !important;
+            background: #15803d !important;
+            box-shadow: 0 8px 18px rgba(22,163,74,.25);
         }
 
-    /* --- Mensajes de Ayuda --- */
-    p.mb-4 {
-        color: #5a5c69;
-        font-style: italic;
-        border-left: 3px solid #ff6b00;
-        padding-left: 10px;
+
+
+
+    .card {
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 18px !important;
+        overflow: hidden;
+        box-shadow: 0 12px 28px rgba(15,23,42,.08) !important;
     }
-                                    </style>
+
+    .card-header {
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+        .card-header.bg-dark,
+        .card-header.bg-secondary {
+            background: linear-gradient( 135deg, #166534, #22c55e ) !important;
+        }
+
+   
+
+    .kpi-card {
+        border-radius: 18px !important;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .kpi-card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 5px;
+            height: 100%;
+        }
+
+    .border-left-warning::before {
+        background: #f59e0b;
+    }
+
+    .border-left-success::before {
+        background: #16a34a;
+    }
+
+    .border-left-danger::before {
+        background: #dc2626;
+    }
+
+    .border-left-primary::before {
+        background: #166534;
+    }
+
+    .kpi-title {
+        text-transform: uppercase;
+        font-size: .75rem;
+        font-weight: 800;
+        letter-spacing: .5px;
+        margin-bottom: .4rem;
+    }
+
+    .kpi-value {
+        font-size: 1.55rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+  
+
+    .data-table {
+        border-collapse: separate;
+        border-spacing: 0 .55rem;
+    }
+
+        .data-table thead th {
+            background: #f8fafc;
+            color: #334155;
+            border: none;
+            font-size: .72rem;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            font-weight: 800;
+            padding: 14px;
+        }
+
+        .data-table tbody tr {
+            background: white;
+            transition: .2s;
+        }
+
+            .data-table tbody tr:hover {
+                background: #f0fdf4;
+                transform: translateY(-1px);
+            }
+
+        .data-table td {
+            vertical-align: middle;
+            padding: 14px;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+            .data-table td:first-child {
+                border-left: 1px solid #e2e8f0;
+                border-radius: 12px 0 0 12px;
+            }
+
+            .data-table td:last-child {
+                border-right: 1px solid #e2e8f0;
+                border-radius: 0 12px 12px 0;
+            }
+
+ 
+    td.text-primary {
+        color: #166534 !important;
+        font-weight: 800;
+    }
+
+  
+    .badge {
+        border-radius: 999px;
+        padding: .55rem .8rem;
+        font-weight: 700;
+        text-transform: none;
+    }
+
+    .badge-warning {
+        background: #f59e0b !important;
+        color: white !important;
+    }
+
+    .badge-success {
+        background: #16a34a !important;
+        color: white !important;
+    }
+
+    .badge-danger {
+        background: #dc2626 !important;
+        color: white !important;
+    }
+
+    .badge-secondary {
+        background: #64748b !important;
+        color: white !important;
+    }
+
+
+
+    .table-responsive {
+        border-radius: 14px;
+    }
+
+    @@media(max - width:768px) {
+        .btn
+
+    {
+        width: 100%;
+        margin-bottom: 6px;
+    }
+
+    .kpi-value {
+        font-size: 1.2rem;
+    }
+
+    }
+</style>

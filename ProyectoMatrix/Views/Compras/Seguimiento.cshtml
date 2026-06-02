@@ -1,0 +1,794 @@
+﻿@model ProyectoMatrix.Models.SeguimientoDireccionVm
+
+@{
+    ViewData["Title"] = "Seguimiento";
+    Layout = "_LayoutComunicados";
+}
+
+<a asp-action="Index" class="btn btn-outline-secondary">
+    Volver
+</a>
+
+<div class="container-fluid mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold">Seguimiento de Compras</h2>
+    </div>
+
+    <!-- KPIs -->
+    <div class="row mb-4">
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Solicitudes</h6>
+                    <h3>@Model.TotalSolicitudes</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="text-muted">Activas</h6>
+                    <h3 class="text-primary">@Model.TotalActivas</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="text-muted">Cerradas</h6>
+                    <h3 class="text-success">@Model.TotalCerradas</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="text-muted">Retrasadas</h6>
+                    <h3 class="text-danger">@Model.TotalRetrasadas</h3>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body">
+
+            <form method="get" asp-action="Seguimiento">
+
+                <div class="row">
+
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label fw-bold">Estatus</label>
+
+                        <select name="estatus" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="1">Solicitado</option>
+                            <option value="2">Cotizado</option>
+                            <option value="3">Presupuesto</option>
+                            <option value="4">OC Generada</option>
+                            <option value="5">OC Enviada</option>
+                            <option value="6">Almacén</option>
+                            <option value="8">Pendiente CxP</option>
+                            <option value="10">Cerrada</option>
+                            <option value="11">Rechazada CxP</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label fw-bold">Departamento</label>
+
+                        <input type="text"
+                               name="departamento"
+                               class="form-control"
+                               placeholder="Ej. Compras">
+                    </div>
+
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label fw-bold">Comprador</label>
+
+                        <input type="text"
+                               name="comprador"
+                               class="form-control"
+                               placeholder="Nombre comprador">
+                    </div>
+
+                    <div class="col-md-2 mb-2 d-flex align-items-end">
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   name="soloRetrasadas"
+                                   value="true"
+                                   id="soloRetrasadas">
+
+                            <label class="form-check-label" for="soloRetrasadas">
+                                Solo retrasadas
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-1 mb-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            Filtrar
+                        </button>
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+    <!-- TABLA -->
+    <div class="card shadow-sm border-0">
+
+        <div class="card-body">
+
+            <div class="seguimiento-table-container">
+
+                <table class="table table-hover align-middle seguimiento-table">
+
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Folio</th>
+                            <th>Fecha</th>
+                            <th>Solicitante</th>
+                            <th>Departamento</th>
+                            <th>Comprador</th>
+                            <th>Estatus</th>
+                            @* <th>Días Estatus</th>*@
+                            <th>Días transcurridos</th>
+                            <th>Días permitidos</th>
+                            <th>Urgencia</th>
+                            <th>Semáforo</th>
+                            <th>Monto</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        @for (int i = 0; i < Model.Solicitudes.Count; i++)
+                        {
+                            var item = Model.Solicitudes[i];
+
+                            <tr>
+
+                                <td>
+                                    <strong>@item.Folio</strong>
+                                </td>
+
+                                <td>
+                                    @item.FechaCreacion.ToString("dd/MM/yyyy")
+                                </td>
+
+                                <td>
+                                    @item.Solicitante
+                                </td>
+
+                                <td>
+                                    @item.Departamento
+                                </td>
+
+                                <td>
+                                    @item.CompradorAsignado
+                                </td>
+
+                                <td>
+                                    @item.Estatus
+                                </td>
+
+                                @*
+                                <td>
+                                    <span class="fw-bold">
+                                        @item.DiasEnEstatus
+                                    </span>
+                                </td>*@
+
+                                <td>
+                                    @item.DiasHabilesTranscurridos
+                                </td>
+
+                                <td>
+                                    @item.DiasPermitidos
+                                </td>
+
+                                <td>
+                                    @item.Urgencia
+                                </td>
+
+                                <td>
+                                    <span class="@item.SemaforoCss">
+                                        @item.SemaforoTexto
+                                    </span>
+                                </td>
+
+                                <td>
+                                    @String.Format("{0:C}", item.MontoCotizado)
+                                </td>
+
+                                <td>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-info btn-detalle"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalDetalleSeguimiento"
+                                            data-folio="@item.Folio"
+                                            data-solicitante="@item.Solicitante"
+                                            data-comprador="@(string.IsNullOrWhiteSpace(item.CompradorAsignado) ? "Sin asignar" : item.CompradorAsignado)"
+                                            data-compras="@item.DiasCompras"
+                                            data-presupuesto="@item.DiasPresupuesto"
+                                            data-oc="@item.DiasOC"
+                                            data-proveedor="@item.DiasProveedor"
+                                            data-almacen="@item.DiasAlmacen"
+                                            data-cxp="@item.DiasCxP">
+                                        Ver detalles
+                                    </button>
+
+                                    <a asp-action="Detalle"
+                                       asp-route-id="@item.SolicitudID"
+                                       class="btn btn-sm btn-outline-primary">
+                                        Ver
+                                    </a>
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL ÚNICO -->
+<div class="modal fade"
+     id="modalDetalleSeguimiento"
+     tabindex="-1"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <div class="modal-header bg-primary text-white">
+
+                <h5 class="modal-title">
+                    Seguimiento detallado -
+                    <span id="mdFolio"></span>
+                </h5>
+
+                <button type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal">
+                </button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <div class="row mb-3">
+
+                    <div class="col-md-6">
+                        <strong>Solicitante:</strong><br />
+                        <span id="mdSolicitante"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <strong>Comprador:</strong><br />
+                        <span id="mdComprador"></span>
+                    </div>
+
+                </div>
+
+                <table class="table table-bordered">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>Área</th>
+                            <th>Días hábiles</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        <tr>
+                            <td>Compras (Cotizando)</td>
+                            <td id="mdCompras"></td>
+                        </tr>
+
+                        <tr>
+                            <td>Control Presupuestal</td>
+                            <td id="mdPresupuesto"></td>
+                        </tr>
+
+                        <tr>
+                            <td>Compras generando O.C.</td>
+                            <td id="mdOC"></td>
+                        </tr>
+
+                        <tr>
+                            <td>En espera del proveedor</td>
+                            <td id="mdProveedor"></td>
+                        </tr>
+
+                        <tr>
+                            <td>Recepción en almacén</td>
+                            <td id="mdAlmacen"></td>
+                        </tr>
+
+                        <tr>
+                            <td>Cuentas por Pagar</td>
+                            <td id="mdCxP"></td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+                <div class="alert alert-info">
+                    <strong>Total días hábiles del proceso:</strong>
+                    <span id="mdTotal"></span>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">
+                    Cerrar
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+@section Scripts {
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            document.querySelectorAll('.btn-detalle').forEach(function (btn) {
+
+                btn.addEventListener('click', function () {
+
+                    const compras = parseInt(btn.dataset.compras || '0');
+                    const presupuesto = parseInt(btn.dataset.presupuesto || '0');
+                    const oc = parseInt(btn.dataset.oc || '0');
+                    const proveedor = parseInt(btn.dataset.proveedor || '0');
+                    const almacen = parseInt(btn.dataset.almacen || '0');
+                    const cxp = parseInt(btn.dataset.cxp || '0');
+
+                    document.getElementById('mdFolio').innerText =
+                        btn.dataset.folio || '';
+
+                    document.getElementById('mdSolicitante').innerText =
+                        btn.dataset.solicitante || '';
+
+                    document.getElementById('mdComprador').innerText =
+                        btn.dataset.comprador || 'Sin asignar';
+
+                    document.getElementById('mdCompras').innerText =
+                        compras;
+
+                    document.getElementById('mdPresupuesto').innerText =
+                        presupuesto;
+
+                    document.getElementById('mdOC').innerText =
+                        oc;
+
+                    document.getElementById('mdProveedor').innerText =
+                        proveedor;
+
+                    document.getElementById('mdAlmacen').innerText =
+                        almacen;
+
+                    document.getElementById('mdCxP').innerText =
+                        cxp;
+
+                    document.getElementById('mdTotal').innerText =
+                        compras + presupuesto + oc + proveedor + almacen + cxp;
+
+                });
+
+            });
+
+        });
+    </script>
+
+}
+
+<style>
+    body {
+        background-color: #f5f7fb;
+    }
+
+    .container-fluid {
+        padding-bottom: 2rem;
+    }
+
+    h2.fw-bold {
+        color: #0f172a;
+        font-weight: 800 !important;
+        letter-spacing: -0.5px;
+    }
+
+    .btn {
+        border-radius: 10px;
+        font-weight: 700;
+        transition: all 0.2s ease;
+    }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+        }
+
+    .btn-outline-secondary {
+        border-color: #cbd5e1;
+        color: #475569;
+        background: #ffffff;
+    }
+
+        .btn-outline-secondary:hover {
+            background: #475569;
+            color: #ffffff;
+        }
+
+    .btn-primary {
+        background: #f97316 !important;
+        border-color: #f97316 !important;
+    }
+
+    .btn-outline-info {
+        color: #0891b2;
+        border-color: #67e8f9;
+        background: #ecfeff;
+    }
+
+        .btn-outline-info:hover {
+            color: #ffffff;
+            background: #0891b2;
+            border-color: #0891b2;
+        }
+
+    .btn-outline-primary {
+        color: #2563eb;
+        border-color: #bfdbfe;
+        background: #eff6ff;
+    }
+
+        .btn-outline-primary:hover {
+            color: #ffffff;
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+
+    .card {
+        border-radius: 18px !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
+        overflow: hidden;
+    }
+
+    .card-body {
+        padding: 1.25rem;
+    }
+
+    .row.mb-4 > .col-md-3 .card {
+        min-height: 110px;
+        position: relative;
+    }
+
+    .row.mb-4 > .col-md-3:nth-child(1) .card::before,
+    .row.mb-4 > .col-md-3:nth-child(2) .card::before,
+    .row.mb-4 > .col-md-3:nth-child(3) .card::before,
+    .row.mb-4 > .col-md-3:nth-child(4) .card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 5px;
+        height: 100%;
+    }
+
+    .row.mb-4 > .col-md-3:nth-child(1) .card::before {
+        background: #2563eb;
+    }
+
+    .row.mb-4 > .col-md-3:nth-child(2) .card::before {
+        background: #0891b2;
+    }
+
+    .row.mb-4 > .col-md-3:nth-child(3) .card::before {
+        background: #16a34a;
+    }
+
+    .row.mb-4 > .col-md-3:nth-child(4) .card::before {
+        background: #dc2626;
+    }
+
+    .card h6.text-muted {
+        color: #64748b !important;
+        text-transform: uppercase;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+    }
+
+    .card h3 {
+        color: #0f172a;
+        font-weight: 800;
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        color: #334155;
+        font-size: 0.85rem;
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        min-height: 42px;
+    }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+        }
+
+    .form-check-input:checked {
+        background-color: #f97316;
+        border-color: #f97316;
+    }
+
+    .seguimiento-table-wrap {
+        width: 100%;
+        overflow: visible;
+        border-radius: 14px;
+    }
+
+    .seguimiento-table {
+        width: 100%;
+        table-layout: auto;
+    }
+
+    .table {
+        border-collapse: separate;
+        border-spacing: 0 0.55rem;
+        margin-bottom: 0;
+    }
+
+        .table thead th {
+            background: #0f172a !important;
+            color: #ffffff;
+            border: none;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.4px;
+            padding: 0.9rem 1rem;
+            white-space: nowrap;
+        }
+
+        .table tbody tr {
+            background: #ffffff;
+            transition: all 0.2s ease;
+        }
+
+            .table tbody tr:hover {
+                background: #fff7ed;
+                transform: translateY(-1px);
+            }
+
+        .table tbody td {
+            vertical-align: middle;
+            padding: 1rem;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            color: #334155;
+        }
+
+            .table tbody td:first-child {
+                border-left: 1px solid #e2e8f0;
+                border-radius: 12px 0 0 12px;
+            }
+
+            .table tbody td:last-child {
+                border-right: 1px solid #e2e8f0;
+                border-radius: 0 12px 12px 0;
+                white-space: nowrap;
+            }
+
+        .table strong {
+            color: #0f172a;
+        }
+
+    .seguimiento-table thead th {
+        font-size: 0.68rem;
+        padding: 0.75rem 0.65rem;
+    }
+
+    .seguimiento-table tbody td {
+        font-size: 0.82rem;
+        padding: 0.75rem 0.65rem;
+    }
+
+    .seguimiento-table td:nth-child(3),
+    .seguimiento-table td:nth-child(4),
+    .seguimiento-table td:nth-child(5),
+    .seguimiento-table td:nth-child(6) {
+        max-width: 150px;
+        white-space: normal;
+    }
+
+    .seguimiento-table td:nth-child(12) {
+        white-space: nowrap;
+    }
+
+    .seguimiento-table td:last-child {
+        min-width: 150px;
+    }
+
+    .badge {
+        border-radius: 999px;
+        padding: 0.45rem 0.7rem;
+        font-weight: 800;
+        font-size: 0.72rem;
+    }
+
+    .bg-success {
+        background-color: #16a34a !important;
+    }
+
+    .bg-danger {
+        background-color: #dc2626 !important;
+    }
+
+    .bg-warning {
+        background-color: #f59e0b !important;
+    }
+
+    .bg-info {
+        background-color: #0891b2 !important;
+    }
+
+    .bg-secondary {
+        background-color: #64748b !important;
+    }
+
+    .modal-content {
+        border-radius: 18px;
+        border: none;
+        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.25);
+        overflow: hidden;
+    }
+
+    .modal-header.bg-primary {
+        background: linear-gradient(135deg, #2563eb, #0891b2) !important;
+        border-bottom: none;
+        padding: 1.2rem 1.5rem;
+    }
+
+    .modal-title {
+        font-weight: 800;
+        letter-spacing: -0.3px;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+        color: #334155;
+    }
+
+        .modal-body .table {
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+
+            .modal-body .table th {
+                background: #f8fafc !important;
+                color: #0f172a;
+                font-size: 0.78rem;
+            }
+
+            .modal-body .table td,
+            .modal-body .table th {
+                padding: 0.85rem 1rem;
+                border: 1px solid #e2e8f0;
+            }
+
+                .modal-body .table td[id] {
+                    font-weight: 800;
+                    color: #2563eb;
+                }
+
+    .alert-info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a;
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+    }
+
+    #mdTotal {
+        font-weight: 800;
+        color: #2563eb;
+    }
+
+    .modal-footer {
+        border-top: 1px solid #e2e8f0;
+        padding: 1rem 1.5rem;
+    }
+
+    .btn-secondary {
+        background: #64748b;
+        border-color: #64748b;
+    }
+
+    @@media (max-width: 768px) {
+        .d-flex.justify-content-between {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 0.75rem;
+        }
+
+        .table thead {
+            font-size: 0.75rem;
+        }
+
+        .btn-sm {
+            margin-bottom: 0.35rem;
+            width: 100%;
+        }
+
+        .modal-dialog {
+            margin: 0.75rem;
+        }
+    }
+
+    .seguimiento-table-container {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+    }
+
+        .seguimiento-table-container table {
+            min-width: 1600px;
+            width: 100%;
+        }
+
+        .seguimiento-table-container::-webkit-scrollbar {
+            height: 10px;
+        }
+
+        .seguimiento-table-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 20px;
+        }
+
+        .seguimiento-table-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+</style>

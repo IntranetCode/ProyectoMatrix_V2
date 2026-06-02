@@ -1,5 +1,6 @@
 ﻿namespace ProyectoMatrix.Models
 {
+    using System.Linq;
     public class ComprasModel
     {
     }
@@ -48,23 +49,33 @@
             {
                 return EstatusID switch
                 {
-                    1 => 20,  // Solicitado
-                    2 => 40,  // Cotizado
-                    3 => 60,  // Presupuesto
-                    4 => 100, // Recibido/Finalizado
-                    5 => 100, // Rechazado (Barra llena pero color distinto)
+                    1 => 10,   // Solicitado
+                    2 => 25,   // Cotizado
+                    3 => 40,   // En Presupuesto
+                    4 => 55,   // OC Generada
+                    5 => 65,   // OC Enviada a Proveedor
+                    6 => 75,   // Recibida en Almacén
+                    7 => 85,   // Entregada a Usuario
+                    8 => 95,   // Pendiente CxP
+                    9 => 100,  // Rechazado
+                    10 => 100, // Cerrada
+                    11 => 100, // Rechazada por CxP
                     _ => 0
                 };
             }
         }
-
-        // Color de la barra según estatus
         public string ColorProgreso => EstatusID switch
         {
-            4 => "bg-success", // Terminado
-            5 => "bg-danger",  // Rechazado
-            3 => "bg-info",    // En presupuesto
-            _ => "bg-primary"  // Por defecto
+            9 => "bg-danger",
+            10 => "bg-success",
+            11 => "bg-danger",
+            8 => "bg-info",
+            6 => "bg-primary",
+            7 => "bg-primary",
+            4 => "bg-warning",
+            5 => "bg-warning",
+            3 => "bg-info",
+            _ => "bg-primary"
         };
     }
 
@@ -78,6 +89,8 @@
         public string Urgencia { get; set; }
         public DateTime FechaCreacion { get; set; }
         public string Estatus { get; set; }
+
+        public int? CompradorAsignadoUsuarioID { get; set; }
     }
 
     public class DataHeatmapVm
@@ -149,6 +162,38 @@
         public string NumeroRequisicion { get; set; }
         public string ObservacionesPresupuesto { get; set; }
 
+        public string? NumeroOC { get; set; }
+        public string? ProveedorOC { get; set; }
+        public string? ComentariosOC { get; set; }
+        public DateTime? FechaOC { get; set; }
+
+        public bool EsCompras { get; set; }
+
+        public bool TieneOC { get; set; }
+
+        public DateTime? FechaEnvioProveedor { get; set; }
+        public DateTime? FechaEstimadaEntrega { get; set; }
+        public string? ComentariosEnvioProveedor { get; set; }
+        public bool OCEnviadaProveedor { get; set; }
+
+
+        public bool RecibidaEnAlmacen { get; set; }
+        public DateTime? FechaRecepcionAlmacen { get; set; }
+        public string? ComentariosRecepcionAlmacen { get; set; }
+
+
+        public bool EntregadaUsuario { get; set; }
+        public DateTime? FechaEntregaUsuario { get; set; }
+        public string? NombreRecibeUsuario { get; set; }
+        public string? ComentariosEntregaUsuario { get; set; }
+
+
+        public int? CotizacionSeleccionadaID { get; set; }
+        public DateTime? FechaSeleccionCotizacion { get; set; }
+        public string? ComentariosSeleccionUsuario { get; set; }
+        public bool EsSolicitante { get; set; }
+
+        public string? ArchivoReferenciaPath { get; set; }
 
         public int Porcentaje
         {
@@ -156,11 +201,17 @@
             {
                 return EstatusID switch
                 {
-                    1 => 20,  // Solicitado
-                    2 => 40,  // Cotizado
-                    3 => 60,  // Presupuesto
-                    4 => 100, // Recibido/Finalizado
-                    5 => 100, // Rechazado (Barra llena pero color distinto)
+                    1 => 10,   // Solicitado
+                    2 => 25,   // Cotizado
+                    3 => 40,   // En Presupuesto
+                    4 => 55,   // OC Generada
+                    5 => 65,   // OC Enviada a Proveedor
+                    6 => 75,   // Recibida en Almacén
+                    7 => 85,   // Entregada a Usuario
+                    8 => 95,   // Pendiente CxP
+                    9 => 100,  // Rechazado
+                    10 => 100, // Cerrada
+                    11 => 100, // Rechazada por CxP
                     _ => 0
                 };
             }
@@ -169,13 +220,21 @@
         // Color de la barra según estatus
         public string ColorProgreso => EstatusID switch
         {
-            4 => "bg-success", // Terminado
-            5 => "bg-danger",  // Rechazado
-            3 => "bg-info",    // En presupuesto
-            _ => "bg-primary"  // Por defecto
+            9 => "bg-danger",
+            10 => "bg-success",
+            11 => "bg-danger",
+            8 => "bg-info",
+            7 => "bg-primary",
+            6 => "bg-primary",
+            5 => "bg-warning",
+            4 => "bg-warning",
+            3 => "bg-info",
+            _ => "bg-primary"
         };
-    
-}
+
+        public List<CotizacionDetalleVm> Cotizaciones { get; set; } = new();
+
+    }
 
 
     //Model para los gráficos de dirección
@@ -199,4 +258,276 @@
         public IEnumerable<MisComprasVm> MisCompras { get; set; }
         public ComprasDashboardVm Estadisticas { get; set; } // Tu modelo de gráficos
     }
+
+
+    //Bandejapresupuestos para el historial
+
+    public class BandejaPresupuestosDashboardVm
+    {
+        public int Pendientes { get; set; }
+        public int Aprobadas { get; set; }
+        public int Rechazadas { get; set; }
+        public decimal MontoAprobado { get; set; }
+        public decimal MontoRechazado { get; set; }
+        public int Desviaciones { get; set; }
+
+      //  public List<PresupuestoPendienteVm> PendientesLista { get; set; } = new();
+      //  public List<PresupuestoHistoricoVm> Historico { get; set; } = new();
+    }
+
+    public class ControlPresupuestalVm
+    {
+        public int TotalPendientes { get; set; }
+        public int TotalAprobadas { get; set; }
+        public int TotalRechazadas { get; set; }
+        public decimal MontoAprobado { get; set; }
+        public decimal MontoRechazado { get; set; }
+
+        public List<BandejaComprasVm> Pendientes { get; set; } = new();
+        public List<HistoricoPresupuestoVm> Historico { get; set; } = new();
+    }
+
+    public class HistoricoPresupuestoVm
+    {
+        public int SolicitudID { get; set; }
+        public string Folio { get; set; }
+        public string Solicitante { get; set; }
+        public string TipoCompra { get; set; }
+        public decimal MontoTotal { get; set; }
+        public string Resultado { get; set; }
+        public bool? DentroPresupuesto { get; set; }
+        public string NumeroRequisicion { get; set; }
+        public string Observaciones { get; set; }
+        public DateTime FechaDictamen { get; set; }
+    }
+
+    //Modelos para el dasboard de compras
+    public class BandejaComprasDashboardVm
+    {
+        public int TotalPendientes { get; set; }
+        public int TotalCotizadas { get; set; }
+        public int TotalAtendidas { get; set; }
+
+        public decimal MontoCotizado { get; set; }
+
+        public bool EsDireccionCompras { get; set; }
+        public List<CompradorCargaVm> CargaCompradores { get; set; } = new();
+
+        public List<CompradorSelectVm> CompradoresDisponibles { get; set; } = new();
+
+        public List<BandejaComprasVm> Pendientes { get; set; } = new();
+        public List<HistoricoComprasVm> Historico { get; set; } = new();
+    }
+
+    public class CompradorSelectVm
+    {
+        public int UsuarioID { get; set; }
+        public string NombreCompleto { get; set; }
+        public string Puesto { get; set; }
+    }
+
+    public class HistoricoComprasVm
+    {
+        public int SolicitudID { get; set; }
+        public string Folio { get; set; }
+        public string Solicitante { get; set; }
+        public string Departamento { get; set; }
+        public string TipoCompra { get; set; }
+        public string Urgencia { get; set; }
+        public string Estatus { get; set; }
+        public decimal MontoTotal { get; set; }
+        public DateTime FechaCreacion { get; set; }
+        public DateTime? FechaCotizacion { get; set; }
+        public int EstatusID { get; set; }
+    }
+
+    public class CompradorCargaVm
+    {
+        public int UsuarioID { get; set; }
+        public string NombreCompleto { get; set; }
+        public string Puesto { get; set; }
+        public int Pendientes { get; set; }
+        public int Cotizadas { get; set; }
+        public int TotalAsignadas { get; set; }
+    }
+
+    //MODELO PARA REGISTRAR ORDEN DE COMPRA
+
+    public class RegistrarOrdenCompraVm
+    {
+        public int SolicitudID { get; set; }
+        public string Folio { get; set; }
+        public string Solicitante { get; set; }
+        public string Empresa { get; set; }
+
+        public string NumeroOC { get; set; }
+        public string? Proveedor { get; set; }
+    //    public IFormFile? ArchivoOC { get; set; }
+        public string? Comentarios { get; set; }
+    }
+
+    public class SeguimientoDireccionVm
+    {
+        public List<SeguimientoCompraItemVm> Solicitudes { get; set; } = new();
+
+        public int TotalSolicitudes => Solicitudes.Count;
+        public int TotalActivas => Solicitudes.Count(x => x.EstatusID != 9 && x.EstatusID != 10 && x.EstatusID != 11);
+
+        public int TotalCerradas => Solicitudes.Count(x => x.EstatusID == 10);
+
+        public int TotalRechazadas => Solicitudes.Count(x => x.EstatusID == 9 || x.EstatusID == 11);
+
+        public int TotalRetrasadas => Solicitudes.Count(x =>
+            x.DiasEnEstatus >= 2 &&
+            x.EstatusID != 9 &&
+            x.EstatusID != 10 &&
+            x.EstatusID != 11
+        );
+    }
+
+        public class SeguimientoCompraItemVm
+    {
+        public int SolicitudID { get; set; }
+        public string Folio { get; set; }
+        public DateTime FechaCreacion { get; set; }
+
+        public string Solicitante { get; set; }
+        public string Departamento { get; set; }
+        public string Empresa { get; set; }
+
+        public string TipoCompra { get; set; }
+        public string Urgencia { get; set; }
+
+        public int EstatusID { get; set; }
+        public string Estatus { get; set; }
+
+        public string CompradorAsignado { get; set; }
+        public DateTime? FechaAsignacionComprador { get; set; }
+
+        public DateTime? FechaUltimoMovimiento { get; set; }
+
+        public int DiasEnEstatus { get; set; }
+        public int DiasDesdeSolicitud { get; set; }
+        public int DiasCotizando { get; set; }
+
+        public decimal MontoCotizado { get; set; }
+
+
+        public int DiasPermitidos { get; set; }
+        public int DiasHabilesTranscurridos { get; set; }
+        public string SemaforoTexto { get; set; }
+
+            public string SemaforoCss => EstatusID switch
+            {
+                10 => "badge bg-success",          // Cerrada
+                9 => "badge bg-danger",            // Rechazada
+                11 => "badge bg-danger",           // Rechazada por CxP
+                8 => "badge bg-info text-dark",    // Pendiente CxP
+                _ => SemaforoTexto switch
+                {
+                    "Retrasada" => "badge bg-danger",
+                    "Por vencer" => "badge bg-warning text-dark",
+                    "A tiempo" => "badge bg-success",
+                    _ => "badge bg-secondary"
+                }
+            };
+
+        public List<TiempoDepartamentoVm> TiemposDepartamento { get; set; } = new();
+
+        public int DiasCompras { get; set; }
+        public int DiasPresupuesto { get; set; }
+        public int DiasOC { get; set; }
+        public int DiasProveedor { get; set; }
+        public int DiasAlmacen { get; set; }
+        public int DiasCxP { get; set; }
+
+    }
+
+    public class BandejaAlmacenVm
+    {
+        public List<AlmacenItemVm> PendientesRecepcion { get; set; } = new();
+
+        public int TotalPendientesRecepcion => PendientesRecepcion.Count;
+    }
+
+    public class AlmacenItemVm
+    {
+        public int SolicitudID { get; set; }
+        public string Folio { get; set; }
+
+        public string Solicitante { get; set; }
+        public string Departamento { get; set; }
+        public string Empresa { get; set; }
+
+        public string NumeroOC { get; set; }
+        public string Proveedor { get; set; }
+
+        public DateTime FechaCreacion { get; set; }
+        public DateTime? FechaEnvioProveedor { get; set; }
+        public DateTime? FechaEstimadaEntrega { get; set; }
+        public DateTime? FechaRecepcionAlmacen { get; set; }
+
+        public string Estatus { get; set; }
+        public int EstatusID { get; set; }
+
+        public int DiasDesdeEnvioProveedor { get; set; }
+    }
+
+    public class CotizacionDetalleVm
+    {
+        public int CotizacionID { get; set; }
+
+        public string Proveedor { get; set; }
+
+        public decimal MontoTotal { get; set; }
+
+        public string ArchivoPath { get; set; }
+
+        public string NombreArchivoOriginal { get; set; }
+
+        public string Extension { get; set; }
+
+        public bool EsRecomendada { get; set; }
+
+        public string ComentariosCompras { get; set; }
+
+        public DateTime FechaEnvioAlUsuario { get; set; }
+
+        public bool FueSeleccionadaPorUsuario { get; set; }
+
+    }
+
+    public class CuentasPorPagarVm
+    {
+        public List<CuentasPorPagarItemVm> Pendientes { get; set; } = new();
+    }
+
+    public class CuentasPorPagarItemVm
+    {
+        public int SolicitudID { get; set; }
+        public string Folio { get; set; }
+        public string Solicitante { get; set; }
+        public string Empresa { get; set; }
+        public string Departamento { get; set; }
+        public string Proveedor { get; set; }
+        public decimal MontoTotal { get; set; }
+        public string NumeroOC { get; set; }
+        public DateTime? FechaEntregaUsuario { get; set; }
+        public string NombreRecibeUsuario { get; set; }
+
+        public string TipoGasto { get; set; }
+        public string NumeroRequisicion { get; set; }
+        public DateTime? FechaDictamen { get; set; }
+    }
+
+    public class TiempoDepartamentoVm
+    {
+        public string Departamento { get; set; } = "";
+        public string Estatus { get; set; } = "";
+        public DateTime FechaInicio { get; set; }
+        public DateTime? FechaFin { get; set; }
+        public int Dias { get; set; }
+        public int Horas { get; set; }
+    }
+
 }

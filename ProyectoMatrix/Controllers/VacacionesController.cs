@@ -98,7 +98,7 @@ namespace ProyectoMatrix.Controllers
 
                     // Resumen del año actual
                     using (var cmd = new SqlCommand(@"
-                SELECT TOP 1 AnioSaldo, DiasCorrespondientes, DiasExtra, DiasTomados, DiasCaducados, DiasDisponibles
+                SELECT TOP 1 AnioSaldo, DiasCorrespondientes, DiasExtra,DiasDeuda, DiasTomados, DiasCaducados, DiasDisponibles
                 FROM vw_VacacionesSaldoActual
                 WHERE PersonaID = @PersonaID
                 ORDER BY AnioSaldo DESC;", conn))
@@ -113,6 +113,7 @@ namespace ProyectoMatrix.Controllers
                                     Anio = Convert.ToInt32(reader["AnioSaldo"]),
                                     DiasCorrespondientes = Convert.ToInt32(reader["DiasCorrespondientes"]),
                                     DiasExtra = Convert.ToDecimal(reader["DiasExtra"]),
+                                    DiasDeuda = reader["DiasDeuda"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["DiasDeuda"]),
                                     DiasTomados = Convert.ToDecimal(reader["DiasTomados"]),
                                     DiasCaducados = Convert.ToDecimal(reader["DiasCaducados"]),
                                     DiasDisponibles = Convert.ToDecimal(reader["DiasDisponibles"])
@@ -191,25 +192,13 @@ namespace ProyectoMatrix.Controllers
                     }
 
                     // Traer el saldo MÁS RECIENTE (último año generado)
-                    using (var cmd = new SqlCommand(@"
-    SELECT TOP 1 DiasDisponibles
-    FROM vw_VacacionesSaldoActual
-    WHERE PersonaID = @PersonaID
-    ORDER BY AnioSaldo DESC;", conn))
-                    {
-                        cmd.Parameters.AddWithValue("@PersonaID", personaId);
-
-                        var result = cmd.ExecuteScalar();
-                        if (result != null && result != DBNull.Value)
-                        {
-                            vm.DiasDisponiblesActuales = Convert.ToDecimal(result);
-                        }
-                    }
-
+                  
 
                     // Valores por defecto
                     vm.FechaInicio = DateTime.Today;
                     vm.FechaFin = DateTime.Today;
+                    vm.DiasDisponiblesActuales = ObtenerDiasDisponibles(conn, personaId);
+                    ViewBag.PermiteAdelantadas = TienePermisoVacacionesAdelantadas(conn, usuarioId);
                 }
             }
             catch (Exception ex)
@@ -238,11 +227,7 @@ namespace ProyectoMatrix.Controllers
                 ModelState.AddModelError(string.Empty, "La fecha de fin no puede ser menor que la fecha de inicio.");
             }
 
-            if (!ModelState.IsValid)
-            {
-                // Se muestran los errores en la vista
-                return View(model);
-            }
+           
 
             try
             {
@@ -256,6 +241,29 @@ namespace ProyectoMatrix.Controllers
                     if (personaId == 0)
                     {
                         ModelState.AddModelError(string.Empty, "No se encontró la persona asociada al usuario actual.");
+                        return View(model);
+                    }
+
+                    decimal diasDisponibles = ObtenerDiasDisponibles(conn, personaId);
+                    decimal diasSolicitados = ContarDiasHabiles(conn, model.FechaInicio, model.FechaFin);
+                    bool tienePermisoAdelantadas = TienePermisoVacacionesAdelantadas(conn, usuarioId);
+
+                    model.DiasDisponiblesActuales = diasDisponibles;
+                    ViewBag.PermiteAdelantadas = tienePermisoAdelantadas;
+
+                    if (!ModelState.IsValid)
+                    {
+                        return View(model);
+                    }
+
+                    if (diasSolicitados > diasDisponibles && !tienePermisoAdelantadas)
+                    {
+                        ModelState.AddModelError(
+                            string.Empty,
+                            $"No tienes saldo suficiente para solicitar estas vacaciones. " +
+                            $"Días solicitados: {diasSolicitados}. Días disponibles: {diasDisponibles}. " 
+                        );
+
                         return View(model);
                     }
 
@@ -304,7 +312,22 @@ namespace ProyectoMatrix.Controllers
             {
                 _logger.LogError(ex, "Error al crear solicitud de vacaciones");
 
-                // Mostrar el detalle mientras depuramos
+                try
+                {
+                    using (var conn = new SqlConnection(_connectionString))
+                    {
+                        conn.Open();
+
+                        int personaId = ObtenerPersonaIdPorUsuario(conn, usuarioId);
+                        if (personaId != 0)
+                        {
+                            model.DiasDisponiblesActuales = ObtenerDiasDisponibles(conn, personaId);
+                            ViewBag.PermiteAdelantadas = TienePermisoVacacionesAdelantadas(conn, usuarioId);
+                        }
+                    }
+                }
+                catch { }
+
                 ViewBag.Error = $"Error al crear la solicitud: {ex.Message}";
                 return View(model);
             }
@@ -915,7 +938,7 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult OmitirRegistroRH(int solicitudId)
+        public async Task<IActionResult> OmitirRegistroRH(int solicitudId)
         {
             int usuarioId = ObtenerUsuarioIdActual();
             if (usuarioId == 0) return Unauthorized();
@@ -925,11 +948,14 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
-                    // Actualizamos el estado para que ya no salga en la bandeja de RH
+
+                    if (!EsUsuarioRecursosHumanos(conn, usuarioId))
+                        return Forbid();
+
                     var sql = @"UPDATE VacacionesSolicitud 
-                        SET EstadoRecursosHumanos = 'Cancelada', 
-                            EstadoAutorizacion = 'Rechazada' 
-                        WHERE SolicitudVacacionesID = @id";
+                SET EstadoRecursosHumanos = 'Cancelada', 
+                    EstadoAutorizacion = 'Rechazada' 
+                WHERE SolicitudVacacionesID = @id";
 
                     using (var cmd = new SqlCommand(sql, conn))
                     {
@@ -937,7 +963,11 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                         cmd.ExecuteNonQuery();
                     }
                 }
-                TempData["MensajeVacacionesRH"] = "La solicitud ha sido descartada y no se registrará.";
+
+                await NotificarSaldoInsuficienteRHAsync(solicitudId);
+
+                TempData["MensajeVacacionesRH"] =
+                    "La solicitud fue descartada por saldo insuficiente. Se notificó al colaborador y a su jefe.";
             }
             catch (Exception ex)
             {
@@ -946,6 +976,137 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
             }
 
             return RedirectToAction("SolicitudesPendientesRH");
+        }
+
+
+        //HELPER PARA NOTIFCAR
+
+        private async Task NotificarSaldoInsuficienteRHAsync(int solicitudId)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    var sql = @"
+SELECT
+    s.SolicitudVacacionesID,
+    s.FechaInicio,
+    s.FechaFin,
+    s.DiasSolicitados,
+    p.PersonaID AS PersonaColaboradorID,
+    p.NumeroEmpleado,
+    (p.ApellidoPaterno + ' ' + p.ApellidoMaterno + ' ' + p.Nombre) AS NombreColaborador,
+    pj.PersonaID AS PersonaJefeID,
+    (pj.ApellidoPaterno + ' ' + pj.ApellidoMaterno + ' ' + pj.Nombre) AS NombreJefe
+FROM VacacionesSolicitud s
+INNER JOIN Persona p ON s.PersonaID = p.PersonaID
+LEFT JOIN Persona pj ON p.JefeInmediatoPersonaID = pj.PersonaID
+WHERE s.SolicitudVacacionesID = @SolicitudID;";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
+
+                        using (var rd = cmd.ExecuteReader())
+                        {
+                            if (!rd.Read()) return;
+
+                            int personaColaboradorId = Convert.ToInt32(rd["PersonaColaboradorID"]);
+                            int? personaJefeId = rd["PersonaJefeID"] == DBNull.Value
+                                ? null
+                                : Convert.ToInt32(rd["PersonaJefeID"]);
+
+                            var nombreColaborador = rd["NombreColaborador"]?.ToString() ?? "Colaborador";
+                            var nombreJefe = rd["NombreJefe"]?.ToString() ?? "Jefe inmediato";
+                            var numEmp = rd["NumeroEmpleado"]?.ToString() ?? "";
+                            var fechaIni = Convert.ToDateTime(rd["FechaInicio"]);
+                            var fechaFin = Convert.ToDateTime(rd["FechaFin"]);
+                            var dias = Convert.ToDecimal(rd["DiasSolicitados"]);
+
+                            var periodoHtml = $@"
+<div style='background:#f8f9fa; border-left:4px solid #dc3545; padding:12px 14px; border-radius:6px; margin:14px 0;'>
+  <p style='margin:0 0 6px;'><strong>Folio:</strong> {solicitudId}</p>
+  <p style='margin:0 0 6px;'><strong>Colaborador:</strong> {System.Net.WebUtility.HtmlEncode(numEmp)} - {System.Net.WebUtility.HtmlEncode(nombreColaborador)}</p>
+  <p style='margin:0 0 6px;'><strong>Periodo solicitado:</strong> {fechaIni:dd/MM/yyyy} al {fechaFin:dd/MM/yyyy}</p>
+  <p style='margin:0;'><strong>Días solicitados:</strong> {dias}</p>
+</div>";
+
+                            var asuntoColaborador =
+                                $"Vacaciones no registradas por RH - saldo insuficiente (folio {solicitudId})";
+
+                            var htmlColaborador = $@"
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+  <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+    <div style='padding:20px; background:#dc3545; color:#fff; text-align:center;'>
+      <h2 style='margin:0;'>Vacaciones no registradas</h2>
+    </div>
+    <div style='padding:20px; color:#333;'>
+      <p>Hola <strong>{System.Net.WebUtility.HtmlEncode(nombreColaborador)}</strong>,</p>
+      <p>Te informamos que Recursos Humanos <strong>no registró</strong> tus vacaciones debido a <strong>saldo insuficiente</strong>.</p>
+      {periodoHtml}
+      <p>En caso de que consideres que esto es incorrecto, por favor comunícate con <strong>Recursos Humanos</strong> para revisar el asunto.</p>
+      <p>https://intranet.nsgroup.com.mx/</p>
+      <p style='color:#666; font-size:12px; margin-top:18px;'>Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.</p>
+    </div>
+  </div>
+</body>
+</html>";
+
+                            await _notif.EnviarABccPersonasAsync(
+                                new List<int> { personaColaboradorId },
+                                asuntoColaborador,
+                                htmlColaborador
+                            );
+
+                            if (personaJefeId.HasValue)
+                            {
+                                var asuntoJefe =
+                                    $"Vacaciones no registradas por RH - {nombreColaborador} (folio {solicitudId})";
+
+                                var htmlJefe = $@"
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+  <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+    <div style='padding:20px; background:#dc3545; color:#fff; text-align:center;'>
+      <h2 style='margin:0;'>Vacaciones no registradas por RH</h2>
+    </div>
+    <div style='padding:20px; color:#333;'>
+      <p>Hola <strong>{System.Net.WebUtility.HtmlEncode(nombreJefe)}</strong>,</p>
+      <p>
+        Te informamos que la solicitud de vacaciones que aprobaste para
+        <strong>{System.Net.WebUtility.HtmlEncode(nombreColaborador)}</strong>
+        no fue registrada por Recursos Humanos debido a <strong>saldo insuficiente del colaborador</strong>.
+      </p>
+      {periodoHtml}
+      <p>En caso de que esta información sea incorrecta, el colaborador deberá comunicarse con <strong>Recursos Humanos</strong> para revisar el asunto.</p>
+      <p>https://intranet.nsgroup.com.mx/</p>
+      <p style='color:#666; font-size:12px; margin-top:18px;'>Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.</p>
+    </div>
+  </div>
+</body>
+</html>";
+
+                                await _notif.EnviarABccPersonasAsync(
+                                    new List<int> { personaJefeId.Value },
+                                    asuntoJefe,
+                                    htmlJefe
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error enviando correos por saldo insuficiente RH (SolicitudID={Id})", solicitudId);
+            }
         }
 
 
@@ -1357,7 +1518,7 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                         int nuevaId = (int)paramIdOut.Value;
 
                         // lógica de notificar a RH directamente
-                        await NotificarRH_SolicitudAutorizadaAsync(nuevaId);
+                       // await NotificarRH_SolicitudAutorizadaAsync(nuevaId);
                     }
                 }
                 TempData["MensajeVacaciones"] = "Solicitud para el equipo creada correctamente.";
@@ -1598,11 +1759,43 @@ CROSS APPLY (
                             default: vm.Tab = "autorizadas"; where = "EstadoAutorizacion = 'Autorizada'"; break;
                         }
                         var sqlSolicitudes = $@"
-                    SELECT Folio, PersonaID, NumeroEmpleado, NombreCompleto, ClaveEmpleadoNomina, Puesto,
-                           FechaSolicitud, FechaInicio, FechaFin, FechaRegresoLabores,
-                           DiasSolicitados, EsAnticipada, EstadoAutorizacion, EstadoRecursosHumanos,
-                           AnioSaldo, DiasCorrespondientes, DiasExtra, DiasTomados, DiasCaducados, DiasDisponibles
-                    FROM dbo.vw_Vacaciones_BandejaRH_ConSaldo WHERE {where} ORDER BY FechaSolicitud DESC;";
+SELECT 
+    b.Folio,
+    b.PersonaID,
+    b.NumeroEmpleado,
+    b.NombreCompleto,
+    b.ClaveEmpleadoNomina,
+    b.Puesto,
+    b.FechaSolicitud,
+    b.FechaInicio,
+    b.FechaFin,
+    b.FechaRegresoLabores,
+    b.DiasSolicitados,
+    b.EsAnticipada,
+    b.EstadoAutorizacion,
+    b.EstadoRecursosHumanos,
+
+    s.AnioSaldo,
+    s.DiasCorrespondientes,
+    s.DiasExtra,
+    s.DiasTomados,
+    s.DiasCaducados,
+    s.DiasDisponibles
+
+FROM dbo.vw_Vacaciones_BandejaRH_ConSaldo b
+INNER JOIN Persona p ON p.PersonaID = b.PersonaID
+
+CROSS APPLY (
+    SELECT TOP 1 *
+    FROM dbo.vw_VacacionesSaldoActual v
+    WHERE v.PersonaID = b.PersonaID
+    ORDER BY v.AnioSaldo DESC
+) s
+
+WHERE p.EsColaboradorActivo = 1
+  AND {where}
+
+ORDER BY b.FechaSolicitud DESC;";
 
                         using (var cmdS = new SqlCommand(sqlSolicitudes, conn))
                         using (var rS = cmdS.ExecuteReader())
@@ -1669,7 +1862,111 @@ CROSS APPLY (
             }
         }
 
+        //Método post para cargar dias extra a los usuarios
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> OtorgarDiasExtra(int PersonaID, decimal DiasRegalo, string Motivo)
+        {
+            int usuarioRhId = ObtenerUsuarioIdActual();
+            if (usuarioRhId == 0) return Unauthorized();
+
+            if (DiasRegalo <= 0)
+            {
+                return Json(new { success = false, message = "La cantidad de días debe ser mayor a cero." });
+            }
+
+            if (string.IsNullOrWhiteSpace(Motivo))
+            {
+                return Json(new { success = false, message = "El motivo o justificación es obligatorio." });
+            }
+
+            try
+            {
+                string nombreColaborador = "Colaborador";
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    // 1. Obtener el nombre de la persona para la notificación de éxito
+                    using (var cmdNom = new SqlCommand("SELECT (Nombre + ' ' + ApellidoPaterno) FROM Persona WHERE PersonaID = @ID", conn))
+                    {
+                        cmdNom.Parameters.AddWithValue("@ID", PersonaID);
+                        var resNom = await cmdNom.ExecuteScalarAsync();
+                        if (resNom != null) nombreColaborador = resNom.ToString();
+                    }
+
+                    // 2. Query para sumarle los días extra al registro del año más reciente del empleado
+                    string sqlUpdateExtra = @"
+                UPDATE VacacionesSaldoAnual 
+                SET DiasExtra = DiasExtra + @DiasRegalo,
+                    FechaActualizacion = GETDATE(),
+                    Observaciones = ISNULL(Observaciones + ' | ', '') + @Observaciones
+                WHERE PersonaID = @PersonaID 
+                  AND Anio = (SELECT MAX(Anio) FROM VacacionesSaldoAnual WHERE PersonaID = @PersonaID)";
+
+                    using (var cmd = new SqlCommand(sqlUpdateExtra, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DiasRegalo", DiasRegalo);
+                        cmd.Parameters.AddWithValue("@PersonaID", PersonaID);
+                        cmd.Parameters.AddWithValue("@Observaciones", $"[DÍAS EXTRA POR RH] +{DiasRegalo} días. Motivo: {Motivo}");
+
+                        int filasAfectadas = await cmd.ExecuteNonQueryAsync();
+
+                        if (filasAfectadas == 0)
+                        {
+                            return Json(new { success = false, message = "El empleado no cuenta con un registro de saldo activo para asignarle días." });
+                        }
+                    }
+                }
+
+                try
+                {
+                    var asunto = $"Te han otorgado días extra de vacaciones";
+                    var htmlMail = $@"
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset='UTF-8'></head>
+            <body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+              <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+                <div style='padding:20px; background:#198754; color:#fff; text-align:center;'>
+                  <h2 style='margin:0;'>¡Días Extra Otorgados!</h2>
+                </div>
+                <div style='padding:20px; color:#333;'>
+                  <p>Hola <strong>{System.Net.WebUtility.HtmlEncode(nombreColaborador)}</strong>,</p>
+                  <p>Se te informa que Recursos Humanos te ha asignado días adicionales a tu saldo actual de vacaciones.</p>
+
+                  <div style='background:#f8f9fa; border-left:4px solid #198754; padding:12px 14px; border-radius:6px; margin:14px 0;'>
+                    <p style='margin:0 0 6px;'><strong>Días otorgados:</strong> {DiasRegalo}</p>
+                    <p style='margin:0;'><strong>Motivo:</strong> {System.Net.WebUtility.HtmlEncode(Motivo)}</p>
+                  </div>
+
+                  <p>Puedes revisar el ajuste reflejado entrando a la Intranet, módulo <strong>Vacaciones</strong> (sección <strong>Mis vacaciones</strong>).</p>
+                  <p>https://intranet.nsgroup.com.mx/</p>
+                  <p style='color:#666; font-size:12px; margin-top:18px;'>Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.</p>
+                </div>
+              </div>
+            </body>
+            </html>";
+
+                    var personaIds = new List<int> { PersonaID };
+                    await _notif.EnviarABccPersonasAsync(personaIds, asunto, htmlMail);
+                }
+                catch (Exception exMail)
+                {
+                    // Si el correo falla logueamos el error pero no rompemos la respuesta JSON de éxito de la BD
+                    _logger.LogError(exMail, "Error al enviar correo de notificación por días extra a PersonaID {0}", PersonaID);
+                }
+              
+        
+        return Json(new { success = true, message = $"Se otorgaron {DiasRegalo} días extra correctamente y se notificó al colaborador." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en OtorgarDiasExtra");
+                return Json(new { success = false, message = "Error interno: " + ex.Message });
+            }
+        }
 
 
         private static (string aaMm, int anios) CalcularAntiguedad(DateTime ingreso, DateTime hoy)
@@ -2106,58 +2403,52 @@ CROSS APPLY (
 
 
 
-        //NOTIFICACIOONES POR CORREO 
+        //Helpers para validar si tiene permiso de vacaciones adelantadas, obtener dias disponibles y contardias habbiles
 
-        // 1. Notificar al Comprador que ya tiene una requisición aprobada para generar la O.C.
-        private async Task NotificarCompra_RequisicionListaAsync(int solicitudId, string idRequisicion, bool esDesviacion)
+
+        private bool TienePermisoVacacionesAdelantadas(SqlConnection conn, int usuarioId)
         {
-            try
+            var sql = @"
+SELECT COUNT(*)
+FROM VacacionesHabilitacionesEspeciales
+WHERE UsuarioID = @UsuarioID
+  AND EstatusRH = 'Autorizado'
+  AND Completada = 1;";
+
+            using (var cmd = new SqlCommand(sql, conn))
             {
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    await conn.OpenAsync();
-                    var sql = @"SELECT Folio, PuestoAsignado FROM Compras_Solicitud WHERE SolicitudID = @id";
-
-                    using (var cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@id", solicitudId);
-                        using (var rd = await cmd.ExecuteReaderAsync())
-                        {
-                            if (await rd.ReadAsync())
-                            {
-                                var folio = rd["Folio"].ToString();
-                                var puesto = rd["PuestoAsignado"].ToString();
-
-                                // Buscamos a las personas con ese puesto para mandarles correo
-                                var compradoresIds = new List<int>();
-                                var sqlCompradores = "SELECT PersonaID FROM Persona WHERE Puesto = @puesto AND EsColaboradorActivo = 1";
-                                // (Lógica para llenar compradoresIds...)
-
-                                var asunto = $"Requisición Lista - Folio {folio}";
-                                var html = $@"<h2>Requisición Autorizada</h2>
-                                      <p>Control Presupuestal ha liberado la requisición <b>{idRequisicion}</b>.</p>
-                                      {(esDesviacion ? "<p style='color:red;'><b>Nota:</b> Esta compra incluye una desviación aprobada.</p>" : "")}
-                                      <p>Favor de proceder con la creación de la Orden de Compra.</p>";
-
-                                await _notif.EnviarABccPersonasAsync(compradoresIds, asunto, html);
-                            }
-                        }
-                    }
-                }
+                cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
             }
-            catch (Exception ex) { _logger.LogError(ex, "Error notificar compra"); }
         }
 
-        // 2. Notificar al Usuario Solicitante sobre el dictamen
-        private async Task NotificarUsuario_DictamenPresupuestalAsync(int solicitudId, bool aprobado, string motivo)
+        private decimal ObtenerDiasDisponibles(SqlConnection conn, int personaId)
         {
-            // Lógica similar enviando correo al UsuarioID de la solicitud
-            // Indicando si fue 'Aprobado' o 'Rechazado' por Control Presupuestal.
+            var sql = @"
+SELECT TOP 1 DiasDisponibles
+FROM vw_VacacionesSaldoActual
+WHERE PersonaID = @PersonaID
+ORDER BY AnioSaldo DESC;";
+
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@PersonaID", personaId);
+                var result = cmd.ExecuteScalar();
+                return result == null || result == DBNull.Value ? 0m : Convert.ToDecimal(result);
+            }
         }
 
+        private decimal ContarDiasHabiles(SqlConnection conn, DateTime inicio, DateTime fin)
+        {
+            var sql = "SELECT dbo.fn_ContarDiasHabiles(@Inicio, @Fin);";
 
-
-
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@Inicio", inicio.Date);
+                cmd.Parameters.AddWithValue("@Fin", fin.Date);
+                return Convert.ToDecimal(cmd.ExecuteScalar());
+            }
+        }
 
 
 

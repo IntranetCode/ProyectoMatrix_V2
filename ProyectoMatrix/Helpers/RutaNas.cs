@@ -103,5 +103,25 @@ namespace ProyectoMatrix.Helpers
 
             return rutaFisica;
         }
+
+        // Carpeta para archivos de referencia de solicitudes de compra
+        public string ObtenerRutaSolicitudesCompras()
+        {
+            return CombinarRuta("Compras", "Solicitudes");
+        }
+
+        public string CrearCarpetaSolicitudesCompras()
+        {
+            var baseNas = ObtenerRutaBaseNAS();
+            var rutaRelativa = ObtenerRutaSolicitudesCompras();
+
+            var rutaFisica = Path.Combine(baseNas, rutaRelativa)
+                .Replace("/", Path.DirectorySeparatorChar.ToString());
+
+            if (!Directory.Exists(rutaFisica))
+                Directory.CreateDirectory(rutaFisica);
+
+            return rutaFisica;
+        }
     }
 }

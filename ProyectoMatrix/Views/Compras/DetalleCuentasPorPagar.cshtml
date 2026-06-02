@@ -1,0 +1,727 @@
+﻿@model ProyectoMatrix.Models.DetalleCompraVm
+
+@{
+    ViewData["Title"] = "Detalle Cuentas por Pagar";
+    Layout = "_LayoutComunicados";
+
+    bool esRechazada = Model.EstatusID == 9 || Model.EstatusID == 11;
+
+    string badgeEstatus = Model.EstatusID switch
+    {
+        1 => "badge-secondary",
+        2 => "badge-info",
+        3 => "badge-warning",
+        4 => "badge-primary",
+        5 => "badge-primary",
+        6 => "badge-info",
+        7 => "badge-info",
+        8 => "badge-warning",
+        9 => "badge-danger",
+        10 => "badge-success",
+        11 => "badge-danger",
+        _ => "badge-secondary"
+    };
+
+}
+
+
+
+<div class="container-fluid">
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    @if (TempData["Mensaje"] != null)
+    {
+        <div class="alert alert-success">@TempData["Mensaje"]</div>
+    }
+
+    <div class="card shadow mb-4">
+        <div class="card-body py-2">
+            <div class="row no-gutters align-items-center">
+                <div class="col mr-2">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                        Progreso del Proceso
+                    </div>
+                    <div class="progress progress-sm mr-2">
+                        <div class="progress-bar"
+                             role="progressbar"
+                             style="width: @Model.Porcentaje%"
+                             aria-valuenow="@Model.Porcentaje"
+                             aria-valuemin="0"
+                             aria-valuemax="100"></div>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                        @Model.Porcentaje%
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a asp-action="BandejaCuentasPorPagar" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Volver a Cuentas por Pagar
+        </a>
+    </div>
+
+    <div class="row">
+
+        <div class="col-lg-7">
+
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        Folio: @Model.Folio
+                    </h6>
+
+                    <span class="badge @badgeEstatus">
+                        <i class="fas fa-info-circle mr-1"></i> @Model.EstatusActual
+                    </span>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="row mb-3">
+                        <div class="col-md-6 border-left-primary">
+                            <label class="small font-weight-bold text-primary uppercase">
+                                Solicitante
+                            </label>
+                            <p class="h6 font-weight-bold text-gray-800">
+                                @Model.NombreSolicitante
+                            </p>
+                        </div>
+
+                        <div class="col-md-6 border-left-info">
+                            <label class="small font-weight-bold text-info uppercase">
+                                Empresa
+                            </label>
+                            <p class="h6 font-weight-bold text-gray-800">
+                                @Model.Empresa
+                            </p>
+                        </div>
+                    </div>
+
+                    <h6 class="font-weight-bold mt-4 text-gray-800">
+                        <i class="fas fa-list mr-2"></i> Artículos Requeridos
+                    </h6>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm" width="100%">
+                            <thead class="bg-gray-100 italic">
+                                <tr>
+                                    <th>Descripción</th>
+                                    <th class="text-center" style="width: 15%">Cant.</th>
+                                    <th class="text-center" style="width: 20%">U.M.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var mat in Model.Materiales)
+                                {
+                                    <tr>
+                                        <td>@mat.Nombre</td>
+                                        <td class="text-center">@mat.Cantidad</td>
+                                        <td class="text-center">@mat.UnidadMedida</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+
+            @if (Model.EstatusID >= 4 && !esRechazada && Model.DentroPresupuesto.HasValue)
+            {
+                <div class="card shadow mb-4 border-left-info">
+                    <div class="card-header py-3 bg-info text-white">
+                        <h6 class="m-0 font-weight-bold text-white">
+                            <i class="fas fa-gavel mr-2"></i> Veredicto Presupuestal
+                        </h6>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 text-center border-right">
+                                <label class="small font-weight-bold text-muted uppercase d-block">
+                                    Proceso
+                                </label>
+                                <span class="badge badge-pill badge-primary px-3">
+                                    @Model.TipoGasto
+                                </span>
+                            </div>
+
+                            <div class="col-md-4 text-center border-right">
+                                <label class="small font-weight-bold text-muted uppercase d-block">
+                                    Presupuesto
+                                </label>
+
+                                @if (Model.DentroPresupuesto == true)
+                                {
+                                    <span class="text-success font-weight-bold">
+                                        <i class="fas fa-check-circle"></i> Liberado
+                                    </span>
+                                }
+                                else if (Model.DentroPresupuesto == false)
+                                {
+                                    <span class="text-warning font-weight-bold">
+                                        <i class="fas fa-exclamation-triangle"></i> Desviación
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted font-weight-bold">
+                                        Pendiente
+                                    </span>
+                                }
+                            </div>
+
+                            <div class="col-md-4 text-center">
+                                <label class="small font-weight-bold text-muted uppercase d-block">
+                                    ID Requisición
+                                </label>
+                                <span class="h6 font-weight-bold text-dark">
+                                    @(string.IsNullOrEmpty(Model.NumeroRequisicion) ? "N/A" : Model.NumeroRequisicion)
+                                </span>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(Model.ObservacionesPresupuesto))
+                        {
+                            <div class="mt-3 p-2 bg-light border-left-info rounded text-sm">
+                                <small class="font-weight-bold text-info">
+                                    Notas de Finanzas:
+                                </small>
+                                <p class="mb-0 italic">
+                                    "@Model.ObservacionesPresupuesto"
+                                </p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (Model.TieneOC)
+            {
+                <div class="card shadow mb-4 border-left-primary">
+                    <div class="card-header py-3 bg-info text-white">
+                        <h6 class="m-0 font-weight-bold text-white">
+                            <i class="fas fa-file-invoice mr-2"></i> Orden de Compra
+                        </h6>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="alert alert-success mb-0">
+                            <strong>O.C. registrada:</strong> @Model.NumeroOC<br />
+                            <strong>Proveedor:</strong> @(string.IsNullOrEmpty(Model.ProveedorOC) ? "No capturado" : Model.ProveedorOC)<br />
+                            <strong>Fecha:</strong> @(Model.FechaOC.HasValue? Model.FechaOC.Value.ToString("dd/MM/yyyy HH:mm") : "N/A")
+
+                            @if (!string.IsNullOrEmpty(Model.ComentariosOC))
+                            {
+                                <br />
+                                <strong>Comentarios:</strong>
+ 
+                                @Model.ComentariosOC
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (Model.OCEnviadaProveedor)
+            {
+                <div class="card shadow mb-4 border-left-info">
+                    <div class="card-header py-3 bg-info text-white">
+                        <h6 class="m-0 font-weight-bold text-white">
+                            <i class="fas fa-paper-plane mr-2"></i> Envío a Proveedor
+                        </h6>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="alert alert-warning mb-0">
+                            <strong>O.C. enviada al proveedor</strong><br />
+                            <strong>Fecha envío:</strong> @Model.FechaEnvioProveedor?.ToString("dd/MM/yyyy HH:mm")<br />
+                            <strong>Entrega estimada:</strong> @Model.FechaEstimadaEntrega?.ToString("dd/MM/yyyy")
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (Model.RecibidaEnAlmacen)
+            {
+                <div class="card shadow mb-4 border-left-info">
+                    <div class="card-header py-3 bg-info text-white">
+                        <h6 class="m-0 font-weight-bold text-white">
+                            <i class="fas fa-warehouse mr-2"></i> Recepción en Almacén
+                        </h6>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="alert alert-info mb-0">
+                            <strong>Fecha recepción:</strong> @Model.FechaRecepcionAlmacen?.ToString("dd/MM/yyyy HH:mm")<br />
+                            <strong>Comentarios:</strong> @(string.IsNullOrEmpty(Model.ComentariosRecepcionAlmacen) ? "Sin comentarios" : Model.ComentariosRecepcionAlmacen)
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (Model.EntregadaUsuario)
+            {
+                <div class="card shadow mb-4 border-left-success">
+                    <div class="card-header py-3 bg-success text-white">
+                        <h6 class="m-0 font-weight-bold text-white">
+                            <i class="fas fa-handshake mr-2"></i> Entrega a Usuario
+                        </h6>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="alert alert-success mb-0">
+                            <strong>Fecha entrega:</strong> @Model.FechaEntregaUsuario?.ToString("dd/MM/yyyy HH:mm")<br />
+                            <strong>Recibió:</strong> @Model.NombreRecibeUsuario<br />
+                            <strong>Comentarios:</strong> @(string.IsNullOrEmpty(Model.ComentariosEntregaUsuario) ? "Sin comentarios" : Model.ComentariosEntregaUsuario)
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (esRechazada)
+            {
+                <div class="card shadow mb-4 border-left-danger">
+                    <div class="card-body text-center">
+                        <h5 class="text-danger font-weight-bold">
+                            <i class="fas fa-ban mr-2"></i> SOLICITUD RECHAZADA
+                        </h5>
+                        <p class="text-muted italic mb-0">
+                            Motivo: @Model.ObservacionesPresupuesto
+                        </p>
+                    </div>
+                </div>
+            }
+
+        </div>
+
+        <div class="col-lg-5">
+
+            <div class="card shadow mb-4 border-left-primary">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-file-invoice-dollar mr-2"></i> Cotizaciones Registradas
+                    </h6>
+                </div>
+
+                <div class="card-body">
+                    
+                        @if (Model.Cotizaciones != null && Model.Cotizaciones.Any())
+                        {
+                            @if (Model.CotizacionSeleccionadaID.HasValue)
+                            {
+                                <div class="alert alert-primary mb-3">
+                                    <i class="fas fa-check-circle mr-1"></i>
+                                    <strong>La cotización seleccionada por el solicitante se encuentra identificada con la etiqueta "Seleccionada".</strong>
+                                </div>
+                            }
+
+                            foreach (var cot in Model.Cotizaciones)
+                            {
+                            bool esImagen =
+                            cot.Extension == ".jpg" ||
+                            cot.Extension == ".jpeg" ||
+                            cot.Extension == ".png" ||
+                            cot.Extension == ".webp";
+
+                            <div class="card border mb-3 @(cot.FueSeleccionadaPorUsuario ? "border-primary shadow" : cot.EsRecomendada ? "border-success shadow" : "")">
+                                <div class="card-body">
+
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="font-weight-bold text-primary mb-0">
+                                            @cot.Proveedor
+                                        </h6>
+
+                                        <div>
+                                            @if (cot.EsRecomendada)
+                                            {
+                                                <span class="badge badge-success">
+                                                    Recomendada
+                                                </span>
+                                            }
+
+                                            @if (cot.FueSeleccionadaPorUsuario)
+                                            {
+                                                <span class="badge badge-primary">
+                                                    Seleccionada
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <p class="mb-1">
+                                        <strong>Monto:</strong> @cot.MontoTotal.ToString("C")
+                                    </p>
+
+                                    @if (!string.IsNullOrEmpty(cot.ComentariosCompras))
+                                    {
+                                        <div class="alert alert-light border mt-2 mb-2">
+                                            <small class="font-weight-bold text-muted">
+                                                Comentarios compras
+                                            </small>
+                                            <div>@cot.ComentariosCompras</div>
+                                        </div>
+                                    }
+
+                                    @if (esImagen)
+                                    {
+                                        <div class="text-center mb-3">
+                                            <img src="@Url.Action("VerPdfNas", new { ruta = cot.ArchivoPath })"
+                                                 class="img-fluid rounded border"
+                                                 style="max-height:350px;" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="border rounded bg-light mb-3"
+                                             style="height:400px; overflow:hidden;">
+                                            <iframe src="@Url.Action("VerPdfNas", new { ruta = cot.ArchivoPath })#toolbar=0"
+                                                    width="100%"
+                                                    height="100%"
+                                                    style="border:none;">
+                                            </iframe>
+                                        </div>
+                                    }
+
+                                    <a href="@Url.Action("VerPdfNas", new { ruta = cot.ArchivoPath })"
+                                       target="_blank"
+                                       class="btn btn-outline-primary btn-sm btn-block">
+                                        <i class="fas fa-eye mr-1"></i> Abrir archivo
+                                    </a>
+
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            Compras aún no ha cargado cotizaciones para esta solicitud.
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (Model.EstatusID == 8)
+            {
+                <div class="card shadow mb-4 border-left-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="m-0 font-weight-bold">
+                            <i class="fas fa-check-double mr-2"></i> Validación Cuentas por Pagar
+                        </h6>
+                    </div>
+
+                    <div class="card-body">
+                        <form asp-action="ValidarCuentasPorPagar" method="post">
+                            @Html.AntiForgeryToken()
+
+                            <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
+
+                            <div class="form-group">
+                                <label class="font-weight-bold">Comentarios</label>
+                                <textarea name="comentarios"
+                                      class="form-control"
+                                      rows="4"
+                                      placeholder="Comentarios obligatorios si rechazas la solicitud"></textarea>
+                            </div>
+
+                            <div class="d-flex justify-content-end">
+                                <button type="submit"
+                                        name="aceptado"
+                                        value="false"
+                                        class="btn btn-danger mr-2">
+                                    <i class="fas fa-times-circle"></i> Rechazar
+                                </button>
+
+                                <button type="submit"
+                                        name="aceptado"
+                                        value="true"
+                                        class="btn btn-success">
+                                    <i class="fas fa-check-circle"></i> Aprobar y cerrar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+
+        </div>
+
+    </div>
+</div>
+
+<style>
+
+    body {
+        background: #f5f7fb;
+    }
+
+    /* ---------- TITULOS ---------- */
+
+    h6.font-weight-bold {
+        font-weight: 800 !important;
+    }
+
+    .text-primary {
+        color: #2563eb !important;
+    }
+
+    .text-info {
+        color: #0891b2 !important;
+    }
+
+    /* ---------- BOTONES ---------- */
+
+    .btn {
+        border-radius: 10px;
+        font-weight: 700;
+        transition: .25s;
+    }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+    .btn-outline-secondary {
+        border-color: #cbd5e1;
+        color: #475569;
+    }
+
+        .btn-outline-secondary:hover {
+            background: #475569;
+            color: white;
+        }
+
+    .btn-success {
+        background: #16a34a !important;
+        border-color: #16a34a !important;
+    }
+
+    .btn-danger {
+        background: #dc2626 !important;
+        border-color: #dc2626 !important;
+    }
+
+    .btn-outline-primary {
+        border-color: #2563eb;
+        color: #2563eb;
+    }
+
+        .btn-outline-primary:hover {
+            background: #2563eb;
+            color: white;
+        }
+
+    /* ---------- CARDS ---------- */
+
+    .card {
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 16px !important;
+        overflow: hidden;
+        box-shadow: 0 12px 28px rgba(15,23,42,.08) !important;
+    }
+
+    .card-header {
+        background: white !important;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+        .card-header.bg-info {
+            background: linear-gradient( 135deg, #2563eb, #0891b2 ) !important;
+        }
+
+        .card-header.bg-success {
+            background: linear-gradient( 135deg, #16a34a, #22c55e ) !important;
+        }
+
+    .card-body {
+        padding: 1.4rem;
+    }
+
+    /* ---------- BADGES ---------- */
+
+    .badge {
+        padding: .55rem .85rem;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: .75rem;
+    }
+
+    .badge-primary {
+        background: #2563eb;
+    }
+
+    .badge-success {
+        background: #16a34a;
+    }
+
+    .badge-danger {
+        background: #dc2626;
+    }
+
+    .badge-warning {
+        background: #f59e0b;
+        color: white;
+    }
+
+    .badge-info {
+        background: #0891b2;
+    }
+
+    .badge-secondary {
+        background: #64748b;
+    }
+
+    /* ---------- PROGRESS ---------- */
+
+    .progress {
+        height: 14px;
+        border-radius: 999px;
+        background: #e2e8f0;
+    }
+
+    .progress-bar {
+        background: linear-gradient( 90deg, #2563eb, #0891b2 ) !important;
+    }
+
+    /* ---------- SECCIONES ---------- */
+
+    .border-left-primary {
+        border-left: 5px solid #2563eb !important;
+    }
+
+    .border-left-info {
+        border-left: 5px solid #0891b2 !important;
+    }
+
+    .border-left-success {
+        border-left: 5px solid #16a34a !important;
+    }
+
+    .border-left-danger {
+        border-left: 5px solid #dc2626 !important;
+    }
+
+    /* ---------- TABLAS ---------- */
+
+    .table {
+        margin-bottom: 0;
+    }
+
+        .table thead th {
+            background: #f8fafc;
+            color: #334155;
+            text-transform: uppercase;
+            font-size: .75rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+    .table-bordered {
+        border-color: #e2e8f0;
+    }
+
+    .table tbody tr:hover {
+        background: #fff7ed;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+
+    /* ---------- ALERTAS ---------- */
+
+    .alert {
+        border: none;
+        border-radius: 12px;
+    }
+
+    .alert-success {
+        background: #f0fdf4;
+        color: #166534;
+    }
+
+    .alert-info {
+        background: #eff6ff;
+        color: #1e40af;
+    }
+
+    .alert-warning {
+        background: #fff7ed;
+        color: #9a3412;
+    }
+
+    .alert-danger {
+        background: #fef2f2;
+        color: #991b1b;
+    }
+
+    .alert-primary {
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    /* ---------- COTIZACIONES ---------- */
+
+    .card.border-primary {
+        border: 2px solid #2563eb !important;
+    }
+
+    .card.border-success {
+        border: 2px solid #16a34a !important;
+    }
+
+    iframe {
+        border-radius: 10px;
+    }
+
+    img.img-fluid {
+        border-radius: 10px;
+    }
+
+    /* ---------- FORMULARIO CXP ---------- */
+
+    textarea.form-control {
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+    }
+
+        textarea.form-control:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 .15rem rgba(37,99,235,.15);
+        }
+
+   
+
+    .text-danger.font-weight-bold {
+        color: #dc2626 !important;
+    }
+
+  
+
+    @@media (max-width: 768px) {
+        .d-flex.justify-content-between
+
+    {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    }
+</style>

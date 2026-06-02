@@ -6,7 +6,7 @@
 
 }
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <a asp-action="Index" class="btn btn-outline-secondary">
+    <a asp-action="BandejaPresupuestos" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left me-1"></i> Volver
     </a>
 </div>
@@ -109,101 +109,188 @@
     </script>
 }
 
-            <style>
-    /* --- Encabezado de Dictamen --- */
-    .card-header.bg-dark {
-        background-color: #004a99 !important; /* Azul Profundo */
-        border-bottom: 3px solid #ff6b00; /* Línea divisoria Naranja */
+<style>
+
+    body {
+        background: #f5f7fb;
     }
 
-    /* --- Alerta de Monto --- */
+ 
+
+    h6.font-weight-bold {
+        font-weight: 800 !important;
+    }
+
+ 
+
+    .btn-outline-secondary {
+        border-radius: 10px;
+        border-color: #cbd5e1;
+        color: #475569;
+        font-weight: 700;
+    }
+
+        .btn-outline-secondary:hover {
+            background: #475569;
+            color: white;
+        }
+
+    
+
+    .card {
+        border: none !important;
+        border-radius: 18px !important;
+        overflow: hidden;
+        box-shadow: 0 12px 28px rgba(15,23,42,.08) !important;
+    }
+
+    .card-header.bg-dark {
+        background: linear-gradient( 135deg, #166534, #22c55e ) !important;
+        border: none;
+    }
+
+    .card-header h6 {
+        color: white !important;
+        font-size: 1rem;
+        letter-spacing: .3px;
+    }
+
+ 
+
     .alert-info {
-        background-color: #f0f7ff;
-        border-left: 5px solid #004a99;
-        color: #004a99;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-left: 5px solid #16a34a;
+        border-radius: 12px;
+        color: #166534;
         font-size: 1.1rem;
-        border-radius: 8px;
     }
 
         .alert-info strong {
-            color: #ff6b00; /* Resaltamos el monto en Naranja */
+            color: #15803d;
+            font-size: 1.2rem;
         }
 
-    /* --- Controles de Formulario --- */
+
     .form-group label {
-        color: #2c3e50;
-        margin-top: 10px;
+        font-weight: 700;
+        color: #334155;
     }
 
-    .form-control:focus {
-        border-color: #004a99;
-        box-shadow: 0 0 0 0.2rem rgba(0, 74, 153, 0.15);
+    
+
+    .form-control {
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
     }
 
-    /* --- Botones de Radio (Tipo de Gasto) --- */
+        .form-control:focus {
+            border-color: #16a34a;
+            box-shadow: 0 0 0 .15rem rgba(22,163,74,.15);
+        }
+
+  
+
+    #selectPasa {
+        font-weight: 700;
+    }
+
+    
+
     .btn-group-toggle .btn-outline-primary {
-        color: #004a99;
-        border-color: #004a99;
-        font-weight: 600;
-        margin-right: 5px;
-        border-radius: 5px !important;
+        color: #16a34a;
+        border-color: #16a34a;
+        background: white;
+        font-weight: 700;
+        border-radius: 10px !important;
+        margin-right: 8px;
+        padding: 10px 18px;
     }
 
         .btn-group-toggle .btn-outline-primary.active,
         .btn-group-toggle .btn-outline-primary:hover {
-            background-color: #004a99 !important;
+            background: #16a34a !important;
+            border-color: #16a34a !important;
             color: white !important;
         }
 
-    /* --- Secciones Dinámicas --- */
+   
+
     #seccionRequisicion {
-        background-color: #f8f9fc;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px dashed #004a99;
+        background: #f0fdf4;
+        border: 1px dashed #16a34a;
+        border-radius: 12px;
+        padding: 18px;
         margin-top: 15px;
     }
 
-    /* Estilo para el campo ID Requisición cuando es obligatorio */
     #NumeroRequisicion {
-        border: 1px solid #004a99;
-        font-weight: bold;
-        color: #004a99;
+        border: 2px solid #16a34a;
+        font-weight: 700;
+        color: #166534;
     }
 
-    /* --- Sección de Rechazo --- */
-    .text-danger {
-        color: #e74a3b !important;
+
+
+    #seccionRechazo {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 12px;
+        padding: 18px;
     }
 
-    #seccionRechazo textarea {
-        border: 1px solid #ff6b00; /* Borde naranja para indicar atención */
-    }
-
-        #seccionRechazo textarea:focus {
-            box-shadow: 0 0 0 0.2rem rgba(255, 107, 0, 0.15);
+        #seccionRechazo label {
+            color: #dc2626 !important;
+            font-weight: 800;
         }
 
-    /* --- Botón de Aplicar Dictamen --- */
+        #seccionRechazo textarea {
+            border: 1px solid #f97316;
+        }
+
+            #seccionRechazo textarea:focus {
+                border-color: #ea580c;
+                box-shadow: 0 0 0 .15rem rgba(249,115,22,.15);
+            }
+
+  
+
     .btn-success.btn-block {
-        background-color: #1cc88a; /* Verde éxito para procedencia */
+        background: #16a34a !important;
         border: none;
-        padding: 15px;
-        font-weight: 700;
-        font-size: 1.1rem;
+        border-radius: 12px;
+        padding: 14px;
+        font-size: 1rem;
+        font-weight: 800;
         text-transform: uppercase;
-        transition: all 0.3s;
+        transition: .25s;
     }
 
         .btn-success.btn-block:hover {
-            background-color: #16a06e;
+            background: #15803d !important;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(28, 200, 138, 0.3);
+            box-shadow: 0 10px 22px rgba(22,163,74,.25);
         }
 
-    /* --- Separador --- */
+
     hr {
-        border-top: 2px solid #e3e6f0;
+        border-top: 1px solid #e2e8f0;
         margin: 2rem 0;
     }
-            </style>
+
+   
+
+    @@media(max - width:768px) {
+        .btn-group-toggle .btn
+
+    {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+
+    .btn-success.btn-block {
+        width: 100%;
+    }
+
+    }
+</style>

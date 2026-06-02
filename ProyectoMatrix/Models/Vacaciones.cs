@@ -16,6 +16,7 @@ namespace ProyectoMatrix.Models
         public decimal DiasTomados { get; set; }
         public decimal DiasCaducados { get; set; }
         public decimal DiasDisponibles { get; set; }
+        public decimal DiasDeuda { get; set; }
     }
 
     public class VacacionesSolicitudItemVm
@@ -39,6 +40,7 @@ namespace ProyectoMatrix.Models
         public decimal DiasTomados { get; set; }
 
         public decimal DiasDisponibles { get; set; }
+        public decimal DiasDeuda { get; set; }
     }
 
     public class MisVacacionesVm
@@ -137,6 +139,7 @@ namespace ProyectoMatrix.Models
         public decimal DiasCorrespondientes { get; set; }
         public decimal DiasTomados { get; set; }
         public decimal DiasDisponibles { get; set; }
+        public decimal DiasDeuda { get; set; }
     }
 
     public class VacacionesBandejaRHVm
@@ -166,6 +169,7 @@ namespace ProyectoMatrix.Models
         public decimal DiasTomados { get; set; }
         public decimal DiasCaducados { get; set; }
         public decimal DiasDisponibles { get; set; }
+        public decimal DiasDeuda { get; set; }
     }
 
     public class VacacionesUsuarioSaldoRHVm
@@ -185,6 +189,7 @@ namespace ProyectoMatrix.Models
 
         public int AnticipadasRegistradas { get; set; }
         public int AnticipadasPorRegistrar { get; set; }
+        public decimal DiasDeuda { get; set; }
     }
 
     public class VacacionesBandejaRHPantallaVm
@@ -248,6 +253,7 @@ namespace ProyectoMatrix.Models
         public decimal DiasCorrespondientes { get; set; }
         public decimal DiasPendientes { get; set; }        // si RH lo quiere
         public decimal DiasDisponibles { get; set; }
+        public decimal DiasDeuda { get; set; }
     }
 
 

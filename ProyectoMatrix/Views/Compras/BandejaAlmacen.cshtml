@@ -1,0 +1,415 @@
+﻿@model ProyectoMatrix.Models.BandejaAlmacenVm
+
+@{
+    ViewData["Title"] = "Bandeja Almacén";
+    Layout = "_LayoutComunicados";
+}
+
+<div class="container-fluid mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">Bandeja Almacén</h2>
+            <small class="text-muted">Recepción de mercancía pendiente</small>
+        </div>
+
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            Volver
+        </a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="text-muted">Pendientes de recepción</h6>
+                    <h3 class="text-primary">@Model.TotalPendientesRecepcion</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white">
+            <h6 class="mb-0 fw-bold text-primary">Órdenes enviadas a proveedor</h6>
+        </div>
+
+        <div class="card-body">
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Folio</th>
+                            <th>O.C.</th>
+                            <th>Proveedor</th>
+                            <th>Solicitante</th>
+                            <th>Departamento</th>
+                            <th>Empresa</th>
+                            <th>Enviado proveedor</th>
+                            <th>Entrega estimada</th>
+                            <th>Días</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @if (Model.PendientesRecepcion.Any())
+                        {
+                            foreach (var item in Model.PendientesRecepcion)
+                            {
+                                <tr>
+                                    <td><strong>@item.Folio</strong></td>
+                                    <td>@item.NumeroOC</td>
+                                    <td>@item.Proveedor</td>
+                                    <td>@item.Solicitante</td>
+                                    <td>@item.Departamento</td>
+                                    <td>@item.Empresa</td>
+                                    <td>@item.FechaEnvioProveedor?.ToString("dd/MM/yyyy")</td>
+                                    <td>@item.FechaEstimadaEntrega?.ToString("dd/MM/yyyy")</td>
+                                    <td>@item.DiasDesdeEnvioProveedor</td>
+
+                                    <td>
+                                        <button type="button"
+                                                class="btn btn-sm btn-success"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalRecepcion@item.SolicitudID">
+                                            Recepcionar
+                                        </button>
+
+                                        <a asp-action="Detalle"
+                                           asp-route-id="@item.SolicitudID"
+                                           class="btn btn-sm btn-outline-primary">
+                                            Ver
+                                        </a>
+                                    </td>
+                                </tr>
+
+                                <div class="modal fade"
+                                     id="modalRecepcion@item.SolicitudID"
+                                     tabindex="-1"
+                                     aria-hidden="true">
+
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+
+                                            <form asp-action="RegistrarRecepcionAlmacen"
+                                                  method="post">
+
+                                                @Html.AntiForgeryToken()
+
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">
+                                                        Recepcionar @item.Folio
+                                                    </h5>
+
+                                                    <button type="button"
+                                                            class="btn-close"
+                                                            data-bs-dismiss="modal">
+                                                    </button>
+                                                </div>
+
+                                                <div class="modal-body">
+
+                                                    <input type="hidden"
+                                                           name="solicitudId"
+                                                           value="@item.SolicitudID" />
+
+                                                    <p>
+                                                        <strong>O.C.:</strong> @item.NumeroOC
+                                                        <br />
+                                                        <strong>Proveedor:</strong> @item.Proveedor
+                                                    </p>
+
+                                                    <label class="form-label fw-bold">
+                                                        Comentarios de recepción
+                                                    </label>
+
+                                                    <textarea name="comentarios"
+                                                      class="form-control"
+                                                      rows="4"
+                                                      placeholder="Ej. Mercancía recibida completa, pendiente revisión, etc."></textarea>
+
+                                                </div>
+
+                                                <div class="modal-footer">
+                                                    <button type="button"
+                                                            class="btn btn-secondary"
+                                                            data-bs-dismiss="modal">
+                                                        Cancelar
+                                                    </button>
+
+                                                    <button type="submit"
+                                                            class="btn btn-success">
+                                                        Confirmar recepción
+                                                    </button>
+                                                </div>
+
+                                            </form>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-4">
+                                    No hay mercancía pendiente de recepción.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+
+    body {
+        background: #f5f7fb;
+    }
+
+
+
+    h2.fw-bold {
+        color: #7c3aed;
+        font-weight: 800 !important;
+        letter-spacing: -0.5px;
+    }
+
+    .text-muted {
+        color: #64748b !important;
+    }
+
+  
+
+    .btn {
+        border-radius: 10px;
+        font-weight: 700;
+        transition: 0.25s;
+    }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+    .btn-outline-secondary {
+        border-color: #cbd5e1;
+        color: #475569;
+        background: #ffffff;
+    }
+
+        .btn-outline-secondary:hover {
+            background: #475569;
+            color: #ffffff;
+        }
+
+    .btn-success {
+        background: #7c3aed !important;
+        border-color: #7c3aed !important;
+        color: #ffffff !important;
+    }
+
+        .btn-success:hover {
+            background: #6d28d9 !important;
+        }
+
+    .btn-outline-primary {
+        color: #7c3aed;
+        border-color: #c4b5fd;
+        background: #faf5ff;
+    }
+
+        .btn-outline-primary:hover {
+            background: #7c3aed;
+            border-color: #7c3aed;
+            color: #ffffff;
+        }
+
+    .btn-secondary {
+        background: #64748b !important;
+        border-color: #64748b !important;
+    }
+
+    
+
+    .card {
+        border: none !important;
+        border-radius: 18px !important;
+        overflow: hidden;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    .card-header {
+        background: #ffffff !important;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+        .card-header h6 {
+            color: #7c3aed !important;
+            font-weight: 800;
+        }
+
+    
+
+    .row.mb-4 .card {
+        position: relative;
+    }
+
+        .row.mb-4 .card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 5px;
+            height: 100%;
+            background: #7c3aed;
+        }
+
+    .row.mb-4 h6 {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: #64748b !important;
+    }
+
+    .row.mb-4 h3 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #7c3aed !important;
+    }
+
+
+    .table {
+        border-collapse: separate;
+        border-spacing: 0 0.55rem;
+        margin-bottom: 0;
+    }
+
+        .table thead th {
+            background: #f8fafc !important;
+            color: #334155 !important;
+            border: none !important;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.5px;
+            padding: 14px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .table tbody tr {
+            background: #ffffff;
+            transition: 0.2s;
+        }
+
+            .table tbody tr:hover {
+                background: #faf5ff;
+                transform: translateY(-1px);
+            }
+
+        .table td {
+            vertical-align: middle;
+            padding: 14px;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+            .table td:first-child {
+                border-left: 1px solid #e2e8f0;
+                border-radius: 12px 0 0 12px;
+            }
+
+            .table td:last-child {
+                border-right: 1px solid #e2e8f0;
+                border-radius: 0 12px 12px 0;
+                white-space: nowrap;
+            }
+
+        .table strong {
+            color: #7c3aed;
+            font-weight: 800;
+        }
+
+        .table td:nth-child(9) {
+            font-weight: 800;
+            color: #7c3aed;
+        }
+
+    
+
+    .modal-content {
+        border: none;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.25);
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #7c3aed, #a855f7);
+        color: #ffffff;
+        border: none;
+    }
+
+    .modal-title {
+        font-weight: 800;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+        .modal-body p {
+            background: #faf5ff;
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid #e9d5ff;
+        }
+
+    .form-label {
+        color: #334155;
+    }
+
+    .form-control {
+        border-radius: 12px;
+        border: 1px solid #cbd5e1;
+    }
+
+        .form-control:focus {
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 0.15rem rgba(124, 58, 237, 0.15);
+        }
+
+    .modal-footer {
+        border-top: 1px solid #e2e8f0;
+    }
+
+   
+
+    td.text-center.text-muted {
+        padding: 3rem !important;
+        color: #94a3b8 !important;
+    }
+
+    
+
+    @@media (max-width: 768px) {
+        .btn {
+            width: 100%;
+            margin-bottom: 6px;
+        }
+
+        .d-flex.justify-content-between {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 10px;
+        }
+    }
+
+</style>

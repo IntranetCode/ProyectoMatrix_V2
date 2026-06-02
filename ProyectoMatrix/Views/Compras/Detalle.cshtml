@@ -3,18 +3,65 @@
 @{
     ViewData["Title"] = "Detalle de Solicitud";
     Layout = "_LayoutComunicados";
+
+    bool esRechazada = Model.EstatusID == 9;
+    bool rechazadaCxP = Model.EstatusID == 11;
+    bool cerradaAdministrativamente = Model.EstatusID == 10;
+    bool pendienteCxP = Model.EstatusID == 8;
+
+    bool puedeRegistrarOC = Model.EsCompras   && Model.EstatusID == 4    && Model.CotizacionSeleccionadaID.HasValue    && !Model.TieneOC    && !esRechazada;
+    bool puedeEnviarProveedor =   Model.EsCompras    && Model.EstatusID == 4    && Model.TieneOC    && !Model.OCEnviadaProveedor    && !esRechazada;
+  
+    bool puedeEntregarUsuario =    Model.EsCompras    && Model.EstatusID == 6    && Model.RecibidaEnAlmacen    && !Model.EntregadaUsuario    && !esRechazada;
+
+    string badgeEstatus = Model.EstatusID switch
+    {
+        1 => "badge-secondary",
+        2 => "badge-info",
+        3 => "badge-warning",
+        4 => "badge-primary",
+        5 => "badge-primary",
+        6 => "badge-info",
+        7 => "badge-info",
+        8 => "badge-warning",
+        9 => "badge-danger",
+        10 => "badge-success",
+        11 => "badge-danger",
+        _ => "badge-secondary"
+    };
+
 }
 
+
+
 <div class="container-fluid">
-    @* --- BARRA DE PROGRESO --- *@
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["Error"]
+        </div>
+    }
+
+    @if (TempData["Mensaje"] != null)
+    {
+        <div class="alert alert-success">
+            @TempData["Mensaje"]
+        </div>
+    }
+
     <div class="card shadow mb-4">
         <div class="card-body py-2">
             <div class="row no-gutters align-items-center">
                 <div class="col mr-2">
                     <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Progreso del Proceso</div>
                     <div class="progress progress-sm mr-2">
-                        <div class="progress-bar bg-primary" role="progressbar" style="width: @Model.Porcentaje%" aria-valuenow="@Model.Porcentaje" aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
+                        <div class="progress-bar @Model.ColorProgreso" role="progressbar"
+                             style="width: @Model.Porcentaje%"
+                             aria-valuenow="@Model.Porcentaje"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                         </div>
                 </div>
                 <div class="col-auto">
                     <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Porcentaje%</div>
@@ -30,15 +77,16 @@
     </div>
 
     <div class="row">
-        @* COLUMNA IZQUIERDA *@
         <div class="col-lg-7">
+
             <div class="card shadow mb-4">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-primary">Folio: @Model.Folio</h6>
-                    <span class="badge @(Model.EstatusID == 5 ? "badge-danger" : "badge-success")">
+                        <span class="badge @badgeEstatus">
                         <i class="fas fa-info-circle mr-1"></i> @Model.EstatusActual
                     </span>
                 </div>
+
                 <div class="card-body">
                     <div class="row mb-3">
                         <div class="col-md-6 border-left-primary">
@@ -51,7 +99,62 @@
                         </div>
                     </div>
 
-                    <h6 class="font-weight-bold mt-4 text-gray-800"><i class="fas fa-list mr-2"></i>Artículos Requeridos</h6>
+                        @if (!string.IsNullOrEmpty(Model.ArchivoReferenciaPath))
+                        {
+                            bool esImagenReferencia =
+                            Model.ArchivoReferenciaPath.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                            Model.ArchivoReferenciaPath.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                            Model.ArchivoReferenciaPath.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                            Model.ArchivoReferenciaPath.EndsWith(".webp", StringComparison.OrdinalIgnoreCase);
+
+                            <div class="card border-left-info mb-4">
+                                <div class="card-header py-2">
+                                    <h6 class="m-0 font-weight-bold text-info">
+                                        <i class="fas fa-paperclip mr-2"></i>
+                                        Archivo de Referencia
+                                    </h6>
+                                </div>
+
+                                <div class="card-body">
+
+                                    @if (esImagenReferencia)
+                                    {
+                                        <div class="text-center">
+                                            <img src="@Url.Action("VerPdfNas", new { ruta = Model.ArchivoReferenciaPath })"
+                                                 class="img-fluid rounded border"
+                                                 style="max-height:350px;" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="border rounded bg-light"
+                                             style="height:400px; overflow:hidden;">
+
+                                            <iframe src="@Url.Action("VerPdfNas", new { ruta = Model.ArchivoReferenciaPath })#toolbar=0"
+                                                    width="100%"
+                                                    height="100%"
+                                                    style="border:none;">
+                                            </iframe>
+                                        </div>
+                                    }
+
+                                    <button type="button"
+                                            class="btn btn-outline-primary btn-sm btn-block mt-3 btn-ver-archivo"
+                                            data-ruta="@Model.ArchivoReferenciaPath"
+                                            data-titulo="Archivo de referencia">
+                                        <i class="fas fa-eye mr-1"></i>
+                                        Ver archivo completo
+                                    </button>
+
+                                </div>
+                            </div>
+                        }
+
+
+                    <h6 class="font-weight-bold mt-4 text-gray-800">
+                        <i class="fas fa-list mr-2"></i>Artículos Requeridos
+                    </h6>
+
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm" width="100%">
                             <thead class="bg-gray-100 italic">
@@ -76,35 +179,56 @@
                 </div>
             </div>
 
-            @* --- SECCIÓN DE DICTAMEN DENTRO DE LA COLUMNA IZQUIERDA --- *@
-            @if (Model.EstatusID >= 3 && Model.EstatusID != 5)
+                @if (
+                                (Model.EstatusID >= 4 || Model.EstatusID == 9)
+                                && !string.IsNullOrWhiteSpace(Model.TipoGasto)
+                                && Model.DentroPresupuesto.HasValue
+                                )
             {
-                <div class="card shadow mb-4 border-left-info animate__animated animate__fadeIn">
+                <div class="card shadow mb-4 border-left-info">
                     <div class="card-header py-3 bg-info text-white">
-                        <h6 class="m-0 font-weight-bold text-white"><i class="fas fa-gavel mr-2"></i>Veredicto Presupuestal</h6>
+                        <h6 class="m-0 font-weight-bold text-white">
+                            <i class="fas fa-gavel mr-2"></i>Veredicto Presupuestal
+                        </h6>
                     </div>
+
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-4 text-center border-right">
                                 <label class="small font-weight-bold text-muted uppercase d-block">Proceso</label>
                                 <span class="badge badge-pill badge-primary px-3">@Model.TipoGasto</span>
                             </div>
+
                             <div class="col-md-4 text-center border-right">
                                 <label class="small font-weight-bold text-muted uppercase d-block">Presupuesto</label>
                                 @if (Model.DentroPresupuesto == true)
                                 {
-                                    <span class="text-success font-weight-bold"><i class="fas fa-check-circle"></i> Liberado</span>
+                                    <span class="text-success font-weight-bold">
+                                        <i class="fas fa-check-circle"></i> Liberado
+                                    </span>
+                                }
+                                else if (Model.DentroPresupuesto == false)
+                                {
+                                    <span class="text-warning font-weight-bold">
+                                        <i class="fas fa-exclamation-triangle"></i> Desviación
+                                    </span>
                                 }
                                 else
                                 {
-                                    <span class="text-warning font-weight-bold"><i class="fas fa-exclamation-triangle"></i> Desviación</span>
+                                    <span class="text-muted font-weight-bold">
+                                        Pendiente
+                                    </span>
                                 }
                             </div>
+
                             <div class="col-md-4 text-center">
                                 <label class="small font-weight-bold text-muted uppercase d-block">ID Requisición</label>
-                                <span class="h6 font-weight-bold text-dark">@(string.IsNullOrEmpty(Model.NumeroRequisicion) ? "N/A" : Model.NumeroRequisicion)</span>
+                                <span class="h6 font-weight-bold text-dark">
+                                    @(string.IsNullOrEmpty(Model.NumeroRequisicion) ? "N/A" : Model.NumeroRequisicion)
+                                </span>
                             </div>
                         </div>
+
                         @if (!string.IsNullOrEmpty(Model.ObservacionesPresupuesto))
                         {
                             <div class="mt-3 p-2 bg-light border-left-info rounded text-sm">
@@ -115,207 +239,963 @@
                     </div>
                 </div>
             }
-            else if (Model.EstatusID == 5)
+
+            @if (esRechazada)
             {
                 <div class="card shadow mb-4 border-left-danger">
                     <div class="card-body text-center">
-                        <h5 class="text-danger font-weight-bold"><i class="fas fa-ban mr-2"></i>SOLICITUD RECHAZADA</h5>
+                        <h5 class="text-danger font-weight-bold">
+                            <i class="fas fa-ban mr-2"></i>SOLICITUD RECHAZADA
+                        </h5>
                         <p class="text-muted italic mb-0">Motivo: @Model.ObservacionesPresupuesto</p>
+                    </div>
+                </div>
+            }
+
+            @if (Model.EsCompras && !esRechazada)
+            {
+                <div class="card shadow mb-4 border-left-primary">
+                    <div class="card-header py-3 bg-info text-white">
+                        <h6 class="m-0 font-weight-bold text-white">
+                            <i class="fas fa-route mr-2"></i>Seguimiento Operativo de Compra
+                        </h6>
+                    </div>
+
+                    <div class="card-body">
+
+                        <div class="workflow-step @(Model.TieneOC ? "step-done" : puedeRegistrarOC ? "step-active" : "step-disabled")">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="font-weight-bold mb-0">
+                                    <i class="fas fa-file-invoice mr-2"></i>1. Orden de Compra
+                                </h6>
+                                <span class="badge @(Model.TieneOC ? "badge-success" : puedeRegistrarOC ? "badge-warning" : "badge-secondary")">
+                                    @(Model.TieneOC ? "Completado" : puedeRegistrarOC ? "Disponible" : "Bloqueado")
+                                </span>
+                            </div>
+
+                            @if (Model.TieneOC)
+                            {
+                                <div class="alert alert-success mb-0">
+                                    <strong>O.C. registrada:</strong> @Model.NumeroOC<br />
+                                    <strong>Proveedor:</strong> @(string.IsNullOrEmpty(Model.ProveedorOC) ? "No capturado" : Model.ProveedorOC)<br />
+                                    <strong>Fecha:</strong> @(Model.FechaOC.HasValue? Model.FechaOC.Value.ToString("dd/MM/yyyy HH:mm") : "N/A")
+
+                                    @if (!string.IsNullOrEmpty(Model.ComentariosOC))
+                                    {
+                                        <br />
+                                        <strong>Comentarios:</strong>
+ 
+                                        @Model.ComentariosOC
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <form asp-action="RegistrarOC" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
+
+                                    <div class="form-group">
+                                        <label class="small font-weight-bold">Número de O.C.</label>
+                                        <input type="text" name="numeroOC" class="form-control" required @(puedeRegistrarOC ? "" : "disabled") />
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="small font-weight-bold">Proveedor</label>
+                                        <input type="text" name="proveedor" class="form-control" @(puedeRegistrarOC ? "" : "disabled") />
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="small font-weight-bold">Comentarios</label>
+                                        <textarea name="comentarios" class="form-control" rows="2" @(puedeRegistrarOC ? "" : "disabled")></textarea>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-success btn-block shadow" @(puedeRegistrarOC ? "" : "disabled")>
+                                        <i class="fas fa-save mr-2"></i>Registrar O.C.
+                                    </button>
+
+                                    @if (!puedeRegistrarOC)
+                                    {
+                                        <small class="text-muted d-block mt-2">
+                                            Se habilitará cuando Control Presupuestal apruebe el gasto.
+                                        </small>
+                                    }
+                                </form>
+                            }
+                        </div>
+
+                        <hr />
+
+                        <div class="workflow-step @(Model.OCEnviadaProveedor ? "step-done" : puedeEnviarProveedor ? "step-active" : "step-disabled")">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="font-weight-bold mb-0">
+                                    <i class="fas fa-paper-plane mr-2"></i>2. Envío a Proveedor
+                                </h6>
+                                <span class="badge @(Model.OCEnviadaProveedor ? "badge-success" : puedeEnviarProveedor ? "badge-warning" : "badge-secondary")">
+                                    @(Model.OCEnviadaProveedor ? "Completado" : puedeEnviarProveedor ? "Disponible" : "Bloqueado")
+                                </span>
+                            </div>
+
+                            @if (Model.OCEnviadaProveedor)
+                            {
+                                <div class="alert alert-warning mb-0">
+                                    <strong>O.C. enviada al proveedor</strong><br />
+                                    <strong>Fecha envío:</strong> @Model.FechaEnvioProveedor?.ToString("dd/MM/yyyy HH:mm")<br />
+                                    <strong>Entrega estimada:</strong> @Model.FechaEstimadaEntrega?.ToString("dd/MM/yyyy")
+                                </div>
+                            }
+                            else
+                            {
+                                <form asp-action="EnviarOCProveedor" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
+
+                                    <div class="form-group">
+                                        <label class="small font-weight-bold">Fecha estimada de entrega</label>
+                                        <input type="date" name="fechaEstimadaEntrega" class="form-control" required @(puedeEnviarProveedor ? "" : "disabled") />
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="small font-weight-bold">Comentarios del envío</label>
+                                        <textarea name="comentarios" class="form-control" rows="2" @(puedeEnviarProveedor ? "" : "disabled")></textarea>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-warning btn-block shadow" @(puedeEnviarProveedor ? "" : "disabled")>
+                                        <i class="fas fa-paper-plane mr-2"></i>Registrar envío a proveedor
+                                    </button>
+                                </form>
+                            }
+                        </div>
+
+                        <hr />
+
+                            <hr />
+
+                            <div class="workflow-step @(Model.RecibidaEnAlmacen ? "step-done" : "step-disabled")">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="font-weight-bold mb-0">
+                                        <i class="fas fa-warehouse mr-2"></i>3. Recepción en Almacén
+                                    </h6>
+
+                                    <span class="badge @(Model.RecibidaEnAlmacen ? "badge-success" : "badge-secondary")">
+                                        @(Model.RecibidaEnAlmacen ? "Completado" : "Pendiente en Almacén")
+                                    </span>
+                                </div>
+
+                                @if (Model.RecibidaEnAlmacen)
+                                {
+                                    <div class="alert alert-info mb-0">
+                                        <strong>Material recibido en almacén</strong><br />
+                                        <strong>Fecha:</strong> @Model.FechaRecepcionAlmacen?.ToString("dd/MM/yyyy HH:mm")<br />
+                                        <strong>Comentarios:</strong>
+                                        @(string.IsNullOrWhiteSpace(Model.ComentariosRecepcionAlmacen)
+                                                                        ? "Sin comentarios"
+                                                                        : Model.ComentariosRecepcionAlmacen)
+                            </div>
+                                                        }
+                                else
+                                {
+                                    <div class="alert alert-light border mb-0">
+                                        La recepción se registra desde la Bandeja de Almacén.
+                                    </div>
+                                }
+                            </div>
+
+                        <hr />
+
+                        <div class="workflow-step @(Model.EntregadaUsuario ? "step-done" : puedeEntregarUsuario ? "step-active" : "step-disabled")">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="font-weight-bold mb-0">
+                                    <i class="fas fa-handshake mr-2"></i>4. Entrega a Usuario
+                                </h6>
+                                <span class="badge @(Model.EntregadaUsuario ? "badge-success" : puedeEntregarUsuario ? "badge-warning" : "badge-secondary")">
+                                    @(Model.EntregadaUsuario ? "Completado" : puedeEntregarUsuario ? "Disponible" : "Bloqueado")
+                                </span>
+                            </div>
+
+                            @if (Model.EntregadaUsuario)
+                            {
+                                <div class="alert alert-success mb-0">
+                                    <strong>Entregada al usuario - Pendiente de Cuentas por Pagar</strong><br />
+                                    <strong>Fecha entrega:</strong> @Model.FechaEntregaUsuario?.ToString("dd/MM/yyyy HH:mm")<br />
+                                    <strong>Recibió:</strong> @Model.NombreRecibeUsuario<br />
+                                    <strong>Comentarios:</strong> @(string.IsNullOrEmpty(Model.ComentariosEntregaUsuario) ? "Sin comentarios" : Model.ComentariosEntregaUsuario)
+                                </div>
+                            }
+                            else
+                            {
+                                <form asp-action="RegistrarEntregaUsuario" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
+
+                                    <div class="form-group">
+                                        <label class="small font-weight-bold">Nombre de quien recibe</label>
+                                        <input type="text" name="nombreRecibe" class="form-control" required @(puedeEntregarUsuario ? "" : "disabled") />
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="small font-weight-bold">Comentarios de entrega</label>
+                                        <textarea name="comentarios" class="form-control" rows="2" @(puedeEntregarUsuario ? "" : "disabled")></textarea>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-success btn-block shadow" @(puedeEntregarUsuario ? "" : "disabled")>
+                                        <i class="fas fa-check-circle mr-2"></i>Entregar y enviar a CxP
+                                    </button>
+                                </form>
+                            }
+                        </div>
+
                     </div>
                 </div>
             }
         </div>
 
-        @* COLUMNA DERECHA *@
         <div class="col-lg-5">
             <div class="card shadow mb-4 border-left-primary">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-file-invoice-dollar mr-2"></i>Cotización Registrada</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-file-invoice-dollar mr-2"></i>Cotización Registrada
+                    </h6>
                 </div>
-                <div class="card-body">
-                    @if (!string.IsNullOrEmpty(ViewBag.RutaPdf))
-                    {
-                        <div class="border rounded bg-light mb-3" style="height: 500px; overflow: hidden;">
-                            <iframe src="@Url.Action("VerPdfNas", new { ruta = ViewBag.RutaPdf })#toolbar=0" width="100%" height="100%" style="border: none;"></iframe>
-                        </div>
-                        <div class="bg-gray-100 p-2 rounded text-center mb-3">
-                            <span class="small text-muted uppercase d-block">Monto Total</span>
-                            <span class="h4 font-weight-bold text-success">@string.Format("{0:C}", ViewBag.MontoFinal ?? 0)</span>
-                        </div>
 
-                        @* ID del botón  para que coincida con el Script *@
-                        <button type="button" id="btnAbrirModal" class="btn btn-primary btn-block shadow">
-                            <i class="fas fa-expand-arrows-alt mr-2"></i> Pantalla Completa
-                        </button>
-                    }
-                    else
+                <div class="card-body">
+                    @if (Model.Cotizaciones != null && Model.Cotizaciones.Any())
                     {
-                        <form asp-action="ProcesarCotizacion" method="post" enctype="multipart/form-data">
+                        foreach (var cot in Model.Cotizaciones)
+                        {
+                            bool esImagen =
+                            cot.Extension == ".jpg" ||
+                            cot.Extension == ".jpeg" ||
+                            cot.Extension == ".png" ||
+                            cot.Extension == ".webp";
+
+                            <div class="card border mb-3 @(cot.EsRecomendada ? "border-success shadow" : "")">
+
+                                
+
+                                <div class="card-body">
+
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+
+
+                                        <h6 class="font-weight-bold text-primary mb-0">
+                                            @cot.Proveedor
+                                        </h6>
+
+                                        @if (cot.EsRecomendada)
+                                        {
+                                            <span class="badge badge-success">
+                                                Recomendada
+                                            </span>
+                                        }
+
+                                        @if (cot.FueSeleccionadaPorUsuario)
+                                        {
+                                            <span class="badge badge-primary">
+                                                Seleccionada por solicitante
+                                            </span>
+                                        }
+                                    </div>
+
+                                    <p class="mb-1">
+                                        <strong>Monto:</strong>
+                                        @cot.MontoTotal.ToString("C")
+                                    </p>
+
+
+                                    @if (cot.FueSeleccionadaPorUsuario)
+                                    {
+                                        <div class="alert alert-primary mt-2 mb-2">
+                                            <i class="fas fa-check-circle mr-1"></i>
+                                            Esta cotización fue seleccionada por el solicitante.
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(cot.ComentariosCompras))
+                                    {
+                                        <div class="alert alert-light border mt-2 mb-2">
+                                            <small class="font-weight-bold text-muted">
+                                                Comentarios compras
+                                            </small>
+
+                                            <div>
+                                                @cot.ComentariosCompras
+                                            </div>
+                                        </div>
+                                    }
+
+                                    @if (esImagen)
+                                    {
+                                        <div class="text-center mb-3">
+                                            <img src="@Url.Action("VerPdfNas", new { ruta = cot.ArchivoPath })"
+                                                 class="img-fluid rounded border"
+                                                 style="max-height:350px;" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="border rounded bg-light mb-3"
+                                             style="height:400px; overflow:hidden;">
+
+                                            <iframe src="@Url.Action("VerPdfNas", new { ruta = cot.ArchivoPath })#toolbar=0"
+                                                    width="100%"
+                                                    height="100%"
+                                                    style="border:none;">
+                                            </iframe>
+                                        </div>
+                                    }
+
+                                        <button type="button"
+                                                class="btn btn-outline-primary btn-sm btn-block btn-ver-archivo"
+                                                data-ruta="@cot.ArchivoPath"
+                                                data-titulo="Cotización - @cot.Proveedor">
+                                            <i class="fas fa-eye mr-1"></i>
+                                            Ver archivo
+                                        </button>
+
+                                    @if (Model.EsSolicitante
+                                                                && Model.EstatusID == 2
+                                                                && Model.CotizacionSeleccionadaID == null)
+                                    {
+                                        <form asp-action="SeleccionarCotizacion"
+                                              method="post"
+                                              class="mt-2">
+
+                                            @Html.AntiForgeryToken()
+
+                                            <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
+                                            <input type="hidden" name="cotizacionId" value="@cot.CotizacionID" />
+
+                                            <div class="form-group">
+                                                <textarea name="comentarios"
+                                              class="form-control"
+                                              rows="2"
+                                              placeholder="Comentario opcional sobre tu selección"></textarea>
+                                            </div>
+
+                                            <button type="submit"
+                                                    class="btn btn-success btn-sm btn-block">
+                                                Elegir esta cotización
+                                            </button>
+                                        </form>
+                                    }
+
+                                </div>
+                            </div>
+                        }
+                    }
+                   
+
+                    else if (Model.EsCompras && Model.EstatusID == 1)
+                    {
+                        <form asp-action="ProcesarCotizacion"
+                              method="post"
+                              enctype="multipart/form-data">
+
                             @Html.AntiForgeryToken()
-                            <input type="hidden" name="SolicitudID" value="@Model.SolicitudID" />
-                            <div class="form-group">
-                                <label class="small font-weight-bold">Monto Total (Sin IVA):</label>
-                                <input type="number" step="0.01" name="Monto" class="form-control" required />
+
+                            <input type="hidden"
+                                   name="SolicitudID"
+                                   value="@Model.SolicitudID" />
+
+                            <div class="alert alert-info small">
+                                Puedes subir de 1 a 3 cotizaciones.
+                                Se permiten PDF o imágenes.
                             </div>
+
+                            @for (int i = 1; i <= 3; i++)
+                            {
+                                <div class="border rounded p-3 mb-3">
+
+                                    <h6 class="font-weight-bold text-primary">
+                                        Cotización @i
+                                    </h6>
+
+                                    <input type="text" name="Proveedores[@(i - 1)]" class="form-control" @(i == 1 ? "required" : "") />
+
+                                    <input type="number" step="0.01" name="Montos[@(i - 1)]" class="form-control" @(i == 1 ? "required" : "") />
+
+                                    <input type="file"
+                                           name="ArchivosCotizacion"
+                                           class="form-control-file"
+                                           accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                           @(i == 1 ? "required" : "") />
+
+                                    <div class="form-check">
+                                        <input class="form-check-input"
+                                               type="radio"
+                                               name="CotizacionRecomendada"
+                                               value="@i"
+                                               @(i == 1 ? "checked" : "") />
+
+                                        <label class="form-check-label">
+                                            Recomendada por compras
+                                        </label>
+                                    </div>
+
+                                </div>
+                            }
+
                             <div class="form-group">
-                                <label class="small font-weight-bold">Archivo PDF:</label>
-                                <input type="file" name="ArchivoCotizacion" class="form-control-file" required accept=".pdf" />
+                                <label class="small font-weight-bold">
+                                    Comentarios de recomendación
+                                </label>
+
+                                <textarea name="ComentariosCompras"
+                                      class="form-control"
+                                      rows="3"></textarea>
                             </div>
-                            <button type="submit" class="btn btn-success btn-block shadow">Enviar Cotización</button>
+
+                            <button type="submit"
+                                    class="btn btn-success btn-block shadow">
+
+                                Procesar Cotizaciones
+                            </button>
                         </form>
                     }
+                    
+                   else
+{
+    if (Model.EstatusID == 1)
+    {
+        <div class="alert alert-warning">
+            Compras aún no ha cargado cotizaciones para esta solicitud.
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-secondary">
+            No hay cotizaciones disponibles para mostrar en este estatus.
+        </div>
+    }
+}
+
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-@* --- MODAL PERSONALIZADO (SIN BOOTSTRAP JS) --- *@
+@*
 <div id="miModalPersonalizado" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background-color: rgba(0,0,0,0.8);">
     <div style="background-color: #fefefe; margin: 2% auto; padding: 0; border: 1px solid #888; width: 95%; height: 90vh; border-radius: 8px; overflow: hidden; position: relative;">
         <div style="background: #4e73df; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;">
             <h5 style="margin:0;"><i class="fas fa-file-pdf mr-2"></i> Folio @Model.Folio</h5>
             <span id="btnCerrarModal" style="cursor:pointer; font-size: 28px; font-weight: bold;">&times;</span>
         </div>
+
         <div style="height: calc(90vh - 50px);">
             @if (!string.IsNullOrEmpty(ViewBag.RutaPdf))
             {
-                <iframe src="@Url.Action("VerPdfNas", new { ruta = ViewBag.RutaPdf })" width="100%" height="100%" style="border: none;"></iframe>
+                <iframe src="@Url.Action("VerPdfNas", new { ruta = ViewBag.RutaPdf })"
+                        width="100%"
+                        height="100%"
+                        style="border: none;"></iframe>
             }
         </div>
     </div>
-</div>
+</div>*@
+
+
+
+@*CODIGO PARA EL MODAL*@
+    <div class="modal fade" id="modalArchivo" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width:95%;">
+            <div class="modal-content" style="height:90vh;">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalArchivoTitulo">Archivo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+
+                <div class="modal-body p-0" id="modalArchivoBody" style="height:calc(90vh - 60px);">
+                </div>
+            </div>
+        </div>
+    </div>
 
 @section Scripts {
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            var modal = document.getElementById("miModalPersonalizado");
-            var btnAbrir = document.getElementById("btnAbrirModal");
-            var btnCerrar = document.getElementById("btnCerrarModal");
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                document.querySelectorAll(".btn-ver-archivo").forEach(function (btn) {
+                    btn.addEventListener("click", function () {
+                        const ruta = this.dataset.ruta;
+                        const titulo = this.dataset.titulo || "Archivo";
 
-            if(btnAbrir) {
-                btnAbrir.onclick = function() {
-                    modal.style.display = "block";
-                    document.body.style.overflow = "hidden";
-                }
-            }
+                        const url = '@Url.Action("VerPdfNas", "Compras")' + '?ruta=' + encodeURIComponent(ruta);
+                        const body = document.getElementById("modalArchivoBody");
 
-            if(btnCerrar) {
-                btnCerrar.onclick = function() {
-                    modal.style.display = "none";
-                    document.body.style.overflow = "auto";
-                }
-            }
+                        document.getElementById("modalArchivoTitulo").innerText = titulo;
 
-            window.onclick = function(event) {
-                if (event.target == modal) {
-                    modal.style.display = "none";
-                    document.body.style.overflow = "auto";
-                }
-            }
-        });
-    </script>
+                        const esImagen =
+                            ruta.toLowerCase().endsWith(".jpg") ||
+                            ruta.toLowerCase().endsWith(".jpeg") ||
+                            ruta.toLowerCase().endsWith(".png") ||
+                            ruta.toLowerCase().endsWith(".webp");
+
+                        if (esImagen) {
+                            body.innerHTML = `
+                                <div class="d-flex justify-content-center align-items-center h-100 bg-light">
+                                    <img src="${url}"
+                                         class="img-fluid"
+                                         style="max-height:100%; max-width:100%; object-fit:contain;" />
+                                </div>`;
+                        } else {
+                            body.innerHTML = `
+                                <iframe src="${url}#toolbar=0"
+                                        width="100%"
+                                        height="100%"
+                                        style="border:none;">
+                                </iframe>`;
+                        }
+
+                        const modal = new bootstrap.Modal(document.getElementById("modalArchivo"));
+                        modal.show();
+                    });
+                });
+            });
+        </script>
 }
 
-            <style>
-    /* --- Barra de Progreso Dinámica --- */
-    .progress {
-        height: 12px;
-        background-color: #eaecf4;
-        border-radius: 10px;
-    }
+    <style>
 
-    .progress-bar {
-        background-color: #ff6b00 !important; /* Naranja para el avance */
-        box-shadow: 0 3px 10px rgba(255, 107, 0, 0.2);
-    }
-
-    /* --- Badges de Estatus --- */
-    .badge-success {
-        background-color: #004a99; /* Azul Corporativo */
-        padding: 8px 12px;
-    }
-
-    .badge-danger {
-        background-color: #e74a3b;
-        padding: 8px 12px;
-    }
-
-    /* --- Estructura de Columnas y Cards --- */
-    .border-left-primary {
-        border-left: 4px solid #004a99 !important;
-    }
-
-    .border-left-info {
-        border-left: 4px solid #36b9cc !important;
-    }
-
-    .border-left-danger {
-        border-left: 4px solid #e74a3b !important;
-    }
-
-    .uppercase {
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    /* --- Tabla de Artículos --- */
-    .table thead.bg-gray-100 {
-        background-color: #f8f9fc;
-        border-bottom: 2px solid #004a99;
-    }
-
-    .italic {
-        font-style: italic;
-    }
-
-    /* --- Sección de Dictamen (Veredicto) --- */
-    .card-header.bg-info {
-        background-color: #004a99 !important; /* Azul para el encabezado */
-        border: none;
-    }
-
-    .bg-light.border-left-info {
-        background-color: #f1f4ff !important;
-        border-left: 4px solid #36b9cc !important;
-        color: #2c3e50;
-    }
-
-    /* --- Visualización de PDF y Cotización --- */
-    .h4.text-success {
-        color: #1cc88a !important; /* Verde para montos aprobados */
-        font-size: 1.5rem;
-    }
-
-    .btn-primary.btn-block {
-        background-color: #004a99 !important;
-        border: none;
-        font-weight: 700;
-    }
-
-    .btn-success.btn-block {
-        background-color: #ff6b00 !important; /* Naranja para enviar cotización */
-        border: none;
-        font-weight: 700;
-    }
-
-        .btn-success.btn-block:hover {
-            background-color: #e65c00 !important;
+        body {
+            background: #f5f7fb;
         }
 
-    /* --- Modal Personalizado --- */
-    #miModalPersonalizado h5 {
-        font-weight: 700;
-        text-transform: uppercase;
-    }
+     
+        .btn {
+            border-radius: 10px;
+            font-weight: 700;
+            transition: 0.25s;
+        }
 
-    #miModalPersonalizado > div {
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        border: none !important;
-    }
+            .btn:hover {
+                transform: translateY(-1px);
+            }
 
-    /* Cabecera del modal personalizada con el azul del proyecto */
-    #miModalPersonalizado div:first-child div {
-        background: #004a99 !important;
-    }
-            </style>
+        .btn-outline-secondary {
+            border-color: #cbd5e1;
+            color: #475569;
+            background: #ffffff;
+        }
+
+            .btn-outline-secondary:hover {
+                background: #475569;
+                color: #ffffff;
+            }
+
+        .btn-outline-primary {
+            color: #2563eb;
+            border-color: #bfdbfe;
+            background: #eff6ff;
+        }
+
+            .btn-outline-primary:hover {
+                background: #2563eb;
+                color: #ffffff;
+                border-color: #2563eb;
+            }
+
+        .btn-success,
+        .btn-success.btn-block {
+            background: #16a34a !important;
+            border-color: #16a34a !important;
+            color: #ffffff !important;
+        }
+
+            .btn-success:hover,
+            .btn-success.btn-block:hover {
+                background: #15803d !important;
+            }
+
+        .btn-warning,
+        .btn-warning.btn-block {
+            background: #f97316 !important;
+            border-color: #f97316 !important;
+            color: #ffffff !important;
+        }
+
+            .btn-warning:hover,
+            .btn-warning.btn-block:hover {
+                background: #ea580c !important;
+            }
+
+        .btn-block {
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            font-weight: 800;
+        }
+
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+   
+
+        .card {
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 18px !important;
+            overflow: hidden;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
+        }
+
+        .card-header {
+            background: #ffffff !important;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+            .card-header.bg-info {
+                background: linear-gradient(135deg, #2563eb, #0891b2) !important;
+                border: none;
+            }
+
+            .card-header h6 {
+                font-weight: 800;
+            }
+
+        .card-body {
+            padding: 1.4rem;
+        }
+
+      
+
+        .progress {
+            height: 14px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            border-radius: 999px;
+            box-shadow: 0 3px 10px rgba(37, 99, 235, 0.25);
+        }
+
+        .text-xs {
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+
+        .h5.text-gray-800 {
+            color: #2563eb;
+            font-weight: 800 !important;
+        }
+
+        .text-primary {
+            color: #2563eb !important;
+        }
+
+        .text-info {
+            color: #0891b2 !important;
+        }
+
+        .text-success {
+            color: #16a34a !important;
+        }
+
+        .text-warning {
+            color: #f97316 !important;
+        }
+
+        .text-danger {
+            color: #dc2626 !important;
+        }
+
+        .uppercase {
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        label.small {
+            color: #64748b;
+        }
+
+        .text-gray-800 {
+            color: #0f172a !important;
+        }
+
+        
+
+        .badge {
+            padding: 0.55rem 0.85rem;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: 0.72rem;
+        }
+
+        .badge-primary {
+            background: #2563eb !important;
+            color: #ffffff !important;
+        }
+
+        .badge-success {
+            background: #16a34a !important;
+            color: #ffffff !important;
+        }
+
+        .badge-danger {
+            background: #dc2626 !important;
+            color: #ffffff !important;
+        }
+
+        .badge-warning {
+            background: #f59e0b !important;
+            color: #ffffff !important;
+        }
+
+        .badge-info {
+            background: #0891b2 !important;
+            color: #ffffff !important;
+        }
+
+        .badge-secondary {
+            background: #64748b !important;
+            color: #ffffff !important;
+        }
+
+
+        .border-left-primary {
+            border-left: 5px solid #2563eb !important;
+        }
+
+        .border-left-info {
+            border-left: 5px solid #0891b2 !important;
+        }
+
+        .border-left-success {
+            border-left: 5px solid #16a34a !important;
+        }
+
+        .border-left-danger {
+            border-left: 5px solid #dc2626 !important;
+        }
+
+       
+
+        .table {
+            margin-bottom: 0;
+        }
+
+            .table thead th {
+                background: #f8fafc;
+                color: #334155;
+                text-transform: uppercase;
+                font-size: 0.72rem;
+                letter-spacing: 0.5px;
+                border-bottom: 2px solid #e2e8f0;
+                padding: 0.85rem;
+            }
+
+        .table-bordered {
+            border-color: #e2e8f0;
+        }
+
+        .table td {
+            vertical-align: middle;
+            color: #334155;
+        }
+
+        .table tbody tr:hover {
+            background: #fff7ed;
+        }
+
+        .italic {
+            font-style: italic;
+        }
+
+       
+
+        .alert {
+            border: none;
+            border-radius: 12px;
+            padding: 1rem 1.15rem;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .alert-info {
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        .alert-warning {
+            background: #fff7ed;
+            color: #9a3412;
+        }
+
+        .alert-danger {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .alert-primary {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .alert-secondary {
+            background: #f8fafc;
+            color: #475569;
+        }
+
+        .alert-light.border {
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #334155;
+        }
+
+        .bg-light.border-left-info {
+            background: #f0f9ff !important;
+            border-left: 5px solid #0891b2 !important;
+            color: #334155;
+        }
+
+        
+
+        .workflow-step {
+            border-radius: 16px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            transition: 0.2s;
+        }
+
+            .workflow-step h6 {
+                color: #0f172a;
+                font-weight: 800;
+            }
+
+            .workflow-step:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+            }
+
+        .step-disabled {
+            opacity: 0.72;
+            background: #f8fafc;
+            border-left: 5px solid #94a3b8;
+        }
+
+        .step-active {
+            border-left: 5px solid #f97316;
+            background: #fff7ed;
+        }
+
+        .step-done {
+            border-left: 5px solid #16a34a;
+            background: #f0fdf4;
+        }
+
+        .step-active h6 {
+            color: #9a3412;
+        }
+
+        .step-done h6 {
+            color: #166534;
+        }
+
+    
+
+        .form-control,
+        .form-control-file {
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+        }
+
+            .form-control:focus {
+                border-color: #2563eb;
+                box-shadow: 0 0 0 0.15rem rgba(37, 99, 235, 0.15);
+            }
+
+        .form-group label {
+            color: #334155;
+            font-weight: 700;
+        }
+
+        input:disabled,
+        textarea:disabled {
+            background: #f1f5f9 !important;
+            color: #94a3b8;
+        }
+
+        .form-check-input:checked {
+            background-color: #2563eb;
+            border-color: #2563eb;
+        }
+
+      
+
+        .card.border-success {
+            border: 2px solid #16a34a !important;
+            box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.12), 0 12px 28px rgba(15, 23, 42, 0.10) !important;
+        }
+
+        .card.border {
+            border: 1px solid #e2e8f0 !important;
+        }
+
+            .card.border .card-body {
+                background: #ffffff;
+            }
+
+        iframe {
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0 !important;
+        }
+
+        img.img-fluid {
+            border-radius: 12px;
+            border: 1px solid #e2e8f0 !important;
+        }
+
+
+        .border-left-danger .card-body.text-center {
+            background: linear-gradient(135deg, #fff5f5, #fef2f2);
+        }
+
+        .text-danger.font-weight-bold {
+            color: #dc2626 !important;
+        }
+
+
+
+        hr {
+            border-top: 1px solid #e2e8f0;
+            margin: 1.4rem 0;
+        }
+
+
+        @@media (max-width: 768px) {
+
+            .btn {
+                width: 100%;
+                margin-bottom: 0.4rem;
+            }
+
+            .d-flex.justify-content-between {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 0.75rem;
+            }
+
+            .card-body {
+                padding: 1rem;
+            }
+
+            .workflow-step {
+                padding: 1rem;
+            }
+
+            .btn-block {
+                width: 100%;
+            }
+        }
+
+    </style>
