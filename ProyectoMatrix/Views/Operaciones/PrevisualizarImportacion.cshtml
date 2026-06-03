@@ -1,0 +1,716 @@
+@model ProyectoMatrix.Models.ImportacionKpi
+
+@{
+    ViewData["Title"] = "Previsualizar Importación";
+    Layout = "_LayoutComunicados";
+
+    var detalles = Model.Detalles
+        .OrderBy(d =>
+            d.Estado == "Valida" ? 1 :
+            d.Estado == "Error" ? 2 :
+            d.Estado == "Advertencia" ? 3 :
+            d.Estado == "Ignorada" ? 4 : 5)
+        .ThenBy(d => d.NumeroFilaExcel)
+        .ToList();
+
+    int total = detalles.Count;
+    int validas = detalles.Count(d => d.Estado == "Valida");
+    int advertencias = detalles.Count(d => d.Estado == "Advertencia");
+    int errores = detalles.Count(d => d.Estado == "Error");
+    int ignoradas = detalles.Count(d => d.Estado == "Ignorada");
+
+    bool puedeConfirmar = errores == 0 && validas > 0;
+
+    var kpisAImportar = detalles
+        .Where(d => d.Estado == "Valida")
+        .GroupBy(d => new
+        {
+            d.MetricaID,
+            d.NombreMetrica,
+            d.Departamento,
+            d.Anio,
+            d.NumeroPeriodo,
+            d.Frecuencia,
+            d.FechaMedicion
+        })
+        .Select(g => new
+        {
+            g.Key.MetricaID,
+            g.Key.NombreMetrica,
+            g.Key.Departamento,
+            g.Key.Anio,
+            g.Key.NumeroPeriodo,
+            g.Key.Frecuencia,
+            g.Key.FechaMedicion,
+            TotalVariables = g.Count()
+        })
+        .ToList();
+}
+
+
+@functions {
+    private string ObtenerPropiedadTexto(object? obj, string nombre)
+    {
+        if (obj == null)
+            return string.Empty;
+
+        var prop = obj.GetType().GetProperty(nombre);
+
+        if (prop == null)
+            return string.Empty;
+
+        var valor = prop.GetValue(obj, null);
+        return valor?.ToString()?.Trim() ?? string.Empty;
+    }
+
+    private string ObtenerUnidadVisual(string? tipoValor, string? unidadMedida)
+    {
+        tipoValor = tipoValor?.Trim() ?? string.Empty;
+        unidadMedida = unidadMedida?.Trim() ?? string.Empty;
+
+        if (tipoValor.Equals("Moneda", StringComparison.OrdinalIgnoreCase) || unidadMedida == "$")
+            return "$";
+
+        if (tipoValor.Equals("Porcentaje", StringComparison.OrdinalIgnoreCase) || unidadMedida == "%")
+            return "%";
+
+        if (!string.IsNullOrWhiteSpace(unidadMedida) && !unidadMedida.Equals("Unidades", StringComparison.OrdinalIgnoreCase))
+            return unidadMedida;
+
+        if (tipoValor.Equals("Entero", StringComparison.OrdinalIgnoreCase))
+            return "Unidades";
+
+        return string.Empty;
+    }
+
+    private string FormatearValorImportacion(decimal? valor, string? tipoValor, string? unidadMedida)
+    {
+        if (!valor.HasValue)
+            return "-";
+
+        var unidad = ObtenerUnidadVisual(tipoValor, unidadMedida);
+
+        if (unidad == "$")
+            return valor.Value.ToString("C2", new System.Globalization.CultureInfo("es-MX"));
+
+        if (unidad == "%")
+            return valor.Value.ToString("N2") + "%";
+
+        if (!string.IsNullOrWhiteSpace(unidad) && !unidad.Equals("Unidades", StringComparison.OrdinalIgnoreCase))
+            return valor.Value.ToString("N2") + " " + unidad;
+
+        return valor.Value.ToString("N2");
+    }
+}
+
+<style>
+    .preview-shell {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(248,250,252,.98));
+    }
+
+    .preview-shell::before {
+        content: "";
+        position: absolute;
+        width: 420px;
+        height: 420px;
+        top: -190px;
+        right: -170px;
+        background: radial-gradient(circle, rgba(37,99,235,.18), transparent 65%);
+        pointer-events: none;
+    }
+
+    .preview-shell::after {
+        content: "";
+        position: absolute;
+        width: 360px;
+        height: 360px;
+        left: -170px;
+        bottom: -190px;
+        background: radial-gradient(circle, rgba(22,163,74,.14), transparent 65%);
+        pointer-events: none;
+    }
+
+    .preview-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .stat-card {
+        border: 1px solid rgba(148,163,184,.28);
+        background: rgba(255,255,255,.82);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 12px 26px rgba(15,23,42,.08);
+        transition: all .2s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 16px 32px rgba(15,23,42,.12);
+    }
+
+    .stat-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 15px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    .filter-chip {
+        border: 1px solid rgba(148,163,184,.38);
+        border-radius: 999px;
+        background: #fff;
+        color: #334155;
+        font-weight: 800;
+        padding: .55rem .9rem;
+        transition: all .18s ease;
+    }
+
+    .filter-chip:hover,
+    .filter-chip.active {
+        transform: translateY(-2px);
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #06b6d4);
+        border-color: transparent;
+        box-shadow: 0 12px 22px rgba(37,99,235,.22);
+    }
+
+    .btn-future {
+        position: relative;
+        overflow: hidden;
+        border: 0;
+        border-radius: 16px;
+        font-weight: 800;
+        letter-spacing: .2px;
+        transition: all .22s ease;
+        box-shadow: 0 12px 24px rgba(15,23,42,.15);
+    }
+
+    .btn-future::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,.35) 45%, transparent 70%);
+        transform: translateX(-120%);
+        transition: transform .6s ease;
+    }
+
+    .btn-future:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 18px 34px rgba(15,23,42,.22);
+    }
+
+    .btn-future:hover::before {
+        transform: translateX(120%);
+    }
+
+    .btn-future-success {
+        color: white;
+        background: linear-gradient(135deg, #22c55e, #16a34a, #0f766e);
+    }
+
+    .btn-future-danger {
+        color: white;
+        background: linear-gradient(135deg, #ef4444, #dc2626, #991b1b);
+    }
+
+    .btn-future-primary {
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #0891b2, #06b6d4);
+    }
+
+    .btn-ghost-future {
+        border-radius: 14px;
+        font-weight: 800;
+        border: 1px solid rgba(148,163,184,.45);
+        background: rgba(255,255,255,.85);
+        backdrop-filter: blur(10px);
+        transition: all .2s ease;
+    }
+
+    .btn-ghost-future:hover {
+        transform: translateY(-2px);
+        border-color: rgba(37,99,235,.4);
+        box-shadow: 0 10px 22px rgba(15,23,42,.12);
+    }
+
+    .kpi-pill {
+        border: 1px solid rgba(34,197,94,.25);
+        background: linear-gradient(135deg, #ecfdf5, #ffffff);
+        border-radius: 18px;
+        padding: .85rem 1rem;
+    }
+
+    .table-modern {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table-modern thead th {
+        background: #0f172a;
+        color: #fff;
+        font-size: .82rem;
+        letter-spacing: .3px;
+        text-transform: uppercase;
+        border: 0;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+    }
+
+    .table-modern tbody tr {
+        transition: all .15s ease;
+    }
+
+    .table-modern tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .badge-state {
+        border-radius: 999px;
+        padding: .45rem .65rem;
+        font-weight: 800;
+    }
+
+    .alert-modern {
+        border: 0;
+        border-left: 6px solid;
+        box-shadow: 0 12px 26px rgba(15,23,42,.08);
+    }
+
+    .row-hidden {
+        display: none;
+    }
+
+    .unit-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .25rem;
+        border-radius: 999px;
+        padding: .25rem .55rem;
+        font-size: .74rem;
+        font-weight: 800;
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+    }
+</style>
+
+<div class="container-fluid px-4 my-5">
+
+    @if (TempData["Mensaje"] != null)
+    {
+        <div class="alert alert-@TempData["Tipo"] alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas @(TempData["Tipo"]?.ToString() == "success" ? "fa-check-circle" : "fa-exclamation-triangle") me-2"></i>
+            @TempData["Mensaje"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row justify-content-center">
+        <div class="col-xl-11 col-lg-12">
+
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden preview-shell">
+                <div class="card-header bg-primary text-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                    <div>
+                        <h4 class="mb-0 fw-bold">
+                            <i class="fas fa-eye me-2"></i> Previsualización de Importación Excel
+                        </h4>
+                        <small class="opacity-75">
+                            Revisa qué datos se actualizarán antes de confirmar.
+                        </small>
+                    </div>
+
+                    <a href="/Operaciones/Captura" class="btn btn-sm btn-light fw-bold rounded-pill px-3 shadow-sm">
+                        <i class="fas fa-arrow-left me-1 text-primary"></i> Volver a Captura
+                    </a>
+                </div>
+
+                <div class="card-body p-4 preview-content">
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-lg-4">
+                            <div class="p-4 rounded-4 stat-card h-100">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="stat-icon bg-primary-subtle text-primary">
+                                        <i class="fas fa-file-excel"></i>
+                                    </div>
+
+                                    <div>
+                                        <div class="text-muted small fw-bold text-uppercase">Archivo cargado</div>
+                                        <div class="fw-bold text-dark text-break">@Model.NombreArchivo</div>
+                                        <div class="text-muted small mt-1">
+                                            <i class="far fa-clock me-1"></i>
+                                            @Model.FechaImportacion.ToString("dd/MM/yyyy HH:mm")
+                                        </div>
+                                        <div class="mt-2">
+                                            <span class="badge bg-light text-dark border">
+                                                Estado: @Model.Estado
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-8">
+                            <div class="row g-2">
+                                <div class="col-6 col-md">
+                                    <button type="button" class="w-100 p-3 rounded-4 stat-card text-center filter-chip active" data-filter="Todos">
+                                        <div class="fs-4 fw-bold">@total</div>
+                                        <div class="small">Todos</div>
+                                    </button>
+                                </div>
+
+                                <div class="col-6 col-md">
+                                    <button type="button" class="w-100 p-3 rounded-4 stat-card text-center filter-chip" data-filter="Valida">
+                                        <div class="fs-4 fw-bold text-success">@validas</div>
+                                        <div class="small">Válidas</div>
+                                    </button>
+                                </div>
+
+                                <div class="col-6 col-md">
+                                    <button type="button" class="w-100 p-3 rounded-4 stat-card text-center filter-chip" data-filter="Advertencia">
+                                        <div class="fs-4 fw-bold text-warning">@advertencias</div>
+                                        <div class="small">Alertas</div>
+                                    </button>
+                                </div>
+
+                                <div class="col-6 col-md">
+                                    <button type="button" class="w-100 p-3 rounded-4 stat-card text-center filter-chip" data-filter="Error">
+                                        <div class="fs-4 fw-bold text-danger">@errores</div>
+                                        <div class="small">Errores</div>
+                                    </button>
+                                </div>
+
+                                <div class="col-6 col-md">
+                                    <button type="button" class="w-100 p-3 rounded-4 stat-card text-center filter-chip" data-filter="Ignorada">
+                                        <div class="fs-4 fw-bold text-secondary">@ignoradas</div>
+                                        <div class="small">Ignoradas</div>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (errores > 0)
+                    {
+                        <div class="alert alert-danger rounded-4 alert-modern" style="border-left-color:#dc2626;">
+                            <h5 class="fw-bold mb-1">
+                                <i class="fas fa-triangle-exclamation me-2"></i> Hay errores que deben corregirse
+                            </h5>
+                            <p class="mb-0">
+                                Corrige el archivo Excel y vuelve a cargarlo. No se permitirá confirmar una importación con errores.
+                            </p>
+                        </div>
+                    }
+                    else if (validas == 0)
+                    {
+                        <div class="alert alert-secondary rounded-4 alert-modern" style="border-left-color:#64748b;">
+                            <h5 class="fw-bold mb-1">
+                                <i class="fas fa-info-circle me-2"></i> No hay datos para importar
+                            </h5>
+                            <p class="mb-0">
+                                La plantilla fue leída correctamente, pero no contiene filas válidas.
+                                Recuerda escribir <strong>SI</strong> en la columna <strong>Importar</strong> y capturar un <strong>Valor</strong> numérico.
+                            </p>
+                        </div>
+                    }
+                    else if (advertencias > 0)
+                    {
+                        <div class="alert alert-warning rounded-4 alert-modern" style="border-left-color:#f59e0b;">
+                            <h5 class="fw-bold mb-1">
+                                <i class="fas fa-circle-info me-2"></i> Hay advertencias para revisar
+                            </h5>
+                            <p class="mb-0">
+                                Puedes revisar las filas marcadas antes de confirmar. Solo las filas válidas se tomarán para la actualización final.
+                            </p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-success rounded-4 alert-modern" style="border-left-color:#16a34a;">
+                            <h5 class="fw-bold mb-1">
+                                <i class="fas fa-check-circle me-2"></i> La importación está lista para confirmarse
+                            </h5>
+                            <p class="mb-0">
+                                No se detectaron errores. Revisa los KPIs que se actualizarán antes de confirmar.
+                            </p>
+                        </div>
+                    }
+
+                    <div class="card border-0 rounded-4 shadow-sm mb-4">
+                        <div class="card-body p-4">
+                            <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+                                <div>
+                                    <h5 class="fw-bold mb-1">
+                                        <i class="fas fa-bullseye text-success me-2"></i> KPIs que se actualizarán
+                                    </h5>
+                                    <p class="text-muted mb-0">
+                                        Esta lista se genera únicamente con filas válidas.
+                                    </p>
+                                </div>
+
+                                <span class="badge bg-success-subtle text-success border border-success border-opacity-25 align-self-start px-3 py-2">
+                                    @kpisAImportar.Count KPI(s)
+                                </span>
+                            </div>
+
+                            @if (kpisAImportar.Any())
+                            {
+                                <div class="row g-3">
+                                    @foreach (var kpi in kpisAImportar)
+                                    {
+                                        <div class="col-md-6 col-xl-4">
+                                            <div class="kpi-pill h-100">
+                                                <div class="fw-bold text-dark">
+                                                    @kpi.NombreMetrica
+                                                </div>
+                                                <div class="small text-muted">
+                                                    @kpi.Departamento
+                                                </div>
+                                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                                    <span class="badge bg-light text-dark border">
+                                                        Año: @kpi.Anio
+                                                    </span>
+                                                    <span class="badge bg-light text-dark border">
+                                                        Periodo:
+                                                        @if (kpi.Frecuencia == "Diario" && kpi.FechaMedicion.HasValue)
+                                                        {
+                                                            @kpi.FechaMedicion.Value.ToString("dd/MM/yyyy")
+                                                        }
+                                                        else
+                                                        {
+                                                            @kpi.NumeroPeriodo
+                                                        }
+                                                    </span>
+                                                    <span class="badge bg-success">
+                                                        @kpi.TotalVariables variable(s)
+                                                    </span>
+                                                    @{
+                                                        var detalleKpi = detalles.FirstOrDefault(x =>
+                                                            x.MetricaID == kpi.MetricaID &&
+                                                            x.Anio == kpi.Anio &&
+                                                            x.NumeroPeriodo == kpi.NumeroPeriodo);
+
+                                                        var tipoValorKpi = ObtenerPropiedadTexto(detalleKpi, "TipoValor");
+                                                        var unidadMedidaKpi = ObtenerPropiedadTexto(detalleKpi, "UnidadMedida");
+                                                        var unidadVisualKpi = ObtenerUnidadVisual(tipoValorKpi, unidadMedidaKpi);
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(unidadVisualKpi))
+                                                    {
+                                                        <span class="unit-chip">
+                                                            <i class="fas fa-ruler-combined"></i> @unidadVisualKpi
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-light border rounded-4 mb-0">
+                                    <i class="fas fa-circle-info me-2 text-muted"></i>
+                                    No hay KPIs válidos para actualizar.
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+                        <div>
+                            <h5 class="fw-bold mb-1">
+                                <i class="fas fa-table-list text-primary me-2"></i> Detalle de filas
+                            </h5>
+                            <p class="text-muted mb-0 small">
+                                Usa los filtros superiores para revisar válidas, ignoradas, errores o advertencias.
+                            </p>
+                        </div>
+
+                        <div class="small text-muted" id="contadorFilasVisibles">
+                            Mostrando @total fila(s)
+                        </div>
+                    </div>
+
+                    <div class="table-responsive rounded-4 border shadow-sm" style="max-height: 620px;">
+                        <table class="table table-hover align-middle mb-0 table-modern" id="tablaPrevisualizacion">
+                            <thead>
+                                <tr>
+                                    <th>Estado</th>
+                                    <th>Fila</th>
+                                    <th>Área</th>
+                                    <th>KPI</th>
+                                    <th>Año</th>
+                                    <th>Periodo</th>
+                                    <th>Variable</th>
+                                    <th>Tipo</th>
+                                    <th class="text-end">Valor</th>
+                                    <th>Observación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var d in detalles)
+                                {
+                                    string badgeClass = d.Estado switch
+                                    {
+                                        "Valida" => "bg-success",
+                                        "Advertencia" => "bg-warning text-dark",
+                                        "Error" => "bg-danger",
+                                        "Ignorada" => "bg-secondary",
+                                        _ => "bg-light text-dark"
+                                    };
+
+                                    <tr data-estado="@d.Estado">
+                                        <td>
+                                            <span class="badge badge-state @badgeClass">
+                                                @d.Estado
+                                            </span>
+                                        </td>
+                                        <td>@d.NumeroFilaExcel</td>
+                                        <td>@d.Departamento</td>
+                                        <td>
+                                            <strong>@d.NombreMetrica</strong>
+                                            <div class="small text-muted">ID: @d.MetricaID</div>
+                                        </td>
+                                        <td>@d.Anio</td>
+                                        <td>
+                                            @if (d.Frecuencia == "Diario" && d.FechaMedicion.HasValue)
+                                            {
+                                                <span>@d.FechaMedicion.Value.ToString("dd/MM/yyyy")</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@d.NumeroPeriodo</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @d.NombreVariable
+                                            <div class="small text-muted">ID: @d.VariableID</div>
+                                        </td>
+                                        @{
+                                            var tipoValorFila = ObtenerPropiedadTexto(d, "TipoValor");
+                                            var unidadMedidaFila = ObtenerPropiedadTexto(d, "UnidadMedida");
+                                            var unidadVisualFila = ObtenerUnidadVisual(tipoValorFila, unidadMedidaFila);
+                                            decimal? valorMostrar = d.Valor ?? d.ValorCalculado;
+                                        }
+                                        <td>
+                                            @d.TipoCaptura
+                                            @if (!string.IsNullOrWhiteSpace(unidadVisualFila))
+                                            {
+                                                <div class="mt-1">
+                                                    <span class="unit-chip">
+                                                        <i class="fas fa-ruler-combined"></i> @unidadVisualFila
+                                                    </span>
+                                                </div>
+                                            }
+                                        </td>
+                                        <td class="text-end fw-bold">
+                                            @if (valorMostrar.HasValue)
+                                            {
+                                                <span>@FormatearValorImportacion(valorMostrar, tipoValorFila, unidadMedidaFila)</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <small>@d.Observacion</small>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mt-4">
+                        <form action="/Operaciones/CancelarImportacionExcel" method="post"
+                              onsubmit="return confirm('¿Seguro que deseas cancelar esta importación?');">
+                            <input type="hidden" name="importacionId" value="@Model.ImportacionID" />
+                            <button type="submit" class="btn btn-future btn-future-danger px-4">
+                                <i class="fas fa-times me-2"></i> Cancelar importación
+                            </button>
+                        </form>
+
+                        <div class="d-flex flex-column flex-md-row gap-2">
+                            <a href="/Operaciones/Captura" class="btn btn-ghost-future px-4">
+                                <i class="fas fa-file-excel me-2"></i> Cargar otro Excel
+                            </a>
+
+                            <form action="/Operaciones/ConfirmarImportacionExcel" method="post"
+                                  onsubmit="return confirm('¿Confirmar importación? Los datos pasarán al historial y gráficas.');">
+                                <input type="hidden" name="importacionId" value="@Model.ImportacionID" />
+
+                                @if (puedeConfirmar)
+                                {
+                                    <button type="submit" class="btn btn-future btn-future-success px-4">
+                                        <i class="fas fa-check me-2"></i> Confirmar importación
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-future btn-future-success px-4" disabled>
+                                        <i class="fas fa-lock me-2"></i> Confirmar importación
+                                    </button>
+                                }
+                            </form>
+                        </div>
+                    </div>
+
+                    @if (!puedeConfirmar)
+                    {
+                        <div class="text-end mt-2">
+                            <small class="text-muted">
+                                Para confirmar debe existir al menos una fila válida y ningún error.
+                            </small>
+                        </div>
+                    }
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const chips = document.querySelectorAll('.filter-chip');
+            const filas = document.querySelectorAll('#tablaPrevisualizacion tbody tr');
+            const contador = document.getElementById('contadorFilasVisibles');
+
+            chips.forEach(chip => {
+                chip.addEventListener('click', function () {
+                    const filtro = this.getAttribute('data-filter');
+
+                    chips.forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+
+                    let visibles = 0;
+
+                    filas.forEach(fila => {
+                        const estado = fila.getAttribute('data-estado');
+
+                        if (filtro === 'Todos' || estado === filtro) {
+                            fila.classList.remove('row-hidden');
+                            visibles++;
+                        } else {
+                            fila.classList.add('row-hidden');
+                        }
+                    });
+
+                    if (contador) {
+                        contador.innerText = `Mostrando ${visibles} fila(s)`;
+                    }
+                });
+            });
+        });
+    </script>
+}

@@ -1,0 +1,1727 @@
+@model List<ProyectoMatrix.Models.CatMetricas>
+
+@{
+    ViewData["Title"] = "Gestor de Métricas";
+    Layout = "_LayoutComunicados";
+
+    var departamentos = ViewBag.Departamentos as List<ProyectoMatrix.Models.Departamento> ?? new List<ProyectoMatrix.Models.Departamento>();
+    var misPermisos = ViewBag.MisPermisos as List<int> ?? new List<int>();
+
+    bool puedeCrear = misPermisos.Contains(31);
+    bool puedeEditar = misPermisos.Contains(32) || misPermisos.Contains(31);
+
+    int totalMetricas = Model?.Count ?? 0;
+    int totalVariables = Model?.Sum(m => m.VariablesConfiguradas?.Count ?? 0) ?? 0;
+    int totalDepartamentos = Model?
+        .Where(m => m.Departamento != null)
+        .Select(m => m.DepartamentoID)
+        .Distinct()
+        .Count() ?? 0;
+
+    int totalCalculadas = Model?
+        .SelectMany(m => m.VariablesConfiguradas ?? new List<ProyectoMatrix.Models.CatMetricas_Variables>())
+        .Count(v => v.TipoCaptura == "Calculado") ?? 0;
+}
+
+<style>
+    .manager-shell {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .manager-card {
+        border: 1px solid rgba(148,163,184,.25);
+        background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+        box-shadow: 0 18px 40px rgba(15,23,42,.08);
+    }
+
+    .manager-header {
+        background: linear-gradient(135deg, #0f172a, #1e293b);
+        color: white;
+    }
+
+    .stat-card {
+        border: 1px solid rgba(148,163,184,.22);
+        background: #fff;
+        border-radius: 20px;
+        padding: 1rem;
+        box-shadow: 0 10px 24px rgba(15,23,42,.06);
+        transition: all .2s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 16px 30px rgba(15,23,42,.10);
+    }
+
+    .stat-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 10px 18px rgba(15,23,42,.10);
+    }
+
+    .filter-panel {
+        border: 1px solid rgba(148,163,184,.22);
+        background: linear-gradient(135deg, #ffffff, #f8fafc);
+        box-shadow: 0 14px 30px rgba(15,23,42,.07);
+        border-radius: 24px;
+    }
+
+    .filter-input {
+        border-radius: 14px;
+        border: 1px solid rgba(148,163,184,.32);
+        background-color: white;
+        box-shadow: 0 8px 18px rgba(15,23,42,.04);
+        font-weight: 700;
+    }
+
+    .filter-input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 .25rem rgba(37,99,235,.12);
+    }
+
+    .btn-future {
+        position: relative;
+        overflow: hidden;
+        border: 0;
+        border-radius: 16px;
+        font-weight: 800;
+        letter-spacing: .2px;
+        transition: all .22s ease;
+        box-shadow: 0 12px 24px rgba(15,23,42,.14);
+    }
+
+    .btn-future::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,.35) 45%, transparent 70%);
+        transform: translateX(-120%);
+        transition: transform .6s ease;
+    }
+
+    .btn-future:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 18px 34px rgba(15,23,42,.22);
+    }
+
+    .btn-future:hover::before {
+        transform: translateX(120%);
+    }
+
+    .btn-future-primary {
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #0891b2, #06b6d4);
+    }
+
+    .btn-future-success {
+        color: #111;
+        background: linear-gradient(135deg, #92D050, #b8f06f, #7ec63d);
+    }
+
+    .btn-future-danger {
+        color: white;
+        background: linear-gradient(135deg, #ef4444, #dc2626, #991b1b);
+    }
+
+    .btn-ghost-future {
+        border-radius: 14px;
+        font-weight: 800;
+        border: 1px solid rgba(148,163,184,.45);
+        background: rgba(255,255,255,.88);
+        backdrop-filter: blur(10px);
+        transition: all .2s ease;
+    }
+
+    .btn-ghost-future:hover {
+        transform: translateY(-2px);
+        border-color: rgba(37,99,235,.4);
+        box-shadow: 0 10px 22px rgba(15,23,42,.12);
+    }
+
+    .table-modern {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table-modern thead th {
+        background: #0f172a;
+        color: #fff;
+        font-size: .82rem;
+        letter-spacing: .3px;
+        text-transform: uppercase;
+        border: 0;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .table-modern tbody tr {
+        transition: all .15s ease;
+    }
+
+    .table-modern tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .kpi-title {
+        font-weight: 900;
+        color: #1d4ed8;
+    }
+
+    .kpi-sub {
+        font-size: .82rem;
+        color: #64748b;
+    }
+
+    .badge-soft {
+        border-radius: 999px;
+        font-weight: 800;
+        padding: .45rem .7rem;
+        border: 1px solid rgba(148,163,184,.25);
+    }
+
+    .badge-frequency {
+        background: #eef2ff;
+        color: #3730a3;
+    }
+
+    .badge-chart {
+        background: #ecfeff;
+        color: #155e75;
+    }
+
+    .badge-variable {
+        background: #ecfdf5;
+        color: #166534;
+    }
+
+    .action-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 14px !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-modern .modal-content {
+        border-radius: 26px;
+        overflow: hidden;
+    }
+
+    .modal-modern-header-primary {
+        background: linear-gradient(135deg, #2563eb, #0891b2);
+        color: white;
+    }
+
+    .modal-modern-header-danger {
+        background: linear-gradient(135deg, #ef4444, #991b1b);
+        color: white;
+    }
+
+    .section-title {
+        font-weight: 900;
+        color: #334155;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: .65rem;
+        margin-bottom: 1rem;
+    }
+
+    .business-box {
+        border-radius: 20px;
+        border: 1px solid rgba(14,165,233,.24);
+        border-left: 6px solid #06b6d4;
+        background: linear-gradient(135deg, #ecfeff, #ffffff);
+        padding: 1rem;
+    }
+
+    .variable-item {
+        border-radius: 20px !important;
+        border: 1px solid rgba(148,163,184,.25) !important;
+        background: #fff;
+    }
+
+    .formula-canvas {
+        min-height: 68px;
+        background: #f8fafc;
+        border: 2px dashed #06b6d4;
+        border-radius: 18px;
+        padding: 12px;
+    }
+
+    .empty-state {
+        padding: 4rem 1rem;
+        text-align: center;
+    }
+
+    .formula-token-op {
+        background: #475569;
+    }
+
+    .formula-token-num {
+        background: #059669;
+    }
+
+    .formula-token-var {
+        background: #2563eb;
+    }
+</style>
+
+<div class="container-fluid px-4 my-5 manager-shell">
+
+    @if (TempData["Mensaje"] != null)
+    {
+        <div class="alert alert-@TempData["Tipo"] alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas @(TempData["Tipo"]?.ToString() == "success" ? "fa-check-circle" : "fa-exclamation-triangle") me-2"></i>
+            @TempData["Mensaje"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">
+                <i class="fas fa-cogs text-primary me-2"></i> Gestor de KPIs
+            </h2>
+            <p class="text-muted mb-0">
+                Administra métricas, variables, metas y configuración visual del tablero.
+            </p>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/Operaciones/Index" class="btn btn-ghost-future">
+                <i class="fas fa-chart-line me-1"></i> Ir al Tablero
+            </a>
+
+            @if (puedeCrear)
+            {
+                <a href="/Operaciones/NuevaMetrica" class="btn btn-future btn-future-primary">
+                    <i class="fas fa-plus me-1"></i> Nuevo KPI
+                </a>
+            }
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            <div class="stat-card h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon bg-primary-subtle text-primary">
+                        <i class="fas fa-chart-simple"></i>
+                    </div>
+                    <div>
+                        <div class="fs-4 fw-bold">@totalMetricas</div>
+                        <div class="small text-muted fw-bold">KPIs configurados</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-xl-3">
+            <div class="stat-card h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon bg-success-subtle text-success">
+                        <i class="fas fa-list-check"></i>
+                    </div>
+                    <div>
+                        <div class="fs-4 fw-bold">@totalVariables</div>
+                        <div class="small text-muted fw-bold">Variables</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-xl-3">
+            <div class="stat-card h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon bg-warning-subtle text-warning">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div>
+                        <div class="fs-4 fw-bold">@totalDepartamentos</div>
+                        <div class="small text-muted fw-bold">Áreas</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-xl-3">
+            <div class="stat-card h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon bg-info-subtle text-info">
+                        <i class="fas fa-calculator"></i>
+                    </div>
+                    <div>
+                        <div class="fs-4 fw-bold">@totalCalculadas</div>
+                        <div class="small text-muted fw-bold">Calculadas</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-panel p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-md-center flex-column flex-md-row gap-2 mb-3">
+            <div>
+                <h6 class="fw-bold text-dark mb-1">
+                    <i class="fas fa-search text-primary me-2"></i> Filtrar catálogo de KPIs
+                </h6>
+                <p class="text-muted small mb-0">
+                    Busca por área, nombre del KPI o frecuencia de evaluación.
+                </p>
+            </div>
+
+            <button type="button" class="btn btn-ghost-future btn-sm px-3" onclick="limpiarFiltrosGestor()">
+                <i class="fas fa-broom me-1"></i> Limpiar filtros
+            </button>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted">Área responsable</label>
+                <select id="filtroDeptoGestor" class="form-select filter-input" onchange="filtrarGestor()">
+                    <option value="">Todas las áreas</option>
+                    @foreach (var d in departamentos)
+                    {
+                        <option value="@d.DepartamentoID">@d.NombreDepartamento</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted">Nombre del KPI</label>
+                <input type="text"
+                       id="filtroKpiGestor"
+                       class="form-control filter-input"
+                       placeholder="Buscar por palabra clave..."
+                       onkeyup="filtrarGestor()" />
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted">Frecuencia</label>
+                <select id="filtroFrecuenciaGestor" class="form-select filter-input" onchange="filtrarGestor()">
+                    <option value="">Todas las frecuencias</option>
+                    <option value="Diario">Diario</option>
+                    <option value="Semanal">Semanal</option>
+                    <option value="Mensual">Mensual</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="mt-3 small text-muted" id="contadorGestor">
+            Mostrando @totalMetricas KPI(s)
+        </div>
+    </div>
+
+    <div class="card manager-card border-0 rounded-4 overflow-hidden">
+        <div class="card-header manager-header py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h4 class="fw-bold text-white mb-0">
+                    <i class="fas fa-layer-group me-2 text-info"></i> KPIs configurados
+                </h4>
+                <small class="opacity-75">Catálogo operativo usado por captura, historial y tablero.</small>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 table-modern">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">KPI / Métrica</th>
+                            <th>Área responsable</th>
+                            <th>Frecuencia</th>
+                            <th>Gráfica principal</th>
+                            <th class="text-center">Variables</th>
+                            <th class="text-center pe-4">Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="cuerpoTablaGestor">
+                        @if (Model != null && Model.Count > 0)
+                        {
+                            foreach (var item in Model)
+                            {
+                                <tr class="fila-gestor"
+                                    data-depto="@item.DepartamentoID"
+                                    data-kpi="@item.NombreMetrica.ToLower()"
+                                    data-frecuencia="@item.Frecuencia">
+
+                                    <td class="ps-4">
+                                        <div class="kpi-title">@item.NombreMetrica</div>
+                                        <div class="kpi-sub">
+                                            ID: @item.MetricaID · Tipo valor: @(string.IsNullOrWhiteSpace(item.TipoValor) ? "Sin definir" : item.TipoValor)
+                                            · Unidad: @(string.IsNullOrWhiteSpace(item.UnidadMedida) ? "Sin definir" : item.UnidadMedida)
+                                        </div>
+                                    </td>
+
+                                    <td class="fw-bold text-dark">
+                                        @item.Departamento.NombreDepartamento
+                                    </td>
+
+                                    <td>
+                                        <span class="badge-soft badge-frequency">
+                                            <i class="far fa-calendar-alt me-1"></i> @item.Frecuencia
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <span class="badge-soft badge-chart">
+                                            <i class="fas fa-chart-bar me-1"></i> @item.TipoGraficaDefecto
+                                        </span>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <span class="badge-soft badge-variable">
+                                            @item.VariablesConfiguradas.Count variable(s)
+                                        </span>
+                                    </td>
+
+                                    <td class="text-center pe-4">
+                                        @if (puedeEditar)
+                                        {
+                                            <div class="btn-group shadow-sm">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary action-btn"
+                                                        title="Editar KPI"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#modalEditarMetrica-@item.MetricaID">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-danger action-btn"
+                                                        title="Eliminar KPI"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#modalEliminarMetrica-@item.MetricaID">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-muted border">Sin permiso</span>
+                                        }
+                                    </td>
+                                </tr>
+
+                                <div class="modal fade modal-modern" id="modalEditarMetrica-@item.MetricaID" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered modal-xl">
+                                        <div class="modal-content border-0 shadow-lg">
+                                            <div class="modal-header modal-modern-header-primary">
+                                                <div>
+                                                    <h5 class="modal-title fw-bold mb-0">
+                                                        <i class="fas fa-edit me-2"></i> Editar KPI
+                                                    </h5>
+                                                    <small class="opacity-75">@item.NombreMetrica</small>
+                                                </div>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+
+                                            <form action="/Operaciones/ActualizarMetricaCompleta" method="post">
+                                                <div class="modal-body p-4" style="max-height: 74vh; overflow-y: auto;">
+                                                    <input type="hidden" name="metricaId" value="@item.MetricaID" />
+
+                                                    <h6 class="section-title">
+                                                        <i class="fas fa-circle-info text-primary me-2"></i> 1. Información general
+                                                    </h6>
+
+                                                    <div class="row mb-3">
+                                                        <div class="col-md-6 mb-3">
+                                                            <label class="form-label fw-bold">Nombre del KPI</label>
+                                                            <input type="text" name="nombreMetrica" class="form-control" value="@item.NombreMetrica" required />
+                                                        </div>
+
+                                                        <div class="col-md-6 mb-3">
+                                                            <label class="form-label fw-bold">Departamento responsable</label>
+
+                                                            @if (ViewBag.EsUsuarioLimitado == true && departamentos != null && departamentos.Count == 1)
+                                                            {
+                                                                var miDepto = departamentos.First();
+
+                                                                <select class="form-select bg-light text-muted fw-bold border-secondary" disabled>
+                                                                    <option value="@miDepto.DepartamentoID">@miDepto.NombreDepartamento</option>
+                                                                </select>
+
+                                                                <input type="hidden" name="departamentoId" value="@miDepto.DepartamentoID" />
+                                                            }
+                                                            else
+                                                            {
+                                                                <select name="departamentoId" class="form-select" required>
+                                                                    @if (departamentos != null)
+                                                                    {
+                                                                        foreach (var d in departamentos)
+                                                                        {
+                                                                            <option value="@d.DepartamentoID" selected="@(d.DepartamentoID == item.DepartamentoID)">
+                                                                                @d.NombreDepartamento
+                                                                            </option>
+                                                                        }
+                                                                    }
+                                                                </select>
+                                                            }
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="row mb-3">
+                                                        <div class="col-md-3 mb-3">
+                                                            <label class="form-label fw-bold small">Frecuencia</label>
+                                                            <select name="frecuencia" class="form-select">
+                                                                <option value="Diario" selected="@(item.Frecuencia == "Diario")">Diario</option>
+                                                                <option value="Semanal" selected="@(item.Frecuencia == "Semanal")">Semanal</option>
+                                                                <option value="Mensual" selected="@(item.Frecuencia == "Mensual")">Mensual</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div class="col-md-3 mb-3">
+                                                            <label class="form-label fw-bold small">Tipo valor</label>
+                                                            <select name="tipoValor"
+                                                                    id="tipoValor-@item.MetricaID"
+                                                                    class="form-select"
+                                                                    data-unidad-gestor="true"
+                                                                    data-metrica-id="@item.MetricaID"
+                                                                    onchange="actualizarUnidadMedidaGestor(@item.MetricaID, false); actualizarTodasUnidadesVariablesGestor(@item.MetricaID, true);">
+                                                                <option value="Porcentaje" selected="@(item.TipoValor == "Porcentaje")">Porcentaje (%)</option>
+                                                                <option value="Moneda" selected="@(item.TipoValor == "Moneda")">Moneda ($)</option>
+                                                                <option value="Entero" selected="@(item.TipoValor == "Entero")">Entero / Cantidad</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div class="col-md-3 mb-3">
+                                                            <label class="form-label fw-bold small">Unidad específica</label>
+
+                                                            <select name="unidadMedida"
+                                                                    id="unidadMedida-@item.MetricaID"
+                                                                    class="form-select"
+                                                                    data-unidad-actual="@(item.UnidadMedida ?? "")"
+                                                                    onchange="actualizarUnidadPersonalizadaGestor(@item.MetricaID); actualizarTodasUnidadesVariablesGestor(@item.MetricaID, true);">
+                                                                <option value="">Cargando unidad...</option>
+                                                            </select>
+
+                                                            <input type="text"
+                                                                   name="unidadMedidaPersonalizada"
+                                                                   id="unidadMedidaPersonalizada-@item.MetricaID"
+                                                                   class="form-control mt-2 d-none"
+                                                                   placeholder="Ej. cajas, litros, mantenimientos..."
+                                                                   onkeyup="actualizarTodasUnidadesVariablesGestor(@item.MetricaID, true)"
+                                                                   onchange="actualizarTodasUnidadesVariablesGestor(@item.MetricaID, true)" />
+
+                                                            <small class="text-muted d-block mt-1" id="ayudaUnidadMedida-@item.MetricaID">
+                                                                Esta unidad se usará en tarjetas, gráficas e historial.
+                                                            </small>
+                                                        </div>
+
+                                                        <div class="col-md-3 mb-3">
+                                                            <label class="form-label fw-bold small text-success">Gráfica tablero</label>
+                                                            <select name="tipoGraficaDefecto" class="form-select border-success">
+                                                                <option value="ComboChart" selected="@(item.TipoGraficaDefecto == "ComboChart")">Mixta</option>
+                                                                <option value="ColumnChart" selected="@(item.TipoGraficaDefecto == "ColumnChart")">Barras</option>
+                                                                <option value="StackedBarChart" selected="@(item.TipoGraficaDefecto == "StackedBarChart")">Barras apiladas</option>
+                                                                <option value="LineChart" selected="@(item.TipoGraficaDefecto == "LineChart")">Líneas</option>
+                                                                <option value="AreaChart" selected="@(item.TipoGraficaDefecto == "AreaChart")">Área</option>
+                                                                <option value="StackedAreaChart" selected="@(item.TipoGraficaDefecto == "StackedAreaChart")">Área apilada</option>
+                                                                <option value="PieChart" selected="@(item.TipoGraficaDefecto == "PieChart")">Pastel</option>
+                                                                <option value="DoughnutChart" selected="@(item.TipoGraficaDefecto == "DoughnutChart")">Dona</option>
+                                                            </select>
+                                                            <small class="text-muted d-block mt-1">
+                                                                Apiladas para acumulados; pastel/dona para distribución.
+                                                            </small>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="business-box my-3">
+                                                        <div class="mb-3">
+                                                            <span class="badge bg-info text-dark fw-bold rounded-pill px-3 py-2">
+                                                                <i class="fas fa-brain me-1"></i> Inteligencia de negocio
+                                                            </span>
+                                                        </div>
+
+                                                        <div class="row">
+                                                            <div class="col-md-6 mb-2">
+                                                                <label class="form-label small fw-bold text-dark">Meta propuesta / esperada</label>
+                                                                <input type="number" step="0.01" name="metaEsperada" class="form-control shadow-sm" value="@item.MetaEsperada" placeholder="Ej. 95.00" />
+                                                            </div>
+
+                                                            <div class="col-md-6 mb-2">
+                                                                <label class="form-label small fw-bold text-dark">Sentido de evaluación</label>
+                                                                <select name="sentidoMeta" class="form-select fw-bold shadow-sm">
+                                                                    <option value="MayorMejor" selected="@(item.SentidoMeta == "MayorMejor")">Entre mayor sea, es mejor</option>
+                                                                    <option value="MenorMejor" selected="@(item.SentidoMeta == "MenorMejor")">Entre menor sea, es mejor</option>
+                                                                    <option value="Exacto" selected="@(item.SentidoMeta == "Exacto")">Debe ser exactamente igual</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="business-box my-3">
+                                                        <div class="mb-3">
+                                                            <span class="badge bg-primary text-white fw-bold rounded-pill px-3 py-2">
+                                                                <i class="fas fa-id-card me-1"></i> Tarjeta del tablero
+                                                            </span>
+                                                        </div>
+
+                                                        <div class="row">
+                                                            <div class="col-md-6 mb-2">
+                                                                <label class="form-label small fw-bold text-dark">Variable que se mostrará en la tarjeta</label>
+                                                                <select name="variableTarjetaID"
+                                                                        id="variableTarjetaID-@item.MetricaID"
+                                                                        class="form-select shadow-sm select-variable-tarjeta"
+                                                                        data-metrica-id="@item.MetricaID"
+                                                                        data-selected-tarjeta="@(item.VariableTarjetaID?.ToString() ?? "")">
+                                                                    <option value="">Automático del sistema</option>
+                                                                    @foreach (var variableTarjeta in item.VariablesConfiguradas)
+                                                                    {
+                                                                        <option value="@variableTarjeta.VariableID"
+                                                                                selected="@(item.VariableTarjetaID.HasValue && item.VariableTarjetaID.Value == variableTarjeta.VariableID)">
+                                                                            @variableTarjeta.NombreVariable
+                                                                        </option>
+                                                                    }
+                                                                </select>
+                                                                <small class="text-muted d-block mt-1">
+                                                                    Úsalo cuando quieras que la tarjeta muestre una variable específica, por ejemplo Real, Ventas o Tiempo Extra.
+                                                                </small>
+                                                            </div>
+
+                                                            <div class="col-md-6 mb-2">
+                                                                <label class="form-label small fw-bold text-dark">Cálculo de la tarjeta</label>
+                                                                <select name="modoTarjeta" class="form-select fw-bold shadow-sm">
+                                                                    <option value="Automatico" selected="@(string.IsNullOrWhiteSpace(item.ModoTarjeta) || item.ModoTarjeta == "Automatico")">Automático</option>
+                                                                    <option value="UltimoPeriodo" selected="@(item.ModoTarjeta == "UltimoPeriodo")">Último periodo visible</option>
+                                                                    <option value="Promedio" selected="@(item.ModoTarjeta == "Promedio")">Promedio del periodo</option>
+                                                                    <option value="Suma" selected="@(item.ModoTarjeta == "Suma")">Suma del periodo</option>
+                                                                    <option value="Acumulado" selected="@(item.ModoTarjeta == "Acumulado")">Acumulado</option>
+                                                                </select>
+                                                                <small class="text-muted d-block mt-1">
+                                                                    Para ventas mensuales estilo Power BI normalmente usa Último periodo visible.
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <h6 class="section-title mt-4">
+                                                        <i class="fas fa-list-check text-success me-2"></i> 2. Variables configuradas
+                                                    </h6>
+
+                                                    <div class="bg-light p-3 rounded-4 border">
+                                                        <div id="contenedorVariables-@item.MetricaID">
+                                                            @{
+                                                                int contadorVarModal = 1;
+                                                            }
+
+                                                            @foreach (var v in item.VariablesConfiguradas)
+                                                            {
+                                                                <div class="variable-item bg-white p-3 mb-3 position-relative shadow-sm">
+                                                                    <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-dark num-var">
+                                                                        @contadorVarModal
+                                                                    </span>
+
+                                                                    <button type="button"
+                                                                            class="btn btn-sm btn-danger position-absolute top-0 end-0 translate-middle rounded-circle shadow"
+                                                                            onclick="eliminarVariableModal(this, @item.MetricaID)">
+                                                                        <i class="fas fa-times"></i>
+                                                                    </button>
+
+                                                                    <input type="hidden" name="variablesIds" value="@v.VariableID" />
+
+                                                                    <div class="row g-2 align-items-end">
+                                                                        <div class="col-md-4">
+                                                                            <label class="form-label small fw-bold text-muted mb-1">Nombre</label>
+                                                                            <input type="text"
+                                                                                   name="nombresVariables"
+                                                                                   class="form-control var-name"
+                                                                                   value="@v.NombreVariable"
+                                                                                   onkeyup="sincronizarVariablesModal(@item.MetricaID)"
+                                                                                   required>
+                                                                        </div>
+
+                                                                        <div class="col-md-2">
+                                                                            <label class="form-label small fw-bold text-muted mb-1">Diseño</label>
+                                                                            <select name="variablesEsLinea" class="form-select">
+                                                                                @if (v.EsLinea)
+                                                                                {
+                                                                                    <option value="false">Barra</option>
+                                                                                    <option value="true" selected>Línea</option>
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                    <option value="false" selected>Barra</option>
+                                                                                    <option value="true">Línea</option>
+                                                                                }
+                                                                            </select>
+                                                                        </div>
+
+                                                                        <div class="col-md-3">
+                                                                            <label class="form-label small fw-bold text-muted mb-1">Captura</label>
+                                                                            <select name="tiposCaptura"
+                                                                                    class="form-select select-comportamiento"
+                                                                                    onchange="cambiarComportamientoModal(this, @item.MetricaID)">
+                                                                                <option value="Manual" selected="@(v.TipoCaptura == "Manual" || string.IsNullOrEmpty(v.TipoCaptura))">Manual</option>
+                                                                                <option value="Fijo" selected="@(v.TipoCaptura == "Fijo")">Fijo</option>
+                                                                                <option value="Calculado" selected="@(v.TipoCaptura == "Calculado")">Calculado</option>
+                                                                            </select>
+                                                                        </div>
+
+                                                                        <div class="col-md-3 contenedor-extra">
+                                                                            @if (v.TipoCaptura == "Fijo")
+                                                                            {
+                                                                                <label class="form-label small fw-bold text-primary">Valor</label>
+                                                                                <input type="number" step="0.01" name="valoresFijos" class="form-control" value="@v.ValorFijo" required>
+                                                                                <input type="hidden" name="formulas" class="formula-real" value="">
+                                                                            }
+                                                                            else if (v.TipoCaptura == "Calculado")
+                                                                            {
+                                                                                <input type="hidden" name="valoresFijos" value="">
+                                                                                <input type="hidden" name="formulas" class="formula-real" value="@v.Formula">
+                                                                                <div class="mt-4">
+                                                                                    <span class="badge bg-info text-dark p-2 w-100 rounded-pill">
+                                                                                        <i class="fas fa-arrow-down me-1"></i> Usa el editor visual
+                                                                                    </span>
+                                                                                </div>
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                <input type="hidden" name="valoresFijos" value="">
+                                                                                <input type="hidden" name="formulas" class="formula-real" value="">
+                                                                            }
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="row g-2 align-items-end mt-2 variable-unit-row">
+                                                                        <div class="col-md-4">
+                                                                            <label class="form-label small fw-bold text-muted mb-1">Tipo valor de variable</label>
+                                                                            <select name="tiposValorVariables"
+                                                                                    class="form-select select-tipo-valor-variable"
+                                                                                    data-metrica-id="@item.MetricaID"
+                                                                                    onchange="actualizarUnidadVariableGestor(this, false)">
+                                                                                <option value="" selected="@(string.IsNullOrWhiteSpace(v.TipoValor))">Heredar del KPI</option>
+                                                                                <option value="Porcentaje" selected="@(v.TipoValor == "Porcentaje")">Porcentaje (%)</option>
+                                                                                <option value="Moneda" selected="@(v.TipoValor == "Moneda")">Moneda ($)</option>
+                                                                                <option value="Entero" selected="@(v.TipoValor == "Entero")">Entero / Cantidad</option>
+                                                                            </select>
+                                                                        </div>
+
+                                                                        <div class="col-md-4">
+                                                                            <label class="form-label small fw-bold text-muted mb-1">Unidad de variable</label>
+                                                                            <select name="unidadesMedidaVariables"
+                                                                                    class="form-select select-unidad-variable"
+                                                                                    data-unidad-variable-actual="@(v.UnidadMedida ?? "")"
+                                                                                    onchange="actualizarUnidadVariablePersonalizadaGestor(this)">
+                                                                                <option value="">Heredar unidad del KPI</option>
+                                                                            </select>
+                                                                        </div>
+
+                                                                        <div class="col-md-4">
+                                                                            <label class="form-label small fw-bold text-muted mb-1">Unidad personalizada</label>
+                                                                            <input type="text"
+                                                                                   name="unidadesMedidaVariablesPersonalizadas"
+                                                                                   class="form-control input-unidad-variable-personalizada d-none"
+                                                                                   placeholder="Ej. viajes, cajas, mantenimientos..." />
+                                                                            <small class="text-muted d-block mt-1">Déjalo heredado si esta variable usa la unidad base del KPI.</small>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                contadorVarModal++;
+                                                            }
+                                                        </div>
+
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-ghost-future fw-bold"
+                                                                onclick="agregarVariableModal(@item.MetricaID)">
+                                                            <i class="fas fa-plus me-1"></i> Añadir variable extra
+                                                        </button>
+
+                                                        @{
+                                                            var primeraCalculada = item.VariablesConfiguradas.FirstOrDefault(v => v.TipoCaptura == "Calculado");
+                                                        }
+
+                                                        <div id="areaEditorFormula-@item.MetricaID"
+                                                             class="mt-4 p-3 bg-white border border-info rounded-4 shadow-sm d-none"
+                                                             data-formula-init="@(primeraCalculada?.Formula ?? "")">
+
+                                                            <h6 class="fw-bold text-info mb-2">
+                                                                <i class="fas fa-cubes me-2"></i> Constructor visual de fórmulas
+                                                            </h6>
+
+                                                            <div id="display-formula-@item.MetricaID"
+                                                                 class="form-control mb-3 d-flex flex-wrap gap-2 align-items-center formula-canvas">
+                                                            </div>
+
+                                                            <div class="row g-2">
+                                                                <div class="col-12">
+                                                                    <div class="btn-group w-100 shadow-sm">
+                                                                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold fs-6" onclick="agregarOperadorModal('+', @item.MetricaID)">+</button>
+                                                                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold fs-6" onclick="agregarOperadorModal('-', @item.MetricaID)">-</button>
+                                                                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold fs-6" onclick="agregarOperadorModal('*', @item.MetricaID)">×</button>
+                                                                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold fs-6" onclick="agregarOperadorModal('/', @item.MetricaID)">÷</button>
+                                                                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold fs-6" onclick="agregarOperadorModal('(', @item.MetricaID)">(</button>
+                                                                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold fs-6" onclick="agregarOperadorModal(')', @item.MetricaID)">)</button>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div class="col-md-5">
+                                                                    <select class="form-select form-select-sm select-var-formula border-primary"
+                                                                            style="border-width: 2px;"
+                                                                            onchange="agregarVariableAFórmulaModal(this, @item.MetricaID)">
+                                                                        <option value="">+ Variable al lienzo...</option>
+                                                                    </select>
+                                                                </div>
+
+                                                                <div class="col-md-4">
+                                                                    <div class="input-group input-group-sm">
+                                                                        <input type="number"
+                                                                               id="input-numero-@item.MetricaID"
+                                                                               class="form-control border-success"
+                                                                               style="border-width: 2px;"
+                                                                               placeholder="Agrega número..."
+                                                                               step="0.01">
+
+                                                                        <button type="button"
+                                                                                class="btn btn-success fw-bold"
+                                                                                onclick="agregarNumeroModal(@item.MetricaID)">
+                                                                            Añadir
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div class="col-md-3 d-flex gap-1">
+                                                                    <button type="button"
+                                                                            class="btn btn-sm btn-warning w-50"
+                                                                            title="Deshacer"
+                                                                            onclick="borrarUltimoModal(@item.MetricaID)">
+                                                                        <i class="fas fa-backspace"></i>
+                                                                    </button>
+
+                                                                    <button type="button"
+                                                                            class="btn btn-sm btn-danger w-50"
+                                                                            title="Borrar todo"
+                                                                            onclick="limpiarFormulaModal(@item.MetricaID)">
+                                                                        <i class="fas fa-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="modal-footer bg-light">
+                                                    <button type="button" class="btn btn-ghost-future" data-bs-dismiss="modal">
+                                                        Cancelar
+                                                    </button>
+
+                                                    <button type="submit" class="btn btn-future btn-future-primary px-4">
+                                                        <i class="fas fa-save me-1"></i> Guardar cambios
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="modal fade modal-modern" id="modalEliminarMetrica-@item.MetricaID" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content border-0 shadow">
+                                            <div class="modal-header modal-modern-header-danger">
+                                                <h5 class="modal-title fw-bold mb-0">
+                                                    <i class="fas fa-trash me-2"></i> Eliminar KPI
+                                                </h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+
+                                            <div class="modal-body text-center p-5">
+                                                <i class="fas fa-radiation text-danger mb-3" style="font-size: 4rem;"></i>
+
+                                                <h4 class="fw-bold text-danger">¿Eliminar métrica?</h4>
+
+                                                <p class="text-muted">
+                                                    Estás a punto de eliminar del catálogo el KPI
+                                                    <strong>@item.NombreMetrica</strong>.
+                                                </p>
+
+                                                <form action="/Operaciones/EliminarMetrica" method="post" class="mt-4">
+                                                    <input type="hidden" name="id" value="@item.MetricaID" />
+
+                                                    <div class="d-grid gap-2">
+                                                        <button type="submit" class="btn btn-future btn-future-danger fw-bold">
+                                                            Sí, eliminar configuración
+                                                        </button>
+
+                                                        <button type="button" class="btn btn-ghost-future" data-bs-dismiss="modal">
+                                                            Cancelar
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6" class="empty-state text-muted">
+                                    <i class="fas fa-folder-open fa-3x mb-3"></i>
+                                    <h5 class="fw-bold">No hay métricas configuradas</h5>
+                                    <p class="mb-0">Cuando crees KPIs, aparecerán aquí.</p>
+                                </td>
+                            </tr>
+                        }
+
+                        <tr id="filaNoResultadosGestor" class="d-none">
+                            <td colspan="6" class="empty-state text-warning fw-bold">
+                                <i class="fas fa-search-minus fa-2x mb-2 d-block"></i>
+                                Ningún KPI coincide con el filtro.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function obtenerUnidadesEnteroGestor() {
+            return [
+                'Unidades',
+                'Días',
+                'Horas',
+                'Minutos',
+                'Piezas',
+                'Pedidos',
+                'Viajes',
+                'Personas',
+                'Kilómetros',
+                'Metros',
+                'Litros',
+                'Cajas'
+            ];
+        }
+
+        function actualizarUnidadMedidaGestor(mId, usarUnidadActual) {
+            const tipoSelect = document.getElementById('tipoValor-' + mId);
+            const unidadSelect = document.getElementById('unidadMedida-' + mId);
+            const inputOtro = document.getElementById('unidadMedidaPersonalizada-' + mId);
+            const ayuda = document.getElementById('ayudaUnidadMedida-' + mId);
+
+            if (!tipoSelect || !unidadSelect || !inputOtro) {
+                return;
+            }
+
+            const tipo = tipoSelect.value || '';
+            const unidadActual = usarUnidadActual
+                ? (unidadSelect.getAttribute('data-unidad-actual') || '').trim()
+                : '';
+
+            unidadSelect.innerHTML = '';
+            inputOtro.classList.add('d-none');
+            inputOtro.value = '';
+
+            if (tipo === 'Porcentaje') {
+                unidadSelect.innerHTML = '<option value="%">Porcentaje (%)</option>';
+                unidadSelect.value = '%';
+
+                if (ayuda) {
+                    ayuda.innerText = 'Los valores se mostrarán con símbolo %.';
+                }
+
+                return;
+            }
+
+            if (tipo === 'Moneda') {
+                unidadSelect.innerHTML = '<option value="$">Pesos mexicanos ($)</option>';
+                unidadSelect.value = '$';
+
+                if (ayuda) {
+                    ayuda.innerText = 'Los valores se mostrarán como moneda.';
+                }
+
+                return;
+            }
+
+            const unidades = obtenerUnidadesEnteroGestor();
+            const unidadInicial = unidadActual && unidadActual !== '%' && unidadActual !== '$'
+                ? unidadActual
+                : 'Unidades';
+
+            unidades.forEach(unidad => {
+                const option = document.createElement('option');
+                option.value = unidad;
+                option.textContent = unidad;
+                unidadSelect.appendChild(option);
+            });
+
+            const optionOtro = document.createElement('option');
+            optionOtro.value = 'Otro';
+            optionOtro.textContent = 'Otro...';
+            unidadSelect.appendChild(optionOtro);
+
+            if (unidades.includes(unidadInicial)) {
+                unidadSelect.value = unidadInicial;
+            } else {
+                unidadSelect.value = 'Otro';
+                inputOtro.classList.remove('d-none');
+                inputOtro.value = unidadInicial;
+            }
+
+            if (ayuda) {
+                ayuda.innerText = 'Define qué representa este número para que las gráficas sean más claras.';
+            }
+        }
+
+        function actualizarUnidadPersonalizadaGestor(mId) {
+            const unidadSelect = document.getElementById('unidadMedida-' + mId);
+            const inputOtro = document.getElementById('unidadMedidaPersonalizada-' + mId);
+            const ayuda = document.getElementById('ayudaUnidadMedida-' + mId);
+
+            if (!unidadSelect || !inputOtro) {
+                return;
+            }
+
+            if (unidadSelect.value === 'Otro') {
+                inputOtro.classList.remove('d-none');
+                inputOtro.focus();
+
+                if (ayuda) {
+                    ayuda.innerText = 'Escribe la unidad personalizada que verá el usuario.';
+                }
+            } else {
+                inputOtro.classList.add('d-none');
+                inputOtro.value = '';
+
+                if (ayuda) {
+                    ayuda.innerText = 'Esta unidad se usará en tarjetas, gráficas e historial.';
+                }
+            }
+        }
+
+
+        function obtenerTipoValorKpiGestor(mId) {
+            const tipoKpi = document.getElementById('tipoValor-' + mId);
+            return tipoKpi ? tipoKpi.value : '';
+        }
+
+        function obtenerUnidadKpiGestor(mId) {
+            const unidadKpi = document.getElementById('unidadMedida-' + mId);
+            const unidadPersonalizada = document.getElementById('unidadMedidaPersonalizada-' + mId);
+
+            if (!unidadKpi) {
+                return '';
+            }
+
+            if (unidadKpi.value === 'Otro' && unidadPersonalizada && unidadPersonalizada.value.trim()) {
+                return unidadPersonalizada.value.trim();
+            }
+
+            return unidadKpi.value || '';
+        }
+
+        function actualizarTodasUnidadesVariablesGestor(mId, conservarValorActual) {
+            const contenedor = document.getElementById('contenedorVariables-' + mId);
+
+            if (!contenedor) {
+                return;
+            }
+
+            contenedor.querySelectorAll('.select-tipo-valor-variable').forEach(select => {
+                actualizarUnidadVariableGestor(select, conservarValorActual);
+            });
+        }
+
+        function actualizarUnidadVariableGestor(selectTipoVariable, usarUnidadActual) {
+            if (!selectTipoVariable) {
+                return;
+            }
+
+            const variableItem = selectTipoVariable.closest('.variable-item');
+            const mId = selectTipoVariable.getAttribute('data-metrica-id');
+
+            if (!variableItem || !mId) {
+                return;
+            }
+
+            const unidadSelect = variableItem.querySelector('.select-unidad-variable');
+            const inputOtro = variableItem.querySelector('.input-unidad-variable-personalizada');
+
+            if (!unidadSelect || !inputOtro) {
+                return;
+            }
+
+            const tipoKpi = obtenerTipoValorKpiGestor(mId);
+            const unidadKpi = obtenerUnidadKpiGestor(mId);
+            const tipoVariable = selectTipoVariable.value || '';
+            const tipoEfectivo = tipoVariable || tipoKpi;
+
+            const unidadActual = usarUnidadActual
+                ? (unidadSelect.getAttribute('data-unidad-variable-actual') || '').trim()
+                : (unidadSelect.value || '').trim();
+
+            unidadSelect.innerHTML = '';
+            inputOtro.classList.add('d-none');
+
+            const opcionHeredar = document.createElement('option');
+            opcionHeredar.value = '';
+            opcionHeredar.textContent = unidadKpi
+                ? `Heredar unidad del KPI (${unidadKpi})`
+                : 'Heredar unidad del KPI';
+
+            unidadSelect.appendChild(opcionHeredar);
+
+            if (tipoEfectivo === 'Porcentaje') {
+                const option = document.createElement('option');
+                option.value = '%';
+                option.textContent = 'Porcentaje (%)';
+                unidadSelect.appendChild(option);
+            }
+            else if (tipoEfectivo === 'Moneda') {
+                const option = document.createElement('option');
+                option.value = '$';
+                option.textContent = 'Pesos mexicanos ($)';
+                unidadSelect.appendChild(option);
+            }
+            else {
+                obtenerUnidadesEnteroGestor().forEach(unidad => {
+                    const option = document.createElement('option');
+                    option.value = unidad;
+                    option.textContent = unidad;
+                    unidadSelect.appendChild(option);
+                });
+
+                const optionOtro = document.createElement('option');
+                optionOtro.value = 'Otro';
+                optionOtro.textContent = 'Otro...';
+                unidadSelect.appendChild(optionOtro);
+            }
+
+            if (!unidadActual) {
+                unidadSelect.value = '';
+                inputOtro.value = '';
+                return;
+            }
+
+            const existeOpcion = Array.from(unidadSelect.options)
+                .some(option => option.value === unidadActual);
+
+            if (existeOpcion) {
+                unidadSelect.value = unidadActual;
+                inputOtro.value = '';
+            } else {
+                unidadSelect.value = 'Otro';
+                inputOtro.classList.remove('d-none');
+                inputOtro.value = unidadActual;
+            }
+        }
+
+        function actualizarUnidadVariablePersonalizadaGestor(unidadSelect) {
+            if (!unidadSelect) {
+                return;
+            }
+
+            const variableItem = unidadSelect.closest('.variable-item');
+
+            if (!variableItem) {
+                return;
+            }
+
+            const inputOtro = variableItem.querySelector('.input-unidad-variable-personalizada');
+
+            if (!inputOtro) {
+                return;
+            }
+
+            if (unidadSelect.value === 'Otro') {
+                inputOtro.classList.remove('d-none');
+                inputOtro.focus();
+            } else {
+                inputOtro.classList.add('d-none');
+                inputOtro.value = '';
+            }
+        }
+
+        function sincronizarVariableTarjetaGestor(mId) {
+            const contenedor = document.getElementById('contenedorVariables-' + mId);
+            const selectTarjeta = document.getElementById('variableTarjetaID-' + mId);
+
+            if (!contenedor || !selectTarjeta) {
+                return;
+            }
+
+            const valorActual = selectTarjeta.value || selectTarjeta.getAttribute('data-selected-tarjeta') || '';
+
+            selectTarjeta.innerHTML = '<option value="">Automático del sistema</option>';
+
+            contenedor.querySelectorAll('.variable-item').forEach((item, index) => {
+                const inputId = item.querySelector('input[name="variablesIds"]');
+                const inputNombre = item.querySelector('input[name="nombresVariables"]');
+
+                const idVariable = inputId ? (inputId.value || '0') : '0';
+                const nombreVariable = inputNombre && inputNombre.value
+                    ? inputNombre.value.trim()
+                    : `Variable ${index + 1}`;
+
+                const option = document.createElement('option');
+                option.value = idVariable;
+                option.textContent = idVariable === '0'
+                    ? `${nombreVariable} (guarda primero)`
+                    : nombreVariable;
+
+                if (idVariable === '0') {
+                    option.disabled = true;
+                }
+
+                selectTarjeta.appendChild(option);
+            });
+
+            if (valorActual && Array.from(selectTarjeta.options).some(option => option.value === valorActual)) {
+                selectTarjeta.value = valorActual;
+            } else {
+                selectTarjeta.value = '';
+            }
+        }
+
+        function filtrarGestor() {
+            const deptoSel = document.getElementById('filtroDeptoGestor').value;
+            const kpiTxt = document.getElementById('filtroKpiGestor').value.toLowerCase().trim();
+            const frecuenciaSel = document.getElementById('filtroFrecuenciaGestor').value;
+            const filas = document.querySelectorAll('.fila-gestor');
+
+            let visibles = 0;
+
+            filas.forEach(fila => {
+                const deptoId = fila.getAttribute('data-depto');
+                const kpiNombre = fila.getAttribute('data-kpi');
+                const frecuencia = fila.getAttribute('data-frecuencia');
+
+                const cumpleDepto = deptoSel === "" || deptoId === deptoSel;
+                const cumpleKpi = kpiTxt === "" || kpiNombre.includes(kpiTxt);
+                const cumpleFrecuencia = frecuenciaSel === "" || frecuencia === frecuenciaSel;
+
+                if (cumpleDepto && cumpleKpi && cumpleFrecuencia) {
+                    fila.classList.remove('d-none');
+                    visibles++;
+                } else {
+                    fila.classList.add('d-none');
+                }
+            });
+
+            const alerta = document.getElementById('filaNoResultadosGestor');
+            const contador = document.getElementById('contadorGestor');
+
+            if (alerta) {
+                if (visibles === 0 && filas.length > 0) {
+                    alerta.classList.remove('d-none');
+                } else {
+                    alerta.classList.add('d-none');
+                }
+            }
+
+            if (contador) {
+                contador.innerText = `Mostrando ${visibles} KPI(s)`;
+            }
+        }
+
+        function limpiarFiltrosGestor() {
+            document.getElementById('filtroDeptoGestor').value = "";
+            document.getElementById('filtroKpiGestor').value = "";
+            document.getElementById('filtroFrecuenciaGestor').value = "";
+
+            filtrarGestor();
+        }
+
+        window.formulasActivas = {};
+
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll('.modal').forEach(m => {
+                const mId = m.getAttribute('id')
+                    .replace('modalEditarMetrica-', '')
+                    .replace('modalEliminarMetrica-', '');
+
+                if (mId && !isNaN(mId)) {
+                    const editorArea = document.getElementById('areaEditorFormula-' + mId);
+
+                    if (editorArea) {
+                        let formulaInit = editorArea.getAttribute('data-formula-init') || "";
+
+                        inicializarTokensModal(formulaInit, mId);
+                        sincronizarVariablesModal(mId);
+                        toggleEditorModal(mId);
+                    }
+                }
+            });
+
+            document.querySelectorAll('[data-unidad-gestor="true"]').forEach(select => {
+                const mId = select.getAttribute('data-metrica-id');
+
+                if (mId) {
+                    actualizarUnidadMedidaGestor(mId, true);
+                }
+            });
+
+            document.querySelectorAll('.select-tipo-valor-variable').forEach(select => {
+                actualizarUnidadVariableGestor(select, true);
+            });
+
+            document.querySelectorAll('.select-variable-tarjeta').forEach(select => {
+                const mId = select.getAttribute('data-metrica-id');
+
+                if (mId) {
+                    sincronizarVariableTarjetaGestor(mId);
+                }
+            });
+
+            filtrarGestor();
+        });
+
+        function inicializarTokensModal(formulaString, mId) {
+            let tokens = [];
+
+            if (formulaString) {
+                let regex = /(\[\d+\]|\d+(?:\.\d+)?|[\+\-\*\/\(\)])/g;
+                let matches = formulaString.match(regex);
+
+                if (matches) {
+                    let inputsNombres = document.querySelectorAll('#contenedorVariables-' + mId + ' .var-name');
+
+                    matches.forEach(m => {
+                        if (m.startsWith('[')) {
+                            let varIndex = parseInt(m.replace('[', '').replace(']', ''));
+                            let nombre = inputsNombres[varIndex - 1] ? inputsNombres[varIndex - 1].value : `Var ${varIndex}`;
+
+                            tokens.push({
+                                tipo: 'var',
+                                valorReal: m,
+                                textoVisual: nombre
+                            });
+                        }
+                        else if ('+-*/()'.includes(m)) {
+                            tokens.push({
+                                tipo: 'op',
+                                valorReal: m,
+                                textoVisual: m
+                            });
+                        }
+                        else {
+                            tokens.push({
+                                tipo: 'num',
+                                valorReal: m,
+                                textoVisual: m
+                            });
+                        }
+                    });
+                }
+            }
+
+            window.formulasActivas[mId] = tokens;
+            actualizarVistaFormulaModal(mId);
+        }
+
+        function toggleEditorModal(mId) {
+            const contenedor = document.getElementById('contenedorVariables-' + mId);
+
+            if (!contenedor) return;
+
+            const hayCalculado = Array.from(contenedor.querySelectorAll('.select-comportamiento'))
+                .some(s => s.value === 'Calculado');
+
+            const editor = document.getElementById('areaEditorFormula-' + mId);
+
+            if (editor) {
+                if (hayCalculado) {
+                    editor.classList.remove('d-none');
+                    actualizarVistaFormulaModal(mId);
+                } else {
+                    editor.classList.add('d-none');
+                }
+            }
+        }
+
+        function cambiarComportamientoModal(selectElement, mId) {
+            const contenedorExtra = selectElement.closest('.row').querySelector('.contenedor-extra');
+            const valor = selectElement.value;
+
+            if (valor === 'Fijo') {
+                contenedorExtra.innerHTML = `
+                    <label class="form-label small fw-bold text-primary">Valor</label>
+                    <input type="number" step="0.01" name="valoresFijos" class="form-control" required>
+                    <input type="hidden" name="formulas" class="formula-real" value="">`;
+            }
+            else if (valor === 'Calculado') {
+                contenedorExtra.innerHTML = `
+                    <input type="hidden" name="valoresFijos" value="">
+                    <input type="hidden" name="formulas" class="formula-real" value="">
+                    <div class="mt-4">
+                        <span class="badge bg-info text-dark p-2 w-100 rounded-pill">
+                            <i class="fas fa-arrow-down me-1"></i> Usa el editor visual
+                        </span>
+                    </div>`;
+
+                actualizarVistaFormulaModal(mId);
+            }
+            else {
+                contenedorExtra.innerHTML = `
+                    <input type="hidden" name="valoresFijos" value="">
+                    <input type="hidden" name="formulas" class="formula-real" value="">`;
+            }
+
+            toggleEditorModal(mId);
+        }
+
+        function agregarVariableModal(mId) {
+            const contenedor = document.getElementById('contenedorVariables-' + mId);
+            const items = contenedor.querySelectorAll('.variable-item');
+            const nuevoNumero = items.length + 1;
+
+            const div = document.createElement('div');
+            div.className = 'variable-item bg-white p-3 mb-3 position-relative shadow-sm';
+
+            div.innerHTML = `
+                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-dark num-var">${nuevoNumero}</span>
+
+                <button type="button"
+                        class="btn btn-sm btn-danger position-absolute top-0 end-0 translate-middle rounded-circle shadow"
+                        onclick="eliminarVariableModal(this, ${mId})">
+                    <i class="fas fa-times"></i>
+                </button>
+
+                <input type="hidden" name="variablesIds" value="0" />
+
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1">Nombre</label>
+                        <input type="text"
+                               name="nombresVariables"
+                               class="form-control var-name"
+                               onkeyup="sincronizarVariablesModal(${mId})"
+                               required>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Diseño</label>
+                        <select name="variablesEsLinea" class="form-select">
+                            <option value="false">Barra</option>
+                            <option value="true">Línea</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Captura</label>
+                        <select name="tiposCaptura"
+                                class="form-select select-comportamiento"
+                                onchange="cambiarComportamientoModal(this, ${mId})">
+                            <option value="Manual">Manual</option>
+                            <option value="Fijo">Fijo</option>
+                            <option value="Calculado">Calculado</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 contenedor-extra">
+                        <input type="hidden" name="valoresFijos" value="">
+                        <input type="hidden" name="formulas" class="formula-real" value="">
+                    </div>
+                </div>
+
+                <div class="row g-2 align-items-end mt-2 variable-unit-row">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1">Tipo valor de variable</label>
+                        <select name="tiposValorVariables"
+                                class="form-select select-tipo-valor-variable"
+                                data-metrica-id="${mId}"
+                                onchange="actualizarUnidadVariableGestor(this, false)">
+                            <option value="" selected>Heredar del KPI</option>
+                            <option value="Porcentaje">Porcentaje (%)</option>
+                            <option value="Moneda">Moneda ($)</option>
+                            <option value="Entero">Entero / Cantidad</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1">Unidad de variable</label>
+                        <select name="unidadesMedidaVariables"
+                                class="form-select select-unidad-variable"
+                                data-unidad-variable-actual=""
+                                onchange="actualizarUnidadVariablePersonalizadaGestor(this)">
+                            <option value="">Heredar unidad del KPI</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1">Unidad personalizada</label>
+                        <input type="text"
+                               name="unidadesMedidaVariablesPersonalizadas"
+                               class="form-control input-unidad-variable-personalizada d-none"
+                               placeholder="Ej. viajes, cajas, mantenimientos..." />
+                        <small class="text-muted d-block mt-1">Déjalo heredado si esta variable usa la unidad base del KPI.</small>
+                    </div>
+                </div>`;
+
+            contenedor.appendChild(div);
+
+            const nuevoTipoVariable = div.querySelector('.select-tipo-valor-variable');
+
+            if (nuevoTipoVariable) {
+                actualizarUnidadVariableGestor(nuevoTipoVariable, false);
+            }
+
+            actualizarNumerosModal(mId);
+            sincronizarVariablesModal(mId);
+            sincronizarVariableTarjetaGestor(mId);
+        }
+
+        function eliminarVariableModal(btn, mId) {
+            btn.closest('.variable-item').remove();
+
+            actualizarNumerosModal(mId);
+            sincronizarVariablesModal(mId);
+            sincronizarVariableTarjetaGestor(mId);
+            toggleEditorModal(mId);
+        }
+
+        function actualizarNumerosModal(mId) {
+            const items = document.querySelectorAll('#contenedorVariables-' + mId + ' .variable-item');
+
+            items.forEach((item, index) => {
+                item.querySelector('.num-var').innerText = index + 1;
+            });
+        }
+
+        function agregarOperadorModal(op, mId) {
+            window.formulasActivas[mId].push({
+                tipo: 'op',
+                valorReal: op,
+                textoVisual: op
+            });
+
+            actualizarVistaFormulaModal(mId);
+        }
+
+        function agregarNumeroModal(mId) {
+            const input = document.getElementById('input-numero-' + mId);
+
+            if (input.value) {
+                window.formulasActivas[mId].push({
+                    tipo: 'num',
+                    valorReal: input.value,
+                    textoVisual: input.value
+                });
+
+                input.value = '';
+                actualizarVistaFormulaModal(mId);
+            }
+        }
+
+        function agregarVariableAFórmulaModal(selectElement, mId) {
+            if (selectElement.value) {
+                const nombreVariable = selectElement.options[selectElement.selectedIndex].text;
+
+                window.formulasActivas[mId].push({
+                    tipo: 'var',
+                    valorReal: '[' + selectElement.value + ']',
+                    textoVisual: nombreVariable
+                });
+
+                selectElement.value = '';
+                actualizarVistaFormulaModal(mId);
+            }
+        }
+
+        function borrarUltimoModal(mId) {
+            window.formulasActivas[mId].pop();
+            actualizarVistaFormulaModal(mId);
+        }
+
+        function limpiarFormulaModal(mId) {
+            window.formulasActivas[mId] = [];
+            actualizarVistaFormulaModal(mId);
+        }
+
+        function actualizarVistaFormulaModal(mId) {
+            const display = document.getElementById('display-formula-' + mId);
+
+            let htmlBloques = '';
+            let formulaParaCSharp = '';
+
+            window.formulasActivas[mId].forEach(token => {
+                formulaParaCSharp += token.valorReal;
+
+                if (token.tipo === 'op') {
+                    htmlBloques += `<span class="badge text-white fs-6 px-3 py-2 shadow-sm rounded-3 formula-token-op">${token.textoVisual}</span>`;
+                }
+                else if (token.tipo === 'num') {
+                    htmlBloques += `<span class="badge text-white fs-6 px-3 py-2 shadow-sm rounded-pill formula-token-num">${token.textoVisual}</span>`;
+                }
+                else if (token.tipo === 'var') {
+                    htmlBloques += `<span class="badge text-white fs-6 px-3 py-2 shadow-sm rounded-pill formula-token-var">
+                        <i class="fas fa-cube me-1 opacity-50"></i>${token.textoVisual}
+                    </span>`;
+                }
+            });
+
+            if (window.formulasActivas[mId].length === 0) {
+                htmlBloques = '<span class="text-muted" style="opacity: 0.6;">Construye tu fórmula aquí...</span>';
+            }
+
+            display.innerHTML = htmlBloques;
+
+            const contenedor = document.getElementById('contenedorVariables-' + mId);
+
+            if (contenedor) {
+                contenedor.querySelectorAll('.select-comportamiento').forEach(select => {
+                    if (select.value === 'Calculado') {
+                        const inputFormula = select.closest('.row').querySelector('.formula-real');
+
+                        if (inputFormula) {
+                            inputFormula.value = formulaParaCSharp;
+                        }
+                    }
+                });
+            }
+        }
+
+        function sincronizarVariablesModal(mId) {
+            const contenedor = document.getElementById('contenedorVariables-' + mId);
+
+            if (!contenedor) return;
+
+            const nombres = contenedor.querySelectorAll('input[name="nombresVariables"]');
+            const editorArea = document.getElementById('areaEditorFormula-' + mId);
+
+            if (!editorArea) return;
+
+            editorArea.querySelectorAll('.select-var-formula').forEach(select => {
+                let valorActual = select.value;
+
+                select.innerHTML = '<option value="">+ Variable al lienzo...</option>';
+
+                nombres.forEach((input, index) => {
+                    if (input.value) {
+                        select.innerHTML += `<option value="${index + 1}">${input.value}</option>`;
+                    }
+                });
+
+                select.value = valorActual;
+            });
+
+            if (window.formulasActivas[mId] && window.formulasActivas[mId].length > 0) {
+                window.formulasActivas[mId].forEach(token => {
+                    if (token.tipo === 'var') {
+                        let varIndex = parseInt(token.valorReal.replace('[', '').replace(']', ''));
+
+                        token.textoVisual = nombres[varIndex - 1]
+                            ? (nombres[varIndex - 1].value || `Var ${varIndex}`)
+                            : `Var ${varIndex}`;
+                    }
+                });
+
+                actualizarVistaFormulaModal(mId);
+            }
+
+            sincronizarVariableTarjetaGestor(mId);
+        }
+    </script>
+}
