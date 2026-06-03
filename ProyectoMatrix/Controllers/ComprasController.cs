@@ -272,6 +272,11 @@ WHERE ED.UsuarioID = @UsuarioID
                 ModelState.AddModelError("", "Debes agregar al menos un material a la lista.");
             }
 
+            if (string.IsNullOrWhiteSpace(model.NombreProyecto))
+            {
+                ModelState.AddModelError("NombreProyecto", "Debes capturar el nombre del proyecto.");
+            }
+
             if (!ModelState.IsValid)
             {
                 await CargarCatalogosAsync(usuarioId);
@@ -396,6 +401,8 @@ WHERE SolicitudID = @SolicitudID";
                                     }
                                 }
                             }
+
+
 
                             int? compradorAsignadoId = await ObtenerCompradorConMenosCargaAsync(
                                 conn,
@@ -3127,10 +3134,12 @@ VALUES
 
             var vm = new CuentasPorPagarVm();
 
-            string sql = @"
+            string sqlPendientes = @"
 SELECT
     S.SolicitudID,
     S.Folio,
+    S.EstatusID,
+    EC.Nombre AS Estatus,
     P.Nombre + ' ' + P.ApellidoPaterno AS Solicitante,
     E.Nombre AS Empresa,
     ISNULL(D.NombreDepartamento, 'Sin departamento') AS Departamento,
@@ -3141,11 +3150,14 @@ SELECT
     EU.NombreRecibe,
     S.TipoGasto,
     S.NumeroRequisicion,
-    S.FechaDictamen
+    S.FechaDictamen,
+    NULL AS FechaCierreCxP,
+    NULL AS ComentariosCxP
 FROM Compras_Solicitud S
 INNER JOIN Usuarios U ON S.UsuarioID = U.UsuarioID
 INNER JOIN Persona P ON U.PersonaID = P.PersonaID
 INNER JOIN Empresas E ON S.EmpresaID = E.EmpresaID
+INNER JOIN Cat_EstatusCompra EC ON S.EstatusID = EC.EstatusID
 LEFT JOIN EmpleadoDepartamentos ED ON U.UsuarioID = ED.UsuarioID AND ED.Activo = 1
 LEFT JOIN Departamentos D ON ED.DepartamentoID = D.DepartamentoID
 LEFT JOIN Compras_Cotizaciones C ON S.CotizacionSeleccionadaID = C.CotizacionID
@@ -3158,7 +3170,6 @@ OUTER APPLY (
       AND Activo = 1
     ORDER BY OrdenCompraID DESC
 ) OC
-
 OUTER APPLY (
     SELECT TOP 1
         FechaEntrega,
@@ -3171,68 +3182,120 @@ OUTER APPLY (
 WHERE S.EstatusID = 8
 ORDER BY EU.FechaEntrega ASC";
 
-            using var cmd = new SqlCommand(sql, conn);
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
+            using (var cmd = new SqlCommand(sqlPendientes, conn))
+            using (var reader = await cmd.ExecuteReaderAsync())
             {
-                vm.Pendientes.Add(new CuentasPorPagarItemVm
+                while (await reader.ReadAsync())
                 {
-                    SolicitudID = (int)reader["SolicitudID"],
-                    Folio = reader["Folio"] == DBNull.Value ? "" : reader["Folio"].ToString(),
-                    Solicitante = reader["Solicitante"] == DBNull.Value ? "" : reader["Solicitante"].ToString(),
-                    Empresa = reader["Empresa"] == DBNull.Value ? "" : reader["Empresa"].ToString(),
-                    Departamento = reader["Departamento"] == DBNull.Value ? "" : reader["Departamento"].ToString(),
-                    Proveedor = reader["Proveedor"] == DBNull.Value ? "" : reader["Proveedor"].ToString(),
-                    MontoTotal = reader["MontoTotal"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["MontoTotal"]),
-                    NumeroOC = reader["NumeroOC"] == DBNull.Value ? "" : reader["NumeroOC"].ToString(),
-                    FechaEntregaUsuario = reader["FechaEntrega"] == DBNull.Value ? null : (DateTime?)reader["FechaEntrega"],
-                    NombreRecibeUsuario = reader["NombreRecibe"] == DBNull.Value ? "" : reader["NombreRecibe"].ToString(),
-                    TipoGasto = reader["TipoGasto"] == DBNull.Value ? "" : reader["TipoGasto"].ToString(),
-                    NumeroRequisicion = reader["NumeroRequisicion"] == DBNull.Value ? "" : reader["NumeroRequisicion"].ToString(),
-                    FechaDictamen = reader["FechaDictamen"] == DBNull.Value ? null : (DateTime?)reader["FechaDictamen"]
-                });
+                    vm.Pendientes.Add(new CuentasPorPagarItemVm
+                    {
+                        SolicitudID = (int)reader["SolicitudID"],
+                        Folio = reader["Folio"] == DBNull.Value ? "" : reader["Folio"].ToString(),
+                        EstatusID = reader["EstatusID"] == DBNull.Value ? 0 : Convert.ToInt32(reader["EstatusID"]),
+                        Estatus = reader["Estatus"] == DBNull.Value ? "" : reader["Estatus"].ToString(),
+                        Solicitante = reader["Solicitante"] == DBNull.Value ? "" : reader["Solicitante"].ToString(),
+                        Empresa = reader["Empresa"] == DBNull.Value ? "" : reader["Empresa"].ToString(),
+                        Departamento = reader["Departamento"] == DBNull.Value ? "" : reader["Departamento"].ToString(),
+                        Proveedor = reader["Proveedor"] == DBNull.Value ? "" : reader["Proveedor"].ToString(),
+                        MontoTotal = reader["MontoTotal"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["MontoTotal"]),
+                        NumeroOC = reader["NumeroOC"] == DBNull.Value ? "" : reader["NumeroOC"].ToString(),
+                        FechaEntregaUsuario = reader["FechaEntrega"] == DBNull.Value ? null : (DateTime?)reader["FechaEntrega"],
+                        NombreRecibeUsuario = reader["NombreRecibe"] == DBNull.Value ? "" : reader["NombreRecibe"].ToString(),
+                        TipoGasto = reader["TipoGasto"] == DBNull.Value ? "" : reader["TipoGasto"].ToString(),
+                        NumeroRequisicion = reader["NumeroRequisicion"] == DBNull.Value ? "" : reader["NumeroRequisicion"].ToString(),
+                        FechaDictamen = reader["FechaDictamen"] == DBNull.Value ? null : (DateTime?)reader["FechaDictamen"],
+                        FechaCierreCxP = null,
+                        ComentariosCxP = null
+                    });
+                }
+            }
+
+            string sqlHistorico = @"
+SELECT
+    S.SolicitudID,
+    S.Folio,
+    S.EstatusID,
+    EC.Nombre AS Estatus,
+    P.Nombre + ' ' + P.ApellidoPaterno AS Solicitante,
+    E.Nombre AS Empresa,
+    ISNULL(D.NombreDepartamento, 'Sin departamento') AS Departamento,
+    C.Proveedor,
+    C.MontoTotal,
+    OC.NumeroOC,
+    EU.FechaEntrega,
+    EU.NombreRecibe,
+    S.TipoGasto,
+    S.NumeroRequisicion,
+    S.FechaDictamen,
+    HCXP.FechaMovimiento AS FechaCierreCxP,
+    S.ObservacionesPresupuesto AS ComentariosCxP
+FROM Compras_Solicitud S
+INNER JOIN Usuarios U ON S.UsuarioID = U.UsuarioID
+INNER JOIN Persona P ON U.PersonaID = P.PersonaID
+INNER JOIN Empresas E ON S.EmpresaID = E.EmpresaID
+INNER JOIN Cat_EstatusCompra EC ON S.EstatusID = EC.EstatusID
+LEFT JOIN EmpleadoDepartamentos ED ON U.UsuarioID = ED.UsuarioID AND ED.Activo = 1
+LEFT JOIN Departamentos D ON ED.DepartamentoID = D.DepartamentoID
+LEFT JOIN Compras_Cotizaciones C ON S.CotizacionSeleccionadaID = C.CotizacionID
+OUTER APPLY (
+    SELECT TOP 1
+        NumeroOC,
+        Proveedor
+    FROM Compras_OrdenCompra
+    WHERE SolicitudID = S.SolicitudID
+      AND Activo = 1
+    ORDER BY OrdenCompraID DESC
+) OC
+OUTER APPLY (
+    SELECT TOP 1
+        FechaEntrega,
+        NombreRecibe
+    FROM Compras_EntregasUsuario
+    WHERE SolicitudID = S.SolicitudID
+      AND Activo = 1
+    ORDER BY EntregaID DESC
+) EU
+OUTER APPLY (
+    SELECT TOP 1 FechaMovimiento
+    FROM Compras_Historico_Pasos
+    WHERE SolicitudID = S.SolicitudID
+      AND EstatusID IN (10, 11)
+    ORDER BY FechaMovimiento DESC
+) HCXP
+WHERE S.EstatusID IN (10, 11)
+ORDER BY HCXP.FechaMovimiento DESC, S.FechaCreacion DESC";
+
+            using (var cmd = new SqlCommand(sqlHistorico, conn))
+            using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    vm.Historico.Add(new CuentasPorPagarItemVm
+                    {
+                        SolicitudID = (int)reader["SolicitudID"],
+                        Folio = reader["Folio"] == DBNull.Value ? "" : reader["Folio"].ToString(),
+                        EstatusID = reader["EstatusID"] == DBNull.Value ? 0 : Convert.ToInt32(reader["EstatusID"]),
+                        Estatus = reader["Estatus"] == DBNull.Value ? "" : reader["Estatus"].ToString(),
+                        Solicitante = reader["Solicitante"] == DBNull.Value ? "" : reader["Solicitante"].ToString(),
+                        Empresa = reader["Empresa"] == DBNull.Value ? "" : reader["Empresa"].ToString(),
+                        Departamento = reader["Departamento"] == DBNull.Value ? "" : reader["Departamento"].ToString(),
+                        Proveedor = reader["Proveedor"] == DBNull.Value ? "" : reader["Proveedor"].ToString(),
+                        MontoTotal = reader["MontoTotal"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["MontoTotal"]),
+                        NumeroOC = reader["NumeroOC"] == DBNull.Value ? "" : reader["NumeroOC"].ToString(),
+                        FechaEntregaUsuario = reader["FechaEntrega"] == DBNull.Value ? null : (DateTime?)reader["FechaEntrega"],
+                        NombreRecibeUsuario = reader["NombreRecibe"] == DBNull.Value ? "" : reader["NombreRecibe"].ToString(),
+                        TipoGasto = reader["TipoGasto"] == DBNull.Value ? "" : reader["TipoGasto"].ToString(),
+                        NumeroRequisicion = reader["NumeroRequisicion"] == DBNull.Value ? "" : reader["NumeroRequisicion"].ToString(),
+                        FechaDictamen = reader["FechaDictamen"] == DBNull.Value ? null : (DateTime?)reader["FechaDictamen"],
+                        FechaCierreCxP = reader["FechaCierreCxP"] == DBNull.Value ? null : (DateTime?)reader["FechaCierreCxP"],
+                        ComentariosCxP = reader["ComentariosCxP"] == DBNull.Value ? "" : reader["ComentariosCxP"].ToString()
+                    });
+                }
             }
 
             return View(vm);
         }
 
-        [HttpGet("DetalleCuentasPorPagar/{id}")]
-        public async Task<IActionResult> DetalleCuentasPorPagar(int id)
-        {
-            int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0) return Unauthorized();
-
-            using (var conn = new SqlConnection(_connectionString))
-            {
-                await conn.OpenAsync();
-
-                bool perteneceCxP = await UsuarioPerteneceADepartamentoAsync(
-                    conn,
-                    usuarioId,
-                    "CUENTAS POR PAGAR",
-                    "CXP"
-                );
-
-                if (!perteneceCxP)
-                    return Forbid();
-            }
-
-            var resultado = await Detalle(id);
-
-            if (resultado is ViewResult viewResult && viewResult.Model is DetalleCompraVm vm)
-            {
-                if (vm.EstatusID != 8)
-                {
-                    TempData["Error"] = "Esta solicitud no está pendiente de Cuentas por Pagar.";
-                    return RedirectToAction("BandejaCuentasPorPagar");
-                }
-
-                return View(vm);
-            }
-
-            return resultado;
-        }
 
         [HttpPost("ValidarCuentasPorPagar")]
         [ValidateAntiForgeryToken]

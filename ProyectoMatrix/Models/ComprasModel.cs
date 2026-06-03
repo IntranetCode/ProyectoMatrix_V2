@@ -500,6 +500,7 @@
     public class CuentasPorPagarVm
     {
         public List<CuentasPorPagarItemVm> Pendientes { get; set; } = new();
+        public List<CuentasPorPagarItemVm> Historico { get; set; } = new();
     }
 
     public class CuentasPorPagarItemVm
@@ -518,6 +519,11 @@
         public string TipoGasto { get; set; }
         public string NumeroRequisicion { get; set; }
         public DateTime? FechaDictamen { get; set; }
+
+        public int EstatusID { get; set; }
+        public string Estatus { get; set; }
+        public string? ComentariosCxP { get; set; }
+        public DateTime? FechaCierreCxP { get; set; }
     }
 
     public class TiempoDepartamentoVm

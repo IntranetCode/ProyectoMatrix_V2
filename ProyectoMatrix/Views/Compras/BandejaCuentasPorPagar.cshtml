@@ -32,66 +32,173 @@
         </div>
 
         <div class="card-body">
-            @if (Model.Pendientes != null && Model.Pendientes.Any())
-            {
-                <div class="table-responsive">
-                    <table class="table table-bordered table-hover table-sm">
-                        <thead>
-                            <tr>
-                                <th>Folio</th>
-                                <th>Solicitante</th>
-                                <th>Empresa</th>
-                                <th>Proveedor</th>
-                                <th>Monto</th>
-                                <th>O.C.</th>
-                                <th>Tipo</th>
-                                <th>Fecha entrega</th>
-                                <th class="text-center">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in Model.Pendientes)
-                            {
-                                <tr>
-                                    <td class="font-weight-bold">@item.Folio</td>
-                                    <td>@item.Solicitante</td>
-                                    <td>@item.Empresa</td>
-                                    <td>@item.Proveedor</td>
-                                    <td>@item.MontoTotal.ToString("C")</td>
-                                    <td>@item.NumeroOC</td>
-                                    <td>
-                                        <span class="badge badge-primary">
-                                            @(string.IsNullOrEmpty(item.TipoGasto) ? "N/A" : item.TipoGasto)
-                                        </span>
+
+            <ul class="nav nav-tabs mb-4">
+                <li class="nav-item">
+                    <button class="nav-link active"
+                            data-bs-toggle="tab"
+                            data-bs-target="#tabPendientes"
+                            type="button">
+                        Pendientes
+                        <span class="badge bg-info ms-1">
+                            @(Model.Pendientes?.Count ?? 0)
+                        </span>
+                    </button>
+                </li>
+
+                <li class="nav-item">
+                    <button class="nav-link"
+                            data-bs-toggle="tab"
+                            data-bs-target="#tabHistorico"
+                            type="button">
+                        Histórico
+                        <span class="badge bg-secondary ms-1">
+                            @(Model.Historico?.Count ?? 0)
+                        </span>
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+
+                <div class="tab-pane fade show active" id="tabPendientes">
+                    @if (Model.Pendientes != null && Model.Pendientes.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Folio</th>
+                                        <th>Solicitante</th>
+                                        <th>Empresa</th>
+                                        <th>Proveedor</th>
+                                        <th>Monto</th>
+                                        <th>O.C.</th>
+                                        <th>Tipo</th>
+                                        <th>Fecha entrega</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in Model.Pendientes)
+                                    {
+                                        <tr>
+                                            <td class="font-weight-bold">@item.Folio</td>
+                                            <td>@item.Solicitante</td>
+                                            <td>@item.Empresa</td>
+                                            <td>@item.Proveedor</td>
+                                            <td>@item.MontoTotal.ToString("C")</td>
+                                            <td>@item.NumeroOC</td>
+                                            <td>
+                                                <span class="badge badge-primary">
+                                                    @(string.IsNullOrEmpty(item.TipoGasto) ? "N/A" : item.TipoGasto)
+                                                </span>
+                                            </td>
+                                            <td>
+                                                @(item.FechaEntregaUsuario.HasValue
+                                                                                        ? item.FechaEntregaUsuario.Value.ToString("dd/MM/yyyy HH:mm")
+                                                                                        : "N/A")
                                     </td>
-                                    <td>
-                                        @(item.FechaEntregaUsuario.HasValue
-                                                                        ? item.FechaEntregaUsuario.Value.ToString("dd/MM/yyyy HH:mm")
-                                                                        : "N/A")
-                            </td>
-                            <td class="text-center">
-                                <a asp-action="DetalleCuentasPorPagar"
-                                   asp-route-id="@item.SolicitudID"
-                                   class="btn btn-sm btn-outline-primary">
-                                    Ver expediente
-                                </a>
-                            </td>
-                        </tr>
-                                                }
-                        </tbody>
-                    </table>
+                                    <td class="text-center">
+                                        <a asp-action="DetalleCuentasPorPagar"
+                                           asp-route-id="@item.SolicitudID"
+                                           class="btn btn-sm btn-outline-primary">
+                                            Ver expediente
+                                        </a>
+                                    </td>
+                                </tr>
+                                                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            No hay solicitudes pendientes de validación por Cuentas por Pagar.
+                        </div>
+                    }
                 </div>
-            }
-            else
-            {
-                <div class="alert alert-info mb-0">
-                    No hay solicitudes pendientes de validación por Cuentas por Pagar.
+
+                <div class="tab-pane fade" id="tabHistorico">
+                    @if (Model.Historico != null && Model.Historico.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Folio</th>
+                                        <th>Solicitante</th>
+                                        <th>Empresa</th>
+                                        <th>Proveedor</th>
+                                        <th>Monto</th>
+                                        <th>O.C.</th>
+                                        <th>Tipo</th>
+                                        <th>Estatus</th>
+                                        <th>Fecha CxP</th>
+                                        <th class="text-center">Detalle</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in Model.Historico)
+                                    {
+                                        <tr>
+                                            <td class="font-weight-bold">@item.Folio</td>
+                                            <td>@item.Solicitante</td>
+                                            <td>@item.Empresa</td>
+                                            <td>@item.Proveedor</td>
+                                            <td>@item.MontoTotal.ToString("C")</td>
+                                            <td>@item.NumeroOC</td>
+                                            <td>
+                                                <span class="badge badge-primary">
+                                                    @(string.IsNullOrEmpty(item.TipoGasto) ? "N/A" : item.TipoGasto)
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge @(item.EstatusID == 10 ? "bg-success" : "bg-danger")">
+                                                    @item.Estatus
+                                                </span>
+                                            </td>
+                                            <td>
+                                                @(item.FechaCierreCxP.HasValue
+                                                                                        ? item.FechaCierreCxP.Value.ToString("dd/MM/yyyy HH:mm")
+                                                                                        : "N/A")
+                                    </td>
+                                    <td class="text-center">
+                                        <a asp-action="DetalleCuentasPorPagar"
+                                           asp-route-id="@item.SolicitudID"
+                                           class="btn btn-sm btn-outline-primary">
+                                            Ver
+                                        </a>
+                                    </td>
+                                </tr>
+
+                                @if (!string.IsNullOrWhiteSpace(item.ComentariosCxP))
+                                        {
+                                            <tr>
+                                                <td colspan="10">
+                                                    <small class="text-muted font-weight-bold">Comentarios CxP:</small>
+                                                    <div>@item.ComentariosCxP</div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            No hay solicitudes en el histórico de Cuentas por Pagar.
+                        </div>
+                    }
                 </div>
-            }
+
+            </div>
         </div>
     </div>
 </div>
-
 
 <style>
 

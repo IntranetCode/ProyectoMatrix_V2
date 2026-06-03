@@ -63,9 +63,13 @@
                         </select>
                     </div>
 
-                    <div class="col-md-4 form-group" id="divProyecto" style="display:none;">
+                    <div class="col-md-4 form-group" id="divProyecto">
                         <label class="font-weight-bold">Nombre del Proyecto</label>
-                        <input asp-for="NombreProyecto" id="txtNombreProyecto" class="form-control" placeholder="Nombre del proyecto destinado" />
+                        <input asp-for="NombreProyecto"
+                               id="txtNombreProyecto"
+                               class="form-control"
+                               placeholder="Nombre del proyecto destinado"
+                               required />
                     </div>
                 </div>
 
@@ -150,20 +154,21 @@
     <script>
         let matIndex = 0;
 
-               function cambiarTipoCompra(tipo) {
+                     function cambiarTipoCompra(tipo) {
             $('#hfTipoCompra').val(tipo);
+
             if (tipo === 'Internacional') {
                 $('#divTransporte').fadeIn();
-                $('#divProyecto').fadeIn(); // Mostrar campo Proyecto
                 $('#divTransporte select').attr('required', true);
-                $('#txtNombreProyecto').attr('required', true); // Hacerlo obligatorio solo aquí
             } else {
                 $('#divTransporte').fadeOut();
-                $('#divProyecto').fadeOut(); // Ocultar campo Proyecto
                 $('#divTransporte select').removeAttr('required').val('');
-                $('#txtNombreProyecto').removeAttr('required').val(''); // Quitar obligación y limpiar
             }
+
+            $('#divProyecto').show();
+            $('#txtNombreProyecto').attr('required', true);
         }
+        
 
         function agregarMaterial() {
             const nom = $('#txtMatNombre').val();

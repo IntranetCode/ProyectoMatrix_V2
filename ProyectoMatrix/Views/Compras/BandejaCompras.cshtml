@@ -171,9 +171,8 @@
 
                                     <a asp-action="Detalle"
                                        asp-route-id="@item.SolicitudID"
+                                       asp-route-returnUrl="@Context.Request.Path"
                                        class="btn btn-primary btn-sm shadow-sm">
-
-                                        <i class="fas fa-file-invoice-dollar fa-sm text-white-50"></i>
                                         Gestionar
                                     </a>
 
@@ -285,6 +284,7 @@
                                         <td>
                                             <a asp-action="Detalle"
                                                asp-route-id="@item.SolicitudID"
+                                               asp-route-returnUrl="@Context.Request.Path"
                                                class="btn btn-outline-primary btn-sm">
                                                 Ver
                                             </a>

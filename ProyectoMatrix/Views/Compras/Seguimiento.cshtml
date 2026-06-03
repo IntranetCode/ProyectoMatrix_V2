@@ -5,7 +5,16 @@
     Layout = "_LayoutComunicados";
 }
 
-<a asp-action="Index" class="btn btn-outline-secondary">
+@{
+    string returnUrl = Context.Request.Query["returnUrl"].ToString();
+
+    if (string.IsNullOrWhiteSpace(returnUrl))
+    {
+        returnUrl = Url.Action("Index", "Compras");
+    }
+}
+
+<a href="@returnUrl" class="btn btn-outline-secondary">
     Volver
 </a>
 
@@ -232,6 +241,7 @@
 
                                     <a asp-action="Detalle"
                                        asp-route-id="@item.SolicitudID"
+                                       asp-route-returnUrl="@Context.Request.Path"
                                        class="btn btn-sm btn-outline-primary">
                                         Ver
                                     </a>
