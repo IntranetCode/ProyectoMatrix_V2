@@ -1,0 +1,1089 @@
+@model List<ProyectoMatrix.Models.Departamento>
+
+@{
+    ViewData["Title"] = "Configurar Nueva Métrica";
+    Layout = "_LayoutComunicados";
+
+    var misPermisos = ViewBag.MisPermisos as List<int> ?? new List<int>();
+    bool puedeCrearMetrica = misPermisos.Contains(31);
+}
+
+<style>
+    .metric-builder-shell {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .builder-card {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(148,163,184,.25);
+        background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+        box-shadow: 0 18px 40px rgba(15,23,42,.10);
+    }
+
+    .builder-card::before {
+        content: "";
+        position: absolute;
+        width: 420px;
+        height: 420px;
+        top: -210px;
+        right: -180px;
+        background: radial-gradient(circle, rgba(37,99,235,.15), transparent 65%);
+        pointer-events: none;
+    }
+
+    .builder-card::after {
+        content: "";
+        position: absolute;
+        width: 360px;
+        height: 360px;
+        left: -170px;
+        bottom: -190px;
+        background: radial-gradient(circle, rgba(146,208,80,.16), transparent 65%);
+        pointer-events: none;
+    }
+
+    .builder-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .builder-header {
+        background: linear-gradient(135deg, #0f172a, #1e293b);
+        color: white;
+    }
+
+    .section-panel {
+        border: 1px solid rgba(148,163,184,.22);
+        background: #fff;
+        border-radius: 24px;
+        box-shadow: 0 12px 28px rgba(15,23,42,.07);
+        padding: 1.5rem;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: .65rem;
+        font-weight: 900;
+        color: #1e293b;
+        margin-bottom: .25rem;
+    }
+
+    .section-subtitle {
+        color: #64748b;
+        font-size: .92rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .step-badge {
+        width: 38px;
+        height: 38px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #2563eb, #06b6d4);
+        color: white;
+        font-weight: 900;
+        box-shadow: 0 10px 20px rgba(37,99,235,.20);
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 14px;
+        border: 1px solid rgba(148,163,184,.35);
+        font-weight: 700;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 .25rem rgba(37,99,235,.12);
+    }
+
+    .business-panel {
+        border-radius: 24px;
+        border: 1px solid rgba(14,165,233,.25);
+        border-left: 6px solid #06b6d4;
+        background: linear-gradient(135deg, #ecfeff, #ffffff);
+        box-shadow: 0 12px 28px rgba(15,23,42,.06);
+        padding: 1.35rem;
+    }
+
+    .variables-panel {
+        border-radius: 24px;
+        border: 1px solid rgba(148,163,184,.22);
+        background: linear-gradient(135deg, #ffffff, #f8fafc);
+        box-shadow: 0 12px 28px rgba(15,23,42,.07);
+        padding: 1.5rem;
+    }
+
+    .variable-item {
+        border-radius: 22px !important;
+        border: 1px solid rgba(148,163,184,.25) !important;
+        background: #fff;
+        transition: all .2s ease;
+    }
+
+    .variable-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(15,23,42,.08) !important;
+    }
+
+    .num-var {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #0f172a !important;
+    }
+
+    .btn-future {
+        position: relative;
+        overflow: hidden;
+        border: 0;
+        border-radius: 16px;
+        font-weight: 800;
+        letter-spacing: .2px;
+        transition: all .22s ease;
+        box-shadow: 0 12px 24px rgba(15,23,42,.14);
+    }
+
+    .btn-future::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,.35) 45%, transparent 70%);
+        transform: translateX(-120%);
+        transition: transform .6s ease;
+    }
+
+    .btn-future:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 18px 34px rgba(15,23,42,.22);
+    }
+
+    .btn-future:hover::before {
+        transform: translateX(120%);
+    }
+
+    .btn-future-primary {
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #0891b2, #06b6d4);
+    }
+
+    .btn-future-success {
+        color: #111;
+        background: linear-gradient(135deg, #92D050, #b8f06f, #7ec63d);
+    }
+
+    .btn-future-danger {
+        color: white;
+        background: linear-gradient(135deg, #ef4444, #dc2626, #991b1b);
+    }
+
+    .btn-ghost-future {
+        border-radius: 14px;
+        font-weight: 800;
+        border: 1px solid rgba(148,163,184,.45);
+        background: rgba(255,255,255,.88);
+        backdrop-filter: blur(10px);
+        transition: all .2s ease;
+    }
+
+    .btn-ghost-future:hover {
+        transform: translateY(-2px);
+        border-color: rgba(37,99,235,.4);
+        box-shadow: 0 10px 22px rgba(15,23,42,.12);
+    }
+
+    .formula-panel {
+        border-radius: 24px;
+        border: 1px solid rgba(14,165,233,.28);
+        background: linear-gradient(135deg, #ffffff, #ecfeff);
+        box-shadow: 0 12px 28px rgba(15,23,42,.07);
+    }
+
+    .formula-canvas {
+        min-height: 86px;
+        background-color: #f8fafc;
+        border: 2px dashed #06b6d4;
+        border-radius: 18px;
+        padding: 15px;
+    }
+
+    .formula-token-op {
+        background: #475569;
+    }
+
+    .formula-token-num {
+        background: #059669;
+    }
+
+    .formula-token-var {
+        background: #2563eb;
+    }
+
+    .hint-card {
+        border-radius: 20px;
+        border: 1px solid rgba(148,163,184,.20);
+        background: #f8fafc;
+        padding: 1rem;
+    }
+
+    .permission-card {
+        border-radius: 24px;
+        border: 1px solid rgba(245,158,11,.25);
+        background: linear-gradient(135deg, #fffbeb, #ffffff);
+    }
+
+    .variable-unit-box {
+        border-radius: 18px;
+        border: 1px dashed rgba(14,165,233,.28);
+        background: linear-gradient(135deg, #f8fafc, #ffffff);
+        padding: 1rem;
+    }
+
+    .unit-helper {
+        font-size: .78rem;
+        line-height: 1.25;
+        color: #64748b;
+    }
+
+</style>
+
+<div class="container-fluid px-4 my-5 metric-builder-shell">
+    @if (TempData["Mensaje"] != null)
+    {
+        <div class="alert alert-@TempData["Tipo"] alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas @(TempData["Tipo"]?.ToString() == "success" ? "fa-check-circle" : "fa-exclamation-triangle") me-2"></i>
+            @TempData["Mensaje"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (!puedeCrearMetrica)
+    {
+        <div class="permission-card shadow-sm text-center py-5 px-4">
+            <i class="fas fa-ban fa-2x mb-3 text-warning"></i>
+            <h4 class="mb-2 fw-bold">No tienes permiso para crear nuevas métricas.</h4>
+            <p class="mb-0 text-muted">Contacta a tu administrador si necesitas acceso.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row justify-content-center">
+            <div class="col-12 col-xxl-10">
+                <div class="card builder-card border-0 rounded-4 overflow-hidden">
+                    <div class="card-header builder-header py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                        <div>
+                            <h4 class="mb-0 fw-bold">
+                                <i class="fas fa-plus-circle me-2 text-info"></i> Diseñador de Métricas KPI
+                            </h4>
+                            <small class="opacity-75">
+                                Crea una métrica con variables manuales, fijas o calculadas.
+                            </small>
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a href="/Operaciones/GestorMetricas" class="btn btn-sm btn-light fw-bold rounded-pill px-3 shadow-sm">
+                                <i class="fas fa-cogs me-1 text-primary"></i> Gestor
+                            </a>
+
+                            <a href="/Operaciones/Index" class="btn btn-sm btn-outline-light fw-bold rounded-pill px-3">
+                                <i class="fas fa-chart-bar me-1"></i> Ver Tablero
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="card-body p-4 p-md-5 builder-content">
+
+                        <form action="/Operaciones/GuardarMetrica" method="post">
+
+                            <div class="section-panel mb-4">
+                                <div class="d-flex align-items-start gap-3 mb-3">
+                                    <span class="step-badge">1</span>
+                                    <div>
+                                        <h5 class="section-title mb-1">Información general</h5>
+                                        <p class="section-subtitle mb-0">
+                                            Define el nombre, área responsable, frecuencia y unidad del KPI.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Nombre del KPI</label>
+                                        <input type="text"
+                                               name="NombreMetrica"
+                                               class="form-control shadow-sm"
+                                               placeholder="Ej. Entregas a Tiempo"
+                                               required />
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Área responsable</label>
+
+                                        @if (Model != null && Model.Count == 1)
+                                        {
+                                            var miDepto = Model.First();
+
+                                            <select class="form-select shadow-sm bg-light text-muted fw-bold border-secondary" disabled>
+                                                <option value="@miDepto.DepartamentoID">@miDepto.NombreDepartamento</option>
+                                            </select>
+
+                                            <input type="hidden" name="DepartamentoID" value="@miDepto.DepartamentoID" />
+                                        }
+                                        else
+                                        {
+                                            <select name="DepartamentoID" class="form-select shadow-sm" required>
+                                                <option value="">Selecciona el área</option>
+
+                                                @if (Model != null)
+                                                {
+                                                    foreach (var d in Model)
+                                                    {
+                                                        <option value="@d.DepartamentoID">@d.NombreDepartamento</option>
+                                                    }
+                                                }
+                                            </select>
+                                        }
+                                    </div>
+
+                                    <div class="col-md-2">
+                                        <label class="form-label fw-bold">Frecuencia</label>
+                                        <select name="Frecuencia" class="form-select shadow-sm" required>
+                                            <option value="Diario">Diaria</option>
+                                            <option value="Semanal">Semanal</option>
+                                            <option value="Mensual">Mensual</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-2">
+                                        <label class="form-label fw-bold">Tipo valor KPI</label>
+                                        <select name="TipoValor"
+                                                id="selectTipoValorKpi"
+                                                class="form-select shadow-sm"
+                                                onchange="actualizarUnidadKpi()"
+                                                required>
+                                            <option value="Porcentaje">Porcentaje (%)</option>
+                                            <option value="Moneda">Moneda ($)</option>
+                                            <option value="Entero">Entero / Cantidad</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Unidad base del KPI</label>
+                                        <select name="UnidadMedida"
+                                                id="selectUnidadMedidaKpi"
+                                                class="form-select shadow-sm"
+                                                onchange="actualizarUnidadPersonalizadaKpi()">
+                                            <option value="%">Porcentaje (%)</option>
+                                        </select>
+
+                                        <input type="text"
+                                               name="UnidadMedidaPersonalizada"
+                                               id="inputUnidadMedidaPersonalizadaKpi"
+                                               class="form-control shadow-sm mt-2 d-none"
+                                               placeholder="Ej. cajas, litros, mantenimientos..." />
+
+                                        <small class="unit-helper d-block mt-1" id="ayudaUnidadKpi">
+                                            Esta será la unidad por defecto para las variables.
+                                        </small>
+                                    </div>
+
+                                    <div class="col-md-8">
+                                        <div class="alert alert-info border-0 rounded-4 mb-0 h-100 d-flex align-items-center">
+                                            <div>
+                                                <i class="fas fa-circle-info me-2"></i>
+                                                Las variables pueden heredar esta unidad o tener una unidad propia.
+                                                Ejemplo: KPI en <strong>Días</strong>, pero variable <strong>Viajes Solicitados</strong> en <strong>Viajes</strong>.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="business-panel mb-4">
+                                <div class="d-flex align-items-start gap-3 mb-3">
+                                    <span class="step-badge" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">2</span>
+                                    <div>
+                                        <h5 class="section-title mb-1">
+                                            Inteligencia de negocio
+                                        </h5>
+                                        <p class="section-subtitle mb-0">
+                                            Define la meta y el comportamiento del semáforo para evaluar el resultado.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold text-dark">Meta propuesta / esperada</label>
+                                        <div class="input-group shadow-sm">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-bullseye text-secondary"></i>
+                                            </span>
+                                            <input type="number"
+                                                   step="0.01"
+                                                   name="MetaEsperada"
+                                                   class="form-control"
+                                                   placeholder="Ej. 95.00 o 0.50" />
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold text-dark">Sentido de evaluación</label>
+                                        <div class="input-group shadow-sm">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-compress-alt text-secondary"></i>
+                                            </span>
+                                            <select name="SentidoMeta" class="form-select fw-bold text-secondary">
+                                                <option value="MayorMejor">Entre mayor sea el resultado, es mejor</option>
+                                                <option value="MenorMejor">Entre menor sea el resultado, es mejor</option>
+                                                <option value="Exacto">Debe ser exactamente igual a la meta</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="variables-panel mt-4">
+                                <div class="d-flex align-items-start gap-3 mb-4">
+                                    <span class="step-badge" style="background: linear-gradient(135deg, #92D050, #65a30d); color:#111;">3</span>
+                                    <div>
+                                        <h5 class="section-title mb-1">
+                                            Configuración de variables
+                                        </h5>
+                                        <p class="section-subtitle mb-0">
+                                            Agrega los valores que formarán el KPI. Puedes usar variables manuales, fijas o auto-calculadas.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="hint-card mb-4">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <strong class="text-primary">
+                                                <i class="fas fa-keyboard me-1"></i> Manual
+                                            </strong>
+                                            <div class="small text-muted">El usuario captura el valor.</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <strong class="text-success">
+                                                <i class="fas fa-lock me-1"></i> Fijo
+                                            </strong>
+                                            <div class="small text-muted">El sistema usa un valor configurado.</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <strong class="text-info">
+                                                <i class="fas fa-calculator me-1"></i> Calculado
+                                            </strong>
+                                            <div class="small text-muted">El resultado se obtiene mediante fórmula.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="contenedorVariables">
+                                    <div class="variable-item bg-white p-3 rounded-3 border mb-3 shadow-sm position-relative">
+                                        <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-dark num-var">1</span>
+
+                                        <div class="row g-3 align-items-end">
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-bold text-muted mb-1">Nombre</label>
+                                                <input type="text"
+                                                       name="nombresVariables"
+                                                       class="form-control var-name"
+                                                       placeholder="Ej. Entregas correctas"
+                                                       onkeyup="sincronizarVariables()"
+                                                       required>
+                                            </div>
+
+                                            <div class="col-md-2">
+                                                <label class="form-label small fw-bold text-muted mb-1">Diseño</label>
+                                                <select name="variablesEsLinea" class="form-select">
+                                                    <option value="false">Barra</option>
+                                                    <option value="true">Línea</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <label class="form-label small fw-bold text-muted mb-1">Tipo de captura</label>
+                                                <select name="tiposCaptura"
+                                                        class="form-select select-comportamiento"
+                                                        onchange="cambiarComportamiento(this)">
+                                                    <option value="Manual">Manual</option>
+                                                    <option value="Fijo">Valor fijo</option>
+                                                    <option value="Calculado">Auto-calculado</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="col-md-3 contenedor-extra">
+                                                <input type="hidden" name="valoresFijos" value="">
+                                                <input type="hidden" name="formulas" class="formula-real" value="">
+                                            </div>
+                                        </div>
+
+                                        <div class="variable-unit-box mt-3">
+                                            <div class="row g-3 align-items-end">
+                                                <div class="col-md-4">
+                                                    <label class="form-label small fw-bold text-muted mb-1">Tipo valor de variable</label>
+                                                    <select name="tiposValorVariables"
+                                                            class="form-select tipo-valor-variable"
+                                                            onchange="actualizarUnidadVariable(this)">
+                                                        <option value="">Heredar del KPI</option>
+                                                        <option value="Porcentaje">Porcentaje (%)</option>
+                                                        <option value="Moneda">Moneda ($)</option>
+                                                        <option value="Entero">Entero / Cantidad</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-md-4">
+                                                    <label class="form-label small fw-bold text-muted mb-1">Unidad de variable</label>
+                                                    <select name="unidadesMedidaVariables"
+                                                            class="form-select unidad-medida-variable"
+                                                            onchange="actualizarUnidadPersonalizadaVariable(this)">
+                                                        <option value="">Heredar unidad del KPI</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-md-4">
+                                                    <label class="form-label small fw-bold text-muted mb-1">Unidad personalizada</label>
+                                                    <input type="text"
+                                                           name="unidadesMedidaVariablesPersonalizadas"
+                                                           class="form-control unidad-medida-variable-personalizada d-none"
+                                                           placeholder="Ej. pallets, reportes, servicios..." />
+                                                    <small class="unit-helper nota-unidad-variable">
+                                                        Usará la unidad base del KPI.
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button type="button"
+                                        class="btn btn-ghost-future fw-bold mt-2 mb-4"
+                                        onclick="agregarVariable()">
+                                    <i class="fas fa-plus me-1"></i> Añadir variable extra
+                                </button>
+
+                                <div id="areaEditorFormula" class="formula-panel p-4 d-none animate__animated animate__fadeIn">
+                                    <h6 class="fw-bold text-info mb-1">
+                                        <i class="fas fa-cubes me-2"></i> Constructor visual de fórmulas
+                                    </h6>
+                                    <p class="small text-muted mb-3">
+                                        Haz clic en operadores, variables o números para armar la fórmula. El sistema guardará la versión técnica automáticamente.
+                                    </p>
+
+                                    <div id="display-formula" class="form-control mb-4 d-flex flex-wrap gap-2 align-items-center formula-canvas">
+                                        <span class="text-muted" style="opacity: 0.6;">Construye tu fórmula aquí...</span>
+                                    </div>
+
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold text-muted">Operadores</label>
+                                            <div class="btn-group w-100 shadow-sm" role="group">
+                                                <button type="button" class="btn btn-outline-secondary fw-bold fs-5" onclick="agregarOperador('+')">+</button>
+                                                <button type="button" class="btn btn-outline-secondary fw-bold fs-5" onclick="agregarOperador('-')">-</button>
+                                                <button type="button" class="btn btn-outline-secondary fw-bold fs-5" onclick="agregarOperador('*')">×</button>
+                                                <button type="button" class="btn btn-outline-secondary fw-bold fs-5" onclick="agregarOperador('/')">÷</button>
+                                                <button type="button" class="btn btn-outline-secondary fw-bold fs-5" onclick="agregarOperador('(')">(</button>
+                                                <button type="button" class="btn btn-outline-secondary fw-bold fs-5" onclick="agregarOperador(')')">)</button>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold text-muted">Variables disponibles</label>
+                                            <select class="form-select select-var-formula shadow-sm border-primary"
+                                                    style="border-width: 2px;"
+                                                    onchange="agregarVariableAFórmula(this)">
+                                                <option value="">+ Insertar variable al lienzo...</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold text-muted">Número fijo</label>
+                                            <div class="input-group shadow-sm">
+                                                <input type="number"
+                                                       id="input-numero"
+                                                       class="form-control border-success"
+                                                       style="border-width: 2px;"
+                                                       placeholder="Escribe un número fijo...">
+                                                <button type="button" class="btn btn-success fw-bold" onclick="agregarNumero()">
+                                                    Agregar #
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold text-muted">Acciones</label>
+                                            <div class="d-flex gap-2">
+                                                <button type="button"
+                                                        class="btn btn-warning w-50 fw-bold shadow-sm text-dark"
+                                                        onclick="borrarUltimo()">
+                                                    <i class="fas fa-backspace me-1"></i> Deshacer
+                                                </button>
+
+                                                <button type="button"
+                                                        class="btn btn-danger w-50 fw-bold shadow-sm"
+                                                        onclick="limpiarFormula()">
+                                                    <i class="fas fa-trash me-1"></i> Borrar todo
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-grid mt-5">
+                                <button type="submit" class="btn btn-future btn-future-primary btn-lg fw-bold py-3">
+                                    <i class="fas fa-save me-2"></i> Crear métrica
+                                </button>
+                            </div>
+                        </form>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        let contadorVariables = 1;
+        let formulaTokens = [];
+
+        const unidadesEnteras = [
+            { valor: 'Unidades', texto: 'Unidades' },
+            { valor: 'Días', texto: 'Días' },
+            { valor: 'Horas', texto: 'Horas' },
+            { valor: 'Minutos', texto: 'Minutos' },
+            { valor: 'Segundos', texto: 'Segundos' },
+            { valor: 'Piezas', texto: 'Piezas' },
+            { valor: 'Pedidos', texto: 'Pedidos' },
+            { valor: 'Viajes', texto: 'Viajes' },
+            { valor: 'Personas', texto: 'Personas' },
+            { valor: 'Kilómetros', texto: 'Kilómetros' },
+            { valor: 'Metros', texto: 'Metros' },
+            { valor: 'Litros', texto: 'Litros' },
+            { valor: 'Cajas', texto: 'Cajas' },
+            { valor: 'Servicios', texto: 'Servicios' },
+            { valor: 'Otro', texto: 'Otro...' }
+        ];
+
+        document.addEventListener('DOMContentLoaded', function () {
+            actualizarUnidadKpi();
+            inicializarUnidadesVariables();
+        });
+
+        function poblarUnidades(select, tipoValor, incluirHeredar) {
+            select.innerHTML = '';
+
+            if (incluirHeredar) {
+                select.innerHTML += '<option value="">Heredar unidad del KPI</option>';
+            }
+
+            if (tipoValor === 'Porcentaje') {
+                select.innerHTML += '<option value="%">Porcentaje (%)</option>';
+                return;
+            }
+
+            if (tipoValor === 'Moneda') {
+                select.innerHTML += '<option value="$">Pesos mexicanos ($)</option>';
+                return;
+            }
+
+            unidadesEnteras.forEach(u => {
+                select.innerHTML += `<option value="${u.valor}">${u.texto}</option>`;
+            });
+        }
+
+        function actualizarUnidadKpi() {
+            const tipo = document.getElementById('selectTipoValorKpi').value;
+            const unidad = document.getElementById('selectUnidadMedidaKpi');
+            const inputOtro = document.getElementById('inputUnidadMedidaPersonalizadaKpi');
+            const ayuda = document.getElementById('ayudaUnidadKpi');
+
+            poblarUnidades(unidad, tipo, false);
+
+            if (tipo === 'Porcentaje') {
+                unidad.value = '%';
+                ayuda.innerText = 'Los valores del KPI se mostrarán con símbolo %.';
+            }
+            else if (tipo === 'Moneda') {
+                unidad.value = '$';
+                ayuda.innerText = 'Los valores del KPI se mostrarán como moneda.';
+            }
+            else {
+                unidad.value = 'Unidades';
+                ayuda.innerText = 'Esta será la unidad por defecto para las variables que hereden del KPI.';
+            }
+
+            inputOtro.classList.add('d-none');
+            inputOtro.value = '';
+
+            sincronizarNotasUnidadesVariables();
+        }
+
+        function actualizarUnidadPersonalizadaKpi() {
+            const unidad = document.getElementById('selectUnidadMedidaKpi');
+            const inputOtro = document.getElementById('inputUnidadMedidaPersonalizadaKpi');
+
+            if (unidad.value === 'Otro') {
+                inputOtro.classList.remove('d-none');
+                inputOtro.focus();
+            } else {
+                inputOtro.classList.add('d-none');
+                inputOtro.value = '';
+            }
+
+            sincronizarNotasUnidadesVariables();
+        }
+
+        function inicializarUnidadesVariables() {
+            document.querySelectorAll('.tipo-valor-variable').forEach(select => {
+                actualizarUnidadVariable(select);
+            });
+        }
+
+        function actualizarUnidadVariable(selectTipo) {
+            const item = selectTipo.closest('.variable-item');
+            const unidad = item.querySelector('.unidad-medida-variable');
+            const inputOtro = item.querySelector('.unidad-medida-variable-personalizada');
+            const nota = item.querySelector('.nota-unidad-variable');
+
+            const tipo = selectTipo.value;
+
+            if (!tipo) {
+                unidad.innerHTML = '<option value="">Heredar unidad del KPI</option>';
+                inputOtro.classList.add('d-none');
+                inputOtro.value = '';
+                nota.innerText = 'Usará la unidad base del KPI.';
+                return;
+            }
+
+            poblarUnidades(unidad, tipo, false);
+
+            if (tipo === 'Porcentaje') {
+                unidad.value = '%';
+                nota.innerText = 'Esta variable se mostrará como porcentaje.';
+            }
+            else if (tipo === 'Moneda') {
+                unidad.value = '$';
+                nota.innerText = 'Esta variable se mostrará como moneda.';
+            }
+            else {
+                unidad.value = 'Unidades';
+                nota.innerText = 'Selecciona qué representa esta variable.';
+            }
+
+            inputOtro.classList.add('d-none');
+            inputOtro.value = '';
+        }
+
+        function actualizarUnidadPersonalizadaVariable(selectUnidad) {
+            const item = selectUnidad.closest('.variable-item');
+            const inputOtro = item.querySelector('.unidad-medida-variable-personalizada');
+            const nota = item.querySelector('.nota-unidad-variable');
+
+            if (selectUnidad.value === 'Otro') {
+                inputOtro.classList.remove('d-none');
+                inputOtro.focus();
+                nota.innerText = 'Escribe la unidad personalizada de esta variable.';
+            } else {
+                inputOtro.classList.add('d-none');
+                inputOtro.value = '';
+
+                if (selectUnidad.value) {
+                    nota.innerText = `Esta variable se mostrará como: ${selectUnidad.value}.`;
+                } else {
+                    nota.innerText = 'Usará la unidad base del KPI.';
+                }
+            }
+        }
+
+        function sincronizarNotasUnidadesVariables() {
+            document.querySelectorAll('.tipo-valor-variable').forEach(selectTipo => {
+                if (!selectTipo.value) {
+                    const item = selectTipo.closest('.variable-item');
+                    const nota = item.querySelector('.nota-unidad-variable');
+                    const unidadKpi = document.getElementById('selectUnidadMedidaKpi').value;
+                    const personalizada = document.getElementById('inputUnidadMedidaPersonalizadaKpi').value;
+                    const textoUnidad = unidadKpi === 'Otro' && personalizada ? personalizada : unidadKpi;
+
+                    nota.innerText = `Usará la unidad base del KPI${textoUnidad ? ': ' + textoUnidad : ''}.`;
+                }
+            });
+        }
+
+        function toggleEditorGlobal() {
+            const hayCalculado = Array.from(document.querySelectorAll('.select-comportamiento')).some(s => s.value === 'Calculado');
+            document.getElementById('areaEditorFormula').classList.toggle('d-none', !hayCalculado);
+        }
+
+        function cambiarComportamiento(selectElement) {
+            const contenedorExtra = selectElement.closest('.row').querySelector('.contenedor-extra');
+            const valor = selectElement.value;
+
+            if (valor === 'Fijo') {
+                contenedorExtra.innerHTML = `
+                    <label class="form-label small fw-bold text-primary">Valor</label>
+                    <input type="number" step="0.01" name="valoresFijos" class="form-control" required>
+                    <input type="hidden" name="formulas" class="formula-real" value="">`;
+            }
+            else if (valor === 'Calculado') {
+                contenedorExtra.innerHTML = `
+                    <input type="hidden" name="valoresFijos" value="">
+                    <input type="hidden" name="formulas" class="formula-real" value="">
+                    <div class="mt-4">
+                        <span class="badge bg-info text-dark p-2 w-100 rounded-pill">
+                            <i class="fas fa-arrow-down me-1"></i> Usa el editor visual
+                        </span>
+                    </div>`;
+
+                actualizarVistaFormula();
+            }
+            else {
+                contenedorExtra.innerHTML = `
+                    <input type="hidden" name="valoresFijos" value="">
+                    <input type="hidden" name="formulas" class="formula-real" value="">`;
+            }
+
+            toggleEditorGlobal();
+        }
+
+        function agregarVariable() {
+            contadorVariables++;
+
+            const div = document.createElement('div');
+            div.className = 'variable-item bg-white p-3 rounded-3 border mb-3 shadow-sm position-relative mt-3';
+
+            div.innerHTML = `
+                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-dark num-var">${contadorVariables}</span>
+
+                <button type="button"
+                        class="btn btn-sm btn-danger position-absolute top-0 end-0 translate-middle rounded-circle shadow"
+                        onclick="eliminarVariable(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1">Nombre</label>
+                        <input type="text"
+                               name="nombresVariables"
+                               class="form-control var-name"
+                               placeholder="Ej. Valor capturado"
+                               onkeyup="sincronizarVariables()"
+                               required>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Diseño</label>
+                        <select name="variablesEsLinea" class="form-select">
+                            <option value="false">Barra</option>
+                            <option value="true">Línea</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Tipo de captura</label>
+                        <select name="tiposCaptura"
+                                class="form-select select-comportamiento"
+                                onchange="cambiarComportamiento(this)">
+                            <option value="Manual">Manual</option>
+                            <option value="Fijo">Valor fijo</option>
+                            <option value="Calculado">Auto-calculado</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 contenedor-extra">
+                        <input type="hidden" name="valoresFijos" value="">
+                        <input type="hidden" name="formulas" class="formula-real" value="">
+                    </div>
+                </div>
+
+                <div class="variable-unit-box mt-3">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted mb-1">Tipo valor de variable</label>
+                            <select name="tiposValorVariables"
+                                    class="form-select tipo-valor-variable"
+                                    onchange="actualizarUnidadVariable(this)">
+                                <option value="">Heredar del KPI</option>
+                                <option value="Porcentaje">Porcentaje (%)</option>
+                                <option value="Moneda">Moneda ($)</option>
+                                <option value="Entero">Entero / Cantidad</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted mb-1">Unidad de variable</label>
+                            <select name="unidadesMedidaVariables"
+                                    class="form-select unidad-medida-variable"
+                                    onchange="actualizarUnidadPersonalizadaVariable(this)">
+                                <option value="">Heredar unidad del KPI</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted mb-1">Unidad personalizada</label>
+                            <input type="text"
+                                   name="unidadesMedidaVariablesPersonalizadas"
+                                   class="form-control unidad-medida-variable-personalizada d-none"
+                                   placeholder="Ej. pallets, reportes, servicios..." />
+                            <small class="unit-helper nota-unidad-variable">
+                                Usará la unidad base del KPI.
+                            </small>
+                        </div>
+                    </div>
+                </div>`;
+
+            document.getElementById('contenedorVariables').appendChild(div);
+
+            actualizarNumeros();
+            sincronizarVariables();
+            inicializarUnidadesVariables();
+        }
+
+        function eliminarVariable(boton) {
+            boton.closest('.variable-item').remove();
+            actualizarNumeros();
+            sincronizarVariables();
+            toggleEditorGlobal();
+        }
+
+        function actualizarNumeros() {
+            const items = document.querySelectorAll('.variable-item');
+            contadorVariables = items.length;
+
+            items.forEach((item, index) => {
+                item.querySelector('.num-var').innerText = index + 1;
+            });
+        }
+
+        function agregarOperador(op) {
+            formulaTokens.push({
+                tipo: 'op',
+                valorReal: op,
+                textoVisual: op
+            });
+
+            actualizarVistaFormula();
+        }
+
+        function agregarNumero() {
+            const input = document.getElementById('input-numero');
+
+            if (input.value) {
+                formulaTokens.push({
+                    tipo: 'num',
+                    valorReal: input.value,
+                    textoVisual: input.value
+                });
+
+                input.value = '';
+                actualizarVistaFormula();
+            }
+        }
+
+        function agregarVariableAFórmula(selectElement) {
+            if (selectElement.value) {
+                const nombreVariable = selectElement.options[selectElement.selectedIndex].text;
+
+                formulaTokens.push({
+                    tipo: 'var',
+                    valorReal: '[' + selectElement.value + ']',
+                    textoVisual: nombreVariable
+                });
+
+                selectElement.value = '';
+                actualizarVistaFormula();
+            }
+        }
+
+        function borrarUltimo() {
+            formulaTokens.pop();
+            actualizarVistaFormula();
+        }
+
+        function limpiarFormula() {
+            formulaTokens = [];
+            actualizarVistaFormula();
+        }
+
+        function actualizarVistaFormula() {
+            const display = document.getElementById('display-formula');
+
+            let htmlBloques = '';
+            let formulaParaCSharp = '';
+
+            formulaTokens.forEach(token => {
+                formulaParaCSharp += token.valorReal;
+
+                if (token.tipo === 'op') {
+                    htmlBloques += `<span class="badge text-white fs-5 px-3 py-2 shadow-sm rounded-3 formula-token-op">${token.textoVisual}</span>`;
+                }
+                else if (token.tipo === 'num') {
+                    htmlBloques += `<span class="badge text-white fs-5 px-3 py-2 shadow-sm rounded-pill formula-token-num">${token.textoVisual}</span>`;
+                }
+                else if (token.tipo === 'var') {
+                    htmlBloques += `<span class="badge text-white fs-5 px-3 py-2 shadow-sm rounded-pill formula-token-var">
+                        <i class="fas fa-cube me-2 opacity-50"></i>${token.textoVisual}
+                    </span>`;
+                }
+            });
+
+            if (formulaTokens.length === 0) {
+                htmlBloques = '<span class="text-muted" style="opacity: 0.6;">Construye tu fórmula aquí...</span>';
+            }
+
+            display.innerHTML = htmlBloques;
+
+            document.querySelectorAll('.select-comportamiento').forEach(select => {
+                if (select.value === 'Calculado') {
+                    const inputFormula = select.closest('.row').querySelector('.formula-real');
+
+                    if (inputFormula) {
+                        inputFormula.value = formulaParaCSharp;
+                    }
+                }
+            });
+        }
+
+        function sincronizarVariables() {
+            const nombres = document.querySelectorAll('input[name="nombresVariables"]');
+
+            document.querySelectorAll('.select-var-formula').forEach(select => {
+                let valorActual = select.value;
+
+                select.innerHTML = '<option value="">+ Insertar variable al lienzo...</option>';
+
+                nombres.forEach((input, index) => {
+                    if (input.value) {
+                        select.innerHTML += `<option value="${index + 1}">${input.value}</option>`;
+                    }
+                });
+
+                select.value = valorActual;
+            });
+
+            formulaTokens.forEach(token => {
+                if (token.tipo === 'var') {
+                    let varIndex = parseInt(token.valorReal.replace('[', '').replace(']', ''));
+
+                    token.textoVisual = nombres[varIndex - 1]
+                        ? (nombres[varIndex - 1].value || `Var ${varIndex}`)
+                        : `Var ${varIndex}`;
+                }
+            });
+
+            actualizarVistaFormula();
+        }
+    </script>
+}

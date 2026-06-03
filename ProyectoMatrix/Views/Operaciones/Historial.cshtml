@@ -1,0 +1,831 @@
+@model List<ProyectoMatrix.Models.RegistroKpi>
+
+@{
+    ViewData["Title"] = "Historial de Capturas";
+    Layout = "_LayoutComunicados";
+
+    string ObtenerNombrePeriodo(string frecuencia, int periodo, int anio)
+    {
+        if (frecuencia == "Mensual")
+        {
+            string[] meses = { "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
+            return (periodo >= 1 && periodo <= 12) ? meses[periodo - 1] : $"Mes {periodo}";
+        }
+        else if (frecuencia == "Semanal")
+        {
+            return $"Semana {periodo}";
+        }
+        else if (frecuencia == "Diario")
+        {
+            try
+            {
+                return new DateTime(anio, 1, 1).AddDays(periodo - 1).ToString("dd/MMM/yyyy");
+            }
+            catch
+            {
+                return $"Día {periodo}";
+            }
+        }
+
+        return $"P-{periodo}";
+    }
+
+    var registros = Model ?? new List<ProyectoMatrix.Models.RegistroKpi>();
+
+    var deptosUnicos = registros
+        .Where(r => r.Metrica?.Departamento != null)
+        .Select(r => r.Metrica.Departamento)
+        .GroupBy(d => d.DepartamentoID)
+        .Select(g => g.First())
+        .OrderBy(d => d.NombreDepartamento)
+        .ToList();
+
+    var misPermisos = ViewBag.MisPermisos as List<int> ?? new List<int>();
+    bool puedeEditarHistorial = misPermisos.Contains(32) || misPermisos.Contains(31);
+
+    int totalRegistros = registros.Count;
+    int totalDeptos = deptosUnicos.Count;
+    int totalKpis = registros
+        .Where(r => r.Metrica != null)
+        .Select(r => r.MetricaID)
+        .Distinct()
+        .Count();
+
+    int totalValores = registros.Sum(r => r.DetallesValores?.Count ?? 0);
+}
+
+<style>
+    .history-shell {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(248,250,252,.98));
+    }
+
+    .history-shell::before {
+        content: "";
+        position: absolute;
+        width: 420px;
+        height: 420px;
+        top: -190px;
+        right: -170px;
+        background: radial-gradient(circle, rgba(37,99,235,.16), transparent 65%);
+        pointer-events: none;
+    }
+
+    .history-shell::after {
+        content: "";
+        position: absolute;
+        width: 360px;
+        height: 360px;
+        left: -170px;
+        bottom: -190px;
+        background: radial-gradient(circle, rgba(22,163,74,.13), transparent 65%);
+        pointer-events: none;
+    }
+
+    .history-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .stat-card {
+        border: 1px solid rgba(148,163,184,.28);
+        background: rgba(255,255,255,.86);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 12px 26px rgba(15,23,42,.08);
+        transition: all .2s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 16px 32px rgba(15,23,42,.12);
+    }
+
+    .stat-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 18px rgba(15,23,42,.1);
+    }
+
+    .filter-panel {
+        border: 1px solid rgba(148,163,184,.25);
+        background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(248,250,252,.95));
+        box-shadow: 0 14px 30px rgba(15,23,42,.08);
+    }
+
+    .filter-input {
+        border-radius: 14px;
+        border: 1px solid rgba(148,163,184,.28);
+        background-color: #fff;
+        box-shadow: 0 8px 18px rgba(15,23,42,.04);
+    }
+
+    .filter-input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 .25rem rgba(37,99,235,.12);
+    }
+
+    .btn-future {
+        position: relative;
+        overflow: hidden;
+        border: 0;
+        border-radius: 16px;
+        font-weight: 800;
+        letter-spacing: .2px;
+        transition: all .22s ease;
+        box-shadow: 0 12px 24px rgba(15,23,42,.15);
+    }
+
+    .btn-future::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,.35) 45%, transparent 70%);
+        transform: translateX(-120%);
+        transition: transform .6s ease;
+    }
+
+    .btn-future:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 18px 34px rgba(15,23,42,.22);
+    }
+
+    .btn-future:hover::before {
+        transform: translateX(120%);
+    }
+
+    .btn-future-primary {
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #0891b2, #06b6d4);
+    }
+
+    .btn-future-success {
+        color: white;
+        background: linear-gradient(135deg, #22c55e, #16a34a, #0f766e);
+    }
+
+    .btn-future-danger {
+        color: white;
+        background: linear-gradient(135deg, #ef4444, #dc2626, #991b1b);
+    }
+
+    .btn-ghost-future {
+        border-radius: 14px;
+        font-weight: 800;
+        border: 1px solid rgba(148,163,184,.45);
+        background: rgba(255,255,255,.85);
+        backdrop-filter: blur(10px);
+        transition: all .2s ease;
+    }
+
+    .btn-ghost-future:hover {
+        transform: translateY(-2px);
+        border-color: rgba(37,99,235,.4);
+        box-shadow: 0 10px 22px rgba(15,23,42,.12);
+    }
+
+    .table-modern {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table-modern thead th {
+        background: #0f172a;
+        color: #fff;
+        font-size: .82rem;
+        letter-spacing: .3px;
+        text-transform: uppercase;
+        border: 0;
+        white-space: nowrap;
+    }
+
+    .table-modern tbody tr {
+        transition: all .15s ease;
+    }
+
+    .table-modern tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .period-badge {
+        border-radius: 999px;
+        padding: .5rem .75rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #dbeafe, #cffafe);
+        color: #075985;
+        border: 1px solid rgba(14,165,233,.22);
+    }
+
+    .value-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        border-radius: 999px;
+        padding: .35rem .6rem;
+        background: #ecfdf5;
+        color: #166534;
+        border: 1px solid rgba(34,197,94,.22);
+        font-weight: 800;
+        margin: .15rem .1rem;
+    }
+
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 13px !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-modern .modal-content {
+        border-radius: 24px;
+        overflow: hidden;
+    }
+
+    .modal-modern-header-primary {
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #0891b2);
+    }
+
+    .modal-modern-header-danger {
+        color: white;
+        background: linear-gradient(135deg, #ef4444, #991b1b);
+    }
+
+    .empty-state {
+        padding: 4rem 1rem;
+        text-align: center;
+    }
+
+    .modal-backdrop {
+        z-index: 19990 !important;
+    }
+
+    .modal {
+        z-index: 20000 !important;
+    }
+
+    .modal-dialog {
+        pointer-events: auto !important;
+    }
+
+    .modal-content {
+        position: relative;
+        z-index: 20001 !important;
+    }
+</style>
+
+<div class="container-fluid px-4 my-5">
+
+    @if (TempData["Mensaje"] != null)
+    {
+        <div class="alert alert-@TempData["Tipo"] alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas @(TempData["Tipo"]?.ToString() == "success" ? "fa-check-circle" : "fa-exclamation-triangle") me-2"></i>
+            @TempData["Mensaje"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden history-shell">
+        <div class="card-header bg-dark text-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+            <div>
+                <h4 class="fw-bold text-white mb-0">
+                    <i class="fas fa-history me-2 text-info"></i> Historial de Registros KPI
+                </h4>
+                <small class="opacity-75">
+                    Consulta, filtra y administra los registros capturados.
+                </small>
+            </div>
+
+            <div class="d-flex gap-2">
+                <a href="/Operaciones/Captura" class="btn btn-sm btn-light fw-bold rounded-pill px-3 shadow-sm">
+                    <i class="fas fa-plus-circle me-1 text-success"></i> Nueva Captura
+                </a>
+
+                <a href="/Operaciones/Index" class="btn btn-sm btn-outline-light fw-bold rounded-pill px-3">
+                    <i class="fas fa-chart-line me-1"></i> Ver Tablero
+                </a>
+            </div>
+        </div>
+
+        <div class="card-body p-4 history-content">
+
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-lg-3">
+                    <div class="stat-card rounded-4 p-3 h-100">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="stat-icon bg-primary-subtle text-primary">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div>
+                                <div class="fs-4 fw-bold">@totalRegistros</div>
+                                <div class="small text-muted fw-bold">Registros</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div class="stat-card rounded-4 p-3 h-100">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="stat-icon bg-success-subtle text-success">
+                                <i class="fas fa-chart-simple"></i>
+                            </div>
+                            <div>
+                                <div class="fs-4 fw-bold">@totalKpis</div>
+                                <div class="small text-muted fw-bold">KPIs con datos</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div class="stat-card rounded-4 p-3 h-100">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="stat-icon bg-warning-subtle text-warning">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <div>
+                                <div class="fs-4 fw-bold">@totalDeptos</div>
+                                <div class="small text-muted fw-bold">Áreas</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div class="stat-card rounded-4 p-3 h-100">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="stat-icon bg-info-subtle text-info">
+                                <i class="fas fa-list-check"></i>
+                            </div>
+                            <div>
+                                <div class="fs-4 fw-bold">@totalValores</div>
+                                <div class="small text-muted fw-bold">Valores</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-panel rounded-4 p-4 mb-4">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+                    <div>
+                        <h6 class="fw-bold text-dark mb-1">
+                            <i class="fas fa-filter me-2 text-success"></i> Filtros de búsqueda
+                        </h6>
+                        <p class="text-muted small mb-0">
+                            Filtra por área, KPI o fecha de registro.
+                        </p>
+                    </div>
+
+                    <button type="button" class="btn btn-ghost-future btn-sm px-3" onclick="limpiarFiltrosHistorial()">
+                        <i class="fas fa-broom me-1"></i> Limpiar filtros
+                    </button>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Área</label>
+                        <select id="filtroDepto" class="form-select filter-input" onchange="filtrarHistorial()">
+                            <option value="">Todas las áreas</option>
+                            @foreach (var d in deptosUnicos)
+                            {
+                                <option value="@d.DepartamentoID">@d.NombreDepartamento</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">KPI</label>
+                        <input type="text"
+                               id="filtroKpi"
+                               class="form-control filter-input"
+                               placeholder="Buscar KPI..."
+                               onkeyup="filtrarHistorial()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Desde</label>
+                        <input type="date"
+                               id="filtroFechaDesde"
+                               class="form-control filter-input"
+                               onchange="filtrarHistorial()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Hasta</label>
+                        <input type="date"
+                               id="filtroFechaHasta"
+                               class="form-control filter-input"
+                               onchange="filtrarHistorial()" />
+                    </div>
+                </div>
+
+                <div class="mt-3 small text-muted" id="contadorHistorial">
+                    Mostrando @totalRegistros registro(s)
+                </div>
+            </div>
+
+            <div class="table-responsive rounded-4 border shadow-sm">
+                <table class="table table-hover align-middle mb-0 table-modern" id="tablaHistorial">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Fecha registro</th>
+                            <th>Área</th>
+                            <th>KPI / Métrica</th>
+                            <th class="text-center">Año</th>
+                            <th class="text-center">Periodo</th>
+                            <th>Valores capturados</th>
+                            <th class="text-center pe-4">Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @if (registros.Any())
+                        {
+                            foreach (var item in registros)
+                            {
+                                <tr class="fila-historial"
+                                    data-depto="@item.Metrica.DepartamentoID"
+                                    data-kpi="@item.Metrica.NombreMetrica.ToLower()"
+                                    data-fecha="@item.FechaCaptura.ToString("yyyy-MM-dd")">
+
+                                    <td class="ps-4 text-muted small">
+                                        <i class="far fa-clock me-1"></i>
+                                        @item.FechaCaptura.ToString("dd/MM/yyyy HH:mm")
+                                    </td>
+
+                                    <td>
+                                        <span class="fw-bold text-dark">@item.Metrica.Departamento.NombreDepartamento</span>
+                                    </td>
+
+                                    <td>
+                                        <div class="fw-bold text-primary">@item.Metrica.NombreMetrica</div>
+                                        <div class="small text-muted">
+                                            ID: @item.MetricaID · @item.Metrica.Frecuencia
+                                        </div>
+                                    </td>
+
+                                    <td class="text-center fw-bold">@item.Anio</td>
+
+                                    <td class="text-center">
+                                        <span class="period-badge">
+                                            @ObtenerNombrePeriodo(item.Metrica.Frecuencia, item.NumeroPeriodo, item.Anio)
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        @if (item.DetallesValores != null && item.DetallesValores.Any())
+                                        {
+                                            foreach (var detalle in item.DetallesValores)
+                                            {
+                                                <div class="value-pill">
+                                                    <span>@detalle.Variable.NombreVariable:</span>
+                                                    <span>@detalle.Valor.ToString("N2")</span>
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Sin valores</span>
+                                        }
+                                    </td>
+
+                                    <td class="text-center pe-4">
+                                        @if (puedeEditarHistorial)
+                                        {
+                                            <div class="btn-group shadow-sm">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary action-btn"
+                                                        title="Editar registro"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#modalEditar-@item.RegistroID">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-danger action-btn"
+                                                        title="Archivar registro"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#modalEliminar-@item.RegistroID">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-muted border">
+                                                Sin permiso
+                                            </span>
+                                        }
+                                    </td>
+                                </tr>
+
+
+                            }
+                        }
+                        else
+                        {
+                            <tr id="filaVacia">
+                                <td colspan="7" class="empty-state text-muted">
+                                    <i class="fas fa-folder-open fa-3x mb-3"></i>
+                                    <h5 class="fw-bold">Aún no hay registros</h5>
+                                    <p class="mb-0">Cuando captures o importes KPIs, aparecerán aquí.</p>
+                                </td>
+                            </tr>
+                        }
+
+                        <tr id="filaNoResultados" class="d-none">
+                            <td colspan="7" class="empty-state text-warning fw-bold">
+                                <i class="fas fa-search-minus fa-2x mb-2 d-block"></i>
+                                No se encontraron registros que coincidan con los filtros colocados.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+@if (registros.Any())
+{
+    foreach (var item in registros)
+    {
+                                <div class="modal fade modal-modern" id="modalEditar-@item.RegistroID" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                                        <div class="modal-content border-0 shadow-lg">
+                                            <div class="modal-header modal-modern-header-primary">
+                                                <div>
+                                                    <h5 class="modal-title fw-bold mb-0">
+                                                        <i class="fas fa-edit me-2"></i> Editar Registro
+                                                    </h5>
+                                                    <small class="opacity-75">Actualiza periodo o valores capturados.</small>
+                                                </div>
+
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+
+                                            <form action="/Operaciones/ActualizarKpi" method="post">
+                                                <div class="modal-body p-4">
+                                                    <input type="hidden" name="registroId" value="@item.RegistroID" />
+
+                                                    <div class="alert alert-light border shadow-sm mb-4 rounded-4">
+                                                        <p class="mb-1">
+                                                            <strong>Métrica:</strong> @item.Metrica.NombreMetrica
+                                                        </p>
+                                                        <p class="mb-0">
+                                                            <strong>Departamento:</strong> @item.Metrica.Departamento.NombreDepartamento
+                                                        </p>
+                                                    </div>
+
+                                                    <div class="row mb-3">
+                                                        @if (item.Metrica.Frecuencia == "Diario")
+                                                        {
+                                                            <input type="hidden" name="anio" value="@item.Anio" />
+
+                                                            <div class="col-12">
+                                                                <label class="form-label fw-bold text-danger small">
+                                                                    <i class="fas fa-calendar-day"></i> Fecha exacta del evento
+                                                                </label>
+
+                                                                @{
+                                                                    string fechaEdicion = "";
+                                                                    try
+                                                                    {
+                                                                        fechaEdicion = new DateTime(item.Anio, 1, 1).AddDays(item.NumeroPeriodo - 1).ToString("yyyy-MM-dd");
+                                                                    }
+                                                                    catch
+                                                                    {
+                                                                    }
+                                                                }
+
+                                                                <input type="date"
+                                                                       name="fechaDiaria"
+                                                                       class="form-control border-danger"
+                                                                       value="@fechaEdicion"
+                                                                       required />
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="col-md-5">
+                                                                <label class="form-label fw-bold text-muted small">Año</label>
+                                                                <input type="number"
+                                                                       name="anio"
+                                                                       class="form-control"
+                                                                       value="@item.Anio"
+                                                                       required />
+                                                            </div>
+
+                                                            <div class="col-md-7">
+                                                                <label class="form-label fw-bold text-success small">
+                                                                    <i class="far fa-calendar-alt"></i> Periodo (@item.Metrica.Frecuencia)
+                                                                </label>
+
+                                                                @if (item.Metrica.Frecuencia == "Mensual")
+                                                                {
+                                                                    <select name="numeroPeriodo" class="form-select border-success" required>
+                                                                        @{
+                                                                            string[] mesesForm = { "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
+                                                                        }
+
+                                                                        @for (int i = 0; i < 12; i++)
+                                                                        {
+                                                                            <option value="@(i + 1)" selected="@(item.NumeroPeriodo == (i + 1))">
+                                                                                @mesesForm[i]
+                                                                            </option>
+                                                                        }
+                                                                    </select>
+                                                                }
+                                                                else if (item.Metrica.Frecuencia == "Semanal")
+                                                                {
+                                                                    <select name="numeroPeriodo" class="form-select border-success" required>
+                                                                        @for (int i = 1; i <= 53; i++)
+                                                                        {
+                                                                            <option value="@i" selected="@(item.NumeroPeriodo == i)">
+                                                                                Semana @i
+                                                                            </option>
+                                                                        }
+                                                                    </select>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </div>
+
+                                                    <hr class="my-3">
+
+                                                    <h6 class="fw-bold text-secondary mb-3">
+                                                        <i class="fas fa-list-check me-2"></i> Valores capturados
+                                                    </h6>
+
+                                                    @foreach (var detalle in item.DetallesValores)
+                                                    {
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">
+                                                                @detalle.Variable.NombreVariable
+                                                            </label>
+
+                                                            <input type="number"
+                                                                   step="0.01"
+                                                                   name="valores[@detalle.VariableID]"
+                                                                   class="form-control"
+                                                                   value="@detalle.Valor"
+                                                                   required />
+                                                        </div>
+                                                    }
+                                                </div>
+
+                                                <div class="modal-footer bg-light">
+                                                    <button type="button" class="btn btn-ghost-future" data-bs-dismiss="modal">
+                                                        Cancelar
+                                                    </button>
+
+                                                    <button type="submit" class="btn btn-future btn-future-primary px-4">
+                                                        <i class="fas fa-save me-1"></i> Guardar Cambios
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="modal fade modal-modern" id="modalEliminar-@item.RegistroID" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered modal-sm">
+                                        <div class="modal-content border-0 shadow">
+                                            <div class="modal-header modal-modern-header-danger">
+                                                <h5 class="modal-title fw-bold">
+                                                    <i class="fas fa-box-archive me-2"></i> Archivar
+                                                </h5>
+
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+
+                                            <div class="modal-body text-center p-4">
+                                                <i class="fas fa-exclamation-triangle text-danger mb-3" style="font-size: 3rem;"></i>
+
+                                                <h5 class="fw-bold">¿Archivar registro?</h5>
+
+                                                <p class="text-muted small">
+                                                    El registro se desactivará del tablero, pero se conservará en la base de datos como borrado lógico.
+                                                </p>
+
+                                                <form action="/Operaciones/EliminarKpi" method="post" class="mt-4">
+                                                    <input type="hidden" name="id" value="@item.RegistroID" />
+
+                                                    <div class="d-grid gap-2">
+                                                        <button type="submit" class="btn btn-future btn-future-danger">
+                                                            Sí, archivar
+                                                        </button>
+
+                                                        <button type="button" class="btn btn-ghost-future" data-bs-dismiss="modal">
+                                                            Cancelar
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+    }
+}
+
+@section Scripts {
+    <script>
+        function filtrarHistorial() {
+            const deptoSel = document.getElementById('filtroDepto').value;
+            const kpiTxt = document.getElementById('filtroKpi').value.toLowerCase().trim();
+            const fechaDesde = document.getElementById('filtroFechaDesde').value;
+            const fechaHasta = document.getElementById('filtroFechaHasta').value;
+
+            const filas = document.querySelectorAll('.fila-historial');
+            let filasVisibles = 0;
+
+            filas.forEach(fila => {
+                const deptoId = fila.getAttribute('data-depto');
+                const kpiNombre = fila.getAttribute('data-kpi');
+                const fechaFila = fila.getAttribute('data-fecha');
+
+                const cumpleDepto = deptoSel === "" || deptoId === deptoSel;
+                const cumpleKpi = kpiTxt === "" || kpiNombre.includes(kpiTxt);
+
+                let cumpleFecha = true;
+
+                if (fechaDesde !== "" && fechaFila < fechaDesde) {
+                    cumpleFecha = false;
+                }
+
+                if (fechaHasta !== "" && fechaFila > fechaHasta) {
+                    cumpleFecha = false;
+                }
+
+                if (cumpleDepto && cumpleKpi && cumpleFecha) {
+                    fila.classList.remove('d-none');
+                    filasVisibles++;
+                } else {
+                    fila.classList.add('d-none');
+                }
+            });
+
+            const filaAlerta = document.getElementById('filaNoResultados');
+            const contador = document.getElementById('contadorHistorial');
+
+            if (filaAlerta) {
+                if (filasVisibles === 0 && filas.length > 0) {
+                    filaAlerta.classList.remove('d-none');
+                } else {
+                    filaAlerta.classList.add('d-none');
+                }
+            }
+
+            if (contador) {
+                contador.innerText = `Mostrando ${filasVisibles} registro(s)`;
+            }
+        }
+
+        function limpiarFiltrosHistorial() {
+            document.getElementById('filtroDepto').value = "";
+            document.getElementById('filtroKpi').value = "";
+            document.getElementById('filtroFechaDesde').value = "";
+            document.getElementById('filtroFechaHasta').value = "";
+
+            filtrarHistorial();
+        }
+
+        function limpiarBackdropsBloqueados(forzar = false) {
+            const hayModalAbierto = document.querySelector('.modal.show') !== null;
+
+            if (!forzar && hayModalAbierto) {
+                return;
+            }
+
+            document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+                backdrop.remove();
+            });
+
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            limpiarBackdropsBloqueados(true);
+
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('hidden.bs.modal', function () {
+                    setTimeout(function () {
+                        limpiarBackdropsBloqueados(true);
+                    }, 150);
+                });
+            });
+        });
+    </script>
+}

@@ -1,74 +1,2882 @@
-﻿@{
-    ViewData["Title"] = "KPIS-NSGROUP";
+﻿@model List<ProyectoMatrix.Models.Departamento>
+    
+@{
+    ViewData["Title"] = "Tablero Operativo";
     Layout = "_LayoutComunicados";
+
+    var misPermisos = ViewBag.MisPermisos as List<int> ?? new List<int>();
 }
 
 <style>
+    :root {
+        --op-bg: #f4f7fb;
+        --op-bg-soft: #eef3f9;
+        --op-surface: #ffffff;
+        --op-surface-2: #f8fafc;
 
-    .form-embed-container {
-        width: 100%;
-        min-height: 70vh;
+        --op-navy: #072b4a;
+        --op-navy-2: #0f172a;
+        --op-navy-soft: #eaf3fb;
+
+        --op-border: #dbe4ee;
+        --op-border-strong: #cbd5e1;
+
+        --op-text: #0f172a;
+        --op-text-soft: #475569;
+        --op-text-muted: #64748b;
+
+        --op-primary: #2563eb;
+        --op-sky: #0ea5e9;
+        --op-cyan: #06b6d4;
+        --op-success: #84cc16;
+        --op-success-2: #22c55e;
+        --op-danger: #ef4444;
+        --op-danger-soft: #fff1f2;
+        --op-warning: #facc15;
+        --op-warning-dark: #a16207;
+        --op-purple: #8b5cf6;
+
+        --op-shadow: 0 12px 30px rgba(15, 23, 42, .08);
+        --op-shadow-hover: 0 18px 38px rgba(15, 23, 42, .14);
     }
 
-        .form-embed-container iframe {
-            width: 100%;
-            height: 80vh;
-            border: 0;
+    body {
+        background:
+            radial-gradient(circle at top left, rgba(14,165,233,.10), transparent 24%),
+            radial-gradient(circle at top right, rgba(132,204,22,.10), transparent 22%),
+            linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
+        color: var(--op-text);
+    }
+
+    .dashboard-shell {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding-bottom: 2.8rem;
+    }
+
+    .dashboard-title {
+        letter-spacing: -.45px;
+        font-weight: 900;
+        color: var(--op-text) !important;
+    }
+
+    .dashboard-title i {
+        color: var(--op-sky) !important;
+        filter: drop-shadow(0 8px 14px rgba(14,165,233,.25));
+    }
+
+    .dashboard-subtitle,
+    .text-muted {
+        color: var(--op-text-muted) !important;
+    }
+
+    .content-zone {
+        max-width: 100%;
+    }
+
+    .dashboard-toolbar {
+        display: flex;
+        gap: .75rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+    }
+
+    /* BOTONES */
+    .btn-future,
+    .btn-ghost-future {
+        min-height: 42px;
+        border-radius: 15px;
+        font-weight: 900;
+        font-size: .92rem;
+        transition: all .2s ease;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, .10);
+    }
+
+    .btn-future:hover,
+    .btn-ghost-future:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 26px rgba(15, 23, 42, .16);
+    }
+
+    .btn-ghost-future {
+        background: rgba(255,255,255,.92);
+        color: var(--op-text);
+        border: 1px solid var(--op-border-strong);
+        backdrop-filter: blur(10px);
+    }
+
+    .btn-ghost-future:hover {
+        border-color: var(--op-primary);
+        color: var(--op-primary);
+        background: #ffffff;
+    }
+
+    .btn-future-primary {
+        background: linear-gradient(135deg, #2563eb, #0ea5e9);
+        color: #fff;
+        border: none;
+    }
+
+    .btn-future-success {
+        background: linear-gradient(135deg, #a3e635, #84cc16);
+        color: #102a0a;
+        border: none;
+    }
+
+    /* FILTROS */
+    .filter-input-future {
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--op-border);
+        box-shadow: var(--op-shadow);
+        background: #fff;
+    }
+
+    .filter-input-future .input-group-text {
+        background: #ffffff;
+        color: var(--op-success-2);
+        border: 0;
+    }
+
+    .filter-input-future .form-select,
+    .filter-input-future .form-control {
+        border: 0;
+        font-weight: 800;
+        color: var(--op-text);
+        background: #fff;
+    }
+
+    /* SIDEBAR NUEVO */
+    .sidebar-card {
+        position: sticky;
+        top: 1rem;
+        border: 1px solid var(--op-border);
+        background: rgba(255,255,255,.95);
+        box-shadow: var(--op-shadow);
+        border-radius: 24px !important;
+        overflow: hidden;
+        backdrop-filter: blur(14px);
+    }
+
+    .sidebar-header-future {
+        background: linear-gradient(135deg, var(--op-navy-2), var(--op-navy));
+        color: #fff;
+        border-bottom: 0;
+        padding: 1rem 1.1rem !important;
+        font-size: .96rem;
+    }
+
+    .sidebar-header-future i {
+        color: var(--op-success) !important;
+    }
+
+    .sidebar-card .bg-light {
+        background: #f8fafc !important;
+        border-color: var(--op-border) !important;
+    }
+
+    .sidebar-card .input-group {
+        border: 1px solid var(--op-border);
+        background: #ffffff;
+        border-radius: 16px !important;
+    }
+
+    .sidebar-card .input-group-text,
+    .sidebar-card .form-control {
+        background: transparent !important;
+        color: var(--op-text) !important;
+        border: 0 !important;
+    }
+
+    .sidebar-card .form-control::placeholder {
+        color: var(--op-text-muted);
+    }
+
+    .list-group-item {
+        background: #ffffff;
+        border-color: #edf2f7;
+        color: var(--op-text-soft);
+    }
+
+    .op-departamento,
+    #listaResultados button {
+        transition: all .18s ease;
+        border-left: 5px solid transparent;
+        font-weight: 850;
+        color: var(--op-text-soft) !important;
+        background: #ffffff;
+    }
+
+    .op-departamento:hover,
+    #listaResultados button:hover {
+        background: #f8fbff;
+        border-left-color: var(--op-sky);
+        color: var(--op-text) !important;
+        transform: translateX(2px);
+    }
+
+    .active-sidebar {
+        background: linear-gradient(90deg, rgba(132,204,22,.18), rgba(14,165,233,.08)) !important;
+        border-left: 5px solid var(--op-success) !important;
+        color: var(--op-text) !important;
+        font-weight: 950 !important;
+    }
+
+    .active-sidebar i {
+        color: var(--op-navy) !important;
+    }
+
+    .op-departamento i,
+    #listaResultados button i {
+        color: #64748b !important;
+    }
+
+    /* TARJETAS SUPERIORES */
+    .top-widget-card {
+        min-height: 120px;
+        border-radius: 22px;
+        padding: 1rem 1.15rem 1rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border: 1px solid var(--op-border);
+        box-shadow: var(--op-shadow);
+        background:
+            radial-gradient(circle at top right, rgba(14,165,233,.06), transparent 36%),
+            linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        transition: all .22s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .top-widget-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 5px;
+        background: var(--accent, var(--op-primary));
+    }
+
+    .top-widget-card::after {
+        content: "";
+        position: absolute;
+        width: 90px;
+        height: 90px;
+        right: -35px;
+        bottom: -35px;
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--accent, var(--op-primary)) 15%, transparent);
+    }
+
+    .top-widget-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--op-shadow-hover);
+    }
+
+    .top-widget-title {
+        font-size: .82rem;
+        font-weight: 950;
+        color: var(--op-text-soft);
+        margin-bottom: .45rem;
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .top-widget-title i {
+        color: var(--accent, var(--op-primary));
+    }
+
+    .top-widget-value {
+        font-size: 1.9rem;
+        line-height: 1.05;
+        font-weight: 950;
+        margin: 0;
+        color: var(--accent, var(--op-text));
+        position: relative;
+        z-index: 1;
+    }
+
+    .top-widget-sub {
+        font-size: .8rem;
+        color: var(--op-text-muted);
+        margin-top: .35rem;
+        line-height: 1.35;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* CARDS PRINCIPALES */
+    .global-chart-card,
+    .ranking-panel,
+    .insight-panel,
+    .metric-wall-card,
+    .chart-card {
+        border: 1px solid var(--op-border);
+        background: rgba(255,255,255,.96);
+        box-shadow: var(--op-shadow);
+        border-radius: 26px;
+    }
+
+    .global-chart-card {
+        padding: 1.45rem;
+        height: 100%;
+    }
+
+    .global-chart-card-large {
+        min-height: 620px;
+    }
+
+    .global-chart-title {
+        font-size: 1.05rem;
+        font-weight: 950;
+        color: var(--op-text);
+    }
+
+    .global-chart-card .badge {
+        background: #eef4ff !important;
+        color: var(--op-primary) !important;
+        border: 1px solid #dbeafe !important;
+    }
+
+    .ranking-panel {
+        padding: 1.25rem;
+        height: 100%;
+    }
+
+    .ranking-panel h6 {
+        color: var(--op-text) !important;
+    }
+
+    .ranking-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        padding: .9rem 1rem;
+        border-radius: 17px;
+        background: #f8fafc;
+        border: 1px solid var(--op-border);
+        transition: all .2s ease;
+        min-width: 245px;
+    }
+
+    .ranking-item:hover {
+        transform: translateY(-2px);
+        background: #ffffff;
+        box-shadow: 0 12px 22px rgba(15, 23, 42, .08);
+    }
+
+    .ranking-left {
+        display: flex;
+        align-items: center;
+        gap: .85rem;
+        min-width: 0;
+    }
+
+    .ranking-medal {
+        font-size: 1.4rem;
+        min-width: 32px;
+        text-align: center;
+    }
+
+    .ranking-name {
+        font-weight: 950;
+        color: var(--op-text);
+        margin-bottom: 2px;
+        white-space: normal;
+        overflow-wrap: break-word;
+    }
+
+    .ranking-meta {
+        font-size: .82rem;
+        color: var(--op-text-muted);
+    }
+
+    .ranking-badge {
+        border-radius: 999px;
+        padding: .4rem .72rem;
+        font-size: .84rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .insight-panel {
+        padding: 1.2rem 1.3rem;
+        min-height: 100%;
+    }
+
+    .insight-panel-success {
+        border-left: 5px solid var(--op-success);
+        background: linear-gradient(180deg, #f7fde9 0%, #ffffff 100%);
+    }
+
+    .insight-panel-danger {
+        border-left: 5px solid var(--op-danger);
+        background: linear-gradient(180deg, #fff3f3 0%, #ffffff 100%);
+    }
+
+    .insight-title {
+        font-weight: 950;
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: var(--op-text) !important;
+    }
+
+    .insight-item {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: .85rem;
+        align-items: start;
+        padding: .9rem 0;
+        border-bottom: 1px dashed var(--op-border);
+    }
+
+    .insight-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .insight-kpi {
+        min-width: 0;
+    }
+
+    .insight-area {
+        font-weight: 950;
+        margin-bottom: .15rem;
+        line-height: 1.25;
+        color: var(--op-text);
+    }
+
+    .insight-metric {
+        color: var(--op-text-soft);
+        font-size: .88rem;
+        line-height: 1.35;
+    }
+
+    .insight-chip {
+        border-radius: 999px;
+        padding: .4rem .72rem;
+        font-size: .78rem;
+        font-weight: 950;
+        background: #ffffff;
+        color: var(--op-text);
+        border: 1px solid var(--op-border);
+        white-space: nowrap;
+        align-self: start;
+    }
+
+    .kpi-card {
+        transition: all .25s ease;
+        overflow: hidden;
+        border: none !important;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-7px);
+        box-shadow: 0 18px 34px rgba(15,23,42,.14) !important;
+    }
+
+    .kpi-icon-bg {
+        position: absolute;
+        font-size: 7rem;
+        right: -15px;
+        bottom: -20px;
+        opacity: 0.12;
+        transform: rotate(-15deg);
+        transition: all .3s ease;
+    }
+
+    .kpi-card:hover .kpi-icon-bg {
+        transform: rotate(0deg) scale(1.08);
+    }
+
+    .metric-wall-card .card-header {
+        background: #f8fbff !important;
+        border-bottom: 1px solid var(--op-border) !important;
+    }
+
+    .metric-wall-card h5 {
+        color: var(--op-text) !important;
+    }
+
+    .wall-select {
+        border-radius: 999px;
+        border: 1px solid var(--op-border);
+        font-weight: 850;
+        background-color: #fff;
+        color: var(--op-text);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 7px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #e2e8f0;
+        border-radius: 10px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #94a3b8;
+        border-radius: 10px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+    }
+
+    #chart_global,
+    [id^="chart_"] {
+        background: transparent;
+    }
+
+    @@media (max-width: 1500px) {
+        .insight-item {
+            grid-template-columns: 1fr;
         }
 
-    @@media (max-width: 576px) {
-        .form-embed-container iframe {
-            height: 90vh;
+        .insight-chip {
+            justify-self: start;
+            white-space: normal;
+            max-width: 100%;
         }
+    }
+
+    @@media (max-width: 1400px) {
+        .top-widget-value {
+            font-size: 1.65rem;
+        }
+
+        .global-chart-card-large {
+            min-height: 580px;
+        }
+    }
+
+    @@media (max-width: 991.98px) {
+        .top-widget-card {
+            min-height: auto;
+        }
+
+        .dashboard-toolbar {
+            justify-content: flex-start;
+        }
+
+        .insight-item {
+            grid-template-columns: 1fr;
+        }
+
+        .insight-chip {
+            white-space: normal;
+        }
+
+        .sidebar-card {
+            position: relative;
+            top: 0;
+        }
+    }
+
+    .btn-dashboard-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        height: 32px;
+        padding: 0 13px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.78);
+        color: #0f172a;
+        font-size: 0.82rem;
+        font-weight: 800;
+        line-height: 1;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+        transition: all 0.18s ease;
+    }
+
+    .btn-dashboard-back i {
+        font-size: 0.78rem;
+    }
+
+    .btn-dashboard-back:hover {
+        background: #0f172a;
+        color: #ffffff;
+        border-color: #0f172a;
+        transform: translateX(-2px);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
     }
 </style>
 
-<link rel="stylesheet" href="~/css/stylesHelpDesk.css" asp-append-version="true" />
+<div class="container-fluid px-4 dashboard-shell">
 
-<div class="container my-4">
-    <div class="d-flex align-items-center justify-content-between mb-3">
-        <h1 class="h4 mb-0">
-            <i class="fas fa-tools me-2"></i> KPI´S NS Group
-        </h1>
-        <a class="btn btn-outline-secondary" href="javascript:history.back()">
-            <i class="fas fa-arrow-left me-2"></i> Regresar
-        </a>
+    <div class="d-flex justify-content-between align-items-start mt-4 mb-3 flex-wrap gap-3">        
+        <div>
+            <button type="button"
+                    class="btn-dashboard-back mb-2"
+                    onclick="window.history.back();">
+                <i class="fas fa-arrow-left"></i>
+                <span>Volver</span>
+            </button>
+
+            <h2 class="text-dark fw-bold mb-1 dashboard-title">
+                <i class="fas fa-chart-pie text-primary me-2"></i> Centro de Mando Operativo
+            </h2>
+
+            <p class="dashboard-subtitle mb-0">
+                Visualiza el cumplimiento global y el desempeño por área.
+            </p>
+        </div>
+
+        <div class="dashboard-toolbar">
+
+            @if (misPermisos.Contains(33))
+            {
+                <a href="/Operaciones/Historial" class="btn btn-ghost-future shadow-sm">
+                    <i class="fas fa-history me-1"></i> Historial
+                </a>
+            }
+
+            @if (misPermisos.Contains(32))
+            {
+                <a href="/Operaciones/GestorMetricas" class="btn btn-ghost-future shadow-sm">
+                    <i class="fas fa-cogs me-1"></i> Gestor
+                </a>
+            }
+
+            @if (misPermisos.Contains(31))
+            {
+                <a href="/Operaciones/NuevaMetrica" class="btn btn-future btn-future-primary shadow-sm">
+                    <i class="fas fa-cog me-1"></i> Configurar
+                </a>
+            }
+
+            @if (misPermisos.Contains(34) || misPermisos.Contains(31) || misPermisos.Contains(32))
+            {
+                <a href="/Operaciones/Captura" class="btn btn-future btn-future-success shadow-sm">
+                    <i class="fas fa-plus me-1"></i> Capturar
+                </a>
+            }
+
+            <button type="button"
+                    class="btn btn-danger fw-bold shadow-sm rounded-pill px-3"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalKpisPdf">
+                <i class="fas fa-file-pdf me-1"></i> Ver KPIs Enero-Abril 2026
+            </button>
+        </div>
     </div>
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <p class="text-muted mb-3">
-                
-            </p>
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-end flex-wrap gap-2">
 
-
-
-
-
-            <div class="form-embed-container">
-
-
-                <iframe title="KPIS 2026 28-04-26" width="1140" height="541.25" 
-                src="https://app.powerbi.com/reportEmbed?reportId=dcee70f7-b15d-4e28-9625-44dae74899e2&autoAuth=true&ctid=3595b883-fa38-425d-a3e8-e618ad075f92" frameborder="0" allowFullScreen="true"></iframe>
-
-
-
-                @*
-               
-                <iframe src="https://soporte.nsgroup.com.mx/Tickets/Integracion?token=NSGroup_Intranet_2026_Xyz&correoUser=@User.Identity.Name"
-                        width="100%"
-                        height="950px"
-                        style="border:none;">
-                </iframe>
-
-
-              *@
-
-
+            <div class="input-group filter-input-future" style="max-width: 250px;">
+                <span class="input-group-text">
+                    <i class="fas fa-calendar-alt"></i>
+                </span>
+                <select id="filtroTiempoGlobal" class="form-select" onchange="aplicarFiltroTiempo()">
+                    <option value="mes">Este Mes</option>
+                    <option value="semana">Esta Semana</option>
+                    <option value="anio" selected>Este Año</option>
+                    <option value="historico">Todo el Historial</option>
+                </select>
             </div>
 
-            <hr class="my-4" />
+            <div class="input-group filter-input-future d-none" id="contenedorFiltroMes" style="max-width: 220px;">
+                <span class="input-group-text">
+                    <i class="fas fa-calendar-day"></i>
+                </span>
+                <select id="filtroMesGlobal" class="form-select" onchange="aplicarFiltroTiempo()">
+                    <option value="1">Enero</option>
+                    <option value="2">Febrero</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Mayo</option>
+                    <option value="6">Junio</option>
+                    <option value="7">Julio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                </select>
+            </div>
+
+            <div class="input-group filter-input-future d-none" id="contenedorFiltroSemana" style="max-width: 220px;">
+                <span class="input-group-text">
+                    <i class="fas fa-calendar-week"></i>
+                </span>
+                <select id="filtroSemanaGlobal" class="form-select" onchange="aplicarFiltroTiempo()">
+                    @for (int i = 1; i <= 53; i++)
+                    {
+                        <option value="@i">Semana @i</option>
+                    }
+                </select>
+            </div>
 
         </div>
     </div>
+
+    <div class="row g-4">
+
+        <div class="col-12 col-xl-3 col-xxl-2 mb-4">
+            <div class="card sidebar-card border-0 h-100 rounded-4 overflow-hidden">
+                <div class="card-header sidebar-header-future fw-bold py-3">
+                    <i class="fas fa-sitemap me-2" style="color: #92D050;"></i> Áreas Evaluadas
+                </div>
+
+                <div class="card-body p-0">
+                    <div class="p-3 bg-light border-bottom">
+                        <div class="input-group shadow-sm rounded-4 overflow-hidden">
+                            <span class="input-group-text bg-white border-end-0 text-muted">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text"
+                                   id="buscadorDepto"
+                                   class="form-control border-start-0"
+                                   placeholder="Buscar área..."
+                                   onkeyup="filtrarDepartamentos()" />
+                        </div>
+                    </div>
+
+                    <div class="list-group list-group-flush custom-scrollbar" id="listaResultados" style="max-height: 70vh; overflow-y: auto;">
+                        <button class="list-group-item list-group-item-action active-sidebar py-3"
+                            id="btn-depto-0"
+                            onclick="seleccionarDepto(0, 'General')">
+                            <i class="fas fa-globe me-2"></i> Rendimiento Global
+                        </button>
+
+                        @foreach (var depto in Model)
+                        {
+                            <button class="list-group-item list-group-item-action op-departamento py-3"
+                                    id="btn-depto-@depto.DepartamentoID"
+                                    onclick="seleccionarDepto(@depto.DepartamentoID, '@depto.NombreDepartamento')">
+                                <i class="fas fa-building text-secondary me-2"></i> @depto.NombreDepartamento
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-9 col-xxl-10">
+            <div class="card border-0 rounded-4 mb-4 h-100 bg-transparent shadow-none content-zone">
+
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h4 id="titulo-panel" class="fw-bold text-dark mb-1">Visión Ejecutiva Corporativa</h4>
+                        <p class="text-muted small mb-0">
+                            Los datos se actualizan según el periodo seleccionado.
+                        </p>
+                    </div>
+
+                    <button id="btnExportarExcel"
+                            class="btn btn-ghost-future fw-bold d-none"
+                            disabled
+                            title="Exportación pendiente de configurar">
+                        <i class="fas fa-file-excel me-1 text-success"></i> Exportar a Excel
+                    </button>
+                </div>
+
+                <div id="vistaGlobal">
+
+                    <div id="topWidgets" class="row g-3 mb-4"></div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-12">
+                            <div class="global-chart-card global-chart-card-large">
+                                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                                    <div>
+                                        <div class="global-chart-title mb-1">
+                                            <i class="fas fa-chart-bar me-2"></i> Comparativa de Rendimiento
+                                        </div>
+                                        <small class="text-muted">
+                                            Vista general del cumplimiento por área según el periodo seleccionado.
+                                        </small>
+                                    </div>
+
+                                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2">
+                                        <i class="fas fa-chart-column me-1 text-primary"></i> Vista ejecutiva
+                                    </span>
+                                </div>
+
+                                <div id="chart_global" style="height: 540px; width: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-12">
+                            <div class="ranking-panel">
+                                <div class="px-4 pt-4 pb-2">
+                                    <h6 class="fw-bold text-dark mb-0">
+                                        <i class="fas fa-trophy text-warning me-2"></i> Tabla de Posiciones
+                                    </h6>
+                                    <small class="text-muted">Ranking de áreas según cumplimiento.</small>
+                                </div>
+
+                                <div class="p-4 pt-3 custom-scrollbar"
+                                     style="max-height: 300px; overflow-y: auto;"
+                                     id="rankingGlobal">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="row g-4" id="insightsGlobal"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="muro_graficas" class="row g-4 d-none"></div>
+
+                <input type="hidden" id="excelIdDepto" value="0" />
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalKpisPdf" tabindex="-1" aria-labelledby="modalKpisPdfLabel" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen-lg-down modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+
+                <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #0f172a, #0c4a6e);">
+                    <div>
+                        <h5 class="modal-title fw-bold" id="modalKpisPdfLabel">
+                            <i class="fas fa-file-pdf me-2 text-danger"></i>
+                            KPIs 25.5.26
+                        </h5>
+                        <small class="text-white-50">
+                            Vista previa del reporte original de KPIs
+                        </small>
+                    </div>
+
+                    <button type="button"
+                            class="btn-close btn-close-white"
+                            data-bs-dismiss="modal"
+                            aria-label="Cerrar">
+                    </button>
+                </div>
+
+                <div class="modal-body p-0 bg-dark">
+                    <iframe id="iframeKpisPdf"
+                            src="@Url.Content("~/contenidos/pdfs/KPIS-25.5.26.pdf")"
+                            style="width: 100%; height: 82vh; border: none; background: #111827;"
+                            title="Reporte KPIs PDF">
+                    </iframe>
+                </div>
+
+                <div class="modal-footer bg-light border-0 d-flex justify-content-between">
+                    <span class="text-muted small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Se muestra el archivo de los KPIS correspondiente al periodo Enero-Abril 2026.
+                    </span>
+
+                    <div class="d-flex gap-2">
+                        <a href="@Url.Content("~/contenidos/pdfs/KPIS-25.5.26.pdf")"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="btn btn-outline-danger fw-bold rounded-pill px-3">
+                            <i class="fas fa-up-right-from-square me-1"></i>
+                            Abrir en pestaña
+                        </a>
+
+                        <button type="button"
+                                class="btn btn-secondary fw-bold rounded-pill px-3"
+                                data-bs-dismiss="modal">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
+<script type="text/javascript">
+    const PANTONE_VERDE = '#92D050';
+    const PANTONE_ROJO = '#FF0000';
+    const PANTONE_AMARILLO = '#E2EE0C';
+
+    const CHART_AZUL = '#2563EB';
+    const CHART_CYAN = '#0EA5A4';
+    const CHART_MORADO = '#7C3AED';
+    const CHART_VERDE = '#16A34A';
+    const CHART_NARANJA = '#F59E0B';
+    const CHART_ROSA = '#DB2777';
+    const CHART_GRIS = '#64748B';
+
+    const CHART_PALETTE = [
+        CHART_AZUL,
+        CHART_MORADO,
+        CHART_CYAN,
+        CHART_VERDE,
+        CHART_NARANJA,
+        CHART_ROSA,
+        CHART_GRIS
+    ];
+
+    function valorTextoNoVacio(...valores) {
+        for (const valor of valores) {
+            if (valor === null || valor === undefined) {
+                continue;
+            }
+
+            const texto = valor.toString().trim();
+
+            if (texto !== '') {
+                return texto;
+            }
+        }
+
+        return '';
+    }
+
+    function obtenerTipoValorDesdeKpi(kpi) {
+        if (!kpi) return '';
+
+        return valorTextoNoVacio(
+            kpi.tipoValor,
+            kpi.TipoValor
+        );
+    }
+
+    function obtenerUnidadMedidaDesdeKpi(kpi) {
+        if (!kpi) return '';
+
+        return valorTextoNoVacio(
+            kpi.unidadMedida,
+            kpi.UnidadMedida
+        );
+    }
+
+    function obtenerTipoValorDesdeVariable(variable, kpi) {
+        if (!variable) {
+            return obtenerTipoValorDesdeKpi(kpi);
+        }
+
+        return valorTextoNoVacio(
+            variable.tipoValor,
+            variable.TipoValor,
+            variable.tipoValorVariable,
+            variable.TipoValorVariable,
+            obtenerTipoValorDesdeKpi(kpi)
+        );
+    }
+
+    function obtenerUnidadMedidaDesdeVariable(variable, kpi) {
+        if (!variable) {
+            return obtenerUnidadMedidaDesdeKpi(kpi);
+        }
+
+        return valorTextoNoVacio(
+            variable.unidadMedida,
+            variable.UnidadMedida,
+            variable.unidadMedidaVariable,
+            variable.UnidadMedidaVariable,
+            obtenerUnidadMedidaDesdeKpi(kpi)
+        );
+    }
+
+    function obtenerTipoCapturaDesdeVariable(variable) {
+        if (!variable) {
+            return '';
+        }
+
+        return valorTextoNoVacio(
+            variable.tipoCaptura,
+            variable.TipoCaptura,
+            variable.tipoCapturaVariable,
+            variable.TipoCapturaVariable
+        );
+    }
+
+    function esVariableValorFijo(variable) {
+        const tipoCaptura = valorTextoNoVacio(
+            variable?.tipoCaptura,
+            variable?.TipoCaptura,
+            variable?.tipoCapturaVariable,
+            variable?.TipoCapturaVariable
+        ).toLowerCase();
+
+        return tipoCaptura === 'fijo' ||
+               tipoCaptura === 'valor fijo' ||
+               tipoCaptura === 'fixed';
+    }
+
+    function esLineaFija(variable) {
+        const esLinea = variable?.esLinea === true || variable?.EsLinea === true;
+        return esLinea && esVariableValorFijo(variable);
+    }
+
+    function obtenerVariableIdDesdeVariable(variable) {
+        const id = variable?.variableID ??
+                   variable?.VariableID ??
+                   variable?.variableId ??
+                   variable?.VariableId ??
+                   variable?.idVariable ??
+                   variable?.IdVariable ??
+                   null;
+
+        const numero = parseInt(id);
+
+        return isNaN(numero) ? null : numero;
+    }
+
+    function obtenerVariableTarjetaIdDesdeKpi(kpi) {
+        const id = kpi?.variableTarjetaID ??
+                   kpi?.VariableTarjetaID ??
+                   kpi?.variableTarjetaId ??
+                   kpi?.VariableTarjetaId ??
+                   null;
+
+        const numero = parseInt(id);
+
+        return isNaN(numero) || numero <= 0 ? null : numero;
+    }
+
+    function obtenerModoTarjetaDesdeKpi(kpi) {
+        return valorTextoNoVacio(
+            kpi?.modoTarjeta,
+            kpi?.ModoTarjeta,
+            'Automatico'
+        );
+    }
+
+    function normalizarModoTarjeta(modo) {
+        modo = valorTextoNoVacio(modo, 'Automatico').toLowerCase();
+
+        if (modo === 'ultimoperiodo' || modo === 'ultimo' || modo === 'último periodo') {
+            return 'UltimoPeriodo';
+        }
+
+        if (modo === 'promedio') {
+            return 'Promedio';
+        }
+
+        if (modo === 'suma') {
+            return 'Suma';
+        }
+
+        if (modo === 'acumulado') {
+            return 'Acumulado';
+        }
+
+        if (modo === 'promediogeneral') {
+            return 'PromedioGeneral';
+        }
+
+        return 'Automatico';
+    }
+
+    function obtenerEtiquetaModoTarjeta(modo) {
+        modo = normalizarModoTarjeta(modo);
+
+        if (modo === 'UltimoPeriodo') return 'Último periodo';
+        if (modo === 'Promedio') return 'Promedio';
+        if (modo === 'Suma') return 'Suma del periodo';
+        if (modo === 'Acumulado') return 'Acumulado';
+        if (modo === 'PromedioGeneral') return 'Promedio general';
+
+        return 'Automático';
+    }
+
+    function obtenerFirmaUnidad(tipoValor, unidadMedida) {
+        tipoValor = (tipoValor || '').toString().trim().toLowerCase();
+        unidadMedida = (unidadMedida || '').toString().trim().toLowerCase();
+
+        if (tipoValor === 'porcentaje' || unidadMedida === '%') {
+            return 'porcentaje|%';
+        }
+
+        if (tipoValor === 'moneda' || unidadMedida === '$') {
+            return 'moneda|$';
+        }
+
+        if (!unidadMedida || unidadMedida === 'unidades') {
+            return 'entero|unidades';
+        }
+
+        return `${tipoValor || 'entero'}|${unidadMedida}`;
+    }
+
+    function esTipoPorcentaje(tipoValor, unidadMedida) {
+        tipoValor = (tipoValor || '').toString().trim().toLowerCase();
+        unidadMedida = (unidadMedida || '').toString().trim();
+
+        return tipoValor === 'porcentaje' || unidadMedida === '%';
+    }
+
+    function esTipoMoneda(tipoValor, unidadMedida) {
+        tipoValor = (tipoValor || '').toString().trim().toLowerCase();
+        unidadMedida = (unidadMedida || '').toString().trim();
+
+        return tipoValor === 'moneda' || unidadMedida === '$';
+    }
+
+    function formatearValorKpi(valor, tipoValor, unidadMedida) {
+        const numero = parseFloat(valor);
+
+        if (isNaN(numero)) {
+            return valor ?? '-';
+        }
+
+        tipoValor = (tipoValor || '').toString().trim();
+        unidadMedida = (unidadMedida || '').toString().trim();
+
+        if (esTipoPorcentaje(tipoValor, unidadMedida)) {
+            return `${numero.toLocaleString('es-MX', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            })}%`;
+        }
+
+        if (esTipoMoneda(tipoValor, unidadMedida)) {
+            return numero.toLocaleString('es-MX', {
+                style: 'currency',
+                currency: 'MXN',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        const valorFormateado = numero.toLocaleString('es-MX', {
+            minimumFractionDigits: numero % 1 === 0 ? 0 : 2,
+            maximumFractionDigits: 2
+        });
+
+        if (unidadMedida && unidadMedida.toLowerCase() !== 'unidades') {
+            return `${valorFormateado} ${unidadMedida}`;
+        }
+
+        return valorFormateado;
+    }
+
+    function formatearNumeroCorto(valor) {
+        const numero = parseFloat(valor);
+
+        if (isNaN(numero)) {
+            return valor ?? '-';
+        }
+
+        if (Math.abs(numero) >= 1000000) {
+            return `${(numero / 1000000).toFixed(1)}M`;
+        }
+
+        if (Math.abs(numero) >= 1000) {
+            return `${(numero / 1000).toFixed(1)}K`;
+        }
+
+        return numero.toFixed(0);
+    }
+
+    function formatearValorKpiCorto(valor, tipoValor, unidadMedida) {
+        const numero = parseFloat(valor);
+
+        if (isNaN(numero)) {
+            return valor ?? '-';
+        }
+
+        tipoValor = (tipoValor || '').toString().trim();
+        unidadMedida = (unidadMedida || '').toString().trim();
+
+        if (esTipoPorcentaje(tipoValor, unidadMedida)) {
+            return `${numero.toFixed(0)}%`;
+        }
+
+        if (esTipoMoneda(tipoValor, unidadMedida)) {
+            if (Math.abs(numero) >= 1000000) {
+                return `$${(numero / 1000000).toFixed(1)}M`;
+            }
+
+            if (Math.abs(numero) >= 1000) {
+                return `$${(numero / 1000).toFixed(1)}K`;
+            }
+
+            return `$${numero.toFixed(0)}`;
+        }
+
+        const valorCorto = formatearNumeroCorto(numero);
+
+        if (unidadMedida && unidadMedida.toLowerCase() !== 'unidades') {
+            return `${valorCorto} ${unidadMedida}`;
+        }
+
+        return valorCorto;
+    }
+
+    function obtenerNombreEje(tipoValor, unidadMedida) {
+        tipoValor = (tipoValor || '').toString().trim();
+        unidadMedida = (unidadMedida || '').toString().trim();
+
+        if (esTipoPorcentaje(tipoValor, unidadMedida)) {
+            return 'Porcentaje';
+        }
+
+        if (esTipoMoneda(tipoValor, unidadMedida)) {
+            return 'Pesos MXN';
+        }
+
+        if (unidadMedida && unidadMedida.toLowerCase() !== 'unidades') {
+            return unidadMedida;
+        }
+
+        return 'Valores';
+    }
+
+    function obtenerConfiguracionEjeValores(configVariables) {
+        const variablesDeValor = configVariables.filter(cv => !esTipoPorcentaje(cv.tipoValor, cv.unidadMedida));
+
+        if (variablesDeValor.length === 0) {
+            return {
+                name: 'Valores',
+                tipoValor: '',
+                unidadMedida: ''
+            };
+        }
+
+        const firmas = [...new Set(variablesDeValor.map(cv => obtenerFirmaUnidad(cv.tipoValor, cv.unidadMedida)))];
+
+        // Si todas las variables de valor comparten unidad, el eje puede mostrar esa unidad.
+        // Si el KPI mezcla unidades distintas, el eje queda neutral y cada serie se formatea en tooltip/tarjeta.
+        if (firmas.length === 1) {
+            const primera = variablesDeValor[0];
+
+            return {
+                name: obtenerNombreEje(primera.tipoValor, primera.unidadMedida),
+                tipoValor: primera.tipoValor,
+                unidadMedida: primera.unidadMedida
+            };
+        }
+
+        return {
+            name: 'Valores',
+            tipoValor: '',
+            unidadMedida: ''
+        };
+    }
+
+
+    function obtenerHistorialKpi(kpi) {
+        return kpi?.historial ?? kpi?.Historial ?? [];
+    }
+
+    function obtenerVariablesPeriodo(periodo) {
+        return periodo?.variables ?? periodo?.Variables ?? [];
+    }
+
+    function esVariableMeta(variable) {
+        const nombre = valorTextoNoVacio(
+            variable?.nombre,
+            variable?.Nombre,
+            variable?.nombreVariable,
+            variable?.NombreVariable
+        ).toLowerCase();
+
+        const esLinea = variable?.esLinea === true || variable?.EsLinea === true;
+
+        return esLinea || nombre.includes('meta');
+    }
+
+    function evaluarCumplimientoMeta(valor, meta, sentido) {
+        const valorNumerico = parseFloat(valor);
+        const metaNumerica = parseFloat(meta);
+
+        if (isNaN(valorNumerico) || isNaN(metaNumerica) || !sentido) {
+            return null;
+        }
+
+        if (sentido === 'MayorMejor') {
+            return valorNumerico >= metaNumerica;
+        }
+
+        if (sentido === 'MenorMejor') {
+            return valorNumerico <= metaNumerica;
+        }
+
+        if (sentido === 'Exacto') {
+            return Math.round(valorNumerico * 100) / 100 === Math.round(metaNumerica * 100) / 100;
+        }
+
+        return null;
+    }
+
+    function obtenerTextoMeta(meta, sentido, tipoValor, unidadMedida) {
+        if (meta === null || meta === undefined || meta === '') {
+            return '';
+        }
+
+        const metaFormateada = formatearValorKpi(meta, tipoValor, unidadMedida);
+
+        if (sentido === 'MenorMejor') {
+            return `Meta: < ${metaFormateada}`;
+        }
+
+        if (sentido === 'MayorMejor') {
+            return `Meta: ≥ ${metaFormateada}`;
+        }
+
+        if (sentido === 'Exacto') {
+            return `Meta: = ${metaFormateada}`;
+        }
+
+        return `Meta: ${metaFormateada}`;
+    }
+
+    function calcularPromedioGeneralKpi(kpi) {
+        const historial = obtenerHistorialKpi(kpi);
+        const valores = [];
+        const firmas = new Set();
+        const nombresVariables = new Set();
+
+        let tipoValorGeneral = obtenerTipoValorDesdeKpi(kpi);
+        let unidadGeneral = obtenerUnidadMedidaDesdeKpi(kpi);
+        let meta = null;
+        let sentido = null;
+
+        historial.forEach(periodo => {
+            obtenerVariablesPeriodo(periodo).forEach(variable => {
+                if (meta === null || meta === undefined) {
+                    meta = variable?.meta ?? variable?.Meta ?? null;
+                }
+
+                if (sentido === null || sentido === undefined) {
+                    sentido = variable?.sentido ?? variable?.Sentido ?? null;
+                }
+
+                if (esVariableMeta(variable)) {
+                    return;
+                }
+
+                const valor = parseFloat(variable?.valor ?? variable?.Valor);
+
+                if (isNaN(valor)) {
+                    return;
+                }
+
+                const nombre = valorTextoNoVacio(variable?.nombre, variable?.Nombre);
+                const tipoValor = obtenerTipoValorDesdeVariable(variable, kpi);
+                const unidadMedida = obtenerUnidadMedidaDesdeVariable(variable, kpi);
+
+                valores.push(valor);
+                firmas.add(obtenerFirmaUnidad(tipoValor, unidadMedida));
+
+                if (nombre) {
+                    nombresVariables.add(nombre);
+                }
+
+                tipoValorGeneral = tipoValor;
+                unidadGeneral = unidadMedida;
+            });
+        });
+
+        if (!valores.length) {
+            return {
+                promedio: null,
+                conteo: 0,
+                puedePromediar: false,
+                motivo: 'sin-valores'
+            };
+        }
+
+        // Solo promediamos variables internas cuando el KPI es de porcentaje.
+        // En KPIs de moneda o cantidades, promediar Proyectado + Real genera
+        // tarjetas incorrectas frente a Power BI.
+        if (!esTipoPorcentaje(tipoValorGeneral, unidadGeneral)) {
+            return {
+                promedio: null,
+                conteo: valores.length,
+                puedePromediar: false,
+                motivo: 'promedio-solo-porcentaje'
+            };
+        }
+
+        if (firmas.size > 1) {
+            return {
+                promedio: null,
+                conteo: valores.length,
+                puedePromediar: false,
+                motivo: 'unidades-mixtas'
+            };
+        }
+
+        if (nombresVariables.size < 2) {
+            return {
+                promedio: null,
+                conteo: valores.length,
+                puedePromediar: false,
+                motivo: 'una-variable'
+            };
+        }
+
+        const suma = valores.reduce((total, valor) => total + valor, 0);
+
+        return {
+            promedio: suma / valores.length,
+            conteo: valores.length,
+            puedePromediar: true,
+            tipoValor: tipoValorGeneral,
+            unidadMedida: unidadGeneral,
+            meta,
+            sentido
+        };
+    }
+
+    function calcularTarjetaConfiguradaKpi(kpi) {
+        const variableTarjetaId = obtenerVariableTarjetaIdDesdeKpi(kpi);
+        const modoTarjeta = normalizarModoTarjeta(obtenerModoTarjetaDesdeKpi(kpi));
+
+        if (!variableTarjetaId) {
+            return {
+                tieneConfiguracion: false
+            };
+        }
+
+        const historial = obtenerHistorialKpi(kpi);
+        const valores = [];
+
+        let nombreVariable = '';
+        let tipoValor = obtenerTipoValorDesdeKpi(kpi);
+        let unidadMedida = obtenerUnidadMedidaDesdeKpi(kpi);
+        let meta = null;
+        let sentido = null;
+
+        historial.forEach(periodo => {
+            obtenerVariablesPeriodo(periodo).forEach(variable => {
+                const idVariable = obtenerVariableIdDesdeVariable(variable);
+
+                if (idVariable !== variableTarjetaId) {
+                    return;
+                }
+
+                const valor = parseFloat(variable?.valor ?? variable?.Valor);
+
+                if (isNaN(valor)) {
+                    return;
+                }
+
+                valores.push({
+                    valor,
+                    periodo: periodo?.periodo ?? periodo?.Periodo ?? '',
+                    variable
+                });
+
+                nombreVariable = valorTextoNoVacio(
+                    variable?.nombre,
+                    variable?.Nombre,
+                    variable?.nombreVariable,
+                    variable?.NombreVariable,
+                    nombreVariable
+                );
+
+                tipoValor = obtenerTipoValorDesdeVariable(variable, kpi);
+                unidadMedida = obtenerUnidadMedidaDesdeVariable(variable, kpi);
+
+                if (meta === null || meta === undefined) {
+                    meta = variable?.meta ?? variable?.Meta ?? null;
+                }
+
+                if (sentido === null || sentido === undefined) {
+                    sentido = variable?.sentido ?? variable?.Sentido ?? null;
+                }
+            });
+        });
+
+        if (!valores.length) {
+            return {
+                tieneConfiguracion: true,
+                tieneValor: false,
+                variableTarjetaId,
+                modoTarjeta,
+                nombreVariable,
+                tipoValor,
+                unidadMedida,
+                meta,
+                sentido,
+                valor: null,
+                conteo: 0
+            };
+        }
+
+        let valorFinal = 0;
+
+        if (modoTarjeta === 'Promedio') {
+            valorFinal = valores.reduce((total, item) => total + item.valor, 0) / valores.length;
+        }
+        else if (modoTarjeta === 'Suma' || modoTarjeta === 'Acumulado') {
+            valorFinal = valores.reduce((total, item) => total + item.valor, 0);
+        }
+        else {
+            // Automatico y UltimoPeriodo se comportan como Power BI:
+            // muestran el ultimo punto visible del periodo filtrado.
+            valorFinal = valores[valores.length - 1].valor;
+        }
+
+        return {
+            tieneConfiguracion: true,
+            tieneValor: true,
+            variableTarjetaId,
+            modoTarjeta,
+            nombreVariable,
+            tipoValor,
+            unidadMedida,
+            meta,
+            sentido,
+            valor: valorFinal,
+            conteo: valores.length
+        };
+    }
+
+    function obtenerValorNumericoEje(valor) {
+        if (valor === null || valor === undefined) {
+            return null;
+        }
+
+        if (Array.isArray(valor)) {
+            valor = valor[1];
+        }
+
+        if (typeof valor === 'object' && valor.value !== undefined) {
+            valor = valor.value;
+        }
+
+        const numero = Number(valor);
+        return isNaN(numero) ? null : numero;
+    }
+
+    function calcularMaximoEjeInteligente(valores, tipoValor, unidadMedida) {
+        const numeros = valores
+            .map(obtenerValorNumericoEje)
+            .filter(v => v !== null);
+
+        if (!numeros.length) {
+            return 10;
+        }
+
+        const maxDato = Math.max(...numeros, 0);
+        const esPorcentaje = esTipoPorcentaje(tipoValor, unidadMedida);
+
+        if (maxDato <= 0) {
+            return esPorcentaje ? 10 : 5;
+        }
+
+        if (esPorcentaje) {
+            if (maxDato <= 1) return 1.5;
+            if (maxDato <= 2) return 2;
+            if (maxDato <= 5) return 6;
+            if (maxDato <= 10) return 10;
+            if (maxDato <= 15) return 15;
+            if (maxDato <= 25) return 25;
+            if (maxDato <= 50) return 50;
+            if (maxDato <= 100) return 100;
+
+            return Math.ceil((maxDato * 1.15) / 10) * 10;
+        }
+
+        if (maxDato <= 5) return Math.ceil(maxDato + 1);
+        if (maxDato <= 10) return Math.ceil(maxDato + 2);
+        if (maxDato <= 50) return Math.ceil((maxDato * 1.25) / 5) * 5;
+        if (maxDato <= 100) return Math.ceil((maxDato * 1.2) / 10) * 10;
+        if (maxDato <= 1000) return Math.ceil((maxDato * 1.15) / 50) * 50;
+
+        return Math.ceil((maxDato * 1.15) / 100) * 100;
+    }
+
+    function calcularIntervaloEje(maximo) {
+        if (maximo <= 2) return 0.5;
+        if (maximo <= 6) return 1;
+        if (maximo <= 10) return 2;
+        if (maximo <= 25) return 5;
+        if (maximo <= 50) return 10;
+        if (maximo <= 100) return 20;
+
+        return Math.ceil(maximo / 5 / 10) * 10;
+    }
+
+
+    document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById('filtroMesGlobal').value = new Date().getMonth() + 1;
+
+        const now = new Date();
+        const primerDia = new Date(now.getFullYear(), 0, 1);
+        const semanaActual = Math.ceil((((now - primerDia) / 86400000) + primerDia.getDay() + 1) / 7);
+        document.getElementById('filtroSemanaGlobal').value = Math.min(Math.max(semanaActual, 1), 53);
+
+        mostrarSelectorPeriodo();
+        cambiarDepartamento(0, "General");
+
+        window.addEventListener('resize', function () {
+            if (chartGlobalInstance) chartGlobalInstance.resize();
+
+            for (let key in eChartInstances) {
+                eChartInstances[key].resize();
+            }
+        });
+    });
+
+    let vistaEsGeneral = true;
+    let tableroActivo = [];
+    let chartGlobalInstance = null;
+    let eChartInstances = {};
+
+    function filtrarDepartamentos() {
+        const busqueda = document.getElementById('buscadorDepto').value.toLowerCase();
+        const items = document.querySelectorAll('.op-departamento');
+
+        items.forEach(item => {
+            item.style.display = item.textContent.toLowerCase().includes(busqueda) ? "block" : "none";
+        });
+    }
+
+    function seleccionarDepto(id, nombre) {
+        document.querySelectorAll('#listaResultados button').forEach(b => b.classList.remove('active-sidebar'));
+
+        let btn = document.getElementById('btn-depto-' + id);
+
+        if (btn) {
+            btn.classList.add('active-sidebar');
+        }
+
+        document.getElementById('excelIdDepto').value = id;
+
+        cambiarDepartamento(id, nombre);
+    }
+
+    function mostrarSelectorPeriodo() {
+        const filtro = document.getElementById('filtroTiempoGlobal').value;
+        const contenedorMes = document.getElementById('contenedorFiltroMes');
+        const contenedorSemana = document.getElementById('contenedorFiltroSemana');
+
+        contenedorMes.classList.toggle('d-none', filtro !== 'mes');
+        contenedorSemana.classList.toggle('d-none', filtro !== 'semana');
+    }
+
+    function aplicarFiltroTiempo() {
+        mostrarSelectorPeriodo();
+
+        let deptoActual = document.getElementById('excelIdDepto').value || 0;
+        let nombreActual = document.getElementById('titulo-panel').innerText.replace("Desempeño de Área: ", "");
+
+        if (deptoActual == 0) {
+            nombreActual = "General";
+        }
+
+        cambiarDepartamento(deptoActual, nombreActual);
+    }
+
+    function cambiarDepartamento(id, nombreDepto) {
+        vistaEsGeneral = (id == 0);
+
+        document.getElementById('titulo-panel').innerText = vistaEsGeneral
+            ? "Visión Ejecutiva Corporativa"
+            : `Desempeño de Área: ${nombreDepto}`;
+
+        const vistaGlobal = document.getElementById('vistaGlobal');
+        const vistaMuro = document.getElementById('muro_graficas');
+        const btnExcel = document.getElementById('btnExportarExcel');
+
+        const tiempoSeleccionado = document.getElementById('filtroTiempoGlobal').value;
+        const mesSeleccionado = document.getElementById('filtroMesGlobal').value;
+        const semanaSeleccionada = document.getElementById('filtroSemanaGlobal').value;
+
+        const parametrosFecha = `&semana=${semanaSeleccionada}`;
+
+        if (vistaEsGeneral) {
+            vistaGlobal.classList.remove('d-none');
+            vistaMuro.classList.add('d-none');
+            btnExcel.classList.add('d-none');
+
+            document.getElementById('chart_global').innerHTML = `
+                <div class="d-flex justify-content-center align-items-center h-100">
+                    <div class="spinner-border text-primary"></div>
+                </div>
+            `;
+
+            fetch(`/Operaciones/ObtenerDatosGrafica?filtroTiempo=${tiempoSeleccionado}&mes=${mesSeleccionado}${parametrosFecha}&t=${new Date().getTime()}`)
+                .then(r => r.json())
+                .then(datos => {
+                    dibujarResumenGlobal(datos);
+                    dibujarGraficaGlobalECharts(datos);
+                });
+        } else {
+            vistaGlobal.classList.add('d-none');
+            vistaMuro.classList.remove('d-none');
+            btnExcel.classList.add('d-none');
+
+            vistaMuro.innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <div class="spinner-border" style="color: ${PANTONE_VERDE};"></div>
+                    <p class="mt-2 text-muted">Cargando métricas del área...</p>
+                </div>
+            `;
+
+            fetch(`/Operaciones/ObtenerTableroDepartamento?idDepartamento=${id}&filtroTiempo=${tiempoSeleccionado}&mes=${mesSeleccionado}${parametrosFecha}&t=${new Date().getTime()}`)
+                .then(r => r.json())
+                .then(tablero => {
+                    tableroActivo = tablero;
+                    dibujarMuroDeGraficasECharts(tableroActivo);
+                });
+        }
+    }
+
+    function dibujarResumenGlobal(datos) {
+        let textoPeriodo = "Global";
+        const filtroSelect = document.getElementById('filtroTiempoGlobal');
+
+        if (filtroSelect) {
+            textoPeriodo = filtroSelect.options[filtroSelect.selectedIndex].text;
+            const valorFiltro = filtroSelect.value;
+
+            if (valorFiltro === 'mes') {
+                const mesSelect = document.getElementById('filtroMesGlobal');
+                textoPeriodo = "Mes: " + mesSelect.options[mesSelect.selectedIndex].text;
+            } else if (valorFiltro === 'semana') {
+                const semSelect = document.getElementById('filtroSemanaGlobal');
+                textoPeriodo = semSelect.options[semSelect.selectedIndex].text;
+            }
+        }
+
+        if (!datos || datos.length === 0) {
+            document.getElementById('topWidgets').innerHTML = `
+                <div class="col-12">
+                    <div class="alert shadow-sm border-0 rounded-4 text-center p-4 bg-white border-start border-4" style="border-left-color: ${PANTONE_AMARILLO} !important;">
+                        <i class="fas fa-folder-open fa-3x mb-3 opacity-50" style="color: ${PANTONE_AMARILLO};"></i>
+                        <h5 class="fw-bold text-dark">No hay evaluaciones en este periodo</h5>
+                        <p class="text-muted mb-0">No hay metas configuradas o capturadas en: <b>${textoPeriodo}</b>.</p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('rankingGlobal').innerHTML = `
+                <div class="text-center text-muted mt-5">
+                    <i class="fas fa-trophy fa-2x mb-2 opacity-25"></i>
+                    <p>Sin ranking disponible</p>
+                </div>
+            `;
+
+            document.getElementById('insightsGlobal').innerHTML = '';
+            return;
+        }
+
+        let datosOrdenados = [...datos].sort((a, b) => b.valor - a.valor);
+        let totalKpisEmpresa = datos.reduce((acc, d) => acc + d.totalKpis, 0);
+        let totalCumplidosEmpresa = datos.reduce((acc, d) => acc + d.cumplidos, 0);
+
+        let tasaCumplimientoGlobal = totalKpisEmpresa > 0
+            ? ((totalCumplidosEmpresa / totalKpisEmpresa) * 100).toFixed(2)
+            : 0;
+
+        let colorSemaforo = tasaCumplimientoGlobal < 60
+            ? '#ff0000'
+            : (tasaCumplimientoGlobal < 80 ? '#facc15' : '#a3e635');
+
+        let mejorArea = datosOrdenados[0];
+
+        document.getElementById('topWidgets').innerHTML = `
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="top-widget-card" style="--accent:${colorSemaforo};">
+                    <div class="top-widget-title">
+                        <i class="fas fa-chart-line"></i>
+                        Éxito ${textoPeriodo}
+                    </div>
+                    <h2 class="top-widget-value" style="color:${colorSemaforo};">
+                        ${tasaCumplimientoGlobal}%
+                    </h2>
+                    <div class="top-widget-sub">Cumplimiento global del periodo</div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="top-widget-card" style="--accent:#38bdf8;">
+                    <div class="top-widget-title">
+                        <i class="fas fa-bullseye"></i>
+                        Metas Logradas
+                    </div>
+                    <h2 class="top-widget-value" style="color:#2563EB;">
+                        ${totalCumplidosEmpresa}
+                        <span style="font-size:1.1rem;color:#94A3B8;font-weight:800;">/ ${totalKpisEmpresa}</span>
+                    </h2>
+                    <div class="top-widget-sub">Metas cumplidas frente al total evaluado</div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="top-widget-card" style="--accent:#facc15;">
+                    <div class="top-widget-title">
+                        <i class="fas fa-medal"></i>
+                        Área Líder
+                    </div>
+                    <h2 class="top-widget-value text-truncate" style="color:#7C8700;font-size:1.8rem;" title="${mejorArea.departamento}">
+                        ${mejorArea.departamento}
+                    </h2>
+                    <div class="top-widget-sub">Área con mejor desempeño actual</div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="top-widget-card" style="--accent:#22d3ee;">
+                    <div class="top-widget-title">
+                        <i class="fas fa-sync-alt"></i>
+                        Áreas Activas
+                    </div>
+                    <h2 class="top-widget-value" style="color:#06B6D4;">
+                        ${datos.length}
+                    </h2>
+                    <div class="top-widget-sub">Áreas con métricas en el periodo</div>
+                </div>
+            </div>
+        `;
+
+        let rankingHtml = '';
+
+        datosOrdenados.forEach((d, index) => {
+            let colorHex = d.valor < 60
+                ? PANTONE_ROJO
+                : (d.valor < 80 ? PANTONE_AMARILLO : PANTONE_VERDE);
+
+            let textColor = (colorHex === PANTONE_AMARILLO || colorHex === PANTONE_VERDE) ? '#111' : '#fff';
+
+            let medalla = index === 0
+                ? '🥇'
+                : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `<span class="badge bg-light text-muted border">${index + 1}</span>`));
+
+            rankingHtml += `
+                <div class="ranking-item" style="border-left: 4px solid ${colorHex};">
+                    <div class="ranking-left">
+                        <div class="ranking-medal">${medalla}</div>
+                        <div class="min-w-0">
+                            <div class="ranking-name text-truncate" title="${d.departamento}">
+                                ${d.departamento}
+                            </div>
+                            <div class="ranking-meta">${d.cumplidos} de ${d.totalKpis} metas</div>
+                        </div>
+                    </div>
+
+                    <span class="ranking-badge" style="background:${colorHex}; color:${textColor};">
+                        ${d.valor}%
+                    </span>
+                </div>
+            `;
+        });
+
+        const rankingElement = document.getElementById('rankingGlobal');
+        rankingElement.classList.add('d-flex', 'flex-wrap', 'gap-3');
+        rankingElement.innerHTML = rankingHtml;
+
+        let kpisExitosos = [];
+        let kpisFallidos = [];
+
+        datos.forEach(d => {
+            d.detalle.forEach(k => {
+                if (k.cumple) {
+                    kpisExitosos.push({ depto: d.departamento, ...k });
+                } else {
+                    kpisFallidos.push({ depto: d.departamento, ...k });
+                }
+            });
+        });
+
+        document.getElementById('insightsGlobal').innerHTML = `
+            <div class="col-12 col-xxl-6">
+                <div class="insight-panel insight-panel-success">
+                    <div class="insight-title" style="color:#4a7522;">
+                        <i class="fas fa-star me-2"></i> Metas Logradas
+                    </div>
+
+                    ${
+                        kpisExitosos.length > 0
+                            ? kpisExitosos.slice(0, 5).map(k => `
+                                <div class="insight-item">
+                                    <div class="insight-kpi">
+                                        <div class="insight-area" style="color:#5E9B24;">
+                                            <i class="fas fa-check-circle me-2"></i>${k.depto}
+                                        </div>
+                                        <div class="insight-metric">${k.nombreKpi}</div>
+                                    </div>
+                                    <div class="insight-chip">
+                                        Logró: ${k.promedioActual} (Meta: ${k.metaEsperada})
+                                    </div>
+                                </div>
+                            `).join('')
+                            : `
+                                <div class="text-muted">
+                                    Aún no hay metas superadas en este periodo.
+                                </div>
+                            `
+                    }
+                </div>
+            </div>
+
+            <div class="col-12 col-xxl-6">
+                <div class="insight-panel insight-panel-danger">
+                    <div class="insight-title" style="color:#B91C1C;">
+                        <i class="fas fa-exclamation-triangle me-2"></i> Metas No Alcanzadas
+                    </div>
+
+                    ${
+                        kpisFallidos.length > 0
+                            ? kpisFallidos.slice(0, 5).map(k => `
+                                <div class="insight-item">
+                                    <div class="insight-kpi">
+                                        <div class="insight-area" style="color:#DC2626;">
+                                            <i class="fas fa-times-circle me-2"></i>${k.depto}
+                                        </div>
+                                        <div class="insight-metric">${k.nombreKpi}</div>
+                                    </div>
+                                    <div class="insight-chip">
+                                        Cayó a: ${k.promedioActual} (Meta: ${k.metaEsperada})
+                                    </div>
+                                </div>
+                            `).join('')
+                            : `
+                                <div class="text-muted">
+                                    ¡Excelente! Ninguna meta reprobada.
+                                </div>
+                            `
+                    }
+                </div>
+            </div>
+        `;
+    }
+
+    function dibujarGraficaGlobalECharts(datos) {
+        let chartDom = document.getElementById('chart_global');
+
+        if (!chartDom) return;
+
+        if (chartGlobalInstance) {
+            chartGlobalInstance.dispose();
+        }
+
+        chartGlobalInstance = echarts.init(chartDom);
+
+        let categorias = datos.length > 0 ? datos.map(d => d.departamento) : ['Sin datos'];
+        let valores = datos.length > 0 ? datos.map(d => d.valor) : [0];
+
+        let option = {
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow',
+                    shadowStyle: {
+                        color: 'rgba(37,99,235,.08)'
+                    }
+                },
+                backgroundColor: '#0f172a',
+                borderColor: '#334155',
+                borderWidth: 1,
+                textStyle: {
+                    color: '#f8fafc',
+                    fontSize: 13
+                },
+                padding: 12,
+                formatter: function (params) {
+                    let deptData = datos.find(d => d.departamento === params[0].name);
+
+                    if (!deptData) {
+                        return 'Sin datos';
+                    }
+
+                    return `
+                        <div style="font-weight:900;margin-bottom:4px;">${deptData.departamento}</div>
+                        <div>Tasa de Éxito: <b>${deptData.valor}%</b></div>
+                        <div>${deptData.cumplidos} de ${deptData.totalKpis} metas cumplidas</div>
+                    `;
+                }
+            },
+            grid: {
+                left: '5%',
+                right: '5%',
+                bottom: '12%',
+                top: '10%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: categorias,
+                axisTick: {
+                    show: false
+                },
+                axisLine: {
+                    lineStyle: {
+                        color: '#94a3b8'
+                    }
+                },
+                axisLabel: {
+                    interval: 0,
+                    rotate: categorias.length > 5 ? 18 : 0,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: '#334155',
+                    margin: 14
+                }
+            },
+            yAxis: {
+                type: 'value',
+                max: 100,
+                axisLine: {
+                    show: false
+                },
+                axisTick: {
+                    show: false
+                },
+                axisLabel: {
+                    formatter: '{value}%',
+                    color: '#334155',
+                    fontSize: 12,
+                    fontWeight: 800
+                },
+                name: 'Nivel de Cumplimiento',
+                nameGap: 28,
+                nameTextStyle: {
+                    color: '#0f172a',
+                    fontWeight: 900,
+                    fontSize: 12
+                },
+                splitLine: {
+                    lineStyle: {
+                        color: '#e2e8f0',
+                        type: 'solid'
+                    }
+                }
+            },
+            series: [
+                {
+                    name: 'Tasa de Éxito',
+                    type: 'bar',
+                    barWidth: categorias.length <= 3 ? '18%' : '38%',
+                    data: valores.map((v, index) => {
+                        let color = CHART_PALETTE[index % CHART_PALETTE.length];
+
+                        return {
+                            value: v,
+                            itemStyle: {
+                                color: color,
+                                borderRadius: [12, 12, 0, 0]
+                            }
+                        };
+                    }),
+                    label: {
+                        show: true,
+                        position: 'top',
+                        formatter: '{c}%',
+                        color: '#0f172a',
+                        fontWeight: 900,
+                        fontSize: 12
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 16,
+                            shadowColor: 'rgba(15,23,42,.24)'
+                        }
+                    },
+                    markLine: {
+                        silent: true,
+                        symbol: 'none',
+                        lineStyle: {
+                            type: 'dashed',
+                            width: 2,
+                            color: '#f59e0b'
+                        },
+                        label: {
+                            formatter: 'Meta 80%',
+                            color: '#92400e',
+                            fontWeight: 900,
+                            fontSize: 12,
+                            backgroundColor: '#fff7ed',
+                            borderColor: '#fed7aa',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            padding: [4, 8]
+                        },
+                        data: [
+                            { yAxis: 80 }
+                        ]
+                    },
+                    animationDuration: 1200,
+                    animationEasing: 'cubicOut'
+                }
+            ]
+        };
+
+        chartGlobalInstance.setOption(option);
+    }
+
+    function dibujarMuroDeGraficasECharts(tablero) {
+        const contenedor = document.getElementById('muro_graficas');
+        contenedor.innerHTML = '';
+
+        if (!tablero || tablero.length === 0) {
+            contenedor.innerHTML = `
+                <div class="col-12 text-center py-5 text-muted">
+                    <div class="card chart-card border-0 rounded-4 p-5">
+                        <i class="fas fa-folder-open fa-3x mb-3"></i>
+                        <h5>No hay historial para esta área</h5>
+                        <p class="mb-0">Cuando existan registros activos, las gráficas aparecerán aquí.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        let textoPeriodoWall = "del Periodo";
+        const filtroSelect = document.getElementById('filtroTiempoGlobal');
+
+        if (filtroSelect) {
+            textoPeriodoWall = filtroSelect.options[filtroSelect.selectedIndex].text;
+        }
+
+        tablero.forEach(kpi => {
+            let tarjetasHTML = '';
+            const tipoValorKpi = obtenerTipoValorDesdeKpi(kpi);
+            const unidadMedidaKpi = obtenerUnidadMedidaDesdeKpi(kpi);
+
+            if (kpi.historial && kpi.historial.length > 0) {
+                let primeraVariable = kpi.historial[0].variables[0];
+                let metaKpi = primeraVariable?.meta;
+                let sentidoKpi = primeraVariable?.sentido;
+                let conteoEvaluaciones = kpi.historial.length;
+
+                let variablesAgrupadas = {};
+
+                kpi.historial.forEach(h => {
+                    h.variables.forEach(v => {
+                        if (!variablesAgrupadas[v.nombre]) {
+                            variablesAgrupadas[v.nombre] = {
+                                nombre: v.nombre,
+                                esLinea: v.esLinea,
+                                suma: 0,
+                                conteo: 0,
+                                tipoValor: obtenerTipoValorDesdeVariable(v, kpi),
+                                unidadMedida: obtenerUnidadMedidaDesdeVariable(v, kpi),
+                                tipoCaptura: obtenerTipoCapturaDesdeVariable(v)
+                            };
+                        }
+
+                        variablesAgrupadas[v.nombre].suma += parseFloat(v.valor) || 0;
+                        variablesAgrupadas[v.nombre].conteo++;
+                    });
+                });
+
+                const tarjetaConfiguradaKpi = calcularTarjetaConfiguradaKpi(kpi);
+                const promedioGeneralKpi = calcularPromedioGeneralKpi(kpi);
+
+                if (tarjetaConfiguradaKpi.tieneConfiguracion) {
+                    const cumpleTarjeta = evaluarCumplimientoMeta(
+                        tarjetaConfiguradaKpi.valor,
+                        tarjetaConfiguradaKpi.meta,
+                        tarjetaConfiguradaKpi.sentido
+                    );
+
+                    let colorFondoTarjeta = '#0d6efd';
+                    let colorTextoTarjeta = '#fff';
+
+                    if (cumpleTarjeta !== null) {
+                        colorFondoTarjeta = cumpleTarjeta ? PANTONE_VERDE : PANTONE_ROJO;
+                        colorTextoTarjeta = cumpleTarjeta ? '#111' : '#fff';
+                    }
+
+                    const valorTarjetaFormateado = tarjetaConfiguradaKpi.tieneValor
+                        ? formatearValorKpi(
+                            tarjetaConfiguradaKpi.valor,
+                            tarjetaConfiguradaKpi.tipoValor,
+                            tarjetaConfiguradaKpi.unidadMedida
+                        )
+                        : '-';
+
+                    const textoMetaTarjeta = obtenerTextoMeta(
+                        tarjetaConfiguradaKpi.meta,
+                        tarjetaConfiguradaKpi.sentido,
+                        tarjetaConfiguradaKpi.tipoValor,
+                        tarjetaConfiguradaKpi.unidadMedida
+                    );
+
+                    tarjetasHTML += `
+                        <div class="col-md-4 col-sm-6 mb-3">
+                            <div class="card kpi-card border-0 shadow-sm rounded-4 h-100" style="background-color: ${colorFondoTarjeta}; color: ${colorTextoTarjeta};">
+                                <div class="card-body p-4 position-relative">
+                                    <i class="fas fa-chart-line kpi-icon-bg" style="color: ${colorTextoTarjeta}; opacity: 0.15;"></i>
+                                    <h6 class="fw-bold text-uppercase mb-1" style="opacity: 0.9; letter-spacing: 1px;">
+                                        ${kpi.nombreMetrica}
+                                    </h6>
+                                    <h2 class="display-6 fw-bolder mb-2">${valorTarjetaFormateado}</h2>
+                                    ${textoMetaTarjeta
+                                        ? `<div class="fw-bold mb-3" style="opacity:.92;">${textoMetaTarjeta}</div>`
+                                        : `<div class="mb-3">&nbsp;</div>`
+                                    }
+                                    <div class="d-flex justify-content-between align-items-center mt-auto gap-2">
+                                        <span class="badge bg-white text-dark rounded-pill px-3 shadow-sm py-2 text-truncate" title="${tarjetaConfiguradaKpi.nombreVariable || 'Variable destacada'}">
+                                            ${tarjetaConfiguradaKpi.nombreVariable || 'Variable destacada'}
+                                        </span>
+                                        <span class="small fw-bold text-end" style="opacity: 0.9;">
+                                            ${obtenerEtiquetaModoTarjeta(tarjetaConfiguradaKpi.modoTarjeta)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                else if (promedioGeneralKpi.puedePromediar) {
+                    const cumplePromedioGeneral = evaluarCumplimientoMeta(
+                        promedioGeneralKpi.promedio,
+                        promedioGeneralKpi.meta,
+                        promedioGeneralKpi.sentido
+                    );
+
+                    let colorFondoGeneral = '#0d6efd';
+                    let colorTextoGeneral = '#fff';
+
+                    if (cumplePromedioGeneral !== null) {
+                        colorFondoGeneral = cumplePromedioGeneral ? PANTONE_VERDE : PANTONE_ROJO;
+                        colorTextoGeneral = cumplePromedioGeneral ? '#111' : '#fff';
+                    }
+
+                    const valorGeneralFormateado = formatearValorKpi(
+                        promedioGeneralKpi.promedio,
+                        promedioGeneralKpi.tipoValor,
+                        promedioGeneralKpi.unidadMedida
+                    );
+
+                    const textoMetaGeneral = obtenerTextoMeta(
+                        promedioGeneralKpi.meta,
+                        promedioGeneralKpi.sentido,
+                        promedioGeneralKpi.tipoValor,
+                        promedioGeneralKpi.unidadMedida
+                    );
+
+                    tarjetasHTML += `
+                        <div class="col-md-4 col-sm-6 mb-3">
+                            <div class="card kpi-card border-0 shadow-sm rounded-4 h-100" style="background-color: ${colorFondoGeneral}; color: ${colorTextoGeneral};">
+                                <div class="card-body p-4 position-relative">
+                                    <i class="fas fa-chart-pie kpi-icon-bg" style="color: ${colorTextoGeneral}; opacity: 0.15;"></i>
+                                    <h6 class="fw-bold text-uppercase mb-1" style="opacity: 0.9; letter-spacing: 1px;">
+                                        ${kpi.nombreMetrica}
+                                    </h6>
+                                    <h2 class="display-6 fw-bolder mb-2">${valorGeneralFormateado}</h2>
+                                    ${textoMetaGeneral
+                                        ? `<div class="fw-bold mb-3" style="opacity:.92;">${textoMetaGeneral}</div>`
+                                        : `<div class="mb-3">&nbsp;</div>`
+                                    }
+                                    <div class="d-flex justify-content-between align-items-center mt-auto">
+                                        <span class="badge bg-white text-dark rounded-pill px-3 shadow-sm py-2">
+                                            Promedio general
+                                        </span>
+                                        <span class="small fw-bold" style="opacity: 0.9;">
+                                            ${promedioGeneralKpi.conteo} valores
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Si el KPI tiene tarjeta configurada, mostramos solo esa tarjeta.
+                // Si no tiene tarjeta configurada y tampoco puede calcular promedio general,
+                // mostramos sus variables por separado.
+                if (!tarjetaConfiguradaKpi.tieneConfiguracion && !promedioGeneralKpi.puedePromediar) {
+                    Object.values(variablesAgrupadas).forEach((v, index) => {
+                        let colorFondo = '#0d6efd';
+                        let colorTexto = '#fff';
+                        let promedioFinal = v.conteo > 0 ? (v.suma / v.conteo) : 0;
+                        let promedioEvaluable = parseFloat(promedioFinal);
+
+                        if (v.esLinea) {
+                            colorFondo = PANTONE_AMARILLO;
+                            colorTexto = '#111';
+                        }
+                        else {
+                            const cumpleMeta = evaluarCumplimientoMeta(
+                                promedioEvaluable,
+                                metaKpi,
+                                sentidoKpi
+                            );
+
+                            if (cumpleMeta !== null) {
+                                colorFondo = cumpleMeta ? PANTONE_VERDE : PANTONE_ROJO;
+                                colorTexto = cumpleMeta ? '#111' : '#fff';
+                            }
+                        }
+
+                        let icono = v.esLinea ? 'fa-bullseye' : 'fa-chart-bar';
+                        let etiqueta = v.esLinea
+                            ? '<i class="fas fa-star" style="color: #ff9900;"></i> Meta Establecida'
+                            : `Promedio (${conteoEvaluaciones} eval.)`;
+
+                        let valorFormateado = formatearValorKpi(
+                            promedioFinal,
+                            valorTextoNoVacio(v.tipoValor, tipoValorKpi),
+                            valorTextoNoVacio(v.unidadMedida, unidadMedidaKpi)
+                        );
+
+                        tarjetasHTML += `
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="card kpi-card border-0 shadow-sm rounded-4 h-100" style="background-color: ${colorFondo}; color: ${colorTexto};">
+                                    <div class="card-body p-4 position-relative">
+                                        <i class="fas ${icono} kpi-icon-bg" style="color: ${colorTexto}; opacity: 0.15;"></i>
+                                        <h6 class="fw-bold text-uppercase mb-1" style="opacity: 0.85; letter-spacing: 1px;">
+                                            ${v.nombre}
+                                        </h6>
+                                        <h2 class="display-6 fw-bolder mb-3">${valorFormateado}</h2>
+                                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                                            <span class="badge bg-white text-dark rounded-pill px-3 shadow-sm py-2">${etiqueta}</span>
+                                            <span class="small fw-bold" style="opacity: 0.9;">
+                                                <i class="fas fa-calendar me-1"></i> ${textoPeriodoWall}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            contenedor.innerHTML += `
+                <div class="col-12 mb-4">
+                    <div class="card metric-wall-card border-0 rounded-4 overflow-hidden">
+                        <div class="card-header bg-white border-bottom-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <h5 class="mb-0 fw-bold text-dark">
+                                    <i class="fas fa-cube text-primary me-2"></i>${kpi.nombreMetrica}
+                                </h5>
+                                <small class="text-muted">Historial activo según periodo seleccionado</small>
+                            </div>
+
+                            <select class="form-select form-select-sm shadow-sm wall-select w-auto"
+                                    onchange="cambiarTipoGraficaMuro(${kpi.metricaID}, this.value)">
+                                <option value="ComboChart" ${kpi.tipoGrafica === 'ComboChart' ? 'selected' : ''}>Gráfica Mixta</option>
+                                <option value="ColumnChart" ${kpi.tipoGrafica === 'ColumnChart' ? 'selected' : ''}>Gráfica de Barras</option>
+                                <option value="StackedBarChart" ${kpi.tipoGrafica === 'StackedBarChart' ? 'selected' : ''}>Barras Apiladas</option>
+                                <option value="LineChart" ${kpi.tipoGrafica === 'LineChart' ? 'selected' : ''}>Gráfica de Líneas</option>
+                                <option value="AreaChart" ${kpi.tipoGrafica === 'AreaChart' ? 'selected' : ''}>Gráfica de Área</option>
+                                <option value="StackedAreaChart" ${kpi.tipoGrafica === 'StackedAreaChart' ? 'selected' : ''}>Área Apilada</option>
+                                <option value="PieChart" ${kpi.tipoGrafica === 'PieChart' ? 'selected' : ''}>Gráfica de Pastel</option>
+                                <option value="DoughnutChart" ${kpi.tipoGrafica === 'DoughnutChart' ? 'selected' : ''}>Gráfica de Dona</option>
+                            </select>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="row mb-2">${tarjetasHTML}</div>
+
+                            <div class="card chart-card border-0 rounded-4 p-3">
+                                <div id="chart_${kpi.metricaID}" style="height: 420px; width: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            }
+        });
+
+        tablero.forEach(kpi => dibujarUnicaGraficaECharts(kpi, kpi.tipoGrafica));
+    }
+
+    function cambiarTipoGraficaMuro(metricaID, nuevoTipo) {
+        let kpiEncontrado = tableroActivo.find(k => k.metricaID === metricaID);
+
+        if (kpiEncontrado) {
+            dibujarUnicaGraficaECharts(kpiEncontrado, nuevoTipo);
+        }
+    }
+
+    function dibujarUnicaGraficaECharts(kpi, tipoGraficaElegido) {
+        let chartDom = document.getElementById('chart_' + kpi.metricaID);
+        let myChart;
+
+        if (!chartDom) {
+            return;
+        }
+
+        if (eChartInstances[kpi.metricaID]) {
+            eChartInstances[kpi.metricaID].dispose();
+        }
+
+        myChart = echarts.init(chartDom);
+        eChartInstances[kpi.metricaID] = myChart;
+
+        const tipoValorKpi = obtenerTipoValorDesdeKpi(kpi);
+        const unidadMedidaKpi = obtenerUnidadMedidaDesdeKpi(kpi);
+
+        let categorias = kpi.historial.map(h => h.periodo);
+        let configVariables = [];
+        let seriesData = [];
+
+        let coloresBaseAuxiliares = CHART_PALETTE;
+
+        kpi.historial.forEach(h => {
+            h.variables.forEach(v => {
+                if (!configVariables.find(cv => cv.nombre === v.nombre)) {
+                    configVariables.push({
+                        nombre: v.nombre,
+                        esLinea: v.esLinea,
+                        tipoValor: obtenerTipoValorDesdeVariable(v, kpi),
+                        unidadMedida: obtenerUnidadMedidaDesdeVariable(v, kpi),
+                        tipoCaptura: obtenerTipoCapturaDesdeVariable(v),
+                        esLineaFija: esLineaFija(v)
+                    });
+                }
+            });
+        });
+
+        const esGraficaCircular = tipoGraficaElegido === 'PieChart' || tipoGraficaElegido === 'DoughnutChart';
+
+        if (esGraficaCircular) {
+            const variablesCircular = configVariables.filter(cv => !cv.esLinea);
+
+            let dataCircular = variablesCircular.map((cv, index) => {
+                const total = kpi.historial.reduce((suma, h) => {
+                    const variable = h.variables.find(v => v.nombre === cv.nombre);
+                    return suma + (parseFloat(variable?.valor) || 0);
+                }, 0);
+
+                return {
+                    name: cv.nombre,
+                    value: total,
+                    itemStyle: {
+                        color: coloresBaseAuxiliares[index % coloresBaseAuxiliares.length]
+                    },
+                    tipoValor: cv.tipoValor,
+                    unidadMedida: cv.unidadMedida
+                };
+            }).filter(item => item.value > 0);
+
+            if (dataCircular.length === 0) {
+                dataCircular = [{
+                    name: 'Sin datos',
+                    value: 0,
+                    itemStyle: { color: CHART_GRIS },
+                    tipoValor: tipoValorKpi,
+                    unidadMedida: unidadMedidaKpi
+                }];
+            }
+
+            myChart.setOption({
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: '#0f172a',
+                    borderColor: '#334155',
+                    borderWidth: 1,
+                    textStyle: { color: '#f8fafc' },
+                    formatter: function (params) {
+                        const item = params.data || {};
+                        return `
+                            <div style="font-weight:900;margin-bottom:6px;">${params.name}</div>
+                            <div style="display:flex;justify-content:space-between;gap:18px;">
+                                <span>Total del periodo</span>
+                                <strong>${formatearValorKpi(params.value, item.tipoValor, item.unidadMedida)}</strong>
+                            </div>
+                            <div style="opacity:.8;margin-top:4px;">Participación: <b>${params.percent}%</b></div>
+                        `;
+                    }
+                },
+                legend: {
+                    bottom: '0%',
+                    textStyle: {
+                        color: '#334155',
+                        fontWeight: 700
+                    }
+                },
+                toolbox: {
+                    show: true,
+                    right: 10,
+                    feature: {
+                        saveAsImage: { title: 'Descargar' }
+                    },
+                    iconStyle: {
+                        borderColor: '#64748b'
+                    },
+                    emphasis: {
+                        iconStyle: {
+                            borderColor: '#2563eb'
+                        }
+                    }
+                },
+                series: [
+                    {
+                        name: kpi.nombreMetrica,
+                        type: 'pie',
+                        radius: tipoGraficaElegido === 'DoughnutChart' ? ['45%', '68%'] : '68%',
+                        center: ['50%', '46%'],
+                        avoidLabelOverlap: true,
+                        data: dataCircular,
+                        label: {
+                            color: '#0f172a',
+                            fontWeight: 900,
+                            formatter: function (params) {
+                                return `${params.name}\n${params.percent}%`;
+                            }
+                        },
+                        labelLine: {
+                            lineStyle: {
+                                color: '#94a3b8'
+                            }
+                        },
+                        emphasis: {
+                            scale: true,
+                            scaleSize: 8,
+                            itemStyle: {
+                                shadowBlur: 18,
+                                shadowColor: 'rgba(15,23,42,.22)'
+                            }
+                        },
+                        animationDuration: 1000
+                    }
+                ]
+            });
+
+            return;
+        }
+
+        let tieneValores = false;
+        let tienePorcentajes = false;
+
+        configVariables.forEach(cv => {
+            if (esTipoPorcentaje(cv.tipoValor, cv.unidadMedida)) {
+                tienePorcentajes = true;
+            } else {
+                tieneValores = true;
+            }
+        });
+
+        let yAxisConfig = [];
+
+        const ejeValores = obtenerConfiguracionEjeValores(configVariables);
+
+        if (tieneValores) {
+            yAxisConfig.push({
+                type: 'value',
+                name: ejeValores.name,
+                position: 'left',
+                axisLine: { show: true },
+                tipoValor: ejeValores.tipoValor,
+                unidadMedida: ejeValores.unidadMedida
+            });
+        }
+
+        if (tienePorcentajes) {
+            yAxisConfig.push({
+                type: 'value',
+                name: 'Porcentaje',
+                position: tieneValores ? 'right' : 'left',
+                max: 100,
+                axisLabel: { formatter: '{value}%' },
+                splitLine: { show: !tieneValores },
+                axisLine: { show: true },
+                tipoValor: 'Porcentaje',
+                unidadMedida: '%'
+            });
+        }
+
+        if (yAxisConfig.length === 0) {
+            yAxisConfig.push({
+                type: 'value',
+                name: 'Valores',
+                tipoValor: '',
+                unidadMedida: ''
+            });
+        }
+
+        const esGraficaApilada = tipoGraficaElegido === 'StackedBarChart';
+        const esGraficaAreaApilada = tipoGraficaElegido === 'StackedAreaChart';
+
+        let masterType = (tipoGraficaElegido === 'LineChart' || tipoGraficaElegido === 'AreaChart' || esGraficaAreaApilada)
+            ? 'line'
+            : 'bar';
+
+        configVariables.forEach((cv, index) => {
+            let esPorcentaje = esTipoPorcentaje(cv.tipoValor, cv.unidadMedida);
+            let yIndex = 0;
+
+            if (tieneValores && tienePorcentajes && esPorcentaje) {
+                yIndex = 1;
+            }
+
+            let tipoSerie = masterType;
+
+            // Las variables marcadas como linea se mantienen como linea,
+            // aunque el usuario seleccione barras o barras apiladas.
+            // Esto permite que metas fijas se vean como referencia visual.
+            if (cv.esLinea) {
+                tipoSerie = 'line';
+            }
+
+            if (esGraficaApilada && !cv.esLinea) {
+                tipoSerie = 'bar';
+            }
+
+            if (esGraficaAreaApilada && !cv.esLinea) {
+                tipoSerie = 'line';
+            }
+
+            const esLineaDeValorFijo = cv.esLineaFija === true;
+
+            let colorBaseSerie = cv.esLinea
+                ? '#F59E0B'
+                : coloresBaseAuxiliares[index % coloresBaseAuxiliares.length];
+
+            let seriesDataCalculada = kpi.historial.map(h => {
+                let variable = h.variables.find(v => v.nombre === cv.nombre);
+                let val = variable ? variable.valor : 0;
+
+                return {
+                    value: val,
+                    itemStyle: {
+                        color: colorBaseSerie
+                    }
+                };
+            });
+
+            let serieObj = {
+                name: cv.nombre,
+                type: tipoSerie,
+                yAxisIndex: yIndex,
+                data: seriesDataCalculada,
+
+                // Para la grafica tipo Power BI del centro:
+                // variables normales apiladas + meta/linea por encima.
+                stack: (esGraficaApilada || esGraficaAreaApilada) && !cv.esLinea ? `total_${yIndex}` : undefined,
+                barMaxWidth: esGraficaApilada ? 56 : undefined,
+
+                itemStyle: {
+                    color: colorBaseSerie,
+                    borderRadius: tipoSerie === 'bar' && !esGraficaApilada ? [6, 6, 0, 0] : 0
+                },
+                label: {
+                    show: esGraficaApilada && tipoSerie === 'bar',
+                    position: 'inside',
+                    color: '#ffffff',
+                    fontWeight: 900,
+                    fontSize: 11,
+                    textBorderColor: 'rgba(15,23,42,.35)',
+                    textBorderWidth: 2,
+                    formatter: function (params) {
+                        const valor = obtenerValorNumericoEje(params.value);
+
+                        if (valor === null || valor === 0) {
+                            return '';
+                        }
+
+                        return formatearValorKpiCorto(valor, cv.tipoValor, cv.unidadMedida);
+                    }
+                },
+                lineStyle: {
+                    width: tipoSerie === 'line' ? 3 : 0,
+                    color: colorBaseSerie,
+                    type: esLineaDeValorFijo ? 'dashed' : 'solid',
+                    shadowColor: 'rgba(15,23,42,.18)',
+                    shadowBlur: tipoSerie === 'line' ? 8 : 0
+                },
+                emphasis: {
+                    focus: 'series'
+                },
+                symbol: tipoSerie === 'line' ? 'circle' : 'none',
+                symbolSize: tipoSerie === 'line' ? 8 : 0,
+                smooth: true,
+                z: tipoSerie === 'line' ? 10 : 2,
+                animationDuration: 1000,
+                tipoValor: cv.tipoValor,
+                unidadMedida: cv.unidadMedida,
+                tipoCaptura: cv.tipoCaptura,
+                esLineaFija: esLineaDeValorFijo
+            };
+
+            if ((tipoGraficaElegido === 'AreaChart' || esGraficaAreaApilada) && !cv.esLinea) {
+                serieObj.areaStyle = {
+                    opacity: esGraficaAreaApilada ? 0.28 : 0.18,
+                    color: colorBaseSerie
+                };
+            }
+
+            seriesData.push(serieObj);
+        });
+
+        yAxisConfig = yAxisConfig.map((axis, axisIndex) => {
+            const valoresDelEje = [];
+            const seriesDelEje = seriesData.filter(serie => (serie.yAxisIndex || 0) === axisIndex);
+
+            seriesDelEje.forEach(serie => {
+                if (Array.isArray(serie.data)) {
+                    serie.data.forEach(valor => valoresDelEje.push(valor));
+                }
+            });
+
+            // En barras apiladas el eje debe considerar el total acumulado por periodo,
+            // no solo el valor individual mas alto.
+            if (esGraficaApilada || esGraficaAreaApilada) {
+                categorias.forEach((_, categoriaIndex) => {
+                    const totalApilado = seriesDelEje
+                        .filter(serie => serie.stack)
+                        .reduce((total, serie) => {
+                            return total + (obtenerValorNumericoEje(serie.data[categoriaIndex]) || 0);
+                        }, 0);
+
+                    if (totalApilado > 0) {
+                        valoresDelEje.push(totalApilado);
+                    }
+                });
+            }
+
+            const maximoInteligente = calcularMaximoEjeInteligente(
+                valoresDelEje,
+                axis.tipoValor,
+                axis.unidadMedida
+            );
+
+            return {
+                ...axis,
+                min: 0,
+                max: maximoInteligente,
+                interval: calcularIntervaloEje(maximoInteligente)
+            };
+        });
+
+        let option = {
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross',
+                    label: {
+                        backgroundColor: '#0f172a'
+                    }
+                },
+                backgroundColor: '#0f172a',
+                borderColor: '#334155',
+                borderWidth: 1,
+                textStyle: {
+                    color: '#f8fafc'
+                },
+                formatter: function (params) {
+                    let html = `<div style="font-weight:900;margin-bottom:6px;">${params[0].axisValue}</div>`;
+                    let totalApilado = 0;
+                    let tipoValorTotal = '';
+                    let unidadMedidaTotal = '';
+
+                    params.forEach(p => {
+                        const configSerie = configVariables.find(cv => cv.nombre === p.seriesName);
+                        const tipoValor = valorTextoNoVacio(configSerie?.tipoValor, tipoValorKpi);
+                        const unidadMedida = valorTextoNoVacio(configSerie?.unidadMedida, unidadMedidaKpi);
+                        const valorNumerico = obtenerValorNumericoEje(p.value) || 0;
+
+                        if ((esGraficaApilada || esGraficaAreaApilada) && !configSerie?.esLinea) {
+                            totalApilado += valorNumerico;
+                            tipoValorTotal = tipoValor;
+                            unidadMedidaTotal = unidadMedida;
+                        }
+
+                        html += `
+                            <div style="display:flex;justify-content:space-between;gap:18px;align-items:center;">
+                                <span>${p.marker} ${p.seriesName}</span>
+                                <strong>${formatearValorKpi(p.value, tipoValor, unidadMedida)}</strong>
+                            </div>
+                        `;
+                    });
+
+                    if ((esGraficaApilada || esGraficaAreaApilada) && totalApilado > 0) {
+                        html += `
+                            <div style="border-top:1px solid rgba(248,250,252,.22);margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;gap:18px;">
+                                <span>Total apilado</span>
+                                <strong>${formatearValorKpi(totalApilado, tipoValorTotal, unidadMedidaTotal)}</strong>
+                            </div>
+                        `;
+                    }
+
+                    return html;
+                }
+            },
+            legend: {
+                bottom: '0%',
+                textStyle: {
+                    color: '#334155',
+                    fontWeight: 700
+                }
+            },
+            toolbox: {
+                show: true,
+                right: 10,
+                feature: {
+                    saveAsImage: { title: 'Descargar' },
+                    magicType: {
+                        type: ['line', 'bar'],
+                        title: {
+                            line: 'Línea',
+                            bar: 'Barras'
+                        }
+                    }
+                },
+                iconStyle: {
+                    borderColor: '#64748b'
+                },
+                emphasis: {
+                    iconStyle: {
+                        borderColor: '#2563eb'
+                    }
+                }
+            },
+            grid: {
+                left: '4%',
+                right: tieneValores && tienePorcentajes ? '7%' : '5%',
+                bottom: '16%',
+                top: '10%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: categorias,
+                axisTick: {
+                    show: false
+                },
+                axisLine: {
+                    lineStyle: {
+                        color: '#94a3b8'
+                    }
+                },
+                axisLabel: {
+                    color: '#334155',
+                    fontWeight: 800,
+                    fontSize: 11
+                }
+            },
+            yAxis: yAxisConfig.map(axis => ({
+                ...axis,
+                axisLine: {
+                    show: false
+                },
+                axisTick: {
+                    show: false
+                },
+                axisLabel: {
+                    ...(axis.axisLabel || {}),
+                    color: '#334155',
+                    fontWeight: 800,
+                    formatter: function (value) {
+                        if (axis.axisLabel && typeof axis.axisLabel.formatter === 'string') {
+                            return axis.axisLabel.formatter.replace('{value}', value);
+                        }
+
+                        return formatearValorKpiCorto(value, axis.tipoValor, axis.unidadMedida);
+                    }
+                },
+                nameTextStyle: {
+                    color: '#0f172a',
+                    fontWeight: 900
+                },
+                splitLine: {
+                    show: axis.splitLine?.show !== false,
+                    lineStyle: {
+                        color: '#e2e8f0'
+                    }
+                }
+            })),
+            series: seriesData
+        };
+
+        myChart.setOption(option);
+    }
+
+</script>
