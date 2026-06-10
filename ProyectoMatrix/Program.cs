@@ -32,6 +32,7 @@ builder.Services.Configure<FormOptions>(options =>
 });
 
 
+
 // ? AGREGAR CONFIGURACIÓN DEL SERVIDOR
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -145,10 +146,10 @@ builder.Services.AddSignalR();
 //Registrando el nuevo servicio creado que es sobre acceso
 
 builder.Services.AddScoped<IServicioAcceso, ServicioAcceso>();
+// Servicio SQL para formularios dinamicos de Logistica
+builder.Services.AddScoped<FormulariosSqlService>();
 
 var app = builder.Build();
-// Activa el motor de creación de PDFs de Rotativa
-Rotativa.AspNetCore.RotativaConfiguration.Setup(app.Environment.WebRootPath, "Rotativa");
 if (app.Environment.IsDevelopment())
 {
     // /dev/test-smtp-connect: prueba combos puerto/seguridad

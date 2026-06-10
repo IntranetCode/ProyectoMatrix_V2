@@ -736,113 +736,696 @@
         .guias-hero { padding: 22px; border-radius: 22px; }
         .btn-flotante { right: 18px; bottom: 18px; padding: 13px 18px; }
     }
+
+
+    /* ===== Rediseño visual Guias estilo Logistica/Transportes ===== */
+    body {
+        background: #f4f7fb !important;
+        color: #111827;
+    }
+
+    .guias-layout-shell {
+        width: calc(100vw - 16px);
+        min-height: calc(100vh - 74px);
+        display: flex;
+        align-items: stretch;
+        background: #f4f7fb;
+        margin-left: calc(50% - 50vw + 8px);
+        margin-right: calc(50% - 50vw + 8px);
+    }
+
+    .guias-side-menu {
+        flex: 0 0 222px;
+        width: 222px;
+        background: #ffffff;
+        border-right: 1px solid #dfe5ed;
+        padding: 22px 12px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        box-shadow: 8px 0 24px rgba(15, 23, 42, .035);
+        z-index: 1;
+    }
+
+    .guias-side-menu .side-brand {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+        border: 1px solid #edf1f6;
+        border-radius: 14px;
+        padding: 12px;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, .04);
+    }
+
+    .guias-side-menu .side-brand-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #0f766e, #164e63);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: .76rem;
+        font-weight: 900;
+        letter-spacing: .03em;
+    }
+
+    .guias-side-menu .side-brand-name {
+        font-size: 1rem;
+        line-height: 1;
+        font-weight: 900;
+        color: #151922;
+        letter-spacing: -.01em;
+    }
+
+    .guias-side-menu .side-brand-subtitle {
+        margin-top: 4px;
+        color: #8a94a6;
+        font-size: .76rem;
+        font-weight: 600;
+    }
+
+    .side-new-guide {
+        width: 100%;
+        min-height: 38px;
+        border: 0;
+        border-radius: 8px;
+        background: #0f3f46;
+        color: #67e8f9;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: .84rem;
+        font-weight: 900;
+        box-shadow: 0 10px 22px rgba(15, 63, 70, .16);
+        transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+    }
+
+    .side-new-guide:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.04);
+        box-shadow: 0 14px 26px rgba(15, 63, 70, .22);
+    }
+
+    .guias-side-menu .side-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .guias-side-menu .side-nav-title {
+        padding: 0 10px 8px;
+        color: #9ca3af;
+        font-size: .66rem;
+        text-transform: uppercase;
+        font-weight: 900;
+        letter-spacing: .08em;
+    }
+
+    .guias-side-menu .side-link {
+        width: 100%;
+        min-height: 38px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #3f4652;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        text-decoration: none;
+        font-size: .84rem;
+        font-weight: 800;
+        text-align: left;
+        transition: background .18s ease, color .18s ease, transform .18s ease;
+    }
+
+    .guias-side-menu .side-link i {
+        width: 18px;
+        text-align: center;
+        color: inherit;
+    }
+
+    .guias-side-menu .side-link:hover {
+        background: #eef7f8;
+        color: #0f172a;
+        transform: translateX(2px);
+    }
+
+    .guias-side-menu .side-link.active {
+        background: #dbeafe;
+        color: #0f172a;
+        box-shadow: inset 3px 0 0 #0e7490;
+    }
+
+    .guias-side-menu .side-link[disabled] {
+        opacity: .55;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+
+    .guias-side-menu .side-link.side-subitem {
+        margin-left: 10px;
+        width: calc(100% - 10px);
+        min-height: 34px;
+        font-size: .78rem;
+        color: #5b6676;
+    }
+
+    .guias-side-menu .side-count {
+        margin-left: auto;
+        min-width: 24px;
+        height: 22px;
+        border-radius: 999px;
+        background: #eef2f7;
+        color: #4b5563;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 8px;
+        font-size: .72rem;
+        font-weight: 900;
+    }
+
+    .guias-side-menu .side-link.active .side-count {
+        background: #ffffff;
+        color: #0e7490;
+    }
+
+    .guias-page-shell {
+        flex: 1 1 auto;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        margin: 0;
+        padding: 20px 18px 44px 20px;
+    }
+
+    .guias-layout-shell + .btn-flotante {
+        display: none;
+    }
+
+    .guias-top-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .page-back-zone { margin: 0; }
+
+    .page-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #3f4652;
+        font-weight: 800;
+        padding: 0;
+        box-shadow: none;
+        text-decoration: none;
+        transition: color .18s ease, transform .18s ease;
+    }
+
+    .page-back-btn:hover {
+        color: #0e7490;
+        transform: translateX(-2px);
+        box-shadow: none;
+    }
+
+    .guias-top-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .guias-top-actions .hero-action-btn {
+        width: 38px;
+        height: 38px;
+        min-width: 38px;
+        padding: 0;
+        border-radius: 10px;
+        border: 1px solid #dfe5ed;
+        background: #fff !important;
+        color: #333 !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, .06);
+        transition: transform .18s ease, box-shadow .18s ease, color .18s ease;
+        font-size: 0;
+    }
+
+    .guias-top-actions .hero-action-btn i { font-size: 15px; }
+    .guias-top-actions .hero-action-pdf i { color: #dc2626; }
+    .guias-top-actions .hero-action-excel i { color: #16803c; }
+    .guias-top-actions .hero-action-stats i { color: #0e7490; }
+
+    .guias-top-actions .hero-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .12);
+        color: #0e7490 !important;
+    }
+
+    .guias-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 10px;
+        min-height: 146px;
+        padding: 34px 42px;
+        color: #fff;
+        background: linear-gradient(135deg, #053b50 0%, #0e7490 58%, #164e63 100%) !important;
+        box-shadow: 0 14px 28px rgba(8, 70, 89, .18);
+    }
+
+    .guias-hero::before { display: none; }
+
+    .guias-hero::after {
+        content: "\f02a";
+        font-family: "Font Awesome 5 Free";
+        font-weight: 900;
+        position: absolute;
+        right: 58px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 78px;
+        color: rgba(255, 255, 255, .14);
+        pointer-events: none;
+    }
+
+    .guias-hero .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: rgba(255,255,255,.14) !important;
+        color: #ffffff !important;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
+    }
+
+    .guias-hero h2 {
+        font-size: clamp(28px, 3vw, 42px);
+        font-weight: 900 !important;
+        letter-spacing: -.02em;
+    }
+
+    .guias-hero p {
+        color: rgba(255,255,255,.70);
+        font-size: 1.02rem;
+    }
+
+    .guias-hero .hero-chip {
+        background: rgba(255,255,255,.10);
+        border: 1px solid rgba(255,255,255,.15);
+        box-shadow: none;
+    }
+
+    .section-shell {
+        background: #fff;
+        border: 1px solid #edf1f6;
+        border-radius: 12px;
+        padding: 0;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, .06);
+        overflow: hidden;
+        backdrop-filter: none;
+        margin-top: 20px;
+    }
+
+    .section-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 18px 20px 14px;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 0;
+        flex-wrap: wrap;
+    }
+
+    .section-toolbar .section-title-line {
+        margin: 0 !important;
+        flex: 1 1 auto;
+        font-size: 1rem;
+        font-weight: 900;
+        color: #1f2937 !important;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section-title-line::after { display: none; }
+
+    .section-toolbar .section-title-line i {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #ecfeff;
+        color: #0e7490;
+        box-shadow: inset 0 0 0 1px rgba(14, 116, 144, .08);
+    }
+
+    .search-module-box {
+        position: relative;
+        width: min(100%, 310px);
+    }
+
+    .search-module-box input {
+        min-height: 38px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        padding: 9px 14px 9px 40px;
+        color: #374151;
+        background: #fff;
+        box-shadow: none;
+        font-weight: 500;
+    }
+
+    .search-module-box input:focus {
+        border-color: #0e7490;
+        box-shadow: 0 0 0 4px rgba(14, 116, 144, .08);
+    }
+
+    .empty-search-message {
+        margin: 16px 20px 0;
+        border: 1px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 16px;
+    }
+
+    .guia-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 14px;
+        padding: 18px 20px 20px;
+    }
+
+    .guia-card {
+        border-radius: 14px;
+        box-shadow: 0 8px 20px rgba(15,23,42,.055);
+        border: 1px solid #e5e7eb;
+    }
+
+    .guia-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(14, 116, 144, .32);
+        box-shadow: 0 14px 28px rgba(15,23,42,.095);
+    }
+
+    .guia-card::before {
+        width: 4px;
+        background: linear-gradient(180deg, #06b6d4, #0e7490);
+    }
+
+    .guia-card-body { padding: 16px 16px 14px 20px; }
+
+    .tracking-badge {
+        border-radius: 10px;
+        background: #0f172a;
+        box-shadow: none;
+    }
+
+    .route-box {
+        background: #f8fafc;
+        border-radius: 12px;
+        min-height: 84px;
+    }
+
+    .quick-tag { border-radius: 10px; }
+
+    .actions-panel {
+        gap: 8px;
+        justify-content: flex-end;
+    }
+
+    .section-empty {
+        margin: 18px 20px 20px;
+        border-radius: 14px;
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+    }
+
+    @@media (max-width: 1100px) {
+        .guias-layout-shell { flex-direction: column; }
+        .guias-side-menu {
+            width: 100%;
+            flex: 0 0 auto;
+            padding: 18px 16px;
+            border-right: 0;
+            border-bottom: 1px solid #dfe5ed;
+        }
+        .guias-side-menu .side-nav {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+        }
+        .guias-side-menu .side-nav-title { display: none; }
+        .guias-page-shell { padding: 24px 18px 52px; }
+    }
+
+    @@media (max-width: 992px) {
+        .guias-hero { padding: 32px 24px; }
+        .guias-hero::after { right: 22px; font-size: 56px; }
+        .section-toolbar { align-items: stretch; }
+        .search-module-box { width: 100%; }
+    }
+
+    @@media (max-width: 768px) {
+        .guias-top-row { align-items: flex-start; flex-direction: column; }
+        .guias-side-menu .side-nav { grid-template-columns: 1fr; }
+        .guias-layout-shell + .btn-flotante { display: inline-flex; }
+    }
+
+
+
+    /* =========================================================
+       Correccion final: alineacion uniforme de iconos superiores
+       PDF / Excel / Graficas
+       ========================================================= */
+    .guias-top-actions,
+    .transport-top-actions {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 10px !important;
+        flex-wrap: nowrap !important;
+    }
+
+    .guias-top-actions .hero-action-btn,
+    .transport-top-actions .hero-action-btn {
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        min-height: 38px !important;
+        max-width: 38px !important;
+        max-height: 38px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border-radius: 10px !important;
+        border: 1px solid #dfe5ed !important;
+        background: #ffffff !important;
+        color: #475569 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        line-height: 1 !important;
+        font-size: 0 !important;
+        text-decoration: none !important;
+        vertical-align: middle !important;
+        box-sizing: border-box !important;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, .06) !important;
+        transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease !important;
+        overflow: hidden !important;
+        appearance: none !important;
+        -webkit-appearance: none !important;
+    }
+
+    .guias-top-actions .hero-action-btn i,
+    .transport-top-actions .hero-action-btn i {
+        width: 16px !important;
+        height: 16px !important;
+        min-width: 16px !important;
+        min-height: 16px !important;
+        max-width: 16px !important;
+        max-height: 16px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        line-height: 1 !important;
+        font-size: 15px !important;
+        vertical-align: middle !important;
+        position: static !important;
+        transform: none !important;
+    }
+
+    .guias-top-actions .hero-action-btn:hover,
+    .transport-top-actions .hero-action-btn:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .12) !important;
+        text-decoration: none !important;
+    }
+
+    .guias-top-actions .hero-action-pdf i,
+    .transport-top-actions .hero-action-pdf i {
+        color: #dc2626 !important;
+    }
+
+    .guias-top-actions .hero-action-pdf:hover,
+    .transport-top-actions .hero-action-pdf:hover {
+        background: #fee2e2 !important;
+        border-color: #fecaca !important;
+    }
+
+    .guias-top-actions .hero-action-excel i,
+    .transport-top-actions .hero-action-excel i {
+        color: #16a34a !important;
+    }
+
+    .guias-top-actions .hero-action-excel:hover,
+    .transport-top-actions .hero-action-excel:hover {
+        background: #dcfce7 !important;
+        border-color: #bbf7d0 !important;
+    }
+
+    .guias-top-actions .hero-action-stats i,
+    .guias-top-actions .hero-action-costs i,
+    .transport-top-actions .hero-action-stats i,
+    .transport-top-actions .hero-action-costs i {
+        color: #0f766e !important;
+    }
+
+    .guias-top-actions .hero-action-stats:hover,
+    .guias-top-actions .hero-action-costs:hover,
+    .transport-top-actions .hero-action-stats:hover,
+    .transport-top-actions .hero-action-costs:hover {
+        background: #ccfbf1 !important;
+        border-color: #99f6e4 !important;
+    }
+
 </style>
 
-<div class="container-fluid px-4 my-4 fade-in-up" id="inicioPagina">
-    <div class="page-back-zone">
-        <button type="button" class="page-back-btn" onclick="window.history.back();">
-            <i class="fas fa-arrow-left"></i> Regresar
+<div class="guias-layout-shell fade-in-up" id="inicioPagina">
+    <aside class="guias-side-menu" aria-label="Menu lateral de guías">
+        <div class="side-brand">
+            <div class="side-brand-mark">NS</div>
+            <div>
+                <div class="side-brand-name">NS EQUIPO</div>
+                <div class="side-brand-subtitle">Intranet Corporativa</div>
+            </div>
+        </div>
+
+        <button type="button" class="side-new-guide" onclick="abrirModalCrear()">
+            <i class="fas fa-paper-plane"></i> Nueva Guía
         </button>
-    </div>
 
-    <div class="guias-hero mb-4">
-        <div class="row align-items-center g-3">
-            <div class="col-lg-8">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="metric-icon bg-warning text-dark fs-4"><i class="fas fa-box-open"></i></div>
-                    <div>
-                        <div class="small text-uppercase opacity-75 fw-bold" style="letter-spacing:.14em;">Paquetería externa</div>
-                        <h2 class="fw-bold mb-1">Guías y Envíos</h2>
-                        <p class="mb-0 opacity-75">Bandeja de guías, validación de cambios, cadena de frío y auditoría de cancelaciones.</p>
-                        <div class="mt-3 d-flex flex-wrap gap-2">
-                            <span class="hero-chip"><i class="fas fa-barcode"></i> Tracking interno</span>
-                            <span class="hero-chip"><i class="fas fa-snowflake"></i> Cadena de frío</span>
-                            <span class="hero-chip"><i class="fas fa-chart-column"></i> Gastos logísticos</span>
+        @if (esLogistica)
+        {
+            <a href="/Logistica/Formularios/Crear?origenModulo=Guias" class="side-create-form" title="Crear formulario dinámico para guías">
+                <i class="fas fa-file-alt"></i> Crear Formulario
+            </a>
+        }
+
+        <nav class="side-nav">
+            <div class="side-nav-title">Menu principal</div>
+            <a href="/Menu/Grupo/5" class="side-link">
+                <i class="fas fa-th-large"></i><span>Menu</span>
+            </a>
+            <button type="button" class="side-link active" onclick="document.getElementById('inicioPagina').scrollIntoView({ behavior: 'smooth' });">
+                <i class="fas fa-map"></i><span>Logística Guías</span>
+            </button>
+            <a href="/Logistica/Transporte" class="side-link">
+                <i class="fas fa-truck"></i><span>Logística Transporte</span>
+            </a>
+            @if (esLogistica)
+            {
+                <button type="button" class="side-link" onclick="abrirModalDashboard()">
+                    <i class="fas fa-chart-bar"></i><span>Reportes</span>
+                </button>
+            }
+            <a href="/Logistica/Formularios?origenModulo=Guias" class="side-link" title="Repositorio de formularios dinámicos">
+                <i class="fas fa-clipboard-list"></i><span>Formularios</span>
+            </a>
+
+            <div class="side-nav-title mt-3">Flujo de guías</div>
+            <button type="button" class="side-link side-subitem guias-flow-link active" data-target="seccionActivas" onclick="mostrarSeccionGuias('seccionActivas')">
+                <i class="fas fa-barcode"></i><span>Activas</span><span class="side-count">@activas.Count</span>
+            </button>
+            @if (esLogistica)
+            {
+                <button type="button" class="side-link side-subitem guias-flow-link" data-target="seccionPendientes" onclick="mostrarSeccionGuias('seccionPendientes')">
+                    <i class="fas fa-clock"></i><span>Validación</span><span class="side-count">@pendientes.Count</span>
+                </button>
+            }
+            <button type="button" class="side-link side-subitem guias-flow-link" data-target="seccionCadenaFrio" onclick="mostrarSeccionGuias('seccionCadenaFrio')">
+                <i class="fas fa-snowflake"></i><span>Cadena frío</span><span class="side-count">@frias</span>
+            </button>
+            @if (esLogistica)
+            {
+                <button type="button" class="side-link side-subitem guias-flow-link" data-target="seccionCanceladas" onclick="mostrarSeccionGuias('seccionCanceladas')">
+                    <i class="fas fa-ban"></i><span>Canceladas</span><span class="side-count">@canceladas.Count</span>
+                </button>
+            }
+        </nav>
+    </aside>
+
+    <main class="guias-page-shell">
+        <div class="guias-top-row">
+            <div class="page-back-zone">
+                <a href="/Menu/Grupo/5" class="btn btn-light">
+                    <i class="fas fa-arrow-left"></i> Regresar
+                </a>
+            </div>
+
+            @if (esLogistica)
+            {
+                <div class="guias-top-actions">
+                    <a href="/Logistica/DescargarReporteGuiasPDF" target="_blank" class="hero-action-btn hero-action-pdf" title="Descargar PDF">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </a>
+                    <a href="/Logistica/DescargarReporteGuiasExcel" target="_blank" class="hero-action-btn hero-action-excel" title="Descargar Excel">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
+                    <button class="hero-action-btn hero-action-stats" onclick="abrirModalDashboard()" title="Dashboard de gastos">
+                        <i class="fas fa-chart-line"></i> Gastos
+                    </button>
+                </div>
+            }
+        </div>
+
+        <section class="guias-hero mb-4">
+            <div class="row align-items-center g-3">
+                <div class="col-lg-8">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="metric-icon fs-4"><i class="fas fa-box-open"></i></div>
+                        <div>
+                            <div class="small text-uppercase opacity-75 fw-bold" style="letter-spacing:.14em;">Paquetería externa</div>
+                            <h2 class="fw-bold mb-1">Guías y Envíos</h2>
+                            <p class="mb-0 opacity-75">Bandeja de guías, validación de cambios, cadena de frío y auditoría de cancelaciones.</p>
+                            <div class="mt-3 d-flex flex-wrap gap-2">
+                                <span class="hero-chip"><i class="fas fa-barcode"></i> Tracking interno</span>
+                                <span class="hero-chip"><i class="fas fa-snowflake"></i> Cadena de frío</span>
+                                <span class="hero-chip"><i class="fas fa-chart-column"></i> Gastos logísticos</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-lg-4">
-                <div class="hero-actions-panel">
-                    @if (esLogistica)
-                    {
-                        <div class="hero-actions-row">
-                            <a href="/Logistica/DescargarReporteGuiasPDF" target="_blank" class="hero-action-btn hero-action-pdf">
-                                <i class="fas fa-file-pdf"></i> PDF
-                            </a>
-
-                            <a href="/Logistica/DescargarReporteGuiasExcel" target="_blank" class="hero-action-btn hero-action-excel">
-                                <i class="fas fa-file-excel"></i> Excel
-                            </a>
-                        </div>
-
-                        <div class="hero-actions-row">
-                            <button class="hero-action-btn hero-action-stats" onclick="abrirModalDashboard()">
-                                <i class="fas fa-chart-line"></i> Gastos
-                            </button>
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-lg-@(esLogistica ? "3" : "6") col-md-6">
-            <div class="metric-card metric-filter active" data-target="seccionActivas" data-tab="tabActivas">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div><div class="text-muted small fw-bold text-uppercase">Guías activas</div><div class="fs-2 fw-bold text-info">@activas.Count</div></div>
-                    <div class="metric-icon bg-info bg-opacity-10 text-info"><i class="fas fa-paper-plane"></i></div>
-                </div>
-            </div>
-        </div>
-
-        @if (esLogistica)
-        {
-            <div class="col-lg-3 col-md-6">
-                <div class="metric-card metric-filter" data-target="seccionPendientes" data-tab="tabPendientesGuias">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div><div class="text-muted small fw-bold text-uppercase">Pendientes</div><div class="fs-2 fw-bold text-warning">@pendientes.Count</div></div>
-                        <div class="metric-icon bg-warning bg-opacity-10 text-warning"><i class="fas fa-clipboard-check"></i></div>
-                    </div>
-                </div>
-            </div>
-        }
-
-        <div class="col-lg-@(esLogistica ? "3" : "6") col-md-6">
-            <div class="metric-card metric-filter" data-target="seccionCadenaFrio" data-tab="tabCadenaFrio">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div><div class="text-muted small fw-bold text-uppercase">Cadena frío</div><div class="fs-2 fw-bold text-primary">@frias</div></div>
-                    <div class="metric-icon bg-primary bg-opacity-10 text-primary"><i class="fas fa-snowflake"></i></div>
-                </div>
-            </div>
-        </div>
-
-        @if (esLogistica)
-        {
-            <div class="col-lg-3 col-md-6">
-                <div class="metric-card metric-filter" data-target="seccionCanceladas" data-tab="tabCanceladasGuias">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div><div class="text-muted small fw-bold text-uppercase">Canceladas</div><div class="fs-2 fw-bold text-danger">@canceladas.Count</div></div>
-                        <div class="metric-icon bg-danger bg-opacity-10 text-danger"><i class="fas fa-ban"></i></div>
-                    </div>
-                </div>
-            </div>
-        }
-    </div>
-
-    <ul class="nav workflow-tabs gap-2 mb-4" id="tabsFlujoGuias" role="tablist">
-        <li class="nav-item" role="presentation"><a id="tabActivas" href="#seccionActivas" data-target="seccionActivas" class="nav-link active"><i class="fas fa-barcode me-1"></i> Activas</a></li>
-        @if (esLogistica)
-        {
-            <li class="nav-item" role="presentation"><a id="tabPendientesGuias" href="#seccionPendientes" data-target="seccionPendientes" class="nav-link"><i class="fas fa-clock me-1"></i> Validación</a></li>
-        }
-        <li class="nav-item" role="presentation"><a id="tabCadenaFrio" href="#seccionCadenaFrio" data-target="seccionCadenaFrio" class="nav-link"><i class="fas fa-snowflake me-1"></i> Cadena frío</a></li>
-        @if (esLogistica)
-        {
-            <li class="nav-item" role="presentation"><a id="tabCanceladasGuias" href="#seccionCanceladas" data-target="seccionCanceladas" class="nav-link"><i class="fas fa-ban me-1"></i> Canceladas</a></li>
-        }
-    </ul>
+        </section>
 
     <div id="seccionActivas" data-section="seccionActivas" class="section-shell mb-5 seccion-filtrable seccion-activa">
         <div class="section-toolbar">
@@ -1094,6 +1677,7 @@
             }
         </div>
     }
+</main>
 </div>
 
 <button class="btn-flotante" onclick="abrirModalCrear()"><i class="fas fa-paper-plane me-2"></i> Solicitar Guía</button>
@@ -1483,14 +2067,12 @@
                 var notificaciones = Model.Where(x => x.UsuarioID == currentUserId && !x.NotificacionLeida && (x.EstadoEdicion == "Aceptada" || x.EstadoEdicion == "Rechazada")).ToList();
                 foreach (var alerta in notificaciones)
                 {
-                    <text>
-                    Swal.fire({
-                        title: 'Estatus de tu Guía',
-                        html: `Tu solicitud para la guía <b>GU-@alerta.IdGuia</b> fue <b>@alerta.EstadoEdicion</b>.<br><br><i>Dictamen: "@(alerta.MensajeEdicion ?? "Sin comentarios.")"</i>`,
-                        icon: '@(alerta.EstadoEdicion == "Aceptada" ? "success" : "error")',
-                        confirmButtonColor: '#164e63'
-                    }).then(() => { $.post('/Logistica/MarcarAvisoGuiaLeido', { id: @alerta.IdGuia }); });
-                    </text>
+                    @:Swal.fire({
+                    @:    title: 'Estatus de tu Guía',
+                    @:    html: @(System.Text.Json.JsonSerializer.Serialize($"Tu solicitud para la guía <b>GU-{alerta.IdGuia}</b> fue <b>{alerta.EstadoEdicion}</b>.<br><br><i>Dictamen: '{(alerta.MensajeEdicion ?? "Sin comentarios.")}'</i>")),
+                    @:    icon: '@(alerta.EstadoEdicion == "Aceptada" ? "success" : "error")',
+                    @:    confirmButtonColor: '#164e63'
+                    @:}).then(function () { $.post('/Logistica/MarcarAvisoGuiaLeido', { id: @alerta.IdGuia }); });
                 }
             }
         });
@@ -1552,6 +2134,10 @@
 
             document.querySelectorAll('.metric-filter').forEach(card => {
                 card.classList.toggle('active', card.dataset.target === targetId);
+            });
+
+            document.querySelectorAll('.guias-flow-link').forEach(link => {
+                link.classList.toggle('active', link.dataset.target === targetId);
             });
 
             const destino = document.getElementById(targetId);

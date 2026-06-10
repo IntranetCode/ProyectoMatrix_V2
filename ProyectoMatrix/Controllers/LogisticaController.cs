@@ -10,9 +10,14 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using ProyectoMatrix.Hubs;
+using ProyectoMatrix.Servicios;
+using ProyectoMatrix.ViewModels.Formularios;
 using System.Security.Claims;
 using System.Data;
 using ClosedXML.Excel;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -27,11 +32,16 @@ namespace ProyectoMatrix.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IHubContext<LogisticaHub> _hubContext;
+        private readonly FormulariosSqlService _formulariosSqlService;
 
-        public LogisticaController(ApplicationDbContext context, IHubContext<LogisticaHub> hubContext)
+        public LogisticaController(
+            ApplicationDbContext context,
+            IHubContext<LogisticaHub> hubContext,
+            FormulariosSqlService formulariosSqlService)
         {
             _context = context;
             _hubContext = hubContext;
+            _formulariosSqlService = formulariosSqlService;
         }
 
         private int ObtenerUsuarioIDActual()
@@ -332,7 +342,7 @@ namespace ProyectoMatrix.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> GuardarTransporteAjax(Transporte modelo)
+        public async Task<IActionResult> GuardarTransporteAjax(Transporte modelo, int? FormularioAdicionalId = null, string? FormularioAdicionalDatosJson = null)
         {
             try
             {
@@ -522,6 +532,13 @@ namespace ProyectoMatrix.Controllers
                     await _context.SaveChangesAsync();
                 }
 
+                await GuardarFormularioAdicionalAsync(
+                    FormularioAdicionalId,
+                    FormularioAdicionalDatosJson,
+                    "Transporte",
+                    modelo.IdTransporte,
+                    idUsuarioActual);
+
                 await _hubContext.Clients.All.SendAsync("ActualizacionLogistica");
                 return Json(new { success = true });
             }
@@ -702,7 +719,7 @@ public IActionResult Guias()
         }
 
         [HttpPost]
-        public async Task<IActionResult> GuardarGuiaAjax(Guia modelo)
+        public async Task<IActionResult> GuardarGuiaAjax(Guia modelo, int? FormularioAdicionalId = null, string? FormularioAdicionalDatosJson = null)
         {
             try
             {
@@ -747,6 +764,14 @@ public IActionResult Guias()
                 }
 
                 await _context.SaveChangesAsync();
+
+                await GuardarFormularioAdicionalAsync(
+                    FormularioAdicionalId,
+                    FormularioAdicionalDatosJson,
+                    "Guias",
+                    modelo.IdGuia,
+                    idUsuarioActual);
+
                 await _hubContext.Clients.All.SendAsync("ActualizacionLogistica");
                 return Json(new { success = true });
             }
@@ -806,6 +831,79 @@ public IActionResult Guias()
             }
             return Ok();
         }
+
+
+        private async Task GuardarFormularioAdicionalAsync(
+            int? idFormulario,
+            string? datosJson,
+            string origenTipo,
+            int origenId,
+            int usuarioId)
+        {
+            if (!idFormulario.HasValue || idFormulario.Value <= 0)
+                return;
+
+            if (origenId <= 0 || usuarioId <= 0)
+                return;
+
+            if (string.IsNullOrWhiteSpace(datosJson))
+                return;
+
+            var valores = ConvertirJsonFormularioAdicionalADiccionario(datosJson);
+
+            if (valores.Count == 0)
+                return;
+
+            var respuesta = new FormularioRespuestaViewModel
+            {
+                IdFormulario = idFormulario.Value,
+                UsuarioID = usuarioId,
+                Estado = "Registrado",
+                Valores = valores,
+                OrigenTipo = origenTipo,
+                OrigenID = origenId
+            };
+
+            await _formulariosSqlService.GuardarRespuestaAsync(respuesta);
+        }
+
+        private Dictionary<string, string?> ConvertirJsonFormularioAdicionalADiccionario(string datosJson)
+        {
+            var valores = new Dictionary<string, string?>();
+
+            if (string.IsNullOrWhiteSpace(datosJson))
+                return valores;
+
+            try
+            {
+                using var document = JsonDocument.Parse(datosJson);
+
+                if (document.RootElement.ValueKind != JsonValueKind.Object)
+                    return valores;
+
+                foreach (var property in document.RootElement.EnumerateObject())
+                {
+                    valores[property.Name] = property.Value.ValueKind switch
+                    {
+                        JsonValueKind.String => property.Value.GetString(),
+                        JsonValueKind.Number => property.Value.GetRawText(),
+                        JsonValueKind.True => "true",
+                        JsonValueKind.False => "false",
+                        JsonValueKind.Array => property.Value.GetRawText(),
+                        JsonValueKind.Object => property.Value.GetRawText(),
+                        JsonValueKind.Null => null,
+                        _ => property.Value.GetRawText()
+                    };
+                }
+            }
+            catch
+            {
+                return new Dictionary<string, string?>();
+            }
+
+            return valores;
+        }
+
 
         // ==========================================
         // MÉTODOS COMPARTIDOS
@@ -1088,12 +1186,12 @@ public IActionResult Guias()
         }
 
         [HttpGet]
-        public IActionResult DescargarTransportePDF(int id)
+        public async Task<IActionResult> DescargarTransportePDF(int id)
         {
-            var transporte = _context.Transporte
+            var transporte = await _context.Transporte
                 .Include(x => x.Destinos)
                 .Include(x => x.PlanEmbarque)
-                .FirstOrDefault(x => x.IdTransporte == id);
+                .FirstOrDefaultAsync(x => x.IdTransporte == id);
 
             if (transporte == null)
             {
@@ -1104,19 +1202,18 @@ public IActionResult Guias()
             transporte.ElaboradoPor = nombreCompleto;
             transporte.NombreSolicitante = nombreCompleto;
 
-            return new Rotativa.AspNetCore.ViewAsPdf("ReportePDF", transporte)
-            {
-                FileName = $"Solicitud_Transporte_{transporte.Folio ?? transporte.IdTransporte.ToString()}.pdf",
-                PageSize = Rotativa.AspNetCore.Options.Size.Letter,
-                PageOrientation = Rotativa.AspNetCore.Options.Orientation.Portrait,
-                CustomSwitches = "--print-media-type --disable-smart-shrinking --margin-top 7mm --margin-bottom 7mm --margin-left 7mm --margin-right 7mm"
-            };
+            var formulariosAdicionales = await ObtenerFormulariosAdicionalesPdfAsync("Transporte", transporte.IdTransporte);
+
+            var pdfBytes = GenerarPdfTransporte(transporte, formulariosAdicionales);
+            var nombreArchivo = $"Solicitud_Transporte_{transporte.Folio ?? transporte.IdTransporte.ToString()}.pdf";
+
+            return File(pdfBytes, "application/pdf", nombreArchivo);
         }
 
         [HttpGet]
-        public IActionResult DescargarReportePDF(int id)
+        public async Task<IActionResult> DescargarReportePDF(int id)
         {
-            return DescargarTransportePDF(id);
+            return await DescargarTransportePDF(id);
         }
 
 
@@ -1136,13 +1233,10 @@ public IActionResult Guias()
                 .OrderByDescending(g => g.FechaSolicitud)
                 .ToList();
 
-            return new Rotativa.AspNetCore.ViewAsPdf("ReporteGuiasPDF", guias)
-            {
-                FileName = $"Auditoria_Guias_{DateTime.Now:yyyyMMdd_HHmm}.pdf",
-                PageSize = Rotativa.AspNetCore.Options.Size.Letter,
-                PageOrientation = Rotativa.AspNetCore.Options.Orientation.Landscape,
-                CustomSwitches = "--print-media-type --disable-smart-shrinking --margin-top 8mm --margin-bottom 8mm --margin-left 8mm --margin-right 8mm"
-            };
+            var pdfBytes = GenerarPdfReporteGuias(guias);
+            var nombreArchivo = $"Auditoria_Guias_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+
+            return File(pdfBytes, "application/pdf", nombreArchivo);
         }
 
         [HttpGet]
@@ -1598,13 +1692,785 @@ public IActionResult Guias()
                 .OrderByDescending(t => t.FechaEmision)
                 .ToList();
 
-            return new Rotativa.AspNetCore.ViewAsPdf("ReporteTransportesPDF", transportes)
+            var pdfBytes = GenerarPdfReporteTransportes(transportes);
+            var nombreArchivo = $"Auditoria_Transportes_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+
+            return File(pdfBytes, "application/pdf", nombreArchivo);
+        }
+        private class PdfFormularioAdicional
+        {
+            public int IdRespuesta { get; set; }
+            public int IdFormulario { get; set; }
+            public string NombreFormulario { get; set; } = string.Empty;
+            public string? Categoria { get; set; }
+            public DateTime FechaRegistro { get; set; }
+            public List<PdfFormularioCampo> Campos { get; set; } = new();
+        }
+
+        private class PdfFormularioCampo
+        {
+            public string Clave { get; set; } = string.Empty;
+            public string Etiqueta { get; set; } = string.Empty;
+            public string Tipo { get; set; } = "texto";
+            public string? Valor { get; set; }
+        }
+
+        private async Task<List<PdfFormularioAdicional>> ObtenerFormulariosAdicionalesPdfAsync(string origenTipo, int origenId)
+        {
+            var lista = new List<PdfFormularioAdicional>();
+
+            if (string.IsNullOrWhiteSpace(origenTipo) || origenId <= 0)
             {
-                FileName = $"Auditoria_Transportes_{DateTime.Now:yyyyMMdd_HHmm}.pdf",
-                PageSize = Rotativa.AspNetCore.Options.Size.Letter,
-                PageOrientation = Rotativa.AspNetCore.Options.Orientation.Landscape,
-                CustomSwitches = "--print-media-type --disable-smart-shrinking --margin-top 8mm --margin-bottom 8mm --margin-left 8mm --margin-right 8mm"
+                return lista;
+            }
+
+            var connection = _context.Database.GetDbConnection();
+            var cerrarConexion = connection.State != ConnectionState.Open;
+
+            if (cerrarConexion)
+            {
+                await connection.OpenAsync();
+            }
+
+            try
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT
+                        r.IdRespuesta,
+                        r.IdFormulario,
+                        p.Nombre AS NombreFormulario,
+                        p.Categoria,
+                        p.EstructuraJson,
+                        r.DatosJson,
+                        r.FechaRegistro
+                    FROM dbo.FormularioRespuestas r
+                    INNER JOIN dbo.FormularioPlantillas p
+                        ON p.IdFormulario = r.IdFormulario
+                    WHERE r.EstaBorrado = 0
+                      AND r.OrigenID = @OrigenID
+                      AND (
+                            r.OrigenTipo = @OrigenTipo
+                            OR (@OrigenTipo = 'Transporte' AND r.OrigenTipo IN ('Transportes', 'SolicitudTransporte', 'Solicitud de Transporte'))
+                            OR (@OrigenTipo = 'Guias' AND r.OrigenTipo IN ('Guia', 'Guías', 'Guias'))
+                          )
+                    ORDER BY r.FechaRegistro DESC;";
+
+                var pOrigenId = command.CreateParameter();
+                pOrigenId.ParameterName = "@OrigenID";
+                pOrigenId.Value = origenId;
+                command.Parameters.Add(pOrigenId);
+
+                var pOrigenTipo = command.CreateParameter();
+                pOrigenTipo.ParameterName = "@OrigenTipo";
+                pOrigenTipo.Value = origenTipo;
+                command.Parameters.Add(pOrigenTipo);
+
+                await using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    var estructuraJson = reader["EstructuraJson"]?.ToString() ?? "[]";
+                    var datosJson = reader["DatosJson"]?.ToString() ?? "{}";
+
+                    var campos = ConvertirFormularioPdfCampos(estructuraJson, datosJson);
+
+                    lista.Add(new PdfFormularioAdicional
+                    {
+                        IdRespuesta = Convert.ToInt32(reader["IdRespuesta"]),
+                        IdFormulario = Convert.ToInt32(reader["IdFormulario"]),
+                        NombreFormulario = reader["NombreFormulario"]?.ToString() ?? "Formulario adicional",
+                        Categoria = reader["Categoria"] == DBNull.Value ? null : reader["Categoria"]?.ToString(),
+                        FechaRegistro = reader["FechaRegistro"] == DBNull.Value ? DateTime.Now : Convert.ToDateTime(reader["FechaRegistro"]),
+                        Campos = campos
+                    });
+                }
+            }
+            finally
+            {
+                if (cerrarConexion)
+                {
+                    await connection.CloseAsync();
+                }
+            }
+
+            return lista;
+        }
+
+        private static List<PdfFormularioCampo> ConvertirFormularioPdfCampos(string estructuraJson, string datosJson)
+        {
+            var campos = new List<PdfFormularioCampo>();
+            var valores = ConvertirJsonPlanoADiccionario(datosJson);
+
+            try
+            {
+                using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(estructuraJson) ? "[]" : estructuraJson);
+
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in doc.RootElement.EnumerateArray())
+                    {
+                        var clave = ObtenerPropiedadJsonTexto(item, "clave") ?? ObtenerPropiedadJsonTexto(item, "Clave") ?? string.Empty;
+                        var etiqueta = ObtenerPropiedadJsonTexto(item, "etiqueta") ?? ObtenerPropiedadJsonTexto(item, "Etiqueta") ?? clave;
+                        var tipo = ObtenerPropiedadJsonTexto(item, "tipo") ?? ObtenerPropiedadJsonTexto(item, "Tipo") ?? "texto";
+
+                        if (string.IsNullOrWhiteSpace(clave))
+                        {
+                            continue;
+                        }
+
+                        valores.TryGetValue(clave, out var valor);
+
+                        campos.Add(new PdfFormularioCampo
+                        {
+                            Clave = clave,
+                            Etiqueta = string.IsNullOrWhiteSpace(etiqueta) ? clave : etiqueta,
+                            Tipo = tipo,
+                            Valor = valor
+                        });
+                    }
+                }
+            }
+            catch
+            {
+                // Si la estructura no se puede leer, abajo se imprimen los valores encontrados en DatosJson.
+            }
+
+            var clavesYaAgregadas = campos
+                .Select(c => c.Clave)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var valor in valores)
+            {
+                if (clavesYaAgregadas.Contains(valor.Key))
+                {
+                    continue;
+                }
+
+                campos.Add(new PdfFormularioCampo
+                {
+                    Clave = valor.Key,
+                    Etiqueta = ConvertirClaveAEtiqueta(valor.Key),
+                    Tipo = "texto",
+                    Valor = valor.Value
+                });
+            }
+
+            return campos;
+        }
+
+        private static Dictionary<string, string?> ConvertirJsonPlanoADiccionario(string datosJson)
+        {
+            var resultado = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+            if (string.IsNullOrWhiteSpace(datosJson))
+            {
+                return resultado;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(datosJson);
+
+                if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                {
+                    return resultado;
+                }
+
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    resultado[prop.Name] = ConvertirValorJsonATexto(prop.Value);
+                }
+            }
+            catch
+            {
+                return new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            return resultado;
+        }
+
+        private static string? ObtenerPropiedadJsonTexto(JsonElement element, string nombre)
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            if (element.TryGetProperty(nombre, out var prop))
+            {
+                return ConvertirValorJsonATexto(prop);
+            }
+
+            foreach (var item in element.EnumerateObject())
+            {
+                if (string.Equals(item.Name, nombre, StringComparison.OrdinalIgnoreCase))
+                {
+                    return ConvertirValorJsonATexto(item.Value);
+                }
+            }
+
+            return null;
+        }
+
+        private static string? ConvertirValorJsonATexto(JsonElement value)
+        {
+            return value.ValueKind switch
+            {
+                JsonValueKind.String => value.GetString(),
+                JsonValueKind.Number => value.GetRawText(),
+                JsonValueKind.True => "Sí",
+                JsonValueKind.False => "No",
+                JsonValueKind.Null => null,
+                JsonValueKind.Array => value.GetRawText(),
+                JsonValueKind.Object => value.GetRawText(),
+                _ => value.GetRawText()
             };
         }
+
+        private static string ConvertirClaveAEtiqueta(string clave)
+        {
+            if (string.IsNullOrWhiteSpace(clave))
+            {
+                return "Campo";
+            }
+
+            var texto = clave.Replace("_", " ").Trim();
+            return char.ToUpper(texto[0]) + texto.Substring(1);
+        }
+
+        private byte[] GenerarPdfTransporte(Transporte transporte, List<PdfFormularioAdicional> formulariosAdicionales)
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            formulariosAdicionales ??= new List<PdfFormularioAdicional>();
+
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.Letter);
+                    page.Margin(20);
+                    page.DefaultTextStyle(x => x.FontSize(7).FontFamily("Arial"));
+
+                    page.Content().Column(column =>
+                    {
+                        column.Spacing(5);
+
+                        column.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                for (int i = 0; i < 12; i++)
+                                {
+                                    columns.RelativeColumn();
+                                }
+                            });
+
+                            table.Cell().RowSpan(3).ColumnSpan(2).Element(CeldaValorCentro).Column(c =>
+                            {
+                                c.Item().AlignCenter().Text("NS").FontSize(16).Bold();
+                                c.Item().AlignCenter().Text("GROUP").FontSize(5).Bold();
+                            });
+
+                            table.Cell().ColumnSpan(8).Element(CeldaEtiqueta).Text("NS GROUP").Bold();
+                            table.Cell().ColumnSpan(2).Element(CeldaValorCentro).Text(DateTime.Now.ToString("dd/MM/yyyy HH:mm"));
+
+                            table.Cell().ColumnSpan(10).Element(CeldaEtiqueta).Text("PROCESOS Y MEJORA CONTINUA").Bold();
+
+                            table.Cell().ColumnSpan(10).Element(CeldaTituloPrincipal).Text("Formato de Solicitud de Transporte");
+
+                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Área:");
+                            table.Cell().ColumnSpan(1).Element(CeldaValorCentro).Text("Logística");
+                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Elaborado Por:");
+                            table.Cell().ColumnSpan(2).Element(CeldaValorCentro).Text("Ing. Axel Delgado");
+                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Liberado Por:");
+                            table.Cell().ColumnSpan(2).Element(CeldaValorCentro).Text("Lic. Pedro Bello");
+                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Versión:");
+                            table.Cell().ColumnSpan(1).Element(CeldaValorCentro).Text("03-2025");
+                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Código:");
+                            table.Cell().ColumnSpan(1).Element(CeldaValorCentro).Text("F-19-06");
+
+                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Fecha de Emisión:");
+                            table.Cell().ColumnSpan(2).Element(CeldaValorCentro).Text("17/09/2025");
+                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Página:");
+                            table.Cell().ColumnSpan(2).Element(CeldaValorCentro).Text("1 de 1");
+                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("# ID Folio");
+                            table.Cell().ColumnSpan(5).Element(CeldaValorCentro).Text(Texto(transporte.Folio ?? $"TR-{transporte.IdTransporte}"));
+                        });
+
+                        column.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(1.4f);
+                                columns.RelativeColumn(2.2f);
+                                columns.RelativeColumn(1.4f);
+                                columns.RelativeColumn(2.2f);
+                            });
+
+                            void Fila(string etiqueta1, string valor1, string etiqueta2, string valor2)
+                            {
+                                table.Cell().Element(CeldaEtiqueta).Text(etiqueta1);
+                                table.Cell().Element(CeldaValorCentro).Text(valor1);
+                                table.Cell().Element(CeldaEtiqueta).Text(etiqueta2);
+                                table.Cell().Element(CeldaValorCentro).Text(valor2);
+                            }
+
+                            Fila("# Factura", Texto(transporte.NumeroFactura), "Duración aprox. De Flete", Texto(transporte.DuracionAproxFlete));
+                            Fila("Fecha de Carga", Fecha(transporte.FechaCarga), "Horario De Llegada a Destino", Texto(transporte.HorarioLlegadaDestino));
+                            Fila("Horario de Carga", Texto(transporte.HorarioCarga), "Proyecto", Texto(transporte.Proyecto));
+                            Fila("Cliente", Texto(transporte.Cliente), "Departamento", Texto(transporte.Departamento));
+                            Fila("Nombre del Solicitante", Texto(transporte.NombreSolicitante), "Autorizado Presupuesto", Texto(transporte.AutorizadoPresupuesto));
+                            Fila("Compañía Solicitante", Texto(transporte.CompaniaSolicitante), "Presupuesto de Flete", "");
+                            Fila("Centro de Costo", Texto(transporte.CentroCosto), "Tipo de Unidad", Texto(transporte.TipoUnidad));
+                            Fila("Tipo de Ruta", Texto(transporte.TipoRuta), "Comentarios de Unidad", Texto(transporte.ComentariosUnidad));
+
+                            table.Cell().Element(CeldaEtiqueta).Text("Dirección de Recolección");
+                            table.Cell().ColumnSpan(3).Element(CeldaValorCentro).Text(Texto(transporte.DireccionRecoleccion));
+
+                            Fila("Volumetría\n(Ancho y Largo - mts)", Texto(transporte.Volumetria), "Fletero", Texto(transporte.Fletero));
+                            table.Cell().Element(CeldaEtiqueta).Text("Costo de Flete");
+                            table.Cell().ColumnSpan(3).Element(CeldaValorCentro).Text($"{Dinero(transporte.CostoFlete)} MXN + IVA");
+                        });
+
+                        column.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.ConstantColumn(25);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(4);
+                            });
+
+                            table.Cell().ColumnSpan(4).Element(CeldaSeccion).Text("Destinos");
+                            table.Cell().Element(CeldaEncabezado).Text("#");
+                            table.Cell().Element(CeldaEncabezado).Text("Nombre de quien recibe carga");
+                            table.Cell().Element(CeldaEncabezado).Text("Contacto");
+                            table.Cell().Element(CeldaEncabezado).Text("Dirección de destino");
+
+                            var destinos = transporte.Destinos?.OrderBy(x => x.NumeroDestino).ToList() ?? new List<TransporteDestino>();
+
+                            if (destinos.Any())
+                            {
+                                foreach (var destino in destinos)
+                                {
+                                    table.Cell().Element(CeldaValorCentro).Text(destino.NumeroDestino.ToString());
+                                    table.Cell().Element(CeldaValor).Text(Texto(destino.NombreRecibe));
+                                    table.Cell().Element(CeldaValor).Text(Texto(destino.ContactoRecibe));
+                                    table.Cell().Element(CeldaValor).Text(Texto(destino.DireccionDestino));
+                                }
+                            }
+                            else
+                            {
+                                table.Cell().ColumnSpan(4).Element(CeldaValorCentro).Text("Sin destinos registrados.");
+                            }
+                        });
+
+                        column.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(1.1f);
+                                columns.RelativeColumn(3.2f);
+                                columns.RelativeColumn(.8f);
+                                columns.RelativeColumn(.7f);
+                                columns.RelativeColumn(.8f);
+                                columns.RelativeColumn(1.1f);
+                                columns.RelativeColumn(1.2f);
+                            });
+
+                            table.Cell().ColumnSpan(7).Element(CeldaSeccion).Text("Plan de Embarque");
+                            table.Cell().Element(CeldaEncabezado).Text("Clave SAT");
+                            table.Cell().Element(CeldaEncabezado).Text("Descripción");
+                            table.Cell().Element(CeldaEncabezado).Text("Cantidad");
+                            table.Cell().Element(CeldaEncabezado).Text("UM");
+                            table.Cell().Element(CeldaEncabezado).Text("Peso");
+                            table.Cell().Element(CeldaEncabezado).Text("Valor");
+                            table.Cell().Element(CeldaEncabezado).Text("Vale de salida / Factura");
+
+                            var partidas = transporte.PlanEmbarque?.OrderBy(x => x.IdPlanEmbarque).ToList() ?? new List<TransportePlanEmbarque>();
+
+                            if (partidas.Any())
+                            {
+                                foreach (var item in partidas)
+                                {
+                                    table.Cell().Element(CeldaValor).Text(Texto(item.ClaveSAT));
+                                    table.Cell().Element(CeldaValor).Text(Texto(item.Descripcion));
+                                    table.Cell().Element(CeldaValorCentro).Text(Numero(item.Cantidad));
+                                    table.Cell().Element(CeldaValorCentro).Text(Texto(item.UnidadMedida));
+                                    table.Cell().Element(CeldaValorCentro).Text(Numero(item.Peso));
+                                    table.Cell().Element(CeldaValorDerecha).Text(Dinero(item.Valor));
+                                    table.Cell().Element(CeldaValor).Text(Texto(item.ValeSalidaFactura));
+                                }
+
+                                table.Cell().ColumnSpan(4).Element(CeldaValorDerecha).Text("Totales").Bold();
+                                table.Cell().Element(CeldaValorCentro).Text(Numero(partidas.Sum(x => x.Peso ?? 0)));
+                                table.Cell().Element(CeldaValorDerecha).Text(Dinero(partidas.Sum(x => x.Valor ?? 0)));
+                                table.Cell().Element(CeldaValorCentro).Text("MXN").Bold();
+                            }
+                            else
+                            {
+                                table.Cell().ColumnSpan(7).Element(CeldaValorCentro).Text("Sin partidas registradas.");
+                            }
+                        });
+
+                        if (formulariosAdicionales.Any())
+                        {
+                            column.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.RelativeColumn(1.4f);
+                                    columns.RelativeColumn(2.2f);
+                                    columns.RelativeColumn(1.4f);
+                                    columns.RelativeColumn(2.2f);
+                                });
+
+                                table.Cell().ColumnSpan(4).Element(CeldaSeccion).Text("Formularios adicionales");
+
+                                foreach (var formulario in formulariosAdicionales)
+                                {
+                                    table.Cell().ColumnSpan(4).Element(CeldaSubSeccion).Text(Texto(formulario.NombreFormulario));
+
+                                    var campos = formulario.Campos ?? new List<PdfFormularioCampo>();
+
+                                    if (!campos.Any())
+                                    {
+                                        table.Cell().ColumnSpan(4).Element(CeldaValorCentro).Text("Sin datos capturados.");
+                                        continue;
+                                    }
+
+                                    for (int i = 0; i < campos.Count; i += 2)
+                                    {
+                                        var campo1 = campos[i];
+                                        var campo2 = i + 1 < campos.Count ? campos[i + 1] : null;
+
+                                        table.Cell().Element(CeldaEtiqueta).Text(Texto(campo1.Etiqueta));
+                                        table.Cell().Element(CeldaValorCentro).Text(Texto(campo1.Valor));
+
+                                        if (campo2 != null)
+                                        {
+                                            table.Cell().Element(CeldaEtiqueta).Text(Texto(campo2.Etiqueta));
+                                            table.Cell().Element(CeldaValorCentro).Text(Texto(campo2.Valor));
+                                        }
+                                        else
+                                        {
+                                            table.Cell().Element(CeldaEtiqueta).Text("");
+                                            table.Cell().Element(CeldaValorCentro).Text("");
+                                        }
+                                    }
+                                }
+                            });
+                        }
+
+                        column.Item().Row(row =>
+                        {
+                            row.RelativeItem(1.25f).Column(firmas =>
+                            {
+                                firmas.Item().PaddingTop(18).Text("__________________________________________").AlignCenter();
+                                firmas.Item().Text("Nombre y Firma del solicitante").FontSize(7).AlignCenter();
+                                firmas.Item().PaddingTop(12).Text("__________________________________________").AlignCenter();
+                                firmas.Item().Text("Nombre y firma de Logística").FontSize(7).AlignCenter();
+                                firmas.Item().PaddingTop(12).Text("__________________________________________").AlignCenter();
+                                firmas.Item().Text("Nombre y Firma de Conformidad de Costo\nDirector del Solicitante").FontSize(7).AlignCenter();
+                            });
+
+                            row.RelativeItem(.85f).Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.RelativeColumn(4);
+                                    columns.RelativeColumn(1);
+                                });
+
+                                table.Cell().ColumnSpan(2).Element(CeldaSeccion).Text("Checklist");
+                                table.Cell().Element(CeldaValor).Text("1. Formato de Solicitud de Transporte");
+                                table.Cell().Element(CeldaValor).Text("");
+                                table.Cell().Element(CeldaValor).Text("2. Carta Porte");
+                                table.Cell().Element(CeldaValor).Text("");
+                                table.Cell().Element(CeldaValor).Text("3. Factura");
+                                table.Cell().Element(CeldaValor).Text("");
+                                table.Cell().Element(CeldaValor).Text("4. Evidencia (Documentos Firmados)");
+                                table.Cell().Element(CeldaValor).Text("");
+                                table.Cell().Element(CeldaValor).Text("5. Fotografías");
+                                table.Cell().Element(CeldaValor).Text("");
+                            });
+                        });
+                    });
+
+                    page.Footer().AlignCenter().Text(text =>
+                    {
+                        text.Span("Página ");
+                        text.CurrentPageNumber();
+                        text.Span(" de ");
+                        text.TotalPages();
+                    });
+                });
+            }).GeneratePdf();
+        }
+
+        private byte[] GenerarPdfReporteGuias(List<Guia> guias)
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.Letter.Landscape());
+                    page.Margin(20);
+                    page.DefaultTextStyle(x => x.FontSize(7));
+
+                    page.Header()
+                        .Column(column =>
+                        {
+                            column.Item().Text("Auditoría de Guías").FontSize(16).SemiBold();
+                            column.Item().Text($"Generado: {DateTime.Now:dd/MM/yyyy HH:mm} | Total de registros: {guias.Count}");
+                            column.Item().LineHorizontal(1);
+                        });
+
+                    page.Content()
+                        .PaddingVertical(8)
+                        .Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.ConstantColumn(35);
+                                columns.ConstantColumn(58);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(1);
+                                columns.ConstantColumn(55);
+                                columns.RelativeColumn(1);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(CeldaEncabezado).Text("ID");
+                                header.Cell().Element(CeldaEncabezado).Text("Fecha");
+                                header.Cell().Element(CeldaEncabezado).Text("Depto.");
+                                header.Cell().Element(CeldaEncabezado).Text("Cliente/Proyecto");
+                                header.Cell().Element(CeldaEncabezado).Text("Remitente");
+                                header.Cell().Element(CeldaEncabezado).Text("Origen");
+                                header.Cell().Element(CeldaEncabezado).Text("Destinatario");
+                                header.Cell().Element(CeldaEncabezado).Text("Destino");
+                                header.Cell().Element(CeldaEncabezado).Text("Tipo envío");
+                                header.Cell().Element(CeldaEncabezado).Text("Costo");
+                                header.Cell().Element(CeldaEncabezado).Text("Estado edición");
+                            });
+
+                            foreach (var guia in guias)
+                            {
+                                table.Cell().Element(CeldaValor).Text(guia.IdGuia.ToString());
+                                table.Cell().Element(CeldaValor).Text(Fecha(guia.FechaSolicitud));
+                                table.Cell().Element(CeldaValor).Text(Texto(guia.Departamento));
+                                table.Cell().Element(CeldaValor).Text(Texto(guia.ClienteProyecto));
+                                table.Cell().Element(CeldaValor).Text(Texto(guia.RemitenteNombre));
+                                table.Cell().Element(CeldaValor).Text(Texto(guia.Origen));
+                                table.Cell().Element(CeldaValor).Text(Texto(guia.DestinatarioNombre));
+                                table.Cell().Element(CeldaValor).Text(Texto(guia.Destino));
+                                table.Cell().Element(CeldaValor).Text(Texto(guia.TipoEnvio));
+                                table.Cell().Element(CeldaValor).Text(Dinero(guia.Costo));
+                                table.Cell().Element(CeldaValor).Text(Texto(guia.EstadoEdicion));
+                            }
+                        });
+
+                    page.Footer()
+                        .AlignCenter()
+                        .Text(text =>
+                        {
+                            text.Span("Página ");
+                            text.CurrentPageNumber();
+                            text.Span(" de ");
+                            text.TotalPages();
+                        });
+                });
+            }).GeneratePdf();
+        }
+
+        private byte[] GenerarPdfReporteTransportes(List<Transporte> transportes)
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.Letter.Landscape());
+                    page.Margin(20);
+                    page.DefaultTextStyle(x => x.FontSize(7));
+
+                    page.Header()
+                        .Column(column =>
+                        {
+                            column.Item().Text("Auditoría de Transportes").FontSize(16).SemiBold();
+                            column.Item().Text($"Generado: {DateTime.Now:dd/MM/yyyy HH:mm} | Total de registros: {transportes.Count}");
+                            column.Item().LineHorizontal(1);
+                        });
+
+                    page.Content()
+                        .PaddingVertical(8)
+                        .Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.ConstantColumn(45);
+                                columns.ConstantColumn(58);
+                                columns.ConstantColumn(58);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(1);
+                                columns.ConstantColumn(55);
+                                columns.ConstantColumn(45);
+                                columns.ConstantColumn(45);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(CeldaEncabezado).Text("Folio");
+                                header.Cell().Element(CeldaEncabezado).Text("Emisión");
+                                header.Cell().Element(CeldaEncabezado).Text("Carga");
+                                header.Cell().Element(CeldaEncabezado).Text("Estado");
+                                header.Cell().Element(CeldaEncabezado).Text("Cliente");
+                                header.Cell().Element(CeldaEncabezado).Text("Proyecto");
+                                header.Cell().Element(CeldaEncabezado).Text("Solicitante");
+                                header.Cell().Element(CeldaEncabezado).Text("Unidad");
+                                header.Cell().Element(CeldaEncabezado).Text("Fletero");
+                                header.Cell().Element(CeldaEncabezado).Text("Costo");
+                                header.Cell().Element(CeldaEncabezado).Text("Dest.");
+                                header.Cell().Element(CeldaEncabezado).Text("Part.");
+                            });
+
+                            foreach (var transporte in transportes)
+                            {
+                                table.Cell().Element(CeldaValor).Text(Texto(transporte.Folio ?? transporte.IdTransporte.ToString()));
+                                table.Cell().Element(CeldaValor).Text(Fecha(transporte.FechaEmision));
+                                table.Cell().Element(CeldaValor).Text(Fecha(transporte.FechaCarga));
+                                table.Cell().Element(CeldaValor).Text(Texto(transporte.EstadoSolicitud));
+                                table.Cell().Element(CeldaValor).Text(Texto(transporte.Cliente));
+                                table.Cell().Element(CeldaValor).Text(Texto(transporte.Proyecto));
+                                table.Cell().Element(CeldaValor).Text(Texto(transporte.NombreSolicitante));
+                                table.Cell().Element(CeldaValor).Text(Texto(transporte.TipoUnidad));
+                                table.Cell().Element(CeldaValor).Text(Texto(transporte.Fletero));
+                                table.Cell().Element(CeldaValor).Text(Dinero(transporte.CostoFlete));
+                                table.Cell().Element(CeldaValor).Text((transporte.Destinos?.Count ?? 0).ToString());
+                                table.Cell().Element(CeldaValor).Text((transporte.PlanEmbarque?.Count ?? 0).ToString());
+                            }
+                        });
+
+                    page.Footer()
+                        .AlignCenter()
+                        .Text(text =>
+                        {
+                            text.Span("Página ");
+                            text.CurrentPageNumber();
+                            text.Span(" de ");
+                            text.TotalPages();
+                        });
+                });
+            }).GeneratePdf();
+        }
+
+        private static IContainer CeldaTituloPrincipal(IContainer container)
+        {
+            return container
+                .Border(1)
+                .Padding(3)
+                .AlignCenter()
+                .DefaultTextStyle(x => x.FontSize(10).SemiBold());
+        }
+
+        private static IContainer CeldaSeccion(IContainer container)
+        {
+            return container
+                .Border(1)
+                .Background(Colors.Grey.Lighten2)
+                .Padding(3)
+                .AlignCenter()
+                .DefaultTextStyle(x => x.FontSize(8).SemiBold());
+        }
+
+        private static IContainer CeldaSubSeccion(IContainer container)
+        {
+            return container
+                .Border(1)
+                .Background(Colors.Grey.Lighten3)
+                .Padding(3)
+                .DefaultTextStyle(x => x.FontSize(8).SemiBold());
+        }
+
+        private static IContainer CeldaValorCentro(IContainer container)
+        {
+            return container
+                .Border(1)
+                .Padding(3)
+                .AlignCenter()
+                .AlignMiddle();
+        }
+
+        private static IContainer CeldaValorDerecha(IContainer container)
+        {
+            return container
+                .Border(1)
+                .Padding(3)
+                .AlignRight()
+                .AlignMiddle();
+        }
+
+        private static IContainer CeldaEncabezado(IContainer container)
+        {
+            return container
+                .Border(1)
+                .Background(Colors.Grey.Lighten3)
+                .Padding(3)
+                .DefaultTextStyle(x => x.SemiBold());
+        }
+
+        private static IContainer CeldaEtiqueta(IContainer container)
+        {
+            return container
+                .Border(1)
+                .Background(Colors.Grey.Lighten4)
+                .Padding(4)
+                .DefaultTextStyle(x => x.SemiBold());
+        }
+
+        private static IContainer CeldaValor(IContainer container)
+        {
+            return container
+                .Border(1)
+                .Padding(4);
+        }
+
+        private static string Texto(string? valor)
+        {
+            return string.IsNullOrWhiteSpace(valor) ? "-" : valor;
+        }
+
+        private static string Fecha(DateTime? fecha)
+        {
+            return fecha.HasValue ? fecha.Value.ToString("dd/MM/yyyy") : "-";
+        }
+
+        private static string Numero(decimal? valor)
+        {
+            return valor.HasValue ? valor.Value.ToString("N2") : "-";
+        }
+
+        private static string Dinero(decimal? valor)
+        {
+            return valor.HasValue ? "$" + valor.Value.ToString("N2") : "$0.00";
+        }
+
+
     }
 }

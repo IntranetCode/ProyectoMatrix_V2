@@ -1,0 +1,607 @@
+@model ProyectoMatrix.ViewModels.Formularios.FormularioLlenadoViewModel
+
+@{
+    Layout = null;
+    ViewData["Title"] = "Llenar formulario";
+
+    var origenModulo = Context.Request.Query["origenModulo"].ToString().Trim();
+    var origenTipo = Context.Request.Query["origenTipo"].ToString().Trim();
+    var origenId = Context.Request.Query["origenId"].ToString().Trim();
+
+    var formulariosUrl = "/Logistica/Formularios";
+    var guardarRespuestaUrl = "/Logistica/Formularios/GuardarRespuesta";
+
+    if (!string.IsNullOrWhiteSpace(origenModulo))
+    {
+        formulariosUrl += "?origenModulo=" + origenModulo;
+        guardarRespuestaUrl += "?origenModulo=" + origenModulo;
+    }
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Llenar formulario</title>
+    <style>
+        :root {
+            --ns-primary: #062b55;
+            --ns-primary-dark: #041f3f;
+            --ns-accent: #e85d04;
+            --ns-accent-dark: #c94f03;
+            --ns-bg: #f3f6fb;
+            --ns-card: #ffffff;
+            --ns-border: #e2e8f0;
+            --ns-muted: #64748b;
+            --ns-text: #0f172a;
+            --ns-danger-bg: #fee2e2;
+            --ns-danger-text: #991b1b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: var(--ns-bg);
+            color: var(--ns-text);
+        }
+
+        .page {
+            min-height: 100vh;
+            padding: 26px;
+            background: radial-gradient(circle at top right, rgba(6, 43, 85, .08), transparent 30%), var(--ns-bg);
+        }
+
+        .formularios-hero {
+            background: linear-gradient(135deg, var(--ns-primary), var(--ns-primary-dark));
+            color: white;
+            border-radius: 18px;
+            padding: 28px 32px;
+            margin-bottom: 22px;
+            box-shadow: 0 16px 35px rgba(15, 23, 42, .14);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .formularios-hero::after {
+            content: "";
+            position: absolute;
+            right: 36px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 92px;
+            height: 92px;
+            border-radius: 24px;
+            background: rgba(255,255,255,.10);
+        }
+
+        .formularios-hero h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: -.5px;
+        }
+
+        .formularios-hero p {
+            margin: 8px 0 0;
+            color: rgba(255,255,255,.78);
+            font-size: 15px;
+        }
+
+        .panel {
+            background: var(--ns-card);
+            border: 1px solid var(--ns-border);
+            border-radius: 18px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, .08);
+            padding: 22px;
+            margin-bottom: 18px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .full { grid-column: 1 / -1; }
+
+        .group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 800;
+            color: #334155;
+        }
+
+        input,
+        textarea,
+        select {
+            border: 1px solid #cbd5e1;
+            border-radius: 11px;
+            padding: 10px 12px;
+            font-size: 13px;
+            outline: none;
+            background: white;
+            width: 100%;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 12px;
+            padding: 10px 15px;
+            font-weight: 800;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            transition: all .18s ease;
+            white-space: nowrap;
+            line-height: 1;
+        }
+
+        .btn-primary {
+            background: var(--ns-accent);
+            color: white;
+            box-shadow: 0 8px 18px rgba(232, 93, 4, .22);
+        }
+
+        .btn-primary:hover {
+            background: var(--ns-accent-dark);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #111827;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+            color: #111827;
+        }
+
+        .btn-danger {
+            background: var(--ns-danger-bg);
+            color: var(--ns-danger-text);
+        }
+
+        .btn-danger:hover { background: #fecaca; }
+
+        .btn-small {
+            padding: 7px 10px;
+            font-size: 12px;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .dynamic-table-wrap {
+            border: 1px solid var(--ns-border);
+            border-radius: 15px;
+            overflow: hidden;
+            background: white;
+        }
+
+        .dynamic-table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--ns-border);
+            padding: 12px;
+        }
+
+        .dynamic-table-title {
+            font-weight: 900;
+            color: var(--ns-text);
+        }
+
+        .dynamic-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .dynamic-table th {
+            text-align: left;
+            font-size: 11px;
+            color: var(--ns-muted);
+            text-transform: uppercase;
+            padding: 10px;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--ns-border);
+        }
+
+        .dynamic-table td {
+            padding: 8px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+        }
+
+        .dynamic-table input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @@media(max-width: 900px) {
+            .page { padding: 16px; }
+            .formularios-hero { padding: 24px; }
+            .formularios-hero::after { display: none; }
+            .grid { grid-template-columns: 1fr; }
+            .actions { justify-content: stretch; }
+            .btn { width: 100%; }
+            .dynamic-table-wrap { overflow-x: auto; }
+            .dynamic-table { min-width: 850px; }
+        }
+
+</head>
+<body>
+    <div class="page">
+        <div class="formularios-hero">
+            <h1>@Model.NombreFormulario</h1>
+            <p>@(string.IsNullOrWhiteSpace(Model.Descripcion) ? "Completa los campos adicionales del cuestionario." : Model.Descripcion)</p>
+        </div>
+
+        <div class="panel">
+            <form action="@guardarRespuestaUrl" method="post" id="formLlenarFormulario">
+                @Html.AntiForgeryToken()
+
+                <input type="hidden" name="IdFormulario" value="@Model.IdFormulario" />
+                <input type="hidden" name="RespuestaOrigenID" value="@Model.RespuestaOrigenID" />
+                <input type="hidden" name="OrigenTipo" value="@origenTipo" />
+                <input type="hidden" name="OrigenID" value="@origenId" />
+                <input type="hidden" name="Estado" value="Registrado" />
+
+                <div class="grid">
+                    @foreach (var campo in Model.Campos)
+                    {
+                        var valor = Model.Valores.ContainsKey(campo.Clave) ? Model.Valores[campo.Clave] : "";
+                        var full = campo.Tipo == "textarea"
+                            || campo.Tipo == "tabla_destinos"
+                            || campo.Tipo == "tabla_plan_embarque";
+
+                        <div class="group @(full ? "full" : "")">
+                            <label>
+                                @campo.Etiqueta
+                                @if (campo.Obligatorio)
+                                {
+                                    <span style="color:red;">*</span>
+                                }
+                            </label>
+
+                            @if (campo.Tipo == "tabla_destinos")
+                            {
+                                <input type="hidden"
+                                       class="json-destinos"
+                                       name="Valores[@campo.Clave]"
+                                       value="@valor" />
+
+                                <div class="dynamic-table-wrap destinos-wrap">
+                                    <div class="dynamic-table-header">
+                                        <div class="dynamic-table-title">Destinos</div>
+                                        <button type="button" class="btn btn-secondary btn-small" onclick="agregarDestino(this)">
+                                            + Agregar destino
+                                        </button>
+                                    </div>
+
+                                    <table class="dynamic-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:60px;">#</th>
+                                                <th>Nombre quien recibe</th>
+                                                <th>Contacto</th>
+                                                <th>Dirección destino</th>
+                                                <th style="width:90px;">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="destinos-body"></tbody>
+                                    </table>
+                                </div>
+                            }
+                            else if (campo.Tipo == "tabla_plan_embarque")
+                            {
+                                <input type="hidden"
+                                       class="json-plan"
+                                       name="Valores[@campo.Clave]"
+                                       value="@valor" />
+
+                                <div class="dynamic-table-wrap plan-wrap">
+                                    <div class="dynamic-table-header">
+                                        <div class="dynamic-table-title">Plan de embarque</div>
+                                        <button type="button" class="btn btn-secondary btn-small" onclick="agregarPlanItem(this)">
+                                            + Agregar producto
+                                        </button>
+                                    </div>
+
+                                    <table class="dynamic-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Clave SAT</th>
+                                                <th>Descripción</th>
+                                                <th>Cantidad</th>
+                                                <th>UM</th>
+                                                <th>Peso</th>
+                                                <th>Valor</th>
+                                                <th>Vale / Factura</th>
+                                                <th style="width:90px;">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="plan-body"></tbody>
+                                    </table>
+                                </div>
+                            }
+                            else if (campo.Tipo == "textarea")
+                            {
+                                <textarea name="Valores[@campo.Clave]" rows="4" required="@campo.Obligatorio">@valor</textarea>
+                            }
+                            else if (campo.Tipo == "numero")
+                            {
+                                <input type="number" step="any" name="Valores[@campo.Clave]" value="@valor" required="@campo.Obligatorio" />
+                            }
+                            else if (campo.Tipo == "fecha")
+                            {
+                                <input type="date" name="Valores[@campo.Clave]" value="@valor" required="@campo.Obligatorio" />
+                            }
+                            else if (campo.Tipo == "select")
+                            {
+                                <select name="Valores[@campo.Clave]" required="@campo.Obligatorio">
+                                    <option value="">Seleccionar</option>
+                                    @foreach (var opcion in campo.Opciones)
+                                    {
+                                        <option value="@opcion" selected="@(valor == opcion)">@opcion</option>
+                                    }
+                                </select>
+                            }
+                            else
+                            {
+                                <input type="text" name="Valores[@campo.Clave]" value="@valor" required="@campo.Obligatorio" />
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="actions">
+                    <a class="btn btn-secondary" href="@formulariosUrl">Cancelar</a>
+                    <button class="btn btn-primary" type="submit">Guardar respuesta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            inicializarTablasDestinos();
+            inicializarTablasPlan();
+        });
+
+        document.getElementById('formLlenarFormulario').addEventListener('submit', function () {
+            sincronizarTodasLasTablas();
+        });
+
+        function inicializarTablasDestinos() {
+            document.querySelectorAll('.destinos-wrap').forEach(wrap => {
+                const hidden = wrap.parentElement.querySelector('.json-destinos');
+                let data = parseJsonArray(hidden.value);
+
+                if (data.length === 0) {
+                    data = [{ nombre_recibe: '', contacto: '', direccion: '' }];
+                }
+
+                const body = wrap.querySelector('.destinos-body');
+                body.innerHTML = '';
+
+                data.forEach(item => crearFilaDestino(body, item));
+                reindexarDestinos(body);
+            });
+        }
+
+        function inicializarTablasPlan() {
+            document.querySelectorAll('.plan-wrap').forEach(wrap => {
+                const hidden = wrap.parentElement.querySelector('.json-plan');
+                let data = parseJsonArray(hidden.value);
+
+                if (data.length === 0) {
+                    data = [{
+                        clave_sat: '',
+                        descripcion: '',
+                        cantidad: '',
+                        um: '',
+                        peso: '',
+                        valor: '',
+                        vale_salida_factura: ''
+                    }];
+                }
+
+                const body = wrap.querySelector('.plan-body');
+                body.innerHTML = '';
+
+                data.forEach(item => crearFilaPlan(body, item));
+            });
+        }
+
+        function agregarDestino(button) {
+            const wrap = button.closest('.destinos-wrap');
+            const body = wrap.querySelector('.destinos-body');
+
+            crearFilaDestino(body, { nombre_recibe: '', contacto: '', direccion: '' });
+            reindexarDestinos(body);
+        }
+
+        function crearFilaDestino(body, item) {
+            const tr = document.createElement('tr');
+
+            tr.innerHTML = `
+                <td class="destino-numero"></td>
+                <td><input type="text" class="destino-nombre" value="${escapeHtml(item.nombre_recibe || '')}" /></td>
+                <td><input type="text" class="destino-contacto" value="${escapeHtml(item.contacto || '')}" /></td>
+                <td><input type="text" class="destino-direccion" value="${escapeHtml(item.direccion || '')}" /></td>
+                <td><button type="button" class="btn btn-danger btn-small" onclick="quitarDestino(this)">Quitar</button></td>
+            `;
+
+            body.appendChild(tr);
+        }
+
+        function quitarDestino(button) {
+            const body = button.closest('tbody');
+            button.closest('tr').remove();
+
+            if (body.querySelectorAll('tr').length === 0) {
+                crearFilaDestino(body, { nombre_recibe: '', contacto: '', direccion: '' });
+            }
+
+            reindexarDestinos(body);
+        }
+
+        function reindexarDestinos(body) {
+            body.querySelectorAll('tr').forEach((row, index) => {
+                row.querySelector('.destino-numero').textContent = index + 1;
+            });
+        }
+
+        function agregarPlanItem(button) {
+            const wrap = button.closest('.plan-wrap');
+            const body = wrap.querySelector('.plan-body');
+
+            crearFilaPlan(body, {
+                clave_sat: '',
+                descripcion: '',
+                cantidad: '',
+                um: '',
+                peso: '',
+                valor: '',
+                vale_salida_factura: ''
+            });
+        }
+
+        function crearFilaPlan(body, item) {
+            const tr = document.createElement('tr');
+
+            tr.innerHTML = `
+                <td><input type="text" class="plan-clave-sat" value="${escapeHtml(item.clave_sat || '')}" /></td>
+                <td><input type="text" class="plan-descripcion" value="${escapeHtml(item.descripcion || '')}" /></td>
+                <td><input type="text" class="plan-cantidad" value="${escapeHtml(item.cantidad || '')}" /></td>
+                <td><input type="text" class="plan-um" value="${escapeHtml(item.um || '')}" /></td>
+                <td><input type="text" class="plan-peso" value="${escapeHtml(item.peso || '')}" /></td>
+                <td><input type="text" class="plan-valor" value="${escapeHtml(item.valor || '')}" /></td>
+                <td><input type="text" class="plan-vale" value="${escapeHtml(item.vale_salida_factura || '')}" /></td>
+                <td><button type="button" class="btn btn-danger btn-small" onclick="quitarPlanItem(this)">Quitar</button></td>
+            `;
+
+            body.appendChild(tr);
+        }
+
+        function quitarPlanItem(button) {
+            const body = button.closest('tbody');
+            button.closest('tr').remove();
+
+            if (body.querySelectorAll('tr').length === 0) {
+                crearFilaPlan(body, {
+                    clave_sat: '',
+                    descripcion: '',
+                    cantidad: '',
+                    um: '',
+                    peso: '',
+                    valor: '',
+                    vale_salida_factura: ''
+                });
+            }
+        }
+
+        function sincronizarTodasLasTablas() {
+            document.querySelectorAll('.destinos-wrap').forEach(wrap => {
+                const hidden = wrap.parentElement.querySelector('.json-destinos');
+                const body = wrap.querySelector('.destinos-body');
+
+                const destinos = [];
+
+                body.querySelectorAll('tr').forEach(row => {
+                    const item = {
+                        nombre_recibe: row.querySelector('.destino-nombre')?.value || '',
+                        contacto: row.querySelector('.destino-contacto')?.value || '',
+                        direccion: row.querySelector('.destino-direccion')?.value || ''
+                    };
+
+                    if (item.nombre_recibe || item.contacto || item.direccion) {
+                        destinos.push(item);
+                    }
+                });
+
+                hidden.value = JSON.stringify(destinos);
+            });
+
+            document.querySelectorAll('.plan-wrap').forEach(wrap => {
+                const hidden = wrap.parentElement.querySelector('.json-plan');
+                const body = wrap.querySelector('.plan-body');
+
+                const plan = [];
+
+                body.querySelectorAll('tr').forEach(row => {
+                    const item = {
+                        clave_sat: row.querySelector('.plan-clave-sat')?.value || '',
+                        descripcion: row.querySelector('.plan-descripcion')?.value || '',
+                        cantidad: row.querySelector('.plan-cantidad')?.value || '',
+                        um: row.querySelector('.plan-um')?.value || '',
+                        peso: row.querySelector('.plan-peso')?.value || '',
+                        valor: row.querySelector('.plan-valor')?.value || '',
+                        vale_salida_factura: row.querySelector('.plan-vale')?.value || ''
+                    };
+
+                    if (
+                        item.clave_sat ||
+                        item.descripcion ||
+                        item.cantidad ||
+                        item.um ||
+                        item.peso ||
+                        item.valor ||
+                        item.vale_salida_factura
+                    ) {
+                        plan.push(item);
+                    }
+                });
+
+                hidden.value = JSON.stringify(plan);
+            });
+        }
+
+        function parseJsonArray(value) {
+            if (!value) return [];
+
+            try {
+                const parsed = JSON.parse(value);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>

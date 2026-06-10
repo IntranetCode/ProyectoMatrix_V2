@@ -1,0 +1,946 @@
+@model ProyectoMatrix.ViewModels.Formularios.FormularioPlantillaViewModel
+
+@{
+    Layout = null;
+    ViewData["Title"] = "Crear formulario";
+
+    var origenModulo = Context.Request.Query["origenModulo"].ToString();
+
+    if (string.IsNullOrWhiteSpace(origenModulo))
+    {
+        var referer = Context.Request.Headers["Referer"].ToString();
+
+        if (!string.IsNullOrWhiteSpace(referer) &&
+            referer.Contains("/Logistica/Guias", StringComparison.OrdinalIgnoreCase))
+        {
+            origenModulo = "Guias";
+        }
+        else if (!string.IsNullOrWhiteSpace(referer) &&
+                 referer.Contains("/Logistica/Transporte", StringComparison.OrdinalIgnoreCase))
+        {
+            origenModulo = "Transporte";
+        }
+    }
+
+    var cancelarUrl = "/Logistica/Formularios";
+
+    if (string.Equals(origenModulo, "Guias", StringComparison.OrdinalIgnoreCase))
+    {
+        cancelarUrl = "/Logistica/Guias";
+    }
+    else if (string.Equals(origenModulo, "Transporte", StringComparison.OrdinalIgnoreCase))
+    {
+        cancelarUrl = "/Logistica/Transporte";
+    }
+
+    var formActionUrl = "/Logistica/Formularios/Crear";
+
+    if (!string.IsNullOrWhiteSpace(origenModulo))
+    {
+        formActionUrl += "?origenModulo=" + origenModulo;
+    }
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Crear formulario</title>
+
+    <style>
+        :root {
+            --ns-primary: #062b55;
+            --ns-primary-dark: #041f3f;
+            --ns-accent: #e85d04;
+            --ns-accent-dark: #c94f03;
+            --ns-bg: #f3f6fb;
+            --ns-card: #ffffff;
+            --ns-border: #e2e8f0;
+            --ns-muted: #64748b;
+            --ns-text: #0f172a;
+            --ns-soft-blue: #eff6ff;
+            --ns-soft-orange: #fff7ed;
+            --ns-danger-bg: #fee2e2;
+            --ns-danger-text: #991b1b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: var(--ns-bg);
+            color: var(--ns-text);
+        }
+
+        .page {
+            min-height: 100vh;
+            padding: 26px;
+            background:
+                radial-gradient(circle at top right, rgba(6, 43, 85, .08), transparent 30%),
+                var(--ns-bg);
+        }
+
+        .formularios-hero {
+            background: linear-gradient(135deg, var(--ns-primary), var(--ns-primary-dark));
+            color: white;
+            border-radius: 18px;
+            padding: 28px 32px;
+            margin-bottom: 22px;
+            box-shadow: 0 16px 35px rgba(15, 23, 42, .14);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .formularios-hero::after {
+            content: "\f15c";
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            position: absolute;
+            right: 42px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 82px;
+            opacity: .12;
+        }
+
+        .formularios-hero h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: -.5px;
+        }
+
+        .formularios-hero p {
+            margin: 8px 0 0;
+            color: rgba(255,255,255,.78);
+            font-size: 15px;
+        }
+
+        .wizard-layout {
+            display: grid;
+            grid-template-columns: 280px minmax(0, 1fr);
+            gap: 18px;
+        }
+
+        .side-help {
+            background: white;
+            border: 1px solid var(--ns-border);
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, .07);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .side-help h3 {
+            margin: 0 0 10px;
+            font-size: 17px;
+            font-weight: 900;
+        }
+
+        .side-help p {
+            margin: 0 0 14px;
+            font-size: 13px;
+            color: var(--ns-muted);
+            line-height: 1.4;
+        }
+
+        .help-step {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+            align-items: flex-start;
+        }
+
+        .help-number {
+            width: 26px;
+            height: 26px;
+            border-radius: 999px;
+            background: var(--ns-soft-orange);
+            color: var(--ns-accent);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .help-step strong {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+
+        .help-step span {
+            color: var(--ns-muted);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .panel {
+            background: var(--ns-card);
+            border: 1px solid var(--ns-border);
+            border-radius: 18px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, .08);
+            padding: 22px;
+            margin-bottom: 18px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .section-title i {
+            width: 34px;
+            height: 34px;
+            border-radius: 11px;
+            background: var(--ns-soft-blue);
+            color: var(--ns-primary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .section-title h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 900;
+        }
+
+        .section-subtitle {
+            color: var(--ns-muted);
+            font-size: 13px;
+            margin-bottom: 18px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .full {
+            grid-column: 1 / -1;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 800;
+            color: #334155;
+        }
+
+        input,
+        textarea,
+        select {
+            border: 1px solid #cbd5e1;
+            border-radius: 11px;
+            padding: 10px 12px;
+            font-size: 13px;
+            outline: none;
+            background: white;
+            width: 100%;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+        }
+
+        .quick-templates {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .template-card {
+            border: 1px solid var(--ns-border);
+            background: #fbfdff;
+            border-radius: 15px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all .18s ease;
+        }
+
+        .template-card:hover {
+            transform: translateY(-2px);
+            border-color: #bfdbfe;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, .08);
+        }
+
+        .template-card strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .template-card span {
+            color: var(--ns-muted);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .campos-panel {
+            margin-top: 18px;
+            border: 1px solid var(--ns-border);
+            border-radius: 18px;
+            padding: 18px;
+            background: #fbfdff;
+        }
+
+        .campos-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .campos-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        .field-hint {
+            color: var(--ns-muted);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .campo-row {
+            background: white;
+            border: 1px solid var(--ns-border);
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+
+        .campo-row-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .campo-row-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 900;
+            color: var(--ns-primary);
+            font-size: 13px;
+        }
+
+        .campo-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 1.1fr .9fr .7fr .7fr;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .opciones-wrapper {
+            margin-top: 10px;
+            display: none;
+        }
+
+        .opciones-wrapper.active {
+            display: block;
+        }
+
+        .opciones-wrapper input {
+            background: #fff;
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 12px;
+            padding: 10px 15px;
+            font-weight: 800;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            transition: all .18s ease;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--ns-accent);
+            color: white;
+            box-shadow: 0 8px 18px rgba(232, 93, 4, .22);
+        }
+
+        .btn-primary:hover {
+            background: var(--ns-accent-dark);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #111827;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+            color: #111827;
+        }
+
+        .btn-outline {
+            background: white;
+            color: var(--ns-primary);
+            border: 1px solid #bfdbfe;
+        }
+
+        .btn-outline:hover {
+            background: var(--ns-soft-blue);
+        }
+
+        .btn-danger {
+            background: var(--ns-danger-bg);
+            color: var(--ns-danger-text);
+        }
+
+        .btn-danger:hover {
+            background: #fecaca;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+            border-top: 1px solid var(--ns-border);
+            padding-top: 18px;
+        }
+
+        .empty-fields {
+            border: 1px dashed #cbd5e1;
+            background: white;
+            border-radius: 14px;
+            padding: 24px;
+            text-align: center;
+            color: var(--ns-muted);
+        }
+
+        .validation-summary-errors {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px 14px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-weight: 800;
+        }
+
+        @@media(max-width: 1100px) {
+            .wizard-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .side-help {
+                position: static;
+            }
+
+            .quick-templates {
+                grid-template-columns: 1fr;
+            }
+
+            .campo-grid,
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .actions,
+            .campos-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <div class="formularios-hero">
+            <h1>Crear formulario</h1>
+            <p>Configura un cuestionario adicional para complementar Guías o Transporte.</p>
+        </div>
+
+        <form action="@formActionUrl" method="post" id="formCrearFormulario">
+            @Html.AntiForgeryToken()
+
+            <div class="wizard-layout">
+                <aside class="side-help">
+                    <h3>¿Cómo funciona?</h3>
+                    <p>Este formulario no reemplaza la Guía o la Solicitud. Solo agrega preguntas extra.</p>
+
+                    <div class="help-step">
+                        <div class="help-number">1</div>
+                        <div>
+                            <strong>Define el nombre</strong>
+                            <span>Ejemplo: ADN, Cerdos, Muestras o Checklist.</span>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-number">2</div>
+                        <div>
+                            <strong>Agrega campos extra</strong>
+                            <span>No repitas cliente, proyecto, destinos o plan de embarque.</span>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-number">3</div>
+                        <div>
+                            <strong>Úsalo en el flujo normal</strong>
+                            <span>Al crear Guía o Transporte, podrás seleccionarlo como cuestionario adicional.</span>
+                        </div>
+                    </div>
+                </aside>
+
+                <main>
+                    <div class="panel">
+                        <div class="section-title">
+                            <i class="fas fa-info-circle"></i>
+                            <h2>Datos generales</h2>
+                        </div>
+                        <div class="section-subtitle">
+                            Define cómo aparecerá este cuestionario cuando el usuario cree una Guía o Solicitud de Transporte.
+                        </div>
+
+                        @Html.ValidationSummary(true)
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Nombre del formulario</label>
+                                <input name="Nombre"
+                                       value="@Model.Nombre"
+                                       placeholder="Ej. ADN, Cerdos, Muestras"
+                                       required />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Categoría</label>
+                                <input name="Categoria"
+                                       value="@Model.Categoria"
+                                       placeholder="Transporte, Guias o General" />
+                            </div>
+
+                            <div class="form-group full">
+                                <label>Descripción</label>
+                                <textarea name="Descripcion"
+                                          rows="3"
+                                          placeholder="Describe brevemente para qué sirve este cuestionario">@Model.Descripcion</textarea>
+                            </div>
+
+                            <input type="hidden" name="Modulo" value="Logistica" />
+                            <input type="hidden" name="EsPlantillaBase" value="false" />
+                            <input type="hidden" name="DatosFijosPdfJson" value="" />
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="section-title">
+                            <i class="fas fa-wand-magic-sparkles"></i>
+                            <h2>Plantillas rápidas</h2>
+                        </div>
+                        <div class="section-subtitle">
+                            Puedes empezar desde una plantilla sugerida o crear tus campos manualmente.
+                        </div>
+
+                        <div class="quick-templates">
+                            <div class="template-card" onclick="usarPlantillaRapida('adn')">
+                                <strong>ADN</strong>
+                                <span>Tipo de muestra, lote, laboratorio, temperatura y responsable.</span>
+                            </div>
+
+                            <div class="template-card" onclick="usarPlantillaRapida('cerdos')">
+                                <strong>Cerdos</strong>
+                                <span>Granja, corral, cantidad, edad, peso aproximado y observaciones.</span>
+                            </div>
+
+                            <div class="template-card" onclick="usarPlantillaRapida('checklist')">
+                                <strong>Checklist</strong>
+                                <span>Validaciones rápidas para confirmar requisitos antes del envío.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="section-title">
+                            <i class="fas fa-list-check"></i>
+                            <h2>Campos del cuestionario</h2>
+                        </div>
+                        <div class="section-subtitle">
+                            Agrega únicamente los datos extra. No repitas información que ya se captura en Guías o Transporte.
+                        </div>
+
+                        <div class="campos-panel">
+                            <div class="campos-header">
+                                <div>
+                                    <h3 class="campos-title">Preguntas configuradas</h3>
+                                    <div class="field-hint">
+                                        La etiqueta es lo que verá el usuario. La clave interna se genera automáticamente, pero puedes ajustarla.
+                                    </div>
+                                </div>
+
+                                <button type="button" class="btn btn-secondary" onclick="agregarCampo()">
+                                    <i class="fas fa-plus"></i>
+                                    Agregar campo
+                                </button>
+                            </div>
+
+                            <div id="camposContainer">
+                                @if (Model.Campos != null && Model.Campos.Count > 0)
+                                {
+                                    for (int i = 0; i < Model.Campos.Count; i++)
+                                    {
+                                        <div class="campo-row">
+                                            <div class="campo-row-header">
+                                                <div class="campo-row-title">
+                                                    <i class="fas fa-grip-vertical"></i>
+                                                    Campo @(i + 1)
+                                                </div>
+
+                                                <button type="button" class="btn btn-danger" onclick="eliminarCampo(this)">
+                                                    <i class="fas fa-trash"></i>
+                                                    Quitar
+                                                </button>
+                                            </div>
+
+                                            <div class="campo-grid">
+                                                <div class="form-group">
+                                                    <label>Etiqueta</label>
+                                                    <input name="Campos[@i].Etiqueta"
+                                                           value="@Model.Campos[i].Etiqueta"
+                                                           placeholder="Ej. Tipo de muestra"
+                                                           oninput="autogenerarClave(this)" />
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label>Clave interna</label>
+                                                    <input name="Campos[@i].Clave"
+                                                           value="@Model.Campos[i].Clave"
+                                                           placeholder="Ej. tipo_muestra" />
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label>Tipo</label>
+                                                    <select name="Campos[@i].Tipo" onchange="toggleOpciones(this)">
+                                                        <option value="texto" selected="@(Model.Campos[i].Tipo == "texto")">Texto corto</option>
+                                                        <option value="textarea" selected="@(Model.Campos[i].Tipo == "textarea")">Texto largo</option>
+                                                        <option value="numero" selected="@(Model.Campos[i].Tipo == "numero")">Número</option>
+                                                        <option value="fecha" selected="@(Model.Campos[i].Tipo == "fecha")">Fecha</option>
+                                                        <option value="select" selected="@(Model.Campos[i].Tipo == "select")">Lista desplegable</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label>Obligatorio</label>
+                                                    <select name="Campos[@i].Obligatorio">
+                                                        <option value="true" selected="@(Model.Campos[i].Obligatorio)">Sí</option>
+                                                        <option value="false" selected="@(!Model.Campos[i].Obligatorio)">No</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label>Copiable</label>
+                                                    <select name="Campos[@i].Copiable">
+                                                        <option value="true" selected="@(Model.Campos[i].Copiable)">Sí</option>
+                                                        <option value="false" selected="@(!Model.Campos[i].Copiable)">No</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div class="opciones-wrapper @(Model.Campos[i].Tipo == "select" ? "active" : "")">
+                                                <div class="form-group">
+                                                    <label>Opciones de la lista</label>
+                                                    <input class="opciones-text"
+                                                           value="@(Model.Campos[i].Opciones != null ? string.Join(", ", Model.Campos[i].Opciones) : "")"
+                                                           placeholder="Ej. Sí, No, N/A" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="actions">
+                            <a class="btn btn-secondary" href="@cancelarUrl">
+                                <i class="fas fa-times"></i>
+                                Cancelar
+                            </a>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                Guardar formulario
+                            </button>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function agregarCampo(config) {
+            const container = document.getElementById('camposContainer');
+            const index = container.querySelectorAll('.campo-row').length;
+
+            const etiqueta = config?.etiqueta || '';
+            const clave = config?.clave || '';
+            const tipo = config?.tipo || 'texto';
+            const obligatorio = config?.obligatorio === true ? 'true' : 'false';
+            const copiable = config?.copiable === false ? 'false' : 'true';
+            const opciones = Array.isArray(config?.opciones) ? config.opciones.join(', ') : '';
+
+            const div = document.createElement('div');
+            div.className = 'campo-row';
+
+            div.innerHTML = `
+                <div class="campo-row-header">
+                    <div class="campo-row-title">
+                        <i class="fas fa-grip-vertical"></i>
+                        Campo ${index + 1}
+                    </div>
+
+                    <button type="button" class="btn btn-danger" onclick="eliminarCampo(this)">
+                        <i class="fas fa-trash"></i>
+                        Quitar
+                    </button>
+                </div>
+
+                <div class="campo-grid">
+                    <div class="form-group">
+                        <label>Etiqueta</label>
+                        <input name="Campos[${index}].Etiqueta"
+                               value="${escapeHtml(etiqueta)}"
+                               placeholder="Ej. Tipo de muestra"
+                               oninput="autogenerarClave(this)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Clave interna</label>
+                        <input name="Campos[${index}].Clave"
+                               value="${escapeHtml(clave)}"
+                               placeholder="Ej. tipo_muestra" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <select name="Campos[${index}].Tipo" onchange="toggleOpciones(this)">
+                            <option value="texto" ${tipo === 'texto' ? 'selected' : ''}>Texto corto</option>
+                            <option value="textarea" ${tipo === 'textarea' ? 'selected' : ''}>Texto largo</option>
+                            <option value="numero" ${tipo === 'numero' ? 'selected' : ''}>Número</option>
+                            <option value="fecha" ${tipo === 'fecha' ? 'selected' : ''}>Fecha</option>
+                            <option value="select" ${tipo === 'select' ? 'selected' : ''}>Lista desplegable</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Obligatorio</label>
+                        <select name="Campos[${index}].Obligatorio">
+                            <option value="true" ${obligatorio === 'true' ? 'selected' : ''}>Sí</option>
+                            <option value="false" ${obligatorio === 'false' ? 'selected' : ''}>No</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Copiable</label>
+                        <select name="Campos[${index}].Copiable">
+                            <option value="true" ${copiable === 'true' ? 'selected' : ''}>Sí</option>
+                            <option value="false" ${copiable === 'false' ? 'selected' : ''}>No</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="opciones-wrapper ${tipo === 'select' ? 'active' : ''}">
+                    <div class="form-group">
+                        <label>Opciones de la lista</label>
+                        <input class="opciones-text"
+                               value="${escapeHtml(opciones)}"
+                               placeholder="Ej. Sí, No, N/A" />
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(div);
+        }
+
+        function eliminarCampo(button) {
+            button.closest('.campo-row').remove();
+            reindexarCampos();
+        }
+
+        function reindexarCampos() {
+            document.querySelectorAll('#camposContainer .campo-row').forEach((row, index) => {
+                row.querySelector('.campo-row-title').innerHTML = `<i class="fas fa-grip-vertical"></i> Campo ${index + 1}`;
+
+                row.querySelectorAll('input, select, textarea').forEach(input => {
+                    if (input.name && input.name.includes('Campos[')) {
+                        input.name = input.name.replace(/Campos\[\d+\]/, `Campos[${index}]`);
+                    }
+                });
+            });
+        }
+
+        function autogenerarClave(input) {
+            const row = input.closest('.campo-row');
+            const claveInput = row.querySelector('input[name*=".Clave"]');
+
+            if (!claveInput) {
+                return;
+            }
+
+            if (claveInput.dataset.editado === 'true') {
+                return;
+            }
+
+            claveInput.value = normalizarClave(input.value);
+        }
+
+        function normalizarClave(valor) {
+            return String(valor || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim()
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_+|_+$/g, '');
+        }
+
+        function toggleOpciones(select) {
+            const row = select.closest('.campo-row');
+            const opciones = row.querySelector('.opciones-wrapper');
+
+            if (!opciones) {
+                return;
+            }
+
+            if (select.value === 'select') {
+                opciones.classList.add('active');
+            } else {
+                opciones.classList.remove('active');
+            }
+        }
+
+        function prepararOpcionesAntesDeEnviar() {
+            document.querySelectorAll('#camposContainer .campo-row').forEach((row, index) => {
+                const tipo = row.querySelector(`select[name="Campos[${index}].Tipo"]`)?.value;
+                const opcionesInput = row.querySelector('.opciones-text');
+
+                row.querySelectorAll('.opcion-hidden').forEach(x => x.remove());
+
+                if (tipo !== 'select' || !opcionesInput) {
+                    return;
+                }
+
+                const opciones = opcionesInput.value
+                    .split(',')
+                    .map(x => x.trim())
+                    .filter(x => x.length > 0);
+
+                opciones.forEach((opcion, opcionIndex) => {
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.className = 'opcion-hidden';
+                    hidden.name = `Campos[${index}].Opciones[${opcionIndex}]`;
+                    hidden.value = opcion;
+                    row.appendChild(hidden);
+                });
+            });
+        }
+
+        function usarPlantillaRapida(tipo) {
+            const container = document.getElementById('camposContainer');
+            container.innerHTML = '';
+
+            if (tipo === 'adn') {
+                agregarCampo({ etiqueta: 'Tipo de muestra', clave: 'tipo_muestra', tipo: 'texto', obligatorio: true });
+                agregarCampo({ etiqueta: 'Cantidad de muestras', clave: 'cantidad_muestras', tipo: 'numero', obligatorio: true });
+                agregarCampo({ etiqueta: 'Lote', clave: 'lote', tipo: 'texto', obligatorio: false });
+                agregarCampo({ etiqueta: 'Temperatura requerida', clave: 'temperatura_requerida', tipo: 'texto', obligatorio: false });
+                agregarCampo({ etiqueta: 'Laboratorio destino', clave: 'laboratorio_destino', tipo: 'texto', obligatorio: false });
+                agregarCampo({ etiqueta: 'Responsable de muestra', clave: 'responsable_muestra', tipo: 'texto', obligatorio: false });
+                return;
+            }
+
+            if (tipo === 'cerdos') {
+                agregarCampo({ etiqueta: 'Granja origen', clave: 'granja_origen', tipo: 'texto', obligatorio: true });
+                agregarCampo({ etiqueta: 'Número de corral', clave: 'numero_corral', tipo: 'texto', obligatorio: false });
+                agregarCampo({ etiqueta: 'Cantidad de cerdos', clave: 'cantidad_cerdos', tipo: 'numero', obligatorio: true });
+                agregarCampo({ etiqueta: 'Peso aproximado', clave: 'peso_aproximado', tipo: 'texto', obligatorio: false });
+                agregarCampo({ etiqueta: 'Condición sanitaria', clave: 'condicion_sanitaria', tipo: 'select', obligatorio: false, opciones: ['Buena', 'Revisión', 'Crítica'] });
+                agregarCampo({ etiqueta: 'Observaciones', clave: 'observaciones_cerdos', tipo: 'textarea', obligatorio: false });
+                return;
+            }
+
+            if (tipo === 'checklist') {
+                agregarCampo({ etiqueta: 'Documentación completa', clave: 'documentacion_completa', tipo: 'select', obligatorio: true, opciones: ['Sí', 'No', 'N/A'] });
+                agregarCampo({ etiqueta: 'Unidad limpia', clave: 'unidad_limpia', tipo: 'select', obligatorio: true, opciones: ['Sí', 'No', 'N/A'] });
+                agregarCampo({ etiqueta: 'Carga asegurada', clave: 'carga_asegurada', tipo: 'select', obligatorio: true, opciones: ['Sí', 'No', 'N/A'] });
+                agregarCampo({ etiqueta: 'Evidencia fotográfica', clave: 'evidencia_fotografica', tipo: 'select', obligatorio: false, opciones: ['Sí', 'No', 'N/A'] });
+                agregarCampo({ etiqueta: 'Comentarios del checklist', clave: 'comentarios_checklist', tipo: 'textarea', obligatorio: false });
+                return;
+            }
+        }
+
+        function escapeHtml(valor) {
+            return String(valor || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('input[name*=".Clave"]').forEach(input => {
+                input.addEventListener('input', function () {
+                    this.dataset.editado = 'true';
+                });
+            });
+
+            if (document.querySelectorAll('#camposContainer .campo-row').length === 0) {
+                agregarCampo();
+            }
+
+            document.querySelectorAll('select[name*=".Tipo"]').forEach(select => {
+                toggleOpciones(select);
+            });
+        });
+
+        document.getElementById('formCrearFormulario').addEventListener('submit', function () {
+            reindexarCampos();
+            prepararOpcionesAntesDeEnviar();
+        });
+    </script>
+</body>
+</html>

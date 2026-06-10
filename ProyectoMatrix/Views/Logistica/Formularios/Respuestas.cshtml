@@ -1,0 +1,177 @@
+@model List<ProyectoMatrix.ViewModels.Formularios.FormularioRespuestaResumenViewModel>
+
+@{
+    Layout = null;
+    ViewData["Title"] = "Respuestas";
+
+    var origenModulo = (ViewData["OrigenModulo"]?.ToString() ?? Context.Request.Query["origenModulo"].ToString()).Trim();
+    var formulariosUrl = "/Logistica/Formularios";
+
+    if (!string.IsNullOrWhiteSpace(origenModulo))
+    {
+        formulariosUrl += "?origenModulo=" + origenModulo;
+    }
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Respuestas</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            color: #111827;
+        }
+
+        .page {
+            padding: 28px;
+        }
+
+        .panel {
+            background: white;
+            padding: 22px;
+            border-radius: 16px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 8px 18px rgba(0,0,0,.06);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        .btn {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: none;
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #111827;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            color: #6b7280;
+            font-size: 12px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 10px;
+        }
+
+        td {
+            border-bottom: 1px solid #f3f4f6;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .badge {
+            background: #eef2ff;
+            color: #3730a3;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 36px;
+            color: #6b7280;
+        }
+
+        .alert-success {
+            background: #dcfce7;
+            color: #166534;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-weight: 700;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="panel">
+            <div class="header">
+                <h1>Respuestas registradas</h1>
+                <a class="btn btn-secondary" href="@formulariosUrl">Volver</a>
+            </div>
+
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert-success">@TempData["Success"]</div>
+            }
+
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert-error">@TempData["Error"]</div>
+            }
+
+            @if (Model == null || !Model.Any())
+            {
+                <div class="empty">Todavía no hay respuestas registradas.</div>
+            }
+            else
+            {
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Formulario</th>
+                            <th>Folio</th>
+                            <th>Cliente</th>
+                            <th>Proyecto</th>
+                            <th>Solicitante</th>
+                            <th>Fecha carga</th>
+                            <th>Estado</th>
+                            <th>Registro</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model)
+                        {
+                            <tr>
+                                <td>@r.NombreFormulario</td>
+                                <td>@(r.Folio ?? "-")</td>
+                                <td>@(r.Cliente ?? "-")</td>
+                                <td>@(r.Proyecto ?? "-")</td>
+                                <td>@(r.Solicitante ?? "-")</td>
+                                <td>@(r.FechaCarga ?? "-")</td>
+                                <td><span class="badge">@r.Estado</span></td>
+                                <td>@r.FechaRegistro.ToString("dd/MM/yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</body>
+</html>
