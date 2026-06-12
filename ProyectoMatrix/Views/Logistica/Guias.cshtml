@@ -1209,113 +1209,43 @@
 
 
 
-    /* =========================================================
-       Correccion final: alineacion uniforme de iconos superiores
-       PDF / Excel / Graficas
-       ========================================================= */
-    .guias-top-actions,
-    .transport-top-actions {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-end !important;
-        gap: 10px !important;
-        flex-wrap: nowrap !important;
-    }
+/* Boton Regresar visible */
+.logistica-back-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    min-height: 46px !important;
+    padding: 0 22px !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #dbe3ef !important;
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08) !important;
+    transition: all 0.18s ease !important;
+}
 
-    .guias-top-actions .hero-action-btn,
-    .transport-top-actions .hero-action-btn {
-        width: 38px !important;
-        height: 38px !important;
-        min-width: 38px !important;
-        min-height: 38px !important;
-        max-width: 38px !important;
-        max-height: 38px !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        border-radius: 10px !important;
-        border: 1px solid #dfe5ed !important;
-        background: #ffffff !important;
-        color: #475569 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        text-align: center !important;
-        line-height: 1 !important;
-        font-size: 0 !important;
-        text-decoration: none !important;
-        vertical-align: middle !important;
-        box-sizing: border-box !important;
-        box-shadow: 0 6px 18px rgba(15, 23, 42, .06) !important;
-        transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease !important;
-        overflow: hidden !important;
-        appearance: none !important;
-        -webkit-appearance: none !important;
-    }
+.logistica-back-btn i {
+    font-size: 14px !important;
+}
 
-    .guias-top-actions .hero-action-btn i,
-    .transport-top-actions .hero-action-btn i {
-        width: 16px !important;
-        height: 16px !important;
-        min-width: 16px !important;
-        min-height: 16px !important;
-        max-width: 16px !important;
-        max-height: 16px !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        text-align: center !important;
-        line-height: 1 !important;
-        font-size: 15px !important;
-        vertical-align: middle !important;
-        position: static !important;
-        transform: none !important;
-    }
+.logistica-back-btn:hover,
+.logistica-back-btn:focus {
+    background: #0e7490 !important;
+    color: #ffffff !important;
+    border-color: #0e7490 !important;
+    text-decoration: none !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16) !important;
+}
 
-    .guias-top-actions .hero-action-btn:hover,
-    .transport-top-actions .hero-action-btn:hover {
-        transform: translateY(-1px) !important;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, .12) !important;
-        text-decoration: none !important;
-    }
-
-    .guias-top-actions .hero-action-pdf i,
-    .transport-top-actions .hero-action-pdf i {
-        color: #dc2626 !important;
-    }
-
-    .guias-top-actions .hero-action-pdf:hover,
-    .transport-top-actions .hero-action-pdf:hover {
-        background: #fee2e2 !important;
-        border-color: #fecaca !important;
-    }
-
-    .guias-top-actions .hero-action-excel i,
-    .transport-top-actions .hero-action-excel i {
-        color: #16a34a !important;
-    }
-
-    .guias-top-actions .hero-action-excel:hover,
-    .transport-top-actions .hero-action-excel:hover {
-        background: #dcfce7 !important;
-        border-color: #bbf7d0 !important;
-    }
-
-    .guias-top-actions .hero-action-stats i,
-    .guias-top-actions .hero-action-costs i,
-    .transport-top-actions .hero-action-stats i,
-    .transport-top-actions .hero-action-costs i {
-        color: #0f766e !important;
-    }
-
-    .guias-top-actions .hero-action-stats:hover,
-    .guias-top-actions .hero-action-costs:hover,
-    .transport-top-actions .hero-action-stats:hover,
-    .transport-top-actions .hero-action-costs:hover {
-        background: #ccfbf1 !important;
-        border-color: #99f6e4 !important;
-    }
+.guias-page-shell .page-back-zone {
+    margin: 0 0 2px 0 !important;
+}
 
 </style>
 
@@ -1332,13 +1262,6 @@
         <button type="button" class="side-new-guide" onclick="abrirModalCrear()">
             <i class="fas fa-paper-plane"></i> Nueva Guía
         </button>
-
-        @if (esLogistica)
-        {
-            <a href="/Logistica/Formularios/Crear?origenModulo=Guias" class="side-create-form" title="Crear formulario dinámico para guías">
-                <i class="fas fa-file-alt"></i> Crear Formulario
-            </a>
-        }
 
         <nav class="side-nav">
             <div class="side-nav-title">Menu principal</div>
@@ -1357,9 +1280,9 @@
                     <i class="fas fa-chart-bar"></i><span>Reportes</span>
                 </button>
             }
-            <a href="/Logistica/Formularios?origenModulo=Guias" class="side-link" title="Repositorio de formularios dinámicos">
+            <button type="button" class="side-link" disabled title="Repositorio para los formularios que se integren al módulo">
                 <i class="fas fa-clipboard-list"></i><span>Formularios</span>
-            </a>
+            </button>
 
             <div class="side-nav-title mt-3">Flujo de guías</div>
             <button type="button" class="side-link side-subitem guias-flow-link active" data-target="seccionActivas" onclick="mostrarSeccionGuias('seccionActivas')">
@@ -1386,7 +1309,7 @@
     <main class="guias-page-shell">
         <div class="guias-top-row">
             <div class="page-back-zone">
-                <a href="/Menu/Grupo/5" class="btn btn-light">
+                <a href="/Menu/Grupo/5" class="page-back-btn logistica-back-btn">
                     <i class="fas fa-arrow-left"></i> Regresar
                 </a>
             </div>
