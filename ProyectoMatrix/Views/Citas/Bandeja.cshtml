@@ -1,0 +1,1243 @@
+@model ProyectoMatrix.Models.CitasBandejaVm
+
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Bandeja de Citas";
+
+    var eventoSeleccionado = Model.Eventos.FirstOrDefault(x => x.AgendaID == Model.AgendaID);
+    var empresaSeleccionada = Model.Empresas.FirstOrDefault(x => x.EmpresaID == Model.EmpresaID);
+
+    var fechaFiltro = Model.Fecha.HasValue
+        ? Model.Fecha.Value.ToString("yyyy-MM-dd")
+        : string.Empty;
+
+    var totalEventos = Model.Eventos.Count;
+    var totalEmpresas = Model.Empresas.Count;
+
+    var tituloEvento = eventoSeleccionado?.NombreEvento ?? "Selecciona un evento";
+    var tituloEmpresa = empresaSeleccionada?.NombreEmpresa ?? "Todas las empresas";
+}
+
+@functions {
+    private static string Texto(string? value, string fallback = "Sin información")
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+
+    private static string Fecha(DateTime value)
+    {
+        return value == DateTime.MinValue ? "Pendiente" : value.ToString("dd/MM/yyyy");
+    }
+
+    private static string EstadoTexto(string? estado)
+    {
+        return (estado ?? "").ToLowerInvariant() switch
+        {
+            "borrador" => "Borrador",
+            "activo" => "Activo",
+            "cerrado" => "Cerrado",
+            "cancelado" => "Cancelado",
+            "programada" => "Programada",
+            "abierta" => "Abierta",
+            "oculta" => "Oculta",
+            "pendiente" => "Pendiente",
+            "asistio" => "Asistió",
+            "no_asistio" => "No asistió",
+            "cancelada" => "Cancelada",
+            "finalizada" => "Finalizada",
+            "en_captura" => "En captura",
+            "completado" => "Completado",
+            _ => string.IsNullOrWhiteSpace(estado) ? "Sin estado" : estado
+        };
+    }
+
+    private static string EstadoFormularioTexto(string? estado)
+    {
+        return (estado ?? "").ToLowerInvariant() switch
+        {
+            "pendiente" => "Pendiente",
+            "en_captura" => "En captura",
+            "completado" => "Completado",
+            _ => string.IsNullOrWhiteSpace(estado) ? "Sin estado" : estado
+        };
+    }
+
+    private static string EstadoClase(string? estado)
+    {
+        return (estado ?? "").ToLowerInvariant() switch
+        {
+            "activo" => "status-success",
+            "abierta" => "status-success",
+            "finalizada" => "status-success",
+            "completado" => "status-success",
+            "asistio" => "status-info",
+            "en_captura" => "status-info",
+            "borrador" => "status-warning",
+            "programada" => "status-warning",
+            "pendiente" => "status-warning",
+            "cerrado" => "status-muted",
+            "cancelado" => "status-danger",
+            "cancelada" => "status-danger",
+            "no_asistio" => "status-danger",
+            "oculta" => "status-muted",
+            _ => "status-muted"
+        };
+    }
+
+    private static string Porcentaje(decimal value)
+    {
+        if (value < 0) value = 0;
+        if (value > 100) value = 100;
+
+        return value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+    }
+
+    private static string Iniciales(string? nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return "TM";
+
+        var partes = nombre
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Take(2)
+            .ToList();
+
+        if (!partes.Any())
+            return "TM";
+
+        return string.Join("", partes.Select(x => x[0])).ToUpperInvariant();
+    }
+
+    private static bool EstaFinalizada(string? estado, string? estadoFormulario)
+    {
+        return string.Equals(estado, "finalizada", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(estadoFormulario, "completado", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool EsNoAsistio(string? estado)
+    {
+        return string.Equals(estado, "no_asistio", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool EsCancelada(string? estado)
+    {
+        return string.Equals(estado, "cancelada", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(estado, "cancelado", StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+<style>
+    .bandeja-page {
+        --bd-bg: #f6f8fc;
+        --bd-card: #ffffff;
+        --bd-border: #e6eaf2;
+        --bd-text: #101828;
+        --bd-muted: #667085;
+        --bd-blue: #2563eb;
+        --bd-blue-soft: #dbeafe;
+        --bd-green: #10b981;
+        --bd-green-dark: #047857;
+        --bd-green-soft: #d1fae5;
+        --bd-yellow: #f59e0b;
+        --bd-yellow-soft: #fef3c7;
+        --bd-red: #ef4444;
+        --bd-red-soft: #fee2e2;
+        --bd-purple: #7c3aed;
+        --bd-dark: #0f172a;
+        color: var(--bd-text);
+    }
+
+    .bd-hero {
+        border-radius: 28px;
+        background:
+            radial-gradient(circle at 92% 12%, rgba(16, 185, 129, .26), transparent 24%),
+            radial-gradient(circle at 16% 85%, rgba(37, 99, 235, .18), transparent 30%),
+            linear-gradient(135deg, #07111f, #0f172a 56%, #111827);
+        color: #fff;
+        padding: 1.5rem;
+        margin-bottom: 1.15rem;
+        box-shadow: 0 22px 48px rgba(15, 23, 42, .18);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .bd-hero::after {
+        content: "";
+        position: absolute;
+        width: 210px;
+        height: 210px;
+        right: -72px;
+        bottom: -90px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, .08);
+    }
+
+    .bd-hero-row {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .bd-hero h2 {
+        margin: 0 0 .35rem;
+        font-weight: 950;
+        letter-spacing: -.04em;
+    }
+
+    .bd-hero p {
+        margin: 0;
+        color: rgba(255, 255, 255, .78);
+        max-width: 760px;
+    }
+
+    .bd-hero-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: .65rem;
+        flex-wrap: wrap;
+        flex: 0 0 auto;
+    }
+
+    .bd-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        border-radius: 14px;
+        font-weight: 900;
+        min-height: 42px;
+        padding: .6rem .9rem;
+        text-decoration: none;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+
+    .bd-btn-light {
+        background: #fff;
+        color: #0f172a;
+    }
+
+    .bd-btn-light:hover {
+        color: #0f172a;
+        opacity: .92;
+    }
+
+    .bd-btn-green {
+        background: var(--bd-green);
+        color: #052e16;
+    }
+
+    .bd-btn-green:hover {
+        color: #052e16;
+        opacity: .92;
+    }
+
+    .bd-panel {
+        background: var(--bd-card);
+        border: 1px solid var(--bd-border);
+        border-radius: 26px;
+        padding: 1.15rem;
+        box-shadow: 0 16px 35px rgba(15, 23, 42, .06);
+        margin-bottom: 1rem;
+    }
+
+    .bd-section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .bd-section-head h3 {
+        margin: 0;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .bd-section-head p {
+        margin: .25rem 0 0;
+        color: var(--bd-muted);
+    }
+
+    .bd-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        border-radius: 999px;
+        padding: .42rem .7rem;
+        background: #e9f2ff;
+        color: #1d4ed8;
+        font-size: .78rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .event-toolbar {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) auto auto;
+        gap: .75rem;
+        align-items: end;
+        background: #f8fafc;
+        border: 1px solid var(--bd-border);
+        border-radius: 20px;
+        padding: .9rem;
+    }
+
+    .bd-label {
+        display: block;
+        color: var(--bd-muted);
+        font-size: .72rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .07em;
+        margin-bottom: .35rem;
+    }
+
+    .bd-select,
+    .bd-control {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid #d7deea;
+        border-radius: 14px;
+        padding: .6rem .75rem;
+        background: #fff;
+        color: var(--bd-text);
+        font-weight: 750;
+        outline: none;
+    }
+
+    .bd-select:focus,
+    .bd-control:focus {
+        border-color: var(--bd-blue);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, .09);
+    }
+
+    .context-card {
+        border-radius: 24px;
+        padding: 1.15rem;
+        background:
+            radial-gradient(circle at top right, rgba(37, 99, 235, .12), transparent 30%),
+            linear-gradient(135deg, #ffffff, #f8fafc);
+        border: 1px solid var(--bd-border);
+        margin-top: 1rem;
+    }
+
+    .context-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .context-title h3 {
+        margin: 0;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .context-title p {
+        margin: .35rem 0 0;
+        color: var(--bd-muted);
+    }
+
+    .context-tags {
+        display: flex;
+        justify-content: flex-end;
+        gap: .5rem;
+        flex-wrap: wrap;
+    }
+
+    .context-metrics {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: .8rem;
+        margin-top: 1rem;
+    }
+
+    .context-metric {
+        background: #fff;
+        border: 1px solid var(--bd-border);
+        border-radius: 18px;
+        padding: .9rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .context-metric::after {
+        content: "";
+        width: 72px;
+        height: 72px;
+        right: -26px;
+        top: -28px;
+        border-radius: 50%;
+        position: absolute;
+        background: var(--bd-blue);
+        opacity: .12;
+    }
+
+    .context-metric.green::after {
+        background: var(--bd-green);
+    }
+
+    .context-metric.yellow::after {
+        background: var(--bd-yellow);
+    }
+
+    .context-metric.purple::after {
+        background: var(--bd-purple);
+    }
+
+    .context-metric.red::after {
+        background: var(--bd-red);
+    }
+
+    .context-metric span {
+        color: var(--bd-muted);
+        font-size: .72rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .07em;
+    }
+
+    .context-metric strong {
+        display: block;
+        margin-top: .45rem;
+        font-size: 1.8rem;
+        line-height: 1;
+        font-weight: 950;
+    }
+
+    .company-scroll {
+        display: flex;
+        gap: .75rem;
+        overflow-x: auto;
+        padding: .2rem .1rem .45rem;
+        scroll-snap-type: x proximity;
+    }
+
+    .company-chip {
+        min-width: 255px;
+        max-width: 255px;
+        display: block;
+        text-decoration: none;
+        color: var(--bd-text);
+        border: 1px solid var(--bd-border);
+        border-radius: 22px;
+        padding: .95rem;
+        background: #fff;
+        transition: .18s ease;
+        scroll-snap-align: start;
+    }
+
+    .company-chip:hover {
+        color: var(--bd-text);
+        transform: translateY(-1px);
+        border-color: rgba(37, 99, 235, .38);
+        box-shadow: 0 14px 28px rgba(15, 23, 42, .07);
+    }
+
+    .company-chip.is-active {
+        border-color: rgba(16, 185, 129, .75);
+        background: #ecfdf5;
+        box-shadow: 0 14px 26px rgba(16, 185, 129, .11);
+    }
+
+    .company-chip-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: .6rem;
+    }
+
+    .company-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 16px;
+        background: #eef4ff;
+        color: #1d4ed8;
+        display: grid;
+        place-items: center;
+        font-weight: 950;
+        flex: 0 0 auto;
+    }
+
+    .company-chip.is-active .company-avatar {
+        background: var(--bd-green);
+        color: #fff;
+    }
+
+    .company-chip h4 {
+        margin: .75rem 0 .25rem;
+        font-size: .96rem;
+        font-weight: 950;
+        line-height: 1.2;
+    }
+
+    .company-chip p {
+        margin: 0;
+        color: var(--bd-muted);
+        font-size: .78rem;
+        font-weight: 750;
+        min-height: 37px;
+    }
+
+    .company-mini-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .45rem;
+        margin-top: .75rem;
+        padding-top: .75rem;
+        border-top: 1px solid var(--bd-border);
+    }
+
+    .company-mini-stats div {
+        text-align: center;
+        background: #f8fafc;
+        border-radius: 13px;
+        padding: .45rem;
+    }
+
+    .company-mini-stats strong {
+        display: block;
+        font-weight: 950;
+        line-height: 1;
+    }
+
+    .company-mini-stats span {
+        display: block;
+        color: var(--bd-muted);
+        font-size: .62rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        margin-top: .28rem;
+    }
+
+    .filters-bar {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) auto auto;
+        gap: .65rem;
+        align-items: end;
+        padding: .85rem;
+        border: 1px solid var(--bd-border);
+        border-radius: 18px;
+        background: #f8fafc;
+        margin-bottom: 1rem;
+    }
+
+    .appointment-list {
+        display: grid;
+        gap: .85rem;
+    }
+
+    .appointment-card {
+        border: 1px solid var(--bd-border);
+        border-radius: 24px;
+        background:
+            radial-gradient(circle at top right, rgba(16, 185, 129, .08), transparent 28%),
+            #ffffff;
+        padding: 1rem;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, .045);
+        transition: .18s ease;
+    }
+
+    .appointment-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 18px 34px rgba(15, 23, 42, .075);
+        border-color: rgba(16, 185, 129, .35);
+    }
+
+    .appointment-grid {
+        display: grid;
+        grid-template-columns: minmax(240px, 1.1fr) minmax(230px, 1fr) minmax(220px, .9fr) minmax(310px, auto);
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .appointment-person {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        min-width: 0;
+    }
+
+    .employee-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #dbeafe;
+        color: #1d4ed8;
+        display: grid;
+        place-items: center;
+        font-weight: 950;
+        flex: 0 0 auto;
+    }
+
+    .appointment-person strong,
+    .appointment-info strong {
+        display: block;
+        font-weight: 950;
+        line-height: 1.2;
+    }
+
+    .appointment-person small,
+    .appointment-info small {
+        display: block;
+        color: var(--bd-muted);
+        margin-top: .2rem;
+        font-weight: 700;
+    }
+
+    .appointment-info {
+        min-width: 0;
+    }
+
+    .appointment-meta {
+        display: grid;
+        gap: .5rem;
+    }
+
+    .appointment-date {
+        font-weight: 950;
+    }
+
+    .appointment-time {
+        color: var(--bd-muted);
+        font-weight: 850;
+    }
+
+    .appointment-statuses {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4rem;
+    }
+
+    .status {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: .36rem .65rem;
+        font-size: .74rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .status-success {
+        background: #d1fae5;
+        color: #047857;
+    }
+
+    .status-info {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .status-warning {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .status-danger {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .status-muted {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .actions-wrap {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: .45rem;
+        min-width: 310px;
+    }
+
+    .cita-btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .38rem;
+    }
+
+    .cita-btn-group .btn {
+        border-radius: 13px !important;
+        font-weight: 900;
+        white-space: nowrap;
+        min-height: 38px;
+        padding: .45rem .72rem;
+        font-size: .8rem;
+    }
+
+    .empty-state {
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+        color: var(--bd-muted);
+        border-radius: 18px;
+        padding: 1.4rem;
+        text-align: center;
+        font-weight: 850;
+    }
+
+    .empty-state strong {
+        display: block;
+        color: var(--bd-text);
+        font-size: 1.05rem;
+        margin-bottom: .25rem;
+    }
+
+    .empty-state span {
+        display: block;
+        font-weight: 700;
+    }
+
+    @@media (max-width: 1200px) {
+        .context-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .appointment-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .actions-wrap,
+        .cita-btn-group {
+            justify-content: flex-start;
+            min-width: auto;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .bd-hero-row,
+        .bd-section-head,
+        .context-top {
+            flex-direction: column;
+        }
+
+        .bd-hero-actions,
+        .context-tags {
+            justify-content: flex-start;
+        }
+
+        .event-toolbar,
+        .context-metrics,
+        .filters-bar {
+            grid-template-columns: 1fr;
+        }
+
+        .company-chip {
+            min-width: 220px;
+            max-width: 220px;
+        }
+
+        .bd-panel {
+            padding: .9rem;
+        }
+    }
+</style>
+
+<div class="container py-4 bandeja-page">
+    <section class="bd-hero">
+        <div class="bd-hero-row">
+            <div>
+                <h2>Bandeja de entrevistas</h2>
+                <p>
+                    Selecciona un evento, elige una empresa participante y comienza las citas de mapeo desde una vista limpia.
+                </p>
+            </div>
+
+            <div class="bd-hero-actions">
+                <a class="bd-btn bd-btn-light" href="@Url.Action("Index", "Citas")">
+                    ← Dashboard
+                </a>
+
+                <a class="bd-btn bd-btn-green" href="@Url.Action("CrearAgenda", "Citas")">
+                    ＋ Nuevo evento
+                </a>
+            </div>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.AlertaSistema))
+    {
+        <div class="alert alert-warning">
+            @Model.AlertaSistema
+        </div>
+    }
+
+    @if (TempData["CitasOk"] != null)
+    {
+        <div class="alert alert-success">
+            @TempData["CitasOk"]
+        </div>
+    }
+
+    @if (TempData["CitasError"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["CitasError"]
+        </div>
+    }
+
+    <section class="bd-panel">
+        <div class="bd-section-head">
+            <div>
+                <h3>Evento de trabajo</h3>
+                <p>Selecciona el evento que quieres revisar.</p>
+            </div>
+
+            <span class="bd-pill">@totalEventos eventos</span>
+        </div>
+
+        <form asp-controller="Citas" asp-action="Bandeja" method="get" class="event-toolbar">
+            <div>
+                <label class="bd-label">Evento</label>
+                <select class="bd-select" name="agendaId" onchange="this.form.submit()">
+                    @foreach (var evento in Model.Eventos)
+                    {
+                        if (evento.AgendaID == Model.AgendaID)
+                        {
+                            <option value="@evento.AgendaID" selected>
+                                @evento.NombreEvento (@evento.FechaInicio.ToString("dd/MM/yyyy") - @evento.FechaFin.ToString("dd/MM/yyyy"))
+                            </option>
+                        }
+                        else
+                        {
+                            <option value="@evento.AgendaID">
+                                @evento.NombreEvento (@evento.FechaInicio.ToString("dd/MM/yyyy") - @evento.FechaFin.ToString("dd/MM/yyyy"))
+                            </option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <input type="hidden" name="fecha" value="@fechaFiltro" />
+
+            <button class="btn btn-primary" type="submit">
+                Cargar evento
+            </button>
+
+            <a class="btn btn-outline-secondary" href="@Url.Action("Bandeja", "Citas")">
+                Limpiar
+            </a>
+        </form>
+
+        <div class="context-card">
+            <div class="context-top">
+                <div class="context-title">
+                    <h3>@Texto(tituloEvento, "Selecciona un evento")</h3>
+                    <p>@Texto(tituloEmpresa, "Todas las empresas participantes")</p>
+                </div>
+
+                <div class="context-tags">
+                    @if (eventoSeleccionado != null)
+                    {
+                        <span class="status @EstadoClase(eventoSeleccionado.Estatus)">
+                            @EstadoTexto(eventoSeleccionado.Estatus)
+                        </span>
+
+                        <span class="bd-pill">
+                            @Fecha(eventoSeleccionado.FechaInicio) - @Fecha(eventoSeleccionado.FechaFin)
+                        </span>
+                    }
+                </div>
+            </div>
+
+            <div class="context-metrics">
+                <article class="context-metric">
+                    <span>Empresas</span>
+                    <strong>@totalEmpresas</strong>
+                </article>
+
+                <article class="context-metric yellow">
+                    <span>Total citas</span>
+                    <strong>@Model.Total</strong>
+                </article>
+
+                <article class="context-metric purple">
+                    <span>Pendientes</span>
+                    <strong>@Model.Pendientes</strong>
+                </article>
+
+                <article class="context-metric green">
+                    <span>Finalizadas</span>
+                    <strong>@Model.Finalizadas</strong>
+                </article>
+
+                <article class="context-metric red">
+                    <span>No asistieron</span>
+                    <strong>@Model.NoAsistieron</strong>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="bd-panel">
+        <div class="bd-section-head">
+            <div>
+                <h3>Empresas participantes</h3>
+                <p>Elige una empresa para filtrar las citas. También puedes verlas todas.</p>
+            </div>
+
+            <span class="bd-pill">@Model.Empresas.Count empresas</span>
+        </div>
+
+        @if (!Model.AgendaID.HasValue)
+        {
+            <div class="empty-state">
+                <strong>Selecciona un evento</strong>
+                <span>Después podrás elegir una empresa participante.</span>
+            </div>
+        }
+        else if (!Model.Empresas.Any())
+        {
+            <div class="empty-state">
+                <strong>Sin empresas asignadas</strong>
+                <span>Este evento todavía no tiene empresas participantes.</span>
+            </div>
+        }
+        else
+        {
+            <div class="company-scroll">
+                <a class="company-chip @(Model.EmpresaID.HasValue ? "" : "is-active")"
+                   href="@Url.Action("Bandeja", "Citas", new { agendaId = Model.AgendaID, fecha = fechaFiltro })">
+                    <div class="company-chip-head">
+                        <div class="company-avatar">ALL</div>
+                        <span class="status status-info">General</span>
+                    </div>
+
+                    <h4>Todas las empresas</h4>
+                    <p>Vista general de todas las citas del evento seleccionado.</p>
+
+                    <div class="company-mini-stats">
+                        <div>
+                            <strong>@Model.Empresas.Sum(x => x.TotalCitas)</strong>
+                            <span>Citas</span>
+                        </div>
+
+                        <div>
+                            <strong>@Model.Empresas.Sum(x => x.Pendientes)</strong>
+                            <span>Pend.</span>
+                        </div>
+
+                        <div>
+                            <strong>@Model.Empresas.Sum(x => x.Finalizadas)</strong>
+                            <span>Fin.</span>
+                        </div>
+                    </div>
+                </a>
+
+                @foreach (var empresa in Model.Empresas)
+                {
+                    var activa = empresa.EmpresaID == Model.EmpresaID;
+
+                    <a class="company-chip @(activa ? "is-active" : "")"
+                       href="@Url.Action("Bandeja", "Citas", new
+                       {
+                           agendaId = Model.AgendaID,
+                           empresaId = empresa.EmpresaID,
+                           fecha = fechaFiltro
+                       })">
+                        <div class="company-chip-head">
+                            <div class="company-avatar">
+                                @Iniciales(empresa.NombreEmpresa)
+                            </div>
+
+                            <span class="status @EstadoClase(empresa.EstadoAsignacion)">
+                                @EstadoTexto(empresa.EstadoAsignacion)
+                            </span>
+                        </div>
+
+                        <h4>@Texto(empresa.NombreEmpresa, "Empresa sin nombre")</h4>
+
+                        <p>
+                            @Fecha(empresa.FechaInicioSolicitud) -
+                            @Fecha(empresa.FechaFinSolicitud)
+                        </p>
+
+                        <div class="company-mini-stats">
+                            <div>
+                                <strong>@empresa.TotalCitas</strong>
+                                <span>Citas</span>
+                            </div>
+
+                            <div>
+                                <strong>@empresa.Pendientes</strong>
+                                <span>Pend.</span>
+                            </div>
+
+                            <div>
+                                <strong>@empresa.Finalizadas</strong>
+                                <span>Fin.</span>
+                            </div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="bd-panel">
+        <div class="bd-section-head">
+            <div>
+                <h3>Citas para iniciar</h3>
+                <p>
+                    @(empresaSeleccionada == null
+                        ? "Mostrando citas de todas las empresas del evento seleccionado."
+                        : $"Mostrando citas de {empresaSeleccionada.NombreEmpresa}.")
+                </p>
+            </div>
+
+            <span class="bd-pill">@Model.Total citas</span>
+        </div>
+
+        <form asp-controller="Citas" asp-action="Bandeja" method="get" class="filters-bar">
+            <input type="hidden" name="agendaId" value="@Model.AgendaID" />
+            <input type="hidden" name="empresaId" value="@Model.EmpresaID" />
+
+            <div>
+                <label class="bd-label">Filtrar por fecha</label>
+                <input class="bd-control"
+                       type="date"
+                       name="fecha"
+                       value="@fechaFiltro" />
+            </div>
+
+            <button class="btn btn-primary" type="submit">
+                Filtrar
+            </button>
+
+            <a class="btn btn-outline-secondary"
+               href="@Url.Action("Bandeja", "Citas", new
+               {
+                   agendaId = Model.AgendaID,
+                   empresaId = Model.EmpresaID
+               })">
+                Limpiar
+            </a>
+        </form>
+
+        @if (!Model.Citas.Any())
+        {
+            <div class="empty-state">
+                <strong>No hay citas registradas</strong>
+                <span>Cambia el evento, la empresa o el filtro de fecha para buscar más resultados.</span>
+            </div>
+        }
+        else
+        {
+            <div class="appointment-list">
+                @foreach (var item in Model.Citas)
+                {
+                    var entrevistaTerminada = EstaFinalizada(item.Estado, item.EstadoFormulario);
+                    var noAsistio = EsNoAsistio(item.Estado);
+                    var cancelada = EsCancelada(item.Estado);
+
+                    var puedeIniciar =
+                        !entrevistaTerminada &&
+                        !noAsistio &&
+                        !cancelada;
+
+                    var puedeMarcarNoAsistio =
+                        !entrevistaTerminada &&
+                        !noAsistio &&
+                        !cancelada;
+
+                    <article class="appointment-card">
+                        <div class="appointment-grid">
+                            <div class="appointment-person">
+                                <div class="employee-avatar">
+                                    @Iniciales(item.NombrePersona)
+                                </div>
+
+                                <div>
+                                    <strong>
+                                    @Texto(item.NombrePersona, "Empleado sin nombre")</strong>
+                                    <small>@item.Folio</small>
+                                </div>
+                            </div>
+
+                            <div class="appointment-info">
+                                <strong>@Texto(item.NombreEvento, "Evento sin nombre")</strong>
+                                <small>@Texto(item.NombreEmpresa, "Empresa sin nombre")</small>
+                            </div>
+
+                            <div class="appointment-meta">
+                                <div>
+                                    <span class="appointment-date">@item.FechaCita.ToString("dd/MM/yyyy")</span>
+                                    <span class="appointment-time"> · @item.Horario</span>
+                                </div>
+
+                                <div class="appointment-statuses">
+                                    <span class="status @EstadoClase(item.Estado)">
+                                        @EstadoTexto(item.Estado)
+                                    </span>
+
+                                    <span class="status @EstadoClase(item.EstadoFormulario)">
+                                        @EstadoFormularioTexto(item.EstadoFormulario)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="actions-wrap">
+                                <div class="btn-group btn-group-sm cita-btn-group" role="group">
+                                    <a class="btn btn-outline-primary"
+                                       href="@Url.Action("Resultados", "Citas", new { citaId = item.CitaID })">
+                                        Ver Resultados
+                                    </a>
+
+                                    @if (puedeIniciar)
+                                    {
+                                        <a class="btn btn-outline-success"
+                                           href="@Url.Action("Capturar", "Citas", new { citaId = item.CitaID })">
+                                            Iniciar
+                                        </a>
+                                    }
+
+                                    @if (puedeMarcarNoAsistio)
+                                    {
+                                        <form asp-controller="Citas"
+                                              asp-action="MarcarNoAsistio"
+                                              method="post"
+                                              class="d-inline form-no-asistio">
+                                            @Html.AntiForgeryToken()
+
+                                            <input type="hidden" name="citaId" value="@item.CitaID" />
+                                            <input type="hidden" name="agendaId" value="@Model.AgendaID" />
+                                            <input type="hidden" name="empresaId" value="@Model.EmpresaID" />
+
+                                            @if (Model.Fecha.HasValue)
+                                            {
+                                                <input type="hidden"
+                                                       name="fecha"
+                                                       value="@Model.Fecha.Value.ToString("yyyy-MM-dd")" />
+                                            }
+
+                                            <button type="button"
+                                                    class="btn btn-outline-danger btn-confirmar-no-asistio"
+                                                    data-persona="@Texto(item.NombrePersona, "Empleado sin nombre")"
+                                                    data-folio="@item.Folio">
+                                                No asistió
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+
+<div class="modal fade" id="modalNoAsistio" tabindex="-1" aria-labelledby="modalNoAsistioLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 22px; overflow:hidden;">
+            <div class="modal-header bg-danger text-white border-0">
+                <div>
+                    <h5 class="modal-title fw-bold" id="modalNoAsistioLabel">
+                        Confirmar inasistencia
+                    </h5>
+                    <small>Esta acción actualizará el estado de la cita.</small>
+                </div>
+
+                <button type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"
+                        aria-label="Cerrar"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <div class="d-flex gap-3 align-items-start">
+                    <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center"
+                         style="width:48px;height:48px;min-width:48px;font-weight:900;">
+                        !
+                    </div>
+
+                    <div>
+                        <p class="mb-2">
+                            ¿Seguro que deseas marcar esta cita como <strong>no asistió</strong>?
+                        </p>
+
+                        <div class="p-3 rounded-3 bg-light border">
+                            <div class="small text-muted fw-bold text-uppercase">Empleado</div>
+                            <div id="modalNoAsistioPersona" class="fw-bold">Empleado</div>
+
+                            <div class="small text-muted fw-bold text-uppercase mt-2">Folio</div>
+                            <div id="modalNoAsistioFolio" class="fw-bold">CIT-00000</div>
+                        </div>
+
+                        <p class="text-muted small mb-0 mt-3">
+                            Se notificará al usuario por correo si tiene email disponible y activo.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer border-0 px-4 pb-4">
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+
+                <button type="button"
+                        class="btn btn-danger"
+                        id="btnEnviarNoAsistio">
+                    Sí, marcar no asistió
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let formSeleccionado = null;
+
+            const modalElement = document.getElementById("modalNoAsistio");
+            const modalPersona = document.getElementById("modalNoAsistioPersona");
+            const modalFolio = document.getElementById("modalNoAsistioFolio");
+            const btnEnviar = document.getElementById("btnEnviarNoAsistio");
+
+            if (!modalElement || !btnEnviar) return;
+
+            const modal = new bootstrap.Modal(modalElement);
+
+            document.querySelectorAll(".btn-confirmar-no-asistio").forEach(btn => {
+                btn.addEventListener("click", function () {
+                    formSeleccionado = btn.closest("form");
+
+                    modalPersona.textContent = btn.dataset.persona || "Empleado";
+                    modalFolio.textContent = btn.dataset.folio || "CIT-00000";
+
+                    modal.show();
+                });
+            });
+
+            btnEnviar.addEventListener("click", function () {
+                if (!formSeleccionado) return;
+
+                btnEnviar.disabled = true;
+                btnEnviar.innerHTML = "Procesando...";
+
+                formSeleccionado.submit();
+            });
+
+            modalElement.addEventListener("hidden.bs.modal", function () {
+                btnEnviar.disabled = false;
+                btnEnviar.innerHTML = "Sí, marcar no asistió";
+                formSeleccionado = null;
+            });
+        });
+    </script>
+}

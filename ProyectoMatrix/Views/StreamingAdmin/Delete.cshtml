@@ -1,0 +1,32 @@
+﻿@model VideoItem
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Eliminar transmisión";
+}
+
+<section class="admin-hero form-hero">
+    <div>
+        <span class="soft-label">Confirmación</span>
+        <h1>Eliminar transmisión</h1>
+        <p>Esta acción quitará el contenido del catálogo guardado.</p>
+    </div>
+</section>
+
+<section class="confirm-card light-panel">
+    <h2>@Model.Title</h2>
+    <p>@(string.IsNullOrWhiteSpace(Model.Description) ? "Sin descripción pública." : Model.Description)</p>
+    <dl>
+        <dt>Estado</dt>
+        <dd>@(Model.IsActive ? "Visible para usuarios" : "Oculto")</dd>
+        <dt>Categoría</dt>
+        <dd>@(string.IsNullOrWhiteSpace(Model.Category) ? "Sin categoría" : Model.Category)</dd>
+        <dt>Tipo</dt>
+        <dd>@Model.GetAudienceSourceName()</dd>
+    </dl>
+
+    <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="form-actions danger-zone">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="danger-button">Sí, eliminar</button>
+        <a asp-action="Index">Cancelar</a>
+    </form>
+</section>

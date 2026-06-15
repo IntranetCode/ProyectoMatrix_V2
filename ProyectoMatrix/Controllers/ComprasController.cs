@@ -1455,7 +1455,7 @@ VALUES
         }
 
 
-     
+
 
 
 
@@ -1463,31 +1463,67 @@ VALUES
         [HttpGet("Dictamen/{id}")]
         public async Task<IActionResult> Dictamen(int id)
         {
+            int usuarioId = ObtenerUsuarioIdActual();
+            if (usuarioId == 0) return Unauthorized();
+
             var model = new DictamenPresupuestalVm();
 
             using (var conn = new SqlConnection(_connectionString))
             {
                 await conn.OpenAsync();
+
+                bool esControlPresupuestal =
+                    await UsuarioPerteneceADepartamentoAsync(
+                        conn,
+                        usuarioId,
+                        "CONTROL PRESUPUESTAL",
+                        "PRESUPUESTOS",
+                        "CIS"
+                    );
+
+                if (!esControlPresupuestal)
+                    return Forbid();
+
                 string sql = @"
-            SELECT S.SolicitudID, S.Folio, C.MontoTotal 
-            FROM Compras_Solicitud S
-            INNER JOIN Compras_Cotizaciones C ON S.SolicitudID = C.SolicitudID
-            WHERE S.SolicitudID = @id";
+SELECT 
+    S.SolicitudID,
+    S.Folio,
+    C.CotizacionID,
+    C.Proveedor,
+    C.MontoTotal,
+    C.ArchivoPath,
+    C.NombreArchivoOriginal,
+    C.Extension
+FROM Compras_Solicitud S
+INNER JOIN Compras_Cotizaciones C 
+    ON S.CotizacionSeleccionadaID = C.CotizacionID
+WHERE S.SolicitudID = @id
+  AND S.EstatusID = 3";
 
                 using (var cmd = new SqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@id", id);
+
                     using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        if (await reader.ReadAsync())
+                        if (!await reader.ReadAsync())
                         {
-                            model.SolicitudID = (int)reader["SolicitudID"];
-                            model.Folio = reader["Folio"].ToString();
-                            model.MontoCotizado = (decimal)reader["MontoTotal"];
+                            TempData["Error"] = "No se encontró una cotización seleccionada para dictaminar.";
+                            return RedirectToAction("BandejaPresupuestos");
                         }
+
+                        model.SolicitudID = (int)reader["SolicitudID"];
+                        model.Folio = reader["Folio"] == DBNull.Value ? "" : reader["Folio"].ToString();
+                        model.CotizacionID = (int)reader["CotizacionID"];
+                        model.Proveedor = reader["Proveedor"] == DBNull.Value ? "" : reader["Proveedor"].ToString();
+                        model.MontoCotizado = reader["MontoTotal"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["MontoTotal"]);
+                        model.ArchivoPath = reader["ArchivoPath"] == DBNull.Value ? "" : reader["ArchivoPath"].ToString();
+                        model.NombreArchivoOriginal = reader["NombreArchivoOriginal"] == DBNull.Value ? "" : reader["NombreArchivoOriginal"].ToString();
+                        model.Extension = reader["Extension"] == DBNull.Value ? "" : reader["Extension"].ToString();
                     }
                 }
             }
+
             return View(model);
         }
 
@@ -2142,13 +2178,13 @@ ORDER BY S.FechaDictamen DESC";
 
         [HttpPost("RegistrarOC")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RegistrarOC(int solicitudId, string numeroOC, string? proveedor, string? comentarios)
+        public async Task<IActionResult> RegistrarOC(int solicitudId, string numeroOC, string? comentarios)
         {
             int usuarioId = ObtenerUsuarioIdActual();
             if (usuarioId == 0) return Unauthorized();
 
             numeroOC = numeroOC?.Trim();
-            proveedor = proveedor?.Trim();
+           
             comentarios = comentarios?.Trim();
 
             if (string.IsNullOrWhiteSpace(numeroOC))
@@ -2206,6 +2242,33 @@ WHERE SolicitudID = @SolicitudID
                             }
                         }
 
+                        string sqlCotizacionSeleccionada = @"
+SELECT C.Proveedor, C.MontoTotal
+FROM Compras_Solicitud S
+INNER JOIN Compras_Cotizaciones C
+    ON S.CotizacionSeleccionadaID = C.CotizacionID
+WHERE S.SolicitudID = @SolicitudID
+  AND S.EstatusID = 4";
+
+                        string proveedorCotizacion = "";
+                        decimal montoCotizacion = 0;
+
+                        using (var cmdCot = new SqlCommand(sqlCotizacionSeleccionada, conn, trans))
+                        {
+                            cmdCot.Parameters.AddWithValue("@SolicitudID", solicitudId);
+
+                            using var rd = await cmdCot.ExecuteReaderAsync();
+                            if (!await rd.ReadAsync())
+                            {
+                                trans.Rollback();
+                                TempData["Error"] = "No se encontró la cotización seleccionada.";
+                                return RedirectToAction("Detalle", new { id = solicitudId });
+                            }
+
+                            proveedorCotizacion = rd["Proveedor"]?.ToString() ?? "";
+                            montoCotizacion = rd["MontoTotal"] == DBNull.Value ? 0 : Convert.ToDecimal(rd["MontoTotal"]);
+                        }
+
                         string sqlInsert = @"
 INSERT INTO Compras_OrdenCompra
 (SolicitudID, NumeroOC, Proveedor, FechaOC, Comentarios, UsuarioOCID)
@@ -2216,7 +2279,7 @@ VALUES
                         {
                             cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
                             cmd.Parameters.AddWithValue("@NumeroOC", numeroOC);
-                            cmd.Parameters.AddWithValue("@Proveedor", (object?)proveedor ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@Proveedor", proveedorCotizacion);
                             cmd.Parameters.AddWithValue("@Comentarios", (object?)comentarios ?? DBNull.Value);
                             cmd.Parameters.AddWithValue("@UsuarioOCID", usuarioId);
 
@@ -2262,6 +2325,9 @@ VALUES
                 }
             }
         }
+
+
+        //METODO PARA SUBIR UNA DESVIACIÓN 
 
 
 

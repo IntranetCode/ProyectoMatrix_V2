@@ -1,4 +1,4 @@
-﻿{
+﻿*{
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -725,10 +725,27 @@ body {
     }
 
 /* Si una tarjeta NO trae clase de módulo, la pintamos genérica */
-.action-card:not(.universidad):not(.lider):not(.comunicados):not(.mejora):not(.compras):not(.logistica):not(.embarques):not(.helpdesk):not(.gestion-usuarios):not(.proyectos):not(.generico) .action-icon {
-    background: linear-gradient(135deg,#dc2626,#ff1f00);
+.action-card:not(.universidad):not(.lider):not(.comunicados):not(.mejora):not(.compras):not(.compras-nacional):not(.compras-internacional):not(.logistica):not(.embarques):not(.helpdesk):not(.gestion-usuarios):not(.usuarios):not(.proyectos):not(.citas):not(.directorio):not(.kpis):not(.default-azul):not(.generico) .action-icon {
+    background: linear-gradient(135deg,#475569,#1e293b);
 }
 
+
+.action-card.citas::before { background: #0ea5e9; }
+.action-card.directorio::before { background: #14b8a6; }
+.action-card.usuarios::before { background: #22c55e; }
+.action-card.kpis::before { background: #f59e0b; }
+.action-card.default-azul::before { background: #475569; }
+
+.action-card.denuncias .action-icon {
+    background: linear-gradient(135deg,#64748b,#334155);
+}
+
+.action-card.vacaciones .action-icon {
+    background: linear-gradient(135deg,#06b6d4,#0e7490);
+}
+
+.action-card.denuncias::before { background: #64748b; }
+.action-card.vacaciones::before { background: #06b6d4; }
 
 .migapan {
     display: flex;
@@ -985,21 +1002,33 @@ body {
     }
 }
 
-/* Color para Compras Nacional (Rojo actual) */
-.action-card.compras-nacional .action-icon {
-    background-color: #d32f2f; /* Rojo */
+.action-card.compras .action-icon {
+    background: linear-gradient(135deg,#2563eb,#1d4ed8);
 }
 
-/* Color para Compras Internacional (Azul o Naranja) */
 .action-card.compras-internacional .action-icon {
-    background-color: #1a237e; /* Azul Matrix */
+    background: linear-gradient(135deg,#7c3aed,#5b21b6);
 }
 
-/* Color para Logística (Verde o Gris) */
-.action-card.logistica .action-icon {
-    background-color: #2e7d32; /* Verde corporativo */
+.action-card.citas .action-icon {
+    background: linear-gradient(135deg,#0ea5e9,#0369a1);
 }
 
+.action-card.directorio .action-icon {
+    background: linear-gradient(135deg,#14b8a6,#0f766e);
+}
+
+.action-card.usuarios .action-icon {
+    background: linear-gradient(135deg,#22c55e,#15803d);
+}
+
+.action-card.kpis .action-icon {
+    background: linear-gradient(135deg,#f59e0b,#b45309);
+}
+
+.action-card.default-azul .action-icon {
+    background: linear-gradient(135deg,#475569,#1e293b);
+}
 
 
 
@@ -1041,4 +1070,15 @@ body {
             width: 100%;
             text-align: center;
         }
+}
+
+/* Fondo general de las tarjetas del menú */
+.quick-actions .action-card {
+    background: #f4f8fc !important;
+    border: 1px solid #d9e4ef;
+}
+
+/* Hover */
+.quick-actions .action-card:hover {
+    background: #eef5fb !important;
 }

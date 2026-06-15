@@ -1,0 +1,147 @@
+﻿@using System.Text.Json
+@model ProyectoMatrix.ViewModels.PlayerViewModel
+
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "NS Streaming";
+
+    var selected = Model.SelectedVideo;
+    var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+    var catalog = Model.Videos.Select(video => new
+    {
+        id = video.Id,
+        title = video.Title,
+        description = video.Description,
+        category = video.Category,
+        duration = video.DurationLabel,
+        posterUrl = video.PosterUrl,
+        type = video.Type.ToString().ToLowerInvariant(),
+        sourceName = video.GetAudienceSourceName(),
+        qualities = video.GetQualityOptions()
+    });
+
+    var selectedPayload = selected is null ? "null" : JsonSerializer.Serialize(new
+    {
+        id = selected.Id,
+        title = selected.Title,
+        description = selected.Description,
+        category = selected.Category,
+        duration = selected.DurationLabel,
+        posterUrl = selected.PosterUrl,
+        type = selected.Type.ToString().ToLowerInvariant(),
+        sourceName = selected.GetAudienceSourceName(),
+        qualities = selected.GetQualityOptions()
+    }, jsonOptions);
+
+
+    var puedeAdministrarStreaming =
+    string.Equals(User.Identity?.Name, "ECORONAR", StringComparison.OrdinalIgnoreCase);
+
+
+}
+
+@if (!Model.Videos.Any())
+{
+    <section class="public-empty compact-empty">
+        <span class="soft-label">NS Streaming</span>
+        <h1>No hay transmisiones publicadas.</h1>
+        <p>Cuando agregues un enlace desde el panel, aparecerá aquí.</p>
+    </section>
+}
+else
+{
+    <section class="stream-app" id="reproductor">
+        <aside class="stream-sidebar" aria-label="Lista de contenido">
+            <div class="sidebar-heading">
+                <span class="soft-label">Catálogo</span>
+                <h1>NS Streaming</h1>
+                <p>@Model.Videos.Count @(Model.Videos.Count == 1 ? "opción disponible" : "opciones disponibles")</p>
+            </div>
+            @if (puedeAdministrarStreaming)
+            {
+                <div style="margin-bottom: 1rem;">
+                    <a class="primary-action small"
+                       asp-controller="StreamingAdmin"
+                       asp-action="Index">
+                        <i class="fa-solid fa-gear"></i>
+                        Administrar streaming
+                    </a>
+                </div>
+            }
+
+            <div style="margin-bottom: 1rem;">
+                <a class="primary-action small"
+                   asp-controller="Streaming"
+                   asp-action="Index2">
+                    <i class="fa-solid fa-futbol"></i>
+                    opc2
+                </a>
+            </div>
+            <div class="channel-list">
+                @foreach (var video in Model.Videos)
+                {
+                    var isSelected = selected?.Id == video.Id;
+                    var posterStyle = string.IsNullOrWhiteSpace(video.PosterUrl)
+                    ? string.Empty
+                    : $"background-image: linear-gradient(180deg, rgba(255,255,255,.05), rgba(19,30,54,.40)), url('{video.PosterUrl}')";
+
+                    <a class="channel-item @(isSelected ? "selected" : string.Empty)"
+                       asp-controller="Streaming"
+                       asp-action="Index"
+                       asp-route-id="@video.Id"
+                       data-video-id="@video.Id">
+                        <span class="channel-thumb" style="@posterStyle">
+                            <span>▶</span>
+                        </span>
+                        <span class="channel-copy">
+                            <strong>@video.Title</strong>
+                            <small>@(string.IsNullOrWhiteSpace(video.Category) ? video.GetAudienceSourceName() : video.Category)</small>
+                        </span>
+                        <span class="channel-state">@video.GetAudienceSourceName()</span>
+                    </a>
+                }
+            </div>
+        </aside>
+
+        <main class="stream-main">
+            <div class="player-header-line">
+                <div>
+                    <span id="selectedCategory" class="soft-pill">@(selected?.Category ?? "En vivo")</span>
+                    <h2 id="selectedTitle">@(selected?.Title ?? "Selecciona una transmisión")</h2>
+                </div>
+                <label class="quality-control" for="qualitySelect">
+                    <span>Calidad</span>
+                    <select id="qualitySelect" aria-label="Seleccionar calidad">
+                        <option>Automática</option>
+                    </select>
+                </label>
+            </div>
+
+            <div id="playerContainer" class="cinema-frame big-frame">
+                <video id="videoPlayer" controls playsinline preload="metadata" poster="@selected?.PosterUrl"></video>
+            </div>
+
+            <div class="player-bottom-line">
+                <div class="watch-facts">
+                    <span id="selectedSource">@(selected?.GetAudienceSourceName() ?? "Listo")</span>
+                    <span id="selectedDuration">@(selected?.DurationLabel ?? "Disponible")</span>
+                </div>
+                <p id="playerMessage" class="friendly-note">Listo para reproducir. Elige una calidad si está disponible.</p>
+            </div>
+
+            <section class="details-panel" aria-label="Descripción">
+                <h3>Descripción</h3>
+                <p id="selectedDescription">@(string.IsNullOrWhiteSpace(selected?.Description) ? "Contenido listo para ver." : selected.Description)</p>
+            </section>
+        </main>
+    </section>
+}
+
+@section Scripts {
+    <script>
+        window.streamCatalog = @Html.Raw(JsonSerializer.Serialize(catalog, jsonOptions));
+        window.initialVideo = @Html.Raw(selectedPayload);
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
+    <script src="~/js/player.js" asp-append-version="true"></script>
+}

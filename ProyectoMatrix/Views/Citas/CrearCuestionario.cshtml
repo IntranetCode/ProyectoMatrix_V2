@@ -1,0 +1,1726 @@
+@using System.Linq
+@using System.Text.Json
+@using ProyectoMatrix.Models
+@model ProyectoMatrix.Models.CrearCuestionarioVm
+
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Crear Cuestionario";
+
+    Model.Preguntas ??= new List<PreguntaEditorVm>();
+
+    var preguntasJson = JsonSerializer.Serialize(Model.Preguntas.Select(p => new
+    {
+        p.PreguntaID,
+        p.CuestionarioID,
+        TextoPregunta = p.TextoPregunta ?? "",
+        TipoPregunta = string.IsNullOrWhiteSpace(p.TipoPregunta) ? "texto" : p.TipoPregunta,
+        Dimension = p.Dimension ?? "",
+        p.Orden,
+        p.Obligatoria,
+        ConfiguracionJson = p.ConfiguracionJson ?? "",
+        p.Activa,
+        Opciones = (p.Opciones ?? new List<OpcionPreguntaEditorVm>()).Select(o => new
+        {
+            o.OpcionID,
+            o.PreguntaID,
+            TextoOpcion = o.TextoOpcion ?? "",
+            o.ValorPuntaje,
+            o.Orden,
+            o.Activa
+        })
+    }));
+}
+
+<style>
+    .crear-cuestionario-page {
+        --cc-bg: #f6f8fc;
+        --cc-card: #ffffff;
+        --cc-border: #e6eaf2;
+        --cc-text: #172033;
+        --cc-muted: #6b7280;
+        --cc-blue: #2563eb;
+        --cc-blue-soft: #dbeafe;
+        --cc-green: #10b981;
+        --cc-green-soft: #d1fae5;
+        --cc-yellow: #f59e0b;
+        --cc-yellow-soft: #fef3c7;
+        --cc-red: #ef4444;
+        --cc-red-soft: #fee2e2;
+        --cc-purple: #7c3aed;
+        --cc-purple-soft: #ede9fe;
+        color: var(--cc-text);
+    }
+
+    .cc-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .cc-header h2 {
+        font-weight: 850;
+        margin-bottom: .25rem;
+        letter-spacing: -.02em;
+    }
+
+    .cc-header p {
+        margin-bottom: 0;
+        color: var(--cc-muted);
+    }
+
+    .cc-header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .65rem;
+    }
+
+    .cc-shell {
+        background: var(--cc-bg);
+        border: 1px solid var(--cc-border);
+        border-radius: 24px;
+        padding: 1.5rem;
+    }
+
+    .cc-alert-soft {
+        background: #eef4ff;
+        border: 1px solid var(--cc-blue-soft);
+        color: #1d4ed8;
+        border-radius: 16px;
+        padding: .9rem 1rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .cc-grid-main {
+        display: grid;
+        grid-template-columns: minmax(0, .9fr) minmax(0, 1.35fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .cc-card {
+        background: var(--cc-card);
+        border: 1px solid var(--cc-border);
+        border-radius: 20px;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, .06);
+    }
+
+    .cc-card-body {
+        padding: 1.25rem;
+    }
+
+    .cc-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1.25rem 1.25rem 0;
+    }
+
+    .cc-card-header h4 {
+        font-weight: 850;
+        margin-bottom: .25rem;
+    }
+
+    .cc-card-header p {
+        color: var(--cc-muted);
+        margin-bottom: 0;
+    }
+
+    .cc-form-label {
+        font-weight: 800;
+        color: #374151;
+        font-size: .85rem;
+        margin-bottom: .45rem;
+    }
+
+    .cc-input,
+    .cc-select,
+    .cc-textarea {
+        border: 1px solid var(--cc-border);
+        border-radius: 14px;
+        background: #fff;
+        padding: .75rem .9rem;
+        width: 100%;
+        outline: none;
+        color: var(--cc-text);
+    }
+
+    .cc-textarea {
+        min-height: 110px;
+        resize: vertical;
+    }
+
+    .cc-input:focus,
+    .cc-select:focus,
+    .cc-textarea:focus {
+        border-color: var(--cc-blue);
+        box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .12);
+    }
+
+    .cc-pill {
+        border-radius: 999px;
+        padding: .4rem .7rem;
+        font-size: .76rem;
+        font-weight: 850;
+        background: #f3f4f6;
+        color: #4b5563;
+        white-space: nowrap;
+    }
+
+    .cc-pill.info {
+        background: var(--cc-blue-soft);
+        color: #1d4ed8;
+    }
+
+    .cc-pill.success {
+        background: var(--cc-green-soft);
+        color: #047857;
+    }
+
+    .cc-pill.warning {
+        background: var(--cc-yellow-soft);
+        color: #b45309;
+    }
+
+    .cc-pill.danger {
+        background: var(--cc-red-soft);
+        color: #b91c1c;
+    }
+
+    .cc-summary-grid {
+        display: grid;
+        gap: .85rem;
+    }
+
+    .cc-summary-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        border-bottom: 1px solid var(--cc-border);
+        padding-bottom: .75rem;
+    }
+
+    .cc-summary-item:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .cc-summary-item span {
+        color: var(--cc-muted);
+        font-weight: 750;
+    }
+
+    .cc-summary-item strong {
+        text-align: right;
+    }
+
+    .cc-question-list {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .cc-question-card {
+        background: #fff;
+        border: 1px solid var(--cc-border);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+    }
+
+    .cc-question-head {
+        background: #f8fafc;
+        border-bottom: 1px solid var(--cc-border);
+        padding: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: .85rem;
+    }
+
+    .cc-question-title {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+
+    .cc-question-number {
+        width: 38px;
+        height: 38px;
+        border-radius: 16px;
+        display: grid;
+        place-items: center;
+        background: var(--cc-blue-soft);
+        color: #1d4ed8;
+        font-weight: 900;
+    }
+
+    .cc-question-title strong {
+        display: block;
+        line-height: 1.1;
+    }
+
+    .cc-question-title small {
+        display: block;
+        color: var(--cc-muted);
+        margin-top: .18rem;
+    }
+
+    .cc-question-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .5rem;
+    }
+
+    .cc-question-body {
+        padding: 1rem;
+    }
+
+    .cc-grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .cc-grid-3 {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr .75fr;
+        gap: 1rem;
+    }
+
+    .cc-check-card {
+        min-height: 48px;
+        border: 1px solid var(--cc-border);
+        border-radius: 14px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        padding: .75rem .9rem;
+        font-weight: 800;
+        color: #374151;
+    }
+
+    .cc-check-card input {
+        width: 18px;
+        height: 18px;
+    }
+
+    .cc-type-panel {
+        margin-top: 1rem;
+        border-radius: 18px;
+        border: 1px solid var(--cc-border);
+        background: #f8fafc;
+        padding: 1rem;
+    }
+
+    .cc-type-panel.blue {
+        background: #eef4ff;
+        border-color: var(--cc-blue-soft);
+    }
+
+    .cc-type-panel.green {
+        background: #ecfdf5;
+        border-color: var(--cc-green-soft);
+    }
+
+    .cc-type-panel h5 {
+        font-weight: 850;
+        margin-bottom: .35rem;
+    }
+
+    .cc-type-panel p {
+        color: var(--cc-muted);
+        margin-bottom: 0;
+    }
+
+    .cc-option-list {
+        display: grid;
+        gap: .65rem;
+        margin-bottom: .85rem;
+    }
+
+    .cc-option-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 140px 42px;
+        gap: .6rem;
+        align-items: center;
+    }
+
+    .cc-option-row input {
+        border: 1px solid var(--cc-border);
+        border-radius: 12px;
+        background: #fff;
+        padding: .65rem .8rem;
+        outline: none;
+        width: 100%;
+    }
+
+    .cc-option-row input:focus {
+        border-color: var(--cc-blue);
+        box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .12);
+    }
+
+    .cc-remove-option {
+        height: 40px;
+        width: 42px;
+        border: 0;
+        border-radius: 12px;
+        background: var(--cc-red-soft);
+        color: #b91c1c;
+        font-weight: 900;
+    }
+
+    .cc-empty-state {
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+        color: var(--cc-muted);
+        border-radius: 16px;
+        padding: 1rem;
+        text-align: center;
+        font-weight: 700;
+    }
+
+    .cc-footer-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        border-top: 1px solid var(--cc-border);
+        padding-top: 1rem;
+    }
+
+    .cc-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, .55);
+        z-index: 1050;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .cc-modal-backdrop.open {
+        display: flex;
+    }
+
+    .cc-modal {
+        width: min(520px, 100%);
+        background: #fff;
+        border-radius: 24px;
+        box-shadow: 0 28px 70px rgba(15, 23, 42, .28);
+        overflow: hidden;
+        border: 1px solid var(--cc-border);
+    }
+
+    .cc-modal-header {
+        background: #eef4ff;
+        padding: 1.5rem;
+        text-align: center;
+        position: relative;
+    }
+
+    .cc-modal-close {
+        position: absolute;
+        top: .85rem;
+        right: 1rem;
+        border: 0;
+        background: transparent;
+        font-size: 1.5rem;
+        line-height: 1;
+        color: #475569;
+    }
+
+    .cc-modal-icon {
+        width: 62px;
+        height: 62px;
+        margin: 0 auto .85rem;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--cc-green-soft);
+        color: #047857;
+        font-size: 1.6rem;
+        font-weight: 900;
+    }
+
+    .cc-modal-body {
+        padding: 1.25rem;
+    }
+
+    .cc-validation-list {
+        display: grid;
+        gap: .5rem;
+        margin: 0;
+        padding-left: 1.2rem;
+        color: var(--cc-muted);
+        font-weight: 700;
+    }
+    .cc-modal-preview {
+    width: min(860px, 100%);
+}
+
+.cc-preview {
+    display: none;
+    max-height: 58vh;
+    overflow-y: auto;
+    padding-right: .35rem;
+}
+
+.cc-preview.open {
+    display: block;
+}
+
+.cc-preview-header {
+    border: 1px solid var(--cc-border);
+    background: #f8fafc;
+    border-radius: 18px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.cc-preview-header h5 {
+    font-weight: 900;
+    margin-bottom: .35rem;
+}
+
+.cc-preview-header p {
+    color: var(--cc-muted);
+    margin-bottom: .75rem;
+}
+
+.cc-preview-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.cc-preview-question {
+    border: 1px solid var(--cc-border);
+    border-radius: 18px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #ffffff;
+}
+
+.cc-preview-question-title {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    margin-bottom: .85rem;
+}
+
+.cc-preview-question-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 12px;
+    background: var(--cc-blue-soft);
+    color: #1d4ed8;
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+    flex: 0 0 auto;
+}
+
+.cc-preview-question-title strong {
+    display: block;
+    font-weight: 900;
+}
+
+.cc-preview-question-title small {
+    display: block;
+    color: var(--cc-muted);
+    margin-top: .15rem;
+}
+
+.cc-preview-control {
+    border: 1px solid var(--cc-border);
+    background: #f8fafc;
+    border-radius: 14px;
+    padding: .8rem .9rem;
+    color: var(--cc-muted);
+}
+
+.cc-preview-options {
+    display: grid;
+    gap: .55rem;
+}
+
+.cc-preview-option {
+    border: 1px solid var(--cc-border);
+    border-radius: 14px;
+    padding: .75rem .9rem;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+
+.cc-preview-scale {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .75rem;
+}
+
+.cc-preview-scale-item {
+    min-width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    border: 1px solid var(--cc-border);
+    background: #ffffff;
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+}
+
+.cc-preview-empty {
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
+    color: var(--cc-muted);
+    border-radius: 16px;
+    padding: 1rem;
+    text-align: center;
+    font-weight: 700;
+}
+
+    @@media (max-width: 992px) {
+        .cc-header,
+        .cc-card-header {
+            flex-direction: column;
+        }
+
+        .cc-header-actions {
+            justify-content: flex-start;
+            width: 100%;
+        }
+
+        .cc-grid-main,
+        .cc-grid-2,
+        .cc-grid-3 {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .cc-shell {
+            padding: 1rem;
+        }
+
+        .cc-question-head {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .cc-question-actions {
+            justify-content: flex-start;
+        }
+
+        .cc-option-row {
+            grid-template-columns: 1fr;
+        }
+
+        .cc-remove-option {
+            width: 100%;
+        }
+    }
+    .cc-option-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+
+    .cc-correct-option {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .4rem;
+        border: 1px solid #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+        border-radius: 12px;
+        padding: .62rem .75rem;
+        font-weight: 850;
+        white-space: nowrap;
+        min-height: 42px;
+    }
+
+    .cc-correct-option input {
+        width: 17px;
+        height: 17px;
+        margin: 0;
+    }
+
+    .cc-correct-option.is-checkbox {
+        border-color: #bbf7d0;
+        background: #ecfdf5;
+        color: #047857;
+    }
+</style>
+
+<div class="container py-4 crear-cuestionario-page">
+    <div class="cc-header-actions">
+        <a class="btn btn-outline-secondary" href="@Url.Action("Index", "Citas")">
+            ← Volver al panel
+        </a>
+
+        <a class="btn btn-outline-info" href="@Url.Action("Cuestionarios", "Citas")">
+            📋 Ver cuestionarios
+        </a>
+
+        <a class="btn btn-outline-success" href="@Url.Action("CrearCuestionario", "Citas")">
+            ➕ Nuevo cuestionario
+        </a>
+
+        <button type="button" class="btn btn-outline-primary" id="btnVistaPrevia">
+            👁️ Vista previa
+        </button>
+    </div>
+
+    @if (TempData["CitasOK"] != null)
+    {
+        <div class="alert alert-success">
+            @TempData["CitasOK"]
+        </div>
+    }
+
+    @if (TempData["CitasError"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["CitasError"]
+        </div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger">
+            <strong>No se pudo guardar el cuestionario.</strong>
+            <ul class="mb-0 mt-2">
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <li>@error.ErrorMessage</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <section class="cc-shell">
+        <div class="cc-alert-soft">
+            Esta pantalla construye únicamente el cuestionario. La asignación de empresas, días y horarios se configurará después desde la agenda.
+        </div>
+
+        <form id="formCrearCuestionario" method="post" action="@Url.Action("CrearCuestionario", "Citas")">
+            @Html.AntiForgeryToken()
+
+            <input type="hidden" id="AccionFormulario" name="AccionFormulario" value="" />
+            <input type="hidden" name="agendaId" value="@ViewBag.AgendaID" />
+
+            <div class="cc-grid-main">
+                <article class="cc-card">
+                    <div class="cc-card-header">
+                        <div>
+                            <h4>Datos generales</h4>
+                            <p>Información base del cuestionario.</p>
+                        </div>
+
+                        <span class="cc-pill warning" id="pillEstatus">Borrador</span>
+                    </div>
+
+                    <div class="cc-card-body">
+                        <input type="hidden" name="CuestionarioID" value="@Model.CuestionarioID" />
+
+                        <div class="mb-3">
+                            <label class="cc-form-label">Nombre del cuestionario</label>
+                            <input class="cc-input"
+                                   type="text"
+                                   name="Nombre"
+                                   value="@Model.Nombre"
+                                   placeholder="Ej. Mapeo de Talento 2026" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="cc-form-label">Descripción</label>
+                            <textarea class="cc-textarea"
+                                      name="Descripcion"
+                                      placeholder="Describe brevemente el objetivo del cuestionario">@Model.Descripcion</textarea>
+                        </div>
+
+                        <div class="cc-grid-2">
+                            <div class="mb-3">
+                                <label class="cc-form-label">Versión</label>
+                                <input class="cc-input"
+                                       type="number"
+                                       name="Version"
+                                       min="1"
+                                       value="@Model.Version" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="cc-form-label">Estatus</label>
+                                <select class="cc-select" name="Estatus" id="selectEstatus">
+                                    <option value="borrador" selected="@(Model.Estatus == "borrador")">Borrador</option>
+                                    <option value="activo" selected="@(Model.Estatus == "activo")">Activo</option>
+                                    <option value="cerrado" selected="@(Model.Estatus == "cerrado")">Cerrado</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="cc-empty-state">
+                            El cuestionario activo podrá seleccionarse después al crear una agenda.
+                        </div>
+                    </div>
+                </article>
+
+               <article class="cc-card">
+                    <div class="cc-card-header">
+                        <div>
+                            <h4>Resumen del constructor</h4>
+                            <p>Validación visual del cuestionario antes de guardar.</p>
+                        </div>
+
+                        <span class="cc-pill info">RH / Cuestionarios</span>
+                    </div>
+
+                    <div class="cc-card-body">
+                        <div class="cc-summary-grid">
+                            <div class="cc-summary-item">
+                                <span>Total de preguntas</span>
+                                <strong id="resumenTotalPreguntas">0</strong>
+                            </div>
+
+                            <div class="cc-summary-item">
+                                <span>Preguntas abiertas</span>
+                                <strong id="resumenPreguntasAbiertas">0</strong>
+                            </div>
+
+                            <div class="cc-summary-item">
+                                <span>Opción múltiple</span>
+                                <strong id="resumenPreguntasMultiples">0</strong>
+                            </div>
+
+                            <div class="cc-summary-item">
+                                <span>Checkbox</span>
+                                <strong id="resumenPreguntasCheckbox">0</strong>
+                            </div>
+                        </div>
+
+                        <div class="cc-alert-soft mt-3 mb-0">
+                            Puedes crear preguntas abiertas, de opción múltiple o checkbox. 
+                            El puntaje de opciones es opcional; si se deja vacío, se guardará como 0.
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="cc-card mt-3">
+                <div class="cc-card-header">
+                    <div>
+                        <h4>Constructor de preguntas</h4>
+                        <p>Agrega preguntas abiertas, de opción múltiple o checkbox.</p>
+                    </div>
+
+                    <button type="button" class="btn btn-success" id="btnAgregarPregunta">
+                        ➕ Agregar pregunta
+                    </button>
+                </div>
+
+                <div class="cc-card-body">
+                    <div id="preguntasContainer" class="cc-question-list"></div>
+
+                   <div class="cc-footer-actions">
+                        <div class="d-flex flex-wrap gap-2">
+                            <a class="btn btn-outline-secondary" href="@Url.Action("Index", "Citas")">
+                                Cancelar
+                            </a>
+
+                            <a class="btn btn-outline-info" href="@Url.Action("Cuestionarios", "Citas")">
+                                📋 Ver cuestionarios
+                            </a>
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-outline-primary" data-accion="borrador">
+                                Guardar borrador
+                            </button>
+
+                            <button type="submit" class="btn btn-dark" data-accion="activo">
+                                Guardar y activar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </section>
+</div>
+
+<template id="templatePregunta">
+    <article class="cc-question-card" data-question>
+        <div class="cc-question-head">
+            <div class="cc-question-title">
+                <div class="cc-question-number" data-question-number>1</div>
+                <div>
+                    <strong data-question-title>Pregunta 1</strong>
+                    <small data-question-subtitle>Tipo abierta</small>
+                </div>
+            </div>
+
+            <div class="cc-question-actions">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-move-up>↑</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-move-down>↓</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-remove-question>Eliminar</button>
+            </div>
+        </div>
+
+        <div class="cc-question-body">
+            <input type="hidden" data-name="PreguntaID" value="0" />
+            <input type="hidden" data-name="CuestionarioID" value="0" />
+            <input type="hidden" data-name="Orden" value="1" />
+            <input type="hidden" data-name="Activa" value="true" />
+            <input type="hidden" data-name="ConfiguracionJson" value="" />
+
+            <div class="mb-3">
+                <label class="cc-form-label">Texto de la pregunta</label>
+                <input class="cc-input"
+                       type="text"
+                       data-name="TextoPregunta"
+                       placeholder="Escribe la pregunta..." />
+            </div>
+
+            <div class="cc-grid-2">
+            <div class="mb-3">
+                <label class="cc-form-label">Tipo de pregunta</label>
+                <select class="cc-select" data-name="TipoPregunta" data-question-type>
+                    <option value="texto">Abierta</option>
+                    <option value="opcion_multiple">Opción múltiple</option>
+                    <option value="checkbox">Checkbox</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="cc-form-label">Obligatoria</label>
+                <label class="cc-check-card">
+                    <input type="checkbox" data-name="Obligatoria" value="true" checked />
+                    Sí
+                </label>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="cc-form-label">Dimensión / competencia</label>
+            <input class="cc-input"
+                type="text"
+                data-name="Dimension"
+                placeholder="Ejemplo: Comunicación, Liderazgo, Trabajo en equipo..." />
+
+            <div class="cc-alert-soft mt-2 mb-0">
+                Esta dimensión solo se almacenará con la pregunta. Las gráficas por dimensión se trabajarán después.
+            </div>
+        </div>
+
+            <div class="cc-type-panel" data-panel-texto>
+                <h5>Pregunta abierta</h5>
+                <p>
+                    El entrevistador capturará una respuesta en texto. Puede agregar una calificación opcional
+                    al aplicar el cuestionario.
+                </p>
+            </div>
+
+            <div class="cc-type-panel"
+                 data-panel-opcion-multiple
+                 style="display:none; background:#eff6ff; border-color:#bfdbfe;">
+                <h5>Opción múltiple</h5>
+                <p>
+                    El entrevistado solo podrá seleccionar <strong>una opción</strong>.
+                    En la captura se mostrará como botones tipo radio.
+                </p>
+
+                <div class="cc-alert-soft mb-0">
+                    Ejemplo: ○ Opción 1 &nbsp;&nbsp; ○ Opción 2 &nbsp;&nbsp; ○ Opción 3
+                </div>
+            </div>
+
+            <div class="cc-type-panel"
+                 data-panel-checkbox
+                 style="display:none; background:#ecfdf5; border-color:#bbf7d0;">
+                <h5>Checkbox</h5>
+                <p>
+                    El entrevistado podrá seleccionar <strong>una o varias opciones</strong>.
+                    En la captura se mostrará como casillas de selección.
+                </p>
+
+                <div class="cc-alert-soft mb-0">
+                    Ejemplo: ☐ Opción 1 &nbsp;&nbsp; ☐ Opción 2 &nbsp;&nbsp; ☐ Opción 3
+                </div>
+            </div>
+
+            <div class="cc-type-panel green" data-panel-opciones style="display:none;">
+                <h5 data-options-title>Opciones de respuesta</h5>
+                <p class="mb-3" data-options-help>
+                    "Agrega las opciones disponibles. En la captura solo se podrá elegir una opción."
+                </p>
+
+                <div class="cc-option-list" data-options-container></div>
+
+                <button type="button" class="btn btn-sm btn-outline-success" data-add-option>
+                    ➕ Agregar opción
+                </button>
+            </div>
+        </div>
+    </article>
+</template>
+
+<template id="templateOpcion">
+    <div class="cc-option-row" data-option>
+        <input type="hidden" data-option-name="OpcionID" value="0" />
+        <input type="hidden" data-option-name="PreguntaID" value="0" />
+        <input type="hidden" data-option-name="Orden" value="1" />
+        <input type="hidden" data-option-name="Activa" value="true" />
+
+        <!-- 0 = no correcta, 1 = correcta. Se guarda en OpcionesPregunta.ValorPuntaje -->
+        <input type="hidden" data-option-name="ValorPuntaje" value="0" />
+
+        <input type="text" data-option-name="TextoOpcion" placeholder="Texto de la opción" />
+
+        <label class="cc-correct-option" data-correct-label>
+            <input type="checkbox" data-correct-option />
+            <span data-correct-text>Correcta</span>
+        </label>
+
+        <button type="button" class="cc-remove-option" data-remove-option>×</button>
+    </div>
+</template>
+
+<div class="cc-modal-backdrop" id="modalEstado">
+    <div class="cc-modal cc-modal-preview">
+        <div class="cc-modal-header">
+            <button type="button" class="cc-modal-close" data-close-modal>×</button>
+            <div class="cc-modal-icon">✓</div>
+            <h4 id="modalTitulo" class="mb-1">Vista previa del cuestionario</h4>
+            <p id="modalTexto" class="mb-0 text-muted">Revisa la información antes de continuar.</p>
+        </div>
+
+        <div class="cc-modal-body">
+            <ul class="cc-validation-list" id="modalValidaciones"></ul>
+
+            <div id="modalPreviewContenido" class="cc-preview"></div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <button type="button" class="btn btn-outline-secondary" data-close-modal>
+                    Seguir editando
+                </button>
+
+                <button type="button" class="btn btn-dark" data-close-modal>
+                    Aceptar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const preguntasIniciales = @Html.Raw(preguntasJson);
+
+            const preguntasContainer = document.getElementById("preguntasContainer");
+            const templatePregunta = document.getElementById("templatePregunta");
+            const templateOpcion = document.getElementById("templateOpcion");
+            const btnAgregarPregunta = document.getElementById("btnAgregarPregunta");
+            const btnVistaPrevia = document.getElementById("btnVistaPrevia");
+            const selectEstatus = document.getElementById("selectEstatus");
+            const pillEstatus = document.getElementById("pillEstatus");
+            const accionFormulario = document.getElementById("AccionFormulario");
+            const formCrearCuestionario = document.getElementById("formCrearCuestionario");
+
+            const modal = document.getElementById("modalEstado");
+            const modalTitulo = document.getElementById("modalTitulo");
+            const modalTexto = document.getElementById("modalTexto");
+            const modalValidaciones = document.getElementById("modalValidaciones");
+            const modalPreviewContenido = document.getElementById("modalPreviewContenido");
+
+            function abrirModal(titulo, texto, validaciones, previewHtml = "") {
+                modalTitulo.textContent = titulo;
+                modalTexto.textContent = texto;
+
+                modalValidaciones.innerHTML = "";
+                modalPreviewContenido.innerHTML = "";
+
+                if (validaciones && validaciones.length > 0) {
+                    modalValidaciones.style.display = "grid";
+
+                    validaciones.forEach(item => {
+                        const li = document.createElement("li");
+                        li.textContent = item;
+                        modalValidaciones.appendChild(li);
+                    });
+                } else {
+                    modalValidaciones.style.display = "none";
+                }
+
+                if (previewHtml) {
+                    modalPreviewContenido.innerHTML = previewHtml;
+                    modalPreviewContenido.classList.add("open");
+                } else {
+                    modalPreviewContenido.classList.remove("open");
+                }
+
+                modal.classList.add("open");
+            }
+
+            function cerrarModal() {
+                modal.classList.remove("open");
+            }
+
+            function escaparHtml(valor) {
+                return String(valor ?? "")
+                    .replaceAll("&", "&amp;")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;")
+                    .replaceAll('"', "&quot;")
+                    .replaceAll("'", "&#039;");
+            }
+
+            function textoTipo(tipo) {
+                switch ((tipo || "").toLowerCase()) {
+                    case "opcion_multiple": return "Opción múltiple";
+                    case "checkbox": return "Checkbox";
+                    default: return "Abierta";
+                }
+            }
+
+            function actualizarPillEstatus() {
+                const value = selectEstatus.value;
+
+                pillEstatus.className = "cc-pill";
+
+                if (value === "activo") {
+                    pillEstatus.classList.add("success");
+                    pillEstatus.textContent = "Activo";
+                } else if (value === "cerrado") {
+                    pillEstatus.classList.add("danger");
+                    pillEstatus.textContent = "Cerrado";
+                } else {
+                    pillEstatus.classList.add("warning");
+                    pillEstatus.textContent = "Borrador";
+                }
+            }
+
+            function setValue(card, prop, value) {
+                const field = card.querySelector(`[data-name="${prop}"]`);
+
+                if (field) {
+                    if (field.type === "checkbox") {
+                        field.checked = value !== false;
+                    } else {
+                        field.value = value ?? "";
+                    }
+
+                    return;
+                }
+
+                const optionField = card.querySelector(`[data-option-name="${prop}"]`);
+
+                if (optionField) {
+                    optionField.value = value ?? "";
+                }
+            }
+
+            function limpiarOpciones(card) {
+                const container = card.querySelector("[data-options-container]");
+                if (container) {
+                    container.innerHTML = "";
+                }
+            }
+
+            function agregarOpcion(card, data) {
+            const fragment = templateOpcion.content.cloneNode(true);
+            const option = fragment.querySelector("[data-option]");
+
+            option.querySelector('[data-option-name="OpcionID"]').value = data?.OpcionID || 0;
+            option.querySelector('[data-option-name="PreguntaID"]').value = data?.PreguntaID || 0;
+            option.querySelector('[data-option-name="TextoOpcion"]').value = data?.TextoOpcion || "";
+            option.querySelector('[data-option-name="Orden"]').value = data?.Orden || 1;
+            option.querySelector('[data-option-name="Activa"]').value = data?.Activa === false ? "false" : "true";
+
+            const valorCorrecta = data && Number(data.ValorPuntaje) > 0 ? "1" : "0";
+            const hiddenCorrecta = option.querySelector('[data-option-name="ValorPuntaje"]');
+            const checkCorrecta = option.querySelector("[data-correct-option]");
+
+            hiddenCorrecta.value = valorCorrecta;
+            checkCorrecta.checked = valorCorrecta === "1";
+
+            checkCorrecta.addEventListener("change", () => {
+                actualizarRespuestaCorrecta(card);
+            });
+
+            option.querySelector("[data-remove-option]").addEventListener("click", () => {
+                option.remove();
+                actualizarIndices();
+                actualizarRespuestaCorrecta(card);
+                actualizarResumen();
+            });
+
+            card.querySelector("[data-options-container]").appendChild(option);
+
+            actualizarIndices();
+            actualizarRespuestaCorrecta(card);
+            actualizarResumen();
+        }
+
+        function actualizarRespuestaCorrecta(card) {
+            const tipo = card.querySelector("[data-question-type]")?.value || "texto";
+            const opciones = Array.from(card.querySelectorAll("[data-option]"));
+
+            if (tipo === "texto") {
+                opciones.forEach(option => {
+                    const hidden = option.querySelector('[data-option-name="ValorPuntaje"]');
+                    const check = option.querySelector("[data-correct-option]");
+                    const label = option.querySelector("[data-correct-label]");
+
+                    if (hidden) hidden.value = "0";
+                    if (check) check.checked = false;
+                    if (label) label.style.display = "none";
+                });
+
+                return;
+            }
+
+            if (tipo === "opcion_multiple") {
+                let yaTieneCorrecta = false;
+
+                opciones.forEach(option => {
+                    const hidden = option.querySelector('[data-option-name="ValorPuntaje"]');
+                    const check = option.querySelector("[data-correct-option]");
+                    const label = option.querySelector("[data-correct-label]");
+                    const text = option.querySelector("[data-correct-text]");
+
+                    if (!hidden || !check || !label) return;
+
+                    label.style.display = "inline-flex";
+                    label.classList.remove("is-checkbox");
+
+                    check.type = "radio";
+
+                    if (text) {
+                        text.textContent = "Correcta";
+                    }
+
+                    if (check.checked && !yaTieneCorrecta) {
+                        hidden.value = "1";
+                        yaTieneCorrecta = true;
+                    } else {
+                        check.checked = false;
+                        hidden.value = "0";
+                    }
+                });
+
+                return;
+            }
+
+            if (tipo === "checkbox") {
+                opciones.forEach(option => {
+                    const hidden = option.querySelector('[data-option-name="ValorPuntaje"]');
+                    const check = option.querySelector("[data-correct-option]");
+                    const label = option.querySelector("[data-correct-label]");
+                    const text = option.querySelector("[data-correct-text]");
+
+                    if (!hidden || !check || !label) return;
+
+                    label.style.display = "inline-flex";
+                    label.classList.add("is-checkbox");
+
+                    check.type = "checkbox";
+                    check.removeAttribute("name");
+
+                    if (text) {
+                        text.textContent = "Correcta";
+                    }
+
+                    hidden.value = check.checked ? "1" : "0";
+                });
+            }
+        }
+
+            function actualizarPanelTipo(card) {
+                const tipo = card.querySelector("[data-question-type]").value;
+
+                const panelTexto = card.querySelector("[data-panel-texto]");
+                const panelOpcionMultiple = card.querySelector("[data-panel-opcion-multiple]");
+                const panelCheckbox = card.querySelector("[data-panel-checkbox]");
+                const panelOpciones = card.querySelector("[data-panel-opciones]");
+                const subtitle = card.querySelector("[data-question-subtitle]");
+                const optionsTitle = card.querySelector("[data-options-title]");
+                const optionsHelp = card.querySelector("[data-options-help]");
+
+                if (panelTexto) panelTexto.style.display = "none";
+                if (panelOpcionMultiple) panelOpcionMultiple.style.display = "none";
+                if (panelCheckbox) panelCheckbox.style.display = "none";
+                if (panelOpciones) panelOpciones.style.display = "none";
+
+                subtitle.textContent = "Tipo " + textoTipo(tipo).toLowerCase();
+
+                const configuracionInput = card.querySelector('[data-name="ConfiguracionJson"]');
+
+                if (configuracionInput) {
+                    configuracionInput.value = "";
+                }
+
+                if (tipo === "texto") {
+                    if (panelTexto) panelTexto.style.display = "block";
+
+                    limpiarOpciones(card);
+
+                    actualizarIndices();
+                    actualizarResumen();
+                    return;
+                }
+
+                if (tipo === "opcion_multiple") {
+                    if (panelOpcionMultiple) panelOpcionMultiple.style.display = "block";
+                    if (panelOpciones) panelOpciones.style.display = "block";
+
+                    if (optionsTitle) {
+                        optionsTitle.textContent = "Opciones de respuesta única";
+                    }
+
+                    if (optionsHelp) {
+                        optionsHelp.textContent =
+                            "Agrega las opciones disponibles. Puedes marcar una opción correcta si aplica. Si no marcas ninguna, el formulario se guardará igual.";
+                    }
+
+                    if (card.querySelectorAll("[data-option]").length === 0) {
+                        agregarOpcion(card, { TextoOpcion: "Opción 1", ValorPuntaje: 0 });
+                        agregarOpcion(card, { TextoOpcion: "Opción 2", ValorPuntaje: 0 });
+                    }
+
+                    actualizarIndices();
+                    actualizarRespuestaCorrecta(card);
+                    actualizarResumen();
+                    return;
+                }
+
+                if (tipo === "checkbox") {
+                    if (panelCheckbox) panelCheckbox.style.display = "block";
+                    if (panelOpciones) panelOpciones.style.display = "block";
+
+                    if (optionsTitle) {
+                        optionsTitle.textContent = "Opciones de selección múltiple";
+                    }
+
+                    if (optionsHelp) {
+                        optionsHelp.textContent =
+                            "Agrega las opciones disponibles. Puedes marcar una o varias opciones correctas si aplica. Si no marcas ninguna, el formulario se guardará igual.";
+                    }
+
+                    if (card.querySelectorAll("[data-option]").length === 0) {
+                        agregarOpcion(card, { TextoOpcion: "Opción 1", ValorPuntaje: 0 });
+                        agregarOpcion(card, { TextoOpcion: "Opción 2", ValorPuntaje: 0 });
+                    }
+
+                    actualizarIndices();
+                    actualizarRespuestaCorrecta(card);
+                    actualizarResumen();
+                    return;
+                }
+
+                actualizarIndices();
+                actualizarResumen();
+            }
+
+            function configurarEventosPregunta(card) {
+                const tipoSelect = card.querySelector("[data-question-type]");
+                const btnRemoveQuestion = card.querySelector("[data-remove-question]");
+                const btnAddOption = card.querySelector("[data-add-option]");
+                const btnMoveUp = card.querySelector("[data-move-up]");
+                const btnMoveDown = card.querySelector("[data-move-down]");
+
+                tipoSelect.addEventListener("change", () => {
+                    actualizarPanelTipo(card);
+                });
+
+                card.querySelector('[data-name="TextoPregunta"]').addEventListener("input", actualizarResumen);
+                card.querySelector('[data-name="Obligatoria"]').addEventListener("change", actualizarResumen);
+
+                btnRemoveQuestion.addEventListener("click", () => {
+                    card.remove();
+
+                    if (preguntasContainer.querySelectorAll("[data-question]").length === 0) {
+                        crearPregunta();
+                    }
+
+                    actualizarIndices();
+                    actualizarResumen();
+                });
+
+                btnAddOption.addEventListener("click", () => {
+                    agregarOpcion(card, { TextoOpcion: "", ValorPuntaje: "" });
+                });
+
+                btnMoveUp.addEventListener("click", () => {
+                    const prev = card.previousElementSibling;
+
+                    if (prev) {
+                        preguntasContainer.insertBefore(card, prev);
+                        actualizarIndices();
+                        actualizarResumen();
+                    }
+                });
+
+                btnMoveDown.addEventListener("click", () => {
+                    const next = card.nextElementSibling;
+
+                    if (next) {
+                        preguntasContainer.insertBefore(next, card);
+                        actualizarIndices();
+                        actualizarResumen();
+                    }
+                });
+            }
+
+            function crearPregunta(data) {
+                const fragment = templatePregunta.content.cloneNode(true);
+                const card = fragment.querySelector("[data-question]");
+
+                preguntasContainer.appendChild(card);
+                configurarEventosPregunta(card);
+
+                if (data) {
+                    const tipo = data.TipoPregunta === "opcion_multiple" || data.TipoPregunta === "checkbox"
+                        ? data.TipoPregunta
+                        : "texto";
+
+                    setValue(card, "PreguntaID", data.PreguntaID || 0);
+                    setValue(card, "CuestionarioID", data.CuestionarioID || 0);
+                    setValue(card, "TextoPregunta", data.TextoPregunta || "");
+                    setValue(card, "TipoPregunta", tipo);
+                    setValue(card, "Dimension", data.Dimension || "");
+                    setValue(card, "Orden", data.Orden || 1);
+                    setValue(card, "Activa", data.Activa === false ? "false" : "true");
+                    setValue(card, "ConfiguracionJson", "");
+                    setValue(card, "Obligatoria", data.Obligatoria !== false);
+
+                    actualizarPanelTipo(card);
+
+                    if (tipo === "opcion_multiple" || tipo === "checkbox") {
+                        limpiarOpciones(card);
+
+                        if (data.Opciones && data.Opciones.length > 0) {
+                            data.Opciones.forEach(opcion => agregarOpcion(card, opcion));
+                        } else {
+                            agregarOpcion(card, { TextoOpcion: "Opción 1", ValorPuntaje: 0 });
+                            agregarOpcion(card, { TextoOpcion: "Opción 2", ValorPuntaje: 0 });
+                        }
+                    }
+                } else {
+                    setValue(card, "TipoPregunta", "texto");
+                    setValue(card, "Dimension", "");
+                    setValue(card, "ConfiguracionJson", "");
+                    actualizarPanelTipo(card);
+                }
+
+                actualizarIndices();
+                actualizarResumen();
+            }
+
+            function actualizarIndices() {
+                const preguntas = preguntasContainer.querySelectorAll("[data-question]");
+
+                preguntas.forEach((card, preguntaIndex) => {
+                    const number = preguntaIndex + 1;
+                    const tipo = card.querySelector("[data-question-type]")?.value || "texto";
+
+                    card.querySelector("[data-question-number]").textContent = number;
+                    card.querySelector("[data-question-title]").textContent = "Pregunta " + number;
+
+                    card.querySelectorAll("[data-name]").forEach(field => {
+                        const prop = field.getAttribute("data-name");
+
+                        field.setAttribute("name", `Preguntas[${preguntaIndex}].${prop}`);
+
+                        if (prop === "Orden") {
+                            field.value = number;
+                        }
+
+                        if (prop === "ConfiguracionJson") {
+                            field.value = "";
+                        }
+                    });
+
+                    const opciones = card.querySelectorAll("[data-option]");
+
+                    opciones.forEach((option, optionIndex) => {
+                        option.querySelectorAll("[data-option-name]").forEach(field => {
+                            const prop = field.getAttribute("data-option-name");
+
+                            field.setAttribute("name", `Preguntas[${preguntaIndex}].Opciones[${optionIndex}].${prop}`);
+
+                            if (prop === "Orden") {
+                                field.value = optionIndex + 1;
+                            }
+                        });
+
+                        const correctInput = option.querySelector("[data-correct-option]");
+
+                        if (correctInput) {
+                            if (tipo === "opcion_multiple") {
+                                correctInput.type = "radio";
+                                correctInput.name = `CorrectaPregunta_${preguntaIndex}`;
+                            } else if (tipo === "checkbox") {
+                                correctInput.type = "checkbox";
+                                correctInput.removeAttribute("name");
+                            } else {
+                                correctInput.type = "checkbox";
+                                correctInput.removeAttribute("name");
+                            }
+                        }
+                    });
+
+                    actualizarRespuestaCorrecta(card);
+                });
+            }
+
+            function actualizarResumen() {
+                const preguntas = Array.from(preguntasContainer.querySelectorAll("[data-question]"));
+
+                const abiertas = preguntas.filter(q => q.querySelector("[data-question-type]").value === "texto").length;
+                const multiples = preguntas.filter(q => q.querySelector("[data-question-type]").value === "opcion_multiple").length;
+                const checkbox = preguntas.filter(q => q.querySelector("[data-question-type]").value === "checkbox").length;
+
+                document.getElementById("resumenTotalPreguntas").textContent = preguntas.length;
+                document.getElementById("resumenPreguntasAbiertas").textContent = abiertas;
+                document.getElementById("resumenPreguntasMultiples").textContent = multiples;
+                document.getElementById("resumenPreguntasCheckbox").textContent = checkbox;
+            }
+
+            
+
+            function validarVista() {
+                const validaciones = [];
+                const preguntas = Array.from(preguntasContainer.querySelectorAll("[data-question]"));
+                const nombre = document.querySelector('[name="Nombre"]').value.trim();
+
+                if (!nombre) {
+                    validaciones.push("El nombre del cuestionario es obligatorio.");
+                }
+
+                if (preguntas.length === 0) {
+                    validaciones.push("Debes agregar al menos una pregunta.");
+                }
+
+                preguntas.forEach((pregunta, index) => {
+                    const numero = index + 1;
+                    const texto = pregunta.querySelector('[data-name="TextoPregunta"]').value.trim();
+                    const tipo = pregunta.querySelector("[data-question-type]").value;
+
+                    if (!texto) {
+                        validaciones.push(`La pregunta ${numero} no tiene texto.`);
+                    }
+
+                    if (tipo === "opcion_multiple" || tipo === "checkbox") {
+                        const opciones = Array.from(pregunta.querySelectorAll("[data-option]"));
+
+                        if (opciones.length < 2) {
+                            validaciones.push(`La pregunta ${numero} debe tener al menos 2 opciones.`);
+                        }
+
+                        opciones.forEach((opcion, opcionIndex) => {
+                            const textoOpcion = opcion.querySelector('[data-option-name="TextoOpcion"]').value.trim();
+
+                            if (!textoOpcion) {
+                                validaciones.push(`La opción ${opcionIndex + 1} de la pregunta ${numero} no tiene texto.`);
+                            }
+                        });
+                    }
+                });
+
+                return validaciones;
+            }
+
+            function construirVistaPrevia() {
+                actualizarIndices();
+                actualizarResumen();
+
+                const nombre = document.querySelector('[name="Nombre"]').value.trim();
+                const descripcion = document.querySelector('[name="Descripcion"]').value.trim();
+                const version = document.querySelector('[name="Version"]').value;
+                const estatus = selectEstatus.value;
+
+                const preguntas = Array.from(preguntasContainer.querySelectorAll("[data-question]"));
+
+                let html = `
+                    <div class="cc-preview-header">
+                        <h5>${escaparHtml(nombre || "Cuestionario sin nombre")}</h5>
+                        <p>${escaparHtml(descripcion || "Sin descripción")}</p>
+
+                        <div class="cc-preview-meta">
+                            <span class="cc-pill info">Versión ${escaparHtml(version || "1")}</span>
+                            <span class="cc-pill warning">${escaparHtml(estatus || "borrador")}</span>
+                            <span class="cc-pill info">${preguntas.length} pregunta(s)</span>
+                        </div>
+                    </div>
+                `;
+
+                if (preguntas.length === 0) {
+                    html += `
+                        <div class="cc-preview-empty">
+                            No hay preguntas para previsualizar.
+                        </div>
+                    `;
+
+                    return html;
+                }
+
+                preguntas.forEach((card, index) => {
+                    const numero = index + 1;
+                    const texto = card.querySelector('[data-name="TextoPregunta"]').value.trim();
+                    const tipo = card.querySelector('[data-name="TipoPregunta"]').value;
+                    const dimension = card.querySelector('[data-name="Dimension"]')?.value.trim() || "";
+                    const obligatoria = card.querySelector('[data-name="Obligatoria"]').checked;
+
+                    html += `
+                        <div class="cc-preview-question">
+                            <div class="cc-preview-question-title">
+                                <div class="cc-preview-question-number">${numero}</div>
+                                <div>
+                                    <strong>${escaparHtml(texto || "Pregunta sin texto")}</strong>
+                                    <small>
+                                        ${escaparHtml(textoTipo(tipo))}
+                                        ${dimension ? ` · ${escaparHtml(dimension)}` : ""}
+                                        ${obligatoria ? " · Obligatoria" : " · Opcional"}
+                                    </small>
+                                </div>
+                            </div>
+                    `;
+
+                    if (tipo === "texto") {
+                        html += `
+                            <div class="cc-preview-control">
+                                Respuesta abierta.
+                            </div>
+                        `;
+                    }
+
+                    if (tipo === "opcion_multiple" || tipo === "checkbox") {
+                        const opciones = Array.from(card.querySelectorAll("[data-option]"));
+                        const symbol = tipo === "checkbox" ? "☐" : "○";
+
+                        const ayudaTipo = tipo === "checkbox"
+                            ? "Permite seleccionar una o varias opciones."
+                            : "Permite seleccionar solo una opción.";
+
+                        html += `
+                            <div class="cc-preview-control mb-2">
+                                ${escaparHtml(ayudaTipo)}
+                            </div>
+                        `;
+
+                        if (opciones.length === 0) {
+                            html += `
+                                <div class="cc-preview-empty">
+                                    No hay opciones configuradas.
+                                </div>
+                            `;
+                        } else {
+                            html += `<div class="cc-preview-options">`;
+
+                            opciones.forEach(opcion => {
+                                const textoOpcion = opcion.querySelector('[data-option-name="TextoOpcion"]').value.trim();
+                                const correcta = opcion.querySelector('[data-option-name="ValorPuntaje"]').value === "1";
+
+                                html += `
+                                    <div class="cc-preview-option">
+                                        <span>${symbol}</span>
+                                        <span>${escaparHtml(textoOpcion || "Opción sin texto")}</span>
+                                        ${correcta ? `<small class="text-success fw-bold">Respuesta correcta</small>` : ""}
+                                    </div>
+                                `;
+                            });
+
+                            html += `</div>`;
+                        }
+                    }
+
+                    html += `</div>`;
+                });
+
+                return html;
+            }
+
+            btnAgregarPregunta.addEventListener("click", () => {
+                crearPregunta();
+            });
+
+            btnVistaPrevia.addEventListener("click", () => {
+                actualizarIndices();
+                actualizarResumen();
+
+                abrirModal(
+                    "Vista previa del cuestionario",
+                    "Revisa la estructura antes de guardar.",
+                    validarVista(),
+                    construirVistaPrevia()
+                );
+            });
+
+            document.querySelectorAll("[data-close-modal]").forEach(button => {
+                button.addEventListener("click", cerrarModal);
+            });
+
+            modal.addEventListener("click", event => {
+                if (event.target === modal) {
+                    cerrarModal();
+                }
+            });
+
+            selectEstatus.addEventListener("change", actualizarPillEstatus);
+
+            document.querySelectorAll("[data-accion]").forEach(button => {
+                button.addEventListener("click", () => {
+                    accionFormulario.value = button.getAttribute("data-accion") || "borrador";
+                });
+            });
+
+            formCrearCuestionario.addEventListener("submit", event => {
+                actualizarIndices();
+
+                if (!accionFormulario.value) {
+                    accionFormulario.value = "borrador";
+                }
+
+                const validaciones = validarVista();
+
+                if (validaciones.length > 0) {
+                    event.preventDefault();
+
+                    abrirModal(
+                        "No se puede guardar todavía",
+                        "Corrige los puntos pendientes antes de guardar el cuestionario.",
+                        validaciones,
+                        construirVistaPrevia()
+                    );
+
+                    return;
+                }
+
+                actualizarIndices();
+            });
+
+            if (preguntasIniciales && preguntasIniciales.length > 0) {
+                preguntasIniciales.forEach(pregunta => crearPregunta(pregunta));
+            } else {
+                crearPregunta();
+            }
+
+            actualizarPillEstatus();
+            actualizarResumen();
+        });
+    </script>
+}

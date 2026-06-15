@@ -1,0 +1,104 @@
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["ActivePage"] = "Dashboard";
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>TalentMap - Usuario</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    @await Html.PartialAsync("_TalentMapStyles")
+</head>
+<body>
+    <div class="tm-shell">
+        @await Html.PartialAsync("_Sidebar")
+
+        <main class="tm-main">
+            @await Html.PartialAsync("_Topbar")
+
+            <section class="tm-content">
+                <div class="tm-page-head">
+                    <div>
+                        <h1 class="tm-title">Bienvenido, Roberto</h1>
+                        <p class="tm-subtitle">Tu jornada de mapeo de talento comienza aquí.</p>
+                    </div>
+                </div>
+
+                <div class="tm-user-grid">
+                    <div class="tm-card">
+                        <div class="tm-card-body">
+                            <h2>◷ Próxima Apertura de Citas</h2>
+
+                            <p>
+                                El periodo para agendar tu sesión de mapeo de talento para tu área
+                                se abrirá pronto. Prepárate para descubrir tu potencial.
+                            </p>
+
+                            <div class="tm-countdown">
+                                <div class="tm-count-box">
+                                    <div>
+                                        <strong>03</strong><br />
+                                        <span>DÍAS</span>
+                                    </div>
+                                </div>
+
+                                <div class="tm-count-box">
+                                    <div>
+                                        <strong>14</strong><br />
+                                        <span>HORAS</span>
+                                    </div>
+                                </div>
+
+                                <div class="tm-count-box">
+                                    <div>
+                                        <strong>45</strong><br />
+                                        <span>MIN</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tm-card">
+                        <div class="tm-card-body" style="text-align:center;">
+                            <div class="tm-success-mark">▣</div>
+
+                            <h2>¡Tu turno ha llegado!</h2>
+
+                            <p>Es el día asignado para tu departamento. Asegura tu espacio lo antes posible.</p>
+
+                            <a class="tm-btn tm-btn-dark" href="/Citas/Agendar">Agendar Cita Ahora →</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="height:28px;"></div>
+
+                <div class="tm-card">
+                    <div class="tm-card-body tm-result-preview">
+                        <div>
+                            <span class="tm-badge tm-badge-success">● Evaluación Completada</span>
+
+                            <h2 class="tm-title" style="font-size:28px;margin-top:18px;">Tus Resultados de Mapeo</h2>
+
+                            <p>
+                                Hemos analizado tus respuestas. Tu perfil destaca por una fuerte orientación al
+                                liderazgo estratégico y resolución de problemas complejos. Revisa el reporte detallado
+                                para explorar tus áreas de desarrollo.
+                            </p>
+
+                            <a class="tm-btn" href="/Citas/Resultados">Ver mis Resultados Completos ▣</a>
+                        </div>
+
+                        <div class="tm-small-radar"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    @await Html.PartialAsync("_TalentMapScripts")
+</body>
+</html>

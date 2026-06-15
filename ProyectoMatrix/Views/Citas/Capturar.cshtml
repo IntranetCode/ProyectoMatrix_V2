@@ -1,0 +1,944 @@
+@using System.Linq
+@using ProyectoMatrix.Models
+@model ProyectoMatrix.Models.CapturarEntrevistaVm
+
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Capturar Entrevista";
+}
+
+@functions {
+    private static string Hora(TimeSpan? value)
+    {
+        return value.HasValue ? value.Value.ToString(@"hh\:mm") : "--:--";
+    }
+
+    private static string Fecha(DateTime? value)
+    {
+        return value.HasValue ? value.Value.ToString("dd/MM/yyyy") : "Sin fecha";
+    }
+
+    private static string EstadoTexto(string? estado)
+    {
+        return (estado ?? "").ToLowerInvariant() switch
+        {
+            "pendiente" => "Pendiente",
+            "asistio" => "Asistió",
+            "no_asistio" => "No asistió",
+            "cancelada" => "Cancelada",
+            "finalizada" => "Finalizada",
+            "en_captura" => "En captura",
+            "completado" => "Completado",
+            _ => string.IsNullOrWhiteSpace(estado) ? "Sin estado" : estado
+        };
+    }
+
+    private static string EstadoClase(string? estado)
+    {
+        return (estado ?? "").ToLowerInvariant() switch
+        {
+            "finalizada" => "status-success",
+            "completado" => "status-success",
+            "asistio" => "status-info",
+            "en_captura" => "status-info",
+            "pendiente" => "status-warning",
+            "no_asistio" => "status-danger",
+            "cancelada" => "status-danger",
+            _ => "status-muted"
+        };
+    }
+
+    private static string TextoTipo(string? tipo)
+    {
+        return (tipo ?? "").ToLowerInvariant() switch
+        {
+            "opcion_multiple" => "Opción múltiple",
+            "checkbox" => "Selección múltiple",
+            "escala" => "Escala",
+            "texto" => "Respuesta abierta",
+            _ => "Pregunta"
+        };
+    }
+
+    private static string NumeroInput(decimal? value)
+    {
+        return value.HasValue
+            ? value.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)
+            : "";
+    }
+}
+
+<style>
+    .captura-page {
+        --cp-bg: #f6f8fc;
+        --cp-card: #ffffff;
+        --cp-border: #e6eaf2;
+        --cp-text: #172033;
+        --cp-muted: #6b7280;
+        --cp-blue: #2563eb;
+        --cp-green: #10b981;
+        --cp-yellow: #f59e0b;
+        --cp-red: #ef4444;
+        color: var(--cp-text);
+    }
+
+    .captura-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .captura-header h2 {
+        font-weight: 900;
+        margin-bottom: .25rem;
+    }
+
+    .captura-header p {
+        color: var(--cp-muted);
+        margin-bottom: 0;
+    }
+
+    .captura-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .65rem;
+        justify-content: flex-end;
+    }
+
+    .captura-shell {
+        background: var(--cp-bg);
+        border: 1px solid var(--cp-border);
+        border-radius: 24px;
+        padding: 1.5rem;
+    }
+
+    .captura-grid {
+        display: grid;
+        grid-template-columns: minmax(0, .85fr) minmax(0, 1.35fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .captura-card {
+        background: var(--cp-card);
+        border: 1px solid var(--cp-border);
+        border-radius: 20px;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, .06);
+    }
+
+    .captura-card-body {
+        padding: 1.25rem;
+    }
+
+    .captura-card-head {
+        padding: 1.25rem 1.25rem 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .captura-card-head h4 {
+        font-weight: 850;
+        margin-bottom: .25rem;
+    }
+
+    .captura-card-head p {
+        color: var(--cp-muted);
+        margin-bottom: 0;
+    }
+
+    .info-list {
+        display: grid;
+        gap: .85rem;
+    }
+
+    .info-list > div {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid var(--cp-border);
+        padding-bottom: .75rem;
+    }
+
+    .info-list > div:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .info-list span {
+        color: var(--cp-muted);
+        font-weight: 750;
+    }
+
+    .info-list strong {
+        text-align: right;
+    }
+
+    .status {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: .35rem .65rem;
+        font-size: .78rem;
+        font-weight: 850;
+        white-space: nowrap;
+    }
+
+    .status-success {
+        background: #d1fae5;
+        color: #047857;
+    }
+
+    .status-info {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .status-warning {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .status-danger {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .status-muted {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .question-list {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .question-card {
+        border: 1px solid var(--cp-border);
+        border-radius: 18px;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .question-head {
+        background: #f8fafc;
+        border-bottom: 1px solid var(--cp-border);
+        padding: 1rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .question-title {
+        display: flex;
+        gap: .8rem;
+        align-items: flex-start;
+    }
+
+    .question-number {
+        width: 38px;
+        height: 38px;
+        border-radius: 14px;
+        background: #dbeafe;
+        color: #1d4ed8;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+        flex: 0 0 auto;
+    }
+
+    .question-title strong {
+        display: block;
+        line-height: 1.2;
+    }
+
+    .question-title small {
+        display: block;
+        color: var(--cp-muted);
+        margin-top: .2rem;
+    }
+
+    .question-body {
+        padding: 1rem;
+    }
+
+    .cp-label {
+        display: block;
+        font-size: .78rem;
+        font-weight: 900;
+        color: var(--cp-muted);
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        margin-bottom: .45rem;
+    }
+
+    .cp-input,
+    .cp-textarea {
+        border: 1px solid var(--cp-border);
+        border-radius: 14px;
+        padding: .75rem .9rem;
+        width: 100%;
+        outline: none;
+        background: #fff;
+    }
+
+    .cp-textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .cp-input:focus,
+    .cp-textarea:focus {
+        border-color: var(--cp-blue);
+        box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .12);
+    }
+
+    .open-question-box {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .score-panel {
+        border: 1px solid #dbeafe;
+        background: #eef4ff;
+        border-radius: 18px;
+        padding: 1rem;
+    }
+
+    .score-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: .85rem;
+    }
+
+    .score-panel-head h5 {
+        font-weight: 900;
+        margin-bottom: .2rem;
+        color: #1e3a8a;
+    }
+
+    .score-panel-head p {
+        margin-bottom: 0;
+        color: #475569;
+        font-weight: 700;
+    }
+
+    .score-input-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .75rem;
+        align-items: center;
+    }
+
+    .score-input-row input {
+        font-size: 1.1rem;
+        font-weight: 900;
+        text-align: center;
+    }
+
+    .score-max {
+        font-weight: 950;
+        color: #1d4ed8;
+        font-size: 1.15rem;
+    }
+
+    .score-help {
+        color: #475569;
+        font-size: .88rem;
+        font-weight: 750;
+        margin-top: .65rem;
+    }
+
+    .score-scale {
+        display: grid;
+        grid-template-columns: repeat(10, minmax(0, 1fr));
+        gap: .35rem;
+        margin-top: .75rem;
+    }
+
+    .score-scale span {
+        height: 8px;
+        border-radius: 999px;
+        background: #bfdbfe;
+    }
+
+    .captura-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--cp-border);
+    }
+
+    .empty-state {
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+        color: var(--cp-muted);
+        border-radius: 16px;
+        padding: 1rem;
+        text-align: center;
+        font-weight: 700;
+    }
+
+    .note-box {
+        background: #eef4ff;
+        border: 1px solid #dbeafe;
+        color: #1d4ed8;
+        border-radius: 16px;
+        padding: .9rem 1rem;
+        font-weight: 700;
+        margin-top: 1rem;
+    }
+
+    .validation-box {
+        display: none;
+        border: 1px solid #fecaca;
+        background: #fee2e2;
+        color: #991b1b;
+        border-radius: 16px;
+        padding: 1rem;
+        font-weight: 750;
+        margin-bottom: 1rem;
+    }
+
+    .validation-box.show {
+        display: block;
+    }
+
+    .validation-box ul {
+        margin-bottom: 0;
+        padding-left: 1.25rem;
+    }
+
+    @@media (max-width: 992px) {
+        .captura-header,
+        .captura-card-head,
+        .question-head {
+            flex-direction: column;
+        }
+
+        .captura-actions {
+            justify-content: flex-start;
+        }
+
+        .captura-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .captura-shell {
+            padding: 1rem;
+        }
+
+        .score-input-row {
+            grid-template-columns: 1fr;
+        }
+
+        .score-max {
+            text-align: center;
+        }
+    }
+</style>
+
+<div class="container py-4 captura-page">
+    <div class="captura-header">
+        <div>
+            <h2>Empezar cita</h2>
+            <p>Captura las respuestas abiertas y califica cada una en escala del 1 al 10.</p>
+        </div>
+
+        <div class="captura-actions">
+            <a class="btn btn-outline-secondary" href="@Url.Action("Bandeja", "Citas")">
+                ← Volver a bandeja
+            </a>
+
+            <form id="formNoAsistioCaptura"
+                  asp-controller="Citas"
+                  asp-action="MarcarNoAsistio"
+                  method="post"
+                  class="d-inline">
+                 
+                @Html.AntiForgeryToken()
+
+                <input type="hidden" name="citaId" value="@Model.CitaID" />
+                <input type="hidden" name="agendaId" value="@Model.AgendaID" />
+                <input type="hidden" name="empresaId" value="@Model.EmpresaID" />
+                <input type="hidden" name="fecha" value="@Model.FechaCita.ToString("yyyy-MM-dd")" />
+
+                <button type="button"
+        class="btn btn-outline-danger"
+        data-bs-toggle="modal"
+        data-bs-target="#modalNoAsistioCaptura">
+    Marcar no asistió
+</button>
+            </form>
+        </div>
+    </div>
+
+    @if (TempData["CitasOk"] != null)
+    {
+        <div class="alert alert-success">
+            @TempData["CitasOk"]
+        </div>
+    }
+
+    @if (TempData["CitasError"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["CitasError"]
+        </div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger">
+            <strong>No se pudo guardar la entrevista.</strong>
+            <ul class="mb-0 mt-2">
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <li>@error.ErrorMessage</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <section class="captura-shell">
+        <form asp-controller="Citas" asp-action="Capturar" method="post" id="formCapturarEntrevista">
+            @Html.AntiForgeryToken()
+
+            <input type="hidden" asp-for="CitaID" />
+            <input type="hidden" asp-for="AgendaID" />
+            <input type="hidden" asp-for="CuestionarioID" />
+            <input type="hidden" asp-for="PersonaID" />
+            <input type="hidden" asp-for="EmpresaID" />
+
+            <div class="captura-grid">
+                <aside class="captura-card">
+                    <div class="captura-card-head">
+                        <div>
+                            <h4>Datos de la cita</h4>
+                            <p>Información general del empleado y evento.</p>
+                        </div>
+                    </div>
+
+                    <div class="captura-card-body">
+                        <div class="info-list">
+                            <div>
+                                <span>Folio</span>
+                                <strong>CIT-@Model.CitaID.ToString("D5")</strong>
+                            </div>
+
+                            <div>
+                                <span>Empleado</span>
+                                <strong>@Model.NombrePersona</strong>
+                            </div>
+
+                            <div>
+                                <span>Empresa</span>
+                                <strong>@Model.NombreEmpresa</strong>
+                            </div>
+
+                            <div>
+                                <span>Evento</span>
+                                <strong>@Model.NombreEvento</strong>
+                            </div>
+
+                            <div>
+                                <span>Cuestionario</span>
+                                <strong>@Model.NombreCuestionario</strong>
+                            </div>
+
+                            <div>
+                                <span>Fecha</span>
+                                <strong>@Fecha(Model.FechaCita)</strong>
+                            </div>
+
+                            <div>
+                                <span>Horario</span>
+                                <strong>@Hora(Model.HoraInicio) - @Hora(Model.HoraFin)</strong>
+                            </div>
+
+                            <div>
+                                <span>Estado cita</span>
+                                <strong>
+                                    <span class="status @EstadoClase(Model.Estado)">
+                                        @EstadoTexto(Model.Estado)
+                                    </span>
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Formulario</span>
+                                <strong>
+                                    <span class="status @EstadoClase(Model.EstadoFormulario)">
+                                        @EstadoTexto(Model.EstadoFormulario)
+                                    </span>
+                                </strong>
+                            </div>
+                        </div>
+
+                        <div class="note-box">
+                            Al guardar avance, la cita quedará como asistió y el formulario como en captura.
+                            Al finalizar, las preguntas obligatorias deberán tener respuesta.
+                            Las dimensiones pueden guardarse con o sin calificación.
+                        </div>
+                    </div>
+                </aside>
+
+                <main class="captura-card">
+                    <div class="captura-card-head">
+                        <div>
+                            <h4>Cuestionario de entrevista</h4>
+                            <p>La encargada captura la respuesta abierta y después asigna una calificación.</p>
+                        </div>
+
+                        <span class="status status-info">
+                            @(Model.Preguntas?.Count ?? 0) preguntas
+                        </span>
+                    </div>
+
+                    <div class="captura-card-body">
+                        <div class="validation-box" id="validacionCliente">
+                            <strong>Antes de finalizar revisa lo siguiente:</strong>
+                            <ul id="validacionClienteLista"></ul>
+                        </div>
+
+                        @if (Model.Preguntas == null || !Model.Preguntas.Any())
+                        {
+                            <div class="empty-state">
+                                No hay preguntas configuradas para este cuestionario.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="question-list">
+                                @for (var i = 0; i < Model.Preguntas.Count; i++)
+                                {
+                                    var pregunta = Model.Preguntas[i];
+
+                                    var respuesta = Model.Respuestas?
+                                        .FirstOrDefault(x => x.PreguntaID == pregunta.PreguntaID)
+                                        ?? new RespuestaEntrevistaVm();
+
+                                    var tipo = (pregunta.TipoPregunta ?? "texto").Trim().ToLowerInvariant();
+
+                                    <article class="question-card">
+                                        <div class="question-head">
+                                            <div class="question-title">
+                                                <div class="question-number">@(i + 1)</div>
+                                                <div>
+                                                    <strong>@pregunta.TextoPregunta</strong>
+                                                    <small>
+                                                        @TextoTipo(tipo)
+                                                        @if (pregunta.Obligatoria)
+                                                        {
+                                                            <text> · Obligatoria</text>
+                                                        }
+                                                        else
+                                                        {
+                                                            <text> · Opcional</text>
+                                                        }
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="question-body">
+                                            <input type="hidden" name="Respuestas[@i].PreguntaID" value="@pregunta.PreguntaID" />
+                                            <input type="hidden" name="Respuestas[@i].TipoPregunta" value="@tipo" />
+                                            <input type="hidden" name="Respuestas[@i].Dimension" value="" />
+
+                                            @if (tipo == "texto")
+                                            {
+                                                <label class="cp-label">Respuesta abierta</label>
+
+                                                <textarea class="cp-textarea"
+                                                        name="Respuestas[@i].ValorTexto"
+                                                        placeholder="Escribe la respuesta del entrevistado...">@respuesta.ValorTexto</textarea>
+
+                                                <input type="hidden"
+                                                    name="Respuestas[@i].ValorNumerico"
+                                                    value="" />
+                                            }
+                                            else if (tipo == "opcion_multiple")
+                                            {
+                                                <label class="cp-label">Selecciona una opción</label>
+
+                                                <div class="option-list">
+                                                    @foreach (var opcion in pregunta.Opciones)
+                                                    {
+                                                        <label class="option-card">
+                                                            <input type="radio"
+                                                                name="Respuestas[@i].OpcionID"
+                                                                value="@opcion.OpcionID"
+                                                                checked="@(respuesta.OpcionID == opcion.OpcionID)" />
+                                                            <span>@opcion.TextoOpcion</span>
+                                                        </label>
+                                                    }
+                                                </div>
+                                            }
+                                            else if (tipo == "checkbox")
+                                            {
+                                                <label class="cp-label">Selecciona una o varias opciones</label>
+
+                                                <input type="hidden"
+                                                    name="Respuestas[@i].ValorTexto"
+                                                    value="@respuesta.ValorTexto"
+                                                    data-checkbox-result="@i" />
+
+                                                <div class="option-list">
+                                                    @foreach (var opcion in pregunta.Opciones)
+                                                    {
+                                                        var valorActual = respuesta.ValorTexto ?? "";
+
+                                                        var marcado = valorActual
+                                                            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                            .Select(x => x.Trim())
+                                                            .Contains(opcion.OpcionID.ToString());
+
+                                                        <label class="option-card">
+                                                            <input type="checkbox"
+                                                                value="@opcion.OpcionID"
+                                                                data-checkbox-option="@i"
+                                                                checked="@marcado" />
+                                                            <span>@opcion.TextoOpcion</span>
+                                                        </label>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    </article>
+                                }
+                            </div>
+                        }
+
+                        <section class="capture-section">
+                            <div class="section-heading">
+                                <div>
+                                    <h3>Dimensiones evaluadas</h3>
+                                    <p>Agrega las dimensiones que evaluaste durante la entrevista.</p>
+                                </div>
+                            </div>
+
+                            <div id="dimensionesContainer">
+                                @for (var i = 0; i < Model.DimensionesEvaluadas.Count; i++)
+                                {
+                                    <div class="dimension-row">
+                                        <input name="DimensionesEvaluadas[@i].DimensionNombre"
+                                               class="form-control"
+                                               value="@Model.DimensionesEvaluadas[i].DimensionNombre"
+                                               placeholder="Ej. Liderazgo" />
+
+                                        <input name="DimensionesEvaluadas[@i].Calificacion"
+                                               class="form-control"
+                                               type="number"
+                                               min="1"
+                                               max="10"
+                                               step="0.1"
+                                               value="@NumeroInput(Model.DimensionesEvaluadas[i].Calificacion)"
+                                               placeholder="Calificación opcional 1-10" />
+
+                                        <textarea name="DimensionesEvaluadas[@i].Comentario"
+                                              class="form-control"
+                                              placeholder="Comentario opcional">@Model.DimensionesEvaluadas[i].Comentario</textarea>
+
+                                        <button type="button" class="btn btn-outline-danger btn-remove-dimension">
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+
+                            <button type="button" id="btnAgregarDimension" class="btn btn-outline-primary">
+                                + Agregar dimensión
+                            </button>
+                        </section>
+
+                        <div class="captura-footer">
+                            <a class="btn btn-outline-secondary" href="@Url.Action("Bandeja", "Citas")">
+                                Cancelar
+                            </a>
+
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="submit"
+                                        class="btn btn-outline-primary"
+                                        name="accion"
+                                        value="guardar">
+                                    Guardar avance
+                                </button>
+
+                                <button type="submit"
+                                        class="btn btn-dark"
+                                        name="accion"
+                                        value="finalizar">
+                                    Finalizar entrevista
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </form>
+    </section>
+</div>
+
+<div class="modal fade" id="modalNoAsistioCaptura" tabindex="-1" aria-labelledby="modalNoAsistioCapturaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 22px; overflow:hidden;">
+            <div class="modal-header bg-danger text-white border-0">
+                <div>
+                    <h5 class="modal-title fw-bold" id="modalNoAsistioCapturaLabel">
+                        Confirmar inasistencia
+                    </h5>
+                    <small>Esta acción actualizará el estado de la cita.</small>
+                </div>
+
+                <button type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"
+                        aria-label="Cerrar"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <p>
+                    ¿Seguro que deseas marcar como <strong>no asistió</strong> la cita
+                    <strong>CIT-@Model.CitaID.ToString("D5")</strong>?
+                </p>
+
+                <div class="p-3 rounded-3 bg-light border">
+                    <div class="small text-muted fw-bold text-uppercase">Empleado</div>
+                    <div class="fw-bold">@Model.NombrePersona</div>
+
+                    <div class="small text-muted fw-bold text-uppercase mt-2">Evento</div>
+                    <div class="fw-bold">@Model.NombreEvento</div>
+                </div>
+
+                <p class="text-muted small mb-0 mt-3">
+                    Se notificará al usuario por correo si tiene email disponible y activo.
+                </p>
+            </div>
+
+            <div class="modal-footer border-0 px-4 pb-4">
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+
+                <button type="submit"
+                        form="formNoAsistioCaptura"
+                        class="btn btn-danger">
+                    Sí, marcar no asistió
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            function actualizarCheckboxHidden(index) {
+                const hidden = document.querySelector(`[data-checkbox-result="${index}"]`);
+                const checks = document.querySelectorAll(`[data-checkbox-option="${index}"]`);
+
+                if (!hidden) return;
+
+                const valores = [];
+
+                checks.forEach(check => {
+                    if (check.checked) {
+                        valores.push(check.value);
+                    }
+                });
+
+                hidden.value = valores.join(",");
+            }
+
+            document.querySelectorAll("[data-checkbox-option]").forEach(check => {
+                const index = check.getAttribute("data-checkbox-option");
+
+                check.addEventListener("change", () => {
+                    actualizarCheckboxHidden(index);
+                });
+
+                actualizarCheckboxHidden(index);
+            });
+
+            const form = document.getElementById("formCapturarEntrevista");
+
+            if (form) {
+                form.addEventListener("submit", () => {
+                    document.querySelectorAll("[data-checkbox-result]").forEach(hidden => {
+                        const index = hidden.getAttribute("data-checkbox-result");
+                        actualizarCheckboxHidden(index);
+                    });
+                });
+            }
+        });
+    </script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const container = document.getElementById("dimensionesContainer");
+            const btnAgregar = document.getElementById("btnAgregarDimension");
+
+            function reindexarDimensiones() {
+                const rows = container.querySelectorAll(".dimension-row");
+
+                rows.forEach((row, index) => {
+                    row.querySelectorAll("input, textarea").forEach(input => {
+                        input.name = input.name.replace(/DimensionesEvaluadas\[\d+\]/, `DimensionesEvaluadas[${index}]`);
+                    });
+                });
+            }
+
+            btnAgregar?.addEventListener("click", function () {
+                const index = container.querySelectorAll(".dimension-row").length;
+
+                const html = `
+                    <div class="dimension-row">
+                        <input name="DimensionesEvaluadas[${index}].DimensionNombre"
+                               class="form-control"
+                               placeholder="Ej. Liderazgo" />
+
+                        <input name="DimensionesEvaluadas[${index}].Calificacion"
+                               class="form-control"
+                               type="number"
+                               min="1"
+                               max="10"
+                               step="0.1"
+                               placeholder="Calificación 1-10" />
+
+                        <textarea name="DimensionesEvaluadas[${index}].Comentario"
+                                  class="form-control"
+                                  placeholder="Comentario opcional"></textarea>
+
+                        <button type="button" class="btn btn-outline-danger btn-remove-dimension">
+                            Eliminar
+                        </button>
+                    </div>
+                `;
+
+                container.insertAdjacentHTML("beforeend", html);
+            });
+
+            container?.addEventListener("click", function (event) {
+                if (event.target.classList.contains("btn-remove-dimension")) {
+                    event.target.closest(".dimension-row")?.remove();
+                    reindexarDimensiones();
+                }
+            });
+        });
+    </script>
+}

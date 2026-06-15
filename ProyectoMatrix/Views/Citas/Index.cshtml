@@ -1,0 +1,1257 @@
+@using ProyectoMatrix.Models
+@model ProyectoMatrix.Models.CitasIndexVm
+
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Mapeo de Talento";
+
+    var editor = Model.Editor ?? new CitasEditorIndexVm();
+    var usuario = Model.Usuario ?? new CitasUsuarioIndexVm();
+    var eventosUsuario = usuario.Eventos ?? new System.Collections.Generic.List<CitasUsuarioEventoVm>();
+
+    var mostrarPanelEditor = Model.EsEditor;
+    var mostrarVistaUsuario = Model.EsUsuarioFinal;
+
+    var puedeAgendar = usuario.PuedeAgendar
+        && usuario.AgendaID.HasValue
+        && usuario.AgendaEmpresaID.HasValue;
+
+    var agendarUrl = puedeAgendar
+        ? Url.Action("Agendar", "Citas", new
+        {
+            agendaId = usuario.AgendaID,
+            agendaEmpresaId = usuario.AgendaEmpresaID
+        })
+        : "#";
+
+    var eventosAgendables = eventosUsuario
+        .Where(x => x.PuedeAgendar)
+        .ToList();
+
+    var hayEventosAgendables = eventosAgendables.Any();
+    var hayMultiplesEventosAgendables = eventosAgendables.Count > 1;
+    var unicoEventoAgendable = eventosAgendables.Count == 1 ? eventosAgendables.First() : null;
+
+    var agendarUrlUnico = unicoEventoAgendable != null
+        ? Url.Action("Agendar", "Citas", new
+        {
+            agendaId = unicoEventoAgendable.AgendaID,
+            agendaEmpresaId = unicoEventoAgendable.AgendaEmpresaID
+        })
+        : agendarUrl;
+
+    var textoBotonPrincipal = hayMultiplesEventosAgendables
+        ? "Elegir evento"
+        : hayEventosAgendables
+            ? "Agendar cita"
+            : "Sin espacios disponibles";
+
+    var urlBotonPrincipal = hayMultiplesEventosAgendables
+        ? "#misEventosMapeo"
+        : hayEventosAgendables
+            ? agendarUrlUnico
+            : "#";
+
+    var botonPrincipalHabilitado = hayEventosAgendables;
+
+    var resultadosUrl = Url.Action("Resultados", "Citas", new
+    {
+        citaId = usuario.CitaID
+    });
+
+    var avanceGeneral = editor.TotalCitasAgendadas == 0
+        ? 0m
+        : Math.Round((editor.TotalEntrevistasFinalizadas * 100m) / editor.TotalCitasAgendadas, 1);
+
+    var fechaContadorEvento = eventosAgendables
+        .Select(x => x.FechaCierreAgendamiento ?? x.FechaFinSolicitud)
+        .Where(x => x.HasValue)
+        .OrderBy(x => x.Value)
+        .FirstOrDefault();
+
+    var fechaObjetivoContador =
+        fechaContadorEvento
+        ?? usuario.FechaFinSolicitud
+        ?? usuario.FechaInicioSolicitud
+        ?? DateTime.Now;
+}
+
+@functions {
+    private static string Texto(string? value, string fallback = "Sin información")
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+
+    private static string Fecha(DateTime? value)
+    {
+        return value.HasValue ? value.Value.ToString("dd/MM/yyyy") : "Pendiente";
+    }
+
+    private static string FechaHora(DateTime? value)
+    {
+        return value.HasValue ? value.Value.ToString("dd/MM/yyyy HH:mm") : "Pendiente";
+    }
+
+    private static string Hora(TimeSpan? value)
+    {
+        return value.HasValue ? value.Value.ToString(@"hh\:mm") : "--:--";
+    }
+
+    private static string Folio(int? citaId)
+    {
+        return citaId.HasValue ? $"CIT-{citaId.Value:D5}" : "Sin folio";
+    }
+
+    private static string EstadoTexto(string? estado)
+    {
+        return (estado ?? "").ToLowerInvariant() switch
+        {
+            "sin_asignacion" => "Sin asignación",
+            "en_proceso" => "Próxima apertura",
+            "abierto" => "Periodo abierto",
+            "con_cita" => "Cita agendada",
+            "agendamiento_cerrado" => "Agendamiento cerrado",
+            "finalizado" => "Finalizado",
+            "pendiente" => "Pendiente",
+            "asistio" => "Asistió",
+            "no_asistio" => "No asistió",
+            "cancelada" => "Cancelada",
+            "finalizada" => "Finalizada",
+            "en_captura" => "En captura",
+            "completado" => "Completado",
+            _ => string.IsNullOrWhiteSpace(estado) ? "Sin estado" : estado
+        };
+    }
+
+    private static string EstadoClase(string? estado)
+    {
+        return (estado ?? "").ToLowerInvariant() switch
+        {
+            "abierto" => "status-success",
+            "finalizado" => "status-muted",
+            "finalizada" => "status-success",
+            "completado" => "status-success",
+            "con_cita" => "status-info",
+            "agendamiento_cerrado" => "status-warning",
+            "asistio" => "status-info",
+            "en_captura" => "status-info",
+            "en_proceso" => "status-warning",
+            "pendiente" => "status-warning",
+            "no_asistio" => "status-danger",
+            "cancelada" => "status-danger",
+            _ => "status-muted"
+        };
+    }
+
+    private static string Porcentaje(decimal value)
+    {
+        if (value < 0) value = 0;
+        if (value > 100) value = 100;
+
+        return value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+    }
+}
+
+<style>
+    .citas-page {
+        --citas-bg: #f6f8fc;
+        --citas-card: #ffffff;
+        --citas-border: #e6eaf2;
+        --citas-text: #172033;
+        --citas-muted: #6b7280;
+        --citas-blue: #2563eb;
+        --citas-green: #10b981;
+        --citas-orange: #f59e0b;
+        --citas-purple: #7c3aed;
+        --citas-red: #ef4444;
+        color: var(--citas-text);
+    }
+
+    .citas-main-header,
+    .section-title-row,
+    .panel-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .citas-main-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .citas-main-header h2 {
+        font-weight: 800;
+        color: var(--citas-text);
+    }
+
+    .citas-header-tag {
+        background: #e9f2ff;
+        color: #1d4ed8;
+        font-weight: 700;
+        padding: .6rem 1rem;
+        border-radius: 999px;
+        font-size: .85rem;
+    }
+
+    .citas-section {
+        background: var(--citas-bg);
+        border: 1px solid var(--citas-border);
+        border-radius: 24px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .usuario-final-section {
+        background: #f9fafb;
+    }
+
+    .section-title-row h3 {
+        font-weight: 800;
+        margin-bottom: .25rem;
+    }
+
+    .section-pill {
+        border-radius: 999px;
+        padding: .45rem .8rem;
+        font-size: .78rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .section-pill.admin {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .section-pill.user {
+        background: #d1fae5;
+        color: #047857;
+    }
+
+    .citas-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .75rem;
+        margin-top: 1rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .stat-card {
+        background: var(--citas-card);
+        border: 1px solid var(--citas-border);
+        border-radius: 20px;
+        padding: 1.25rem;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, .06);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::after {
+        content: "";
+        position: absolute;
+        right: -25px;
+        top: -25px;
+        width: 85px;
+        height: 85px;
+        border-radius: 50%;
+        opacity: .12;
+    }
+
+    .stat-card.azul::after { background: var(--citas-blue); }
+    .stat-card.verde::after { background: var(--citas-green); }
+    .stat-card.morado::after { background: var(--citas-purple); }
+    .stat-card.naranja::after { background: var(--citas-orange); }
+
+    .stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 16px;
+        background: #f1f5f9;
+        display: grid;
+        place-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .stat-title {
+        color: var(--citas-muted);
+        font-weight: 700;
+        font-size: .8rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+    }
+
+    .stat-number {
+        font-size: 2.2rem;
+        font-weight: 900;
+        line-height: 1;
+        margin-top: .45rem;
+    }
+
+    .editor-grid,
+    .usuario-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .panel-card {
+        background: var(--citas-card);
+        border: 1px solid var(--citas-border);
+        border-radius: 20px;
+        padding: 1.25rem;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, .06);
+    }
+
+    .panel-card h4 {
+        font-weight: 800;
+        margin-bottom: .25rem;
+    }
+
+    .panel-card p,
+    .panel-card-header p {
+        color: var(--citas-muted);
+        margin-bottom: 0;
+    }
+
+    .summary-list {
+        display: grid;
+        gap: .85rem;
+        margin-top: 1rem;
+    }
+
+    .summary-list > div,
+    .usuario-info > div {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        border-bottom: 1px solid var(--citas-border);
+        padding-bottom: .75rem;
+    }
+
+    .summary-list > div:last-child,
+    .usuario-info > div:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .summary-list span,
+    .usuario-info span {
+        color: var(--citas-muted);
+        font-weight: 700;
+    }
+
+    .summary-list strong,
+    .usuario-info strong {
+        text-align: right;
+    }
+
+    .progress-bar-soft {
+        height: 10px;
+        width: 100%;
+        background: #e5e7eb;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-top: 1rem;
+    }
+
+    .progress-bar-soft span {
+        height: 100%;
+        display: block;
+        background: var(--citas-green);
+        border-radius: 999px;
+    }
+
+    .progress-bar-soft.mini {
+        height: 7px;
+        margin-top: .35rem;
+        min-width: 110px;
+    }
+
+    .quick-actions {
+        display: grid;
+        gap: .75rem;
+        margin-top: 1rem;
+    }
+
+    .quick-action {
+        display: flex;
+        align-items: center;
+        gap: .8rem;
+        padding: .85rem;
+        border-radius: 16px;
+        background: #f8fafc;
+        color: var(--citas-text);
+        text-decoration: none;
+        border: 1px solid var(--citas-border);
+    }
+
+    .quick-action:hover {
+        background: #eef4ff;
+        color: var(--citas-text);
+    }
+
+    .quick-action span {
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        background: #e9f2ff;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+    }
+
+    .quick-action small {
+        display: block;
+        color: var(--citas-muted);
+    }
+
+    .citas-table {
+        margin-bottom: 0;
+    }
+
+    .citas-table thead th {
+        background: #f1f5f9;
+        color: #475569;
+        font-size: .76rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        border-bottom: 0;
+    }
+
+    .citas-table td {
+        border-color: var(--citas-border);
+        vertical-align: middle;
+    }
+
+    .citas-table small {
+        display: block;
+        color: var(--citas-muted);
+        margin-top: .2rem;
+    }
+
+    .empty-state {
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+        color: var(--citas-muted);
+        border-radius: 16px;
+        padding: 1rem;
+        text-align: center;
+        font-weight: 700;
+        margin-top: 1rem;
+    }
+
+    .status {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: .35rem .65rem;
+        font-size: .78rem;
+        font-weight: 800;
+    }
+
+    .status-success { background: #d1fae5; color: #047857; }
+    .status-info { background: #dbeafe; color: #1d4ed8; }
+    .status-warning { background: #fef3c7; color: #b45309; }
+    .status-danger { background: #fee2e2; color: #b91c1c; }
+    .status-muted { background: #f3f4f6; color: #4b5563; }
+
+    .usuario-welcome {
+        background: linear-gradient(135deg, #ffffff, #eef6ff);
+    }
+
+    .usuario-welcome h4 {
+        margin-top: 1rem;
+        font-size: 1.5rem;
+    }
+
+    .usuario-info {
+        display: grid;
+        gap: .85rem;
+        margin-top: 1.2rem;
+    }
+
+    .usuario-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .75rem;
+        margin-top: 1.25rem;
+    }
+
+    .countdown {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .8rem;
+        margin-top: 1rem;
+    }
+
+    .countdown > div {
+        background: #e9f2ff;
+        border-radius: 18px;
+        padding: 1rem .75rem;
+        text-align: center;
+    }
+
+    .countdown strong {
+        display: block;
+        font-size: 2rem;
+        line-height: 1;
+        font-weight: 900;
+    }
+
+    .countdown span {
+        display: block;
+        color: var(--citas-muted);
+        font-size: .75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        margin-top: .5rem;
+    }
+
+    .resultado-card {
+        display: grid;
+        grid-template-columns: 1fr 170px;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .resultado-card h4 {
+        margin-top: .8rem;
+    }
+
+    .radar-preview {
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        border: 1px solid #dbeafe;
+        position: relative;
+        background:
+            linear-gradient(90deg, transparent 49%, rgba(37, 99, 235, .13) 50%, transparent 51%),
+            linear-gradient(0deg, transparent 49%, rgba(37, 99, 235, .13) 50%, transparent 51%),
+            radial-gradient(circle, transparent 35%, rgba(37, 99, 235, .12) 36%, transparent 37%, transparent 68%, rgba(37, 99, 235, .12) 69%, transparent 70%);
+    }
+
+    .radar-preview::before {
+        content: "";
+        position: absolute;
+        inset: 20px;
+        border: 2px solid rgba(37, 99, 235, .14);
+        clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+    }
+
+    .radar-shape {
+        position: absolute;
+        inset: 38px;
+        background: rgba(16, 185, 129, .26);
+        border: 4px solid #047857;
+        clip-path: polygon(50% 4%, 88% 28%, 78% 76%, 50% 96%, 14% 74%, 22% 34%);
+    }
+
+    .event-action {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: .5rem;
+        flex-wrap: wrap;
+    }
+
+    @@media (max-width: 992px) {
+        .stats-grid,
+        .editor-grid,
+        .usuario-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .resultado-card {
+            grid-template-columns: 1fr;
+        }
+
+        .radar-preview {
+            margin: 0 auto;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .citas-section {
+            padding: 1rem;
+        }
+
+        .citas-main-header,
+        .section-title-row,
+        .panel-card-header {
+            flex-direction: column;
+        }
+
+        .countdown {
+            grid-template-columns: 1fr;
+        }
+
+        .event-action {
+            justify-content: flex-start;
+        }
+    }
+</style>
+
+<div class="container py-4 citas-page">
+    <div class="citas-main-header">
+        <div>
+            <h2 class="mb-1">Mapeo de Talento</h2>
+            <p class="text-muted mb-0">
+                Control de citas, cuestionarios y resultados de talento.
+            </p>
+        </div>
+
+        <div class="citas-header-tag">
+            RH / Citas
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.AlertaSistema))
+    {
+        <div class="alert alert-warning mt-3">
+            @Model.AlertaSistema
+        </div>
+    }
+
+    @if (TempData["CitasOk"] != null)
+    {
+        <div class="alert alert-success mt-3">
+            @TempData["CitasOk"]
+        </div>
+    }
+
+    @if (TempData["CitasError"] != null)
+    {
+        <div class="alert alert-danger mt-3">
+            @TempData["CitasError"]
+        </div>
+    }
+
+    @if (mostrarPanelEditor)
+    {
+        <section class="citas-section">
+            <div class="section-title-row">
+                <div>
+                    <h3>Panel de Editor</h3>
+                    <p class="text-muted">
+                        Resumen general de agendas, empresas habilitadas y avance de entrevistas.
+                    </p>
+                </div>
+
+                <span class="section-pill admin">Vista administrador</span>
+            </div>
+
+            <div class="citas-actions">
+                <a class="btn btn-info" href="@Url.Action("Bandeja", "Citas")">
+                    📅 Ver bandeja de citas
+                </a>
+
+                <a class="btn btn-success" href="@Url.Action("CrearAgenda", "Citas")">
+                    ➕ Crear agenda
+                </a>
+@*
+                <a class="btn btn-warning" href="@Url.Action("CrearCuestionario", "Citas")">
+                    📝 Crear cuestionario
+                </a>*@
+            </div>
+
+            <div class="stats-grid mt-4">
+                <article class="stat-card azul">
+                    <div class="stat-icon">📌</div>
+                    <div class="stat-title">Eventos activos</div>
+                    <div class="stat-number">@editor.TotalEventosActivos</div>
+                </article>
+
+                <article class="stat-card verde">
+                    <div class="stat-icon">🏢</div>
+                    <div class="stat-title">Empresas habilitadas</div>
+                    <div class="stat-number">@editor.TotalEmpresasHabilitadas</div>
+                </article>
+
+                <article class="stat-card morado">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-title">Citas agendadas</div>
+                    <div class="stat-number">@editor.TotalCitasAgendadas</div>
+                </article>
+
+                <article class="stat-card naranja">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-title">Pendientes</div>
+                    <div class="stat-number">@editor.TotalPendientes</div>
+                </article>
+            </div>
+
+            <div class="editor-grid mt-4">
+                <article class="panel-card">
+                    <div class="panel-card-header">
+                        <div>
+                            <h4>Resumen general</h4>
+                            <p>Avance global de entrevistas finalizadas.</p>
+                        </div>
+                        <span class="status status-success">@avanceGeneral%</span>
+                    </div>
+
+                    <div class="summary-list">
+                        <div>
+                            <span>Entrevistas finalizadas</span>
+                            <strong>@editor.TotalEntrevistasFinalizadas</strong>
+                        </div>
+
+                        <div>
+                            <span>No asistieron</span>
+                            <strong>@editor.TotalNoAsistieron</strong>
+                        </div>
+
+                        <div>
+                            <span>Total agendadas</span>
+                            <strong>@editor.TotalCitasAgendadas</strong>
+                        </div>
+                    </div>
+
+                    <div class="progress-bar-soft">
+                        <span style="width:@Porcentaje(avanceGeneral)"></span>
+                    </div>
+                </article>
+
+                <article class="panel-card">
+                    <div class="panel-card-header">
+                        <div>
+                            <h4>Acciones rápidas</h4>
+                            <p>Operaciones principales del módulo.</p>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions">
+                        <a href="@Url.Action("CrearAgenda", "Citas")" class="quick-action">
+                            <span>⚙️</span>
+                            <div>
+                                <strong>Configurar agenda</strong>
+                                <small>Días, horarios y empresas</small>
+                            </div>
+                        </a>
+
+                        <a href="@Url.Action("Bandeja", "Citas")" class="quick-action">
+                            <span>▶️</span>
+                            <div>
+                                <strong>Empezar cita</strong>
+                                <small>Iniciar cuestionario</small>
+                            </div>
+                        </a>
+
+                        <a href="@Url.Action("Resultados", "Citas")" class="quick-action">
+                            <span>📊</span>
+                            <div>
+                                <strong>Ver reportes</strong>
+                                <small>Resultados y radar</small>
+                            </div>
+                        </a>
+                    </div>
+                </article>
+            </div>
+
+            <article class="panel-card mt-4">
+                <div class="panel-card-header">
+                    <div>
+                        <h4>Eventos recientes</h4>
+                        <p>Últimas jornadas configuradas para mapeo de talento.</p>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table citas-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Evento</th>
+                                <th>Periodo</th>
+                                <th>Empresas</th>
+                                <th>Citas</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var item in editor.Eventos)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@item.NombreEvento</strong>
+                                        <small>Agenda #@item.AgendaID</small>
+                                    </td>
+
+                                    <td>
+                                        @item.FechaInicio.ToString("dd/MM/yyyy") -
+                                        @item.FechaFin.ToString("dd/MM/yyyy")
+                                    </td>
+
+                                    <td>@item.EmpresasHabilitadas</td>
+
+                                    <td>@item.CitasAgendadas</td>
+
+                                    <td class="text-end">
+                                        <a class="btn btn-sm btn-outline-primary"
+                                           href="@Url.Action("Bandeja", "Citas", new { agendaId = item.AgendaID })">
+                                            Ver citas
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+
+                            @if (!editor.Eventos.Any())
+                            {
+                                <tr>
+                                    <td colspan="5">
+                                        <div class="empty-state">
+                                            No hay eventos activos para mostrar.
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="panel-card mt-4">
+                <div class="panel-card-header">
+                    <div>
+                        <h4>Avance por empresa</h4>
+                        <p>Seguimiento de usuarios agendados y entrevistas finalizadas.</p>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table citas-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Empresa</th>
+                                <th>Evento</th>
+                                <th>Usuarios</th>
+                                <th>Agendaron</th>
+                                <th>Finalizadas</th>
+                                <th>No asistieron</th>
+                                <th>Avance</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var item in editor.Empresas)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@item.NombreEmpresa</strong>
+                                        <small>Empresa #@item.EmpresaID</small>
+                                    </td>
+
+                                    <td>@item.NombreEvento</td>
+                                    <td>@item.TotalUsuarios</td>
+                                    <td>@item.Agendaron</td>
+                                    <td>@item.TomaronEntrevista</td>
+                                    <td>@item.NoAsistieron</td>
+
+                                    <td>
+                                        <strong>@item.PorcentajeAvance%</strong>
+                                        <div class="progress-bar-soft mini">
+                                            <span style="width:@Porcentaje(item.PorcentajeAvance)"></span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+
+                            @if (!editor.Empresas.Any())
+                            {
+                                <tr>
+                                    <td colspan="7">
+                                        <div class="empty-state">
+                                            No hay avance por empresa para mostrar.
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+    }
+
+    @if (mostrarVistaUsuario)
+    {
+        <section class="citas-section usuario-final-section">
+            <div class="section-title-row">
+                <div>
+                    <h3>¡Bienvenido!</h3>
+                    <p class="text-muted">
+                        Experiencia del empleado para agendar cita y consultar estados.
+                    </p>
+                </div>
+
+                <span class="section-pill user">Vista usuario</span>
+            </div>
+
+            <div class="usuario-grid">
+                <article class="panel-card usuario-welcome">
+                    <span class="status @EstadoClase(usuario.EstadoPantalla)">
+                        @EstadoTexto(usuario.EstadoPantalla)
+                    </span>
+
+                    <h4>Bienvenido, @Texto(usuario.NombreUsuario, "Usuario")</h4>
+
+                    <p>
+                        @if (hayMultiplesEventosAgendables)
+                        {
+                            <text>Tienes varios eventos disponibles. Elige en cuál deseas agendar tu cita.</text>
+                        }
+                        else
+                        {
+                            @Texto(usuario.MensajeUsuario, "Tu jornada de mapeo de talento comienza aquí.")
+                        }
+                    </p>
+
+                    <div class="usuario-info">
+                        <div>
+                            <span>Evento principal</span>
+                            <strong>@Texto(usuario.NombreEvento, "Sin evento asignado")</strong>
+                        </div>
+
+                        <div>
+                            <span>Empresa</span>
+                            <strong>
+                                @Texto(usuario.NombreEmpresa, Model.EmpresaID.HasValue ? $"Empresa #{Model.EmpresaID}" : "Sin empresa")
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Agenda ID</span>
+                            <strong>@(usuario.AgendaID?.ToString() ?? "Sin AgendaID")</strong>
+                        </div>
+
+                        <div>
+                            <span>Agenda Empresa ID</span>
+                            <strong>@(usuario.AgendaEmpresaID?.ToString() ?? "Sin AgendaEmpresaID")</strong>
+                        </div>
+
+                        <div>
+                            <span>Periodo de solicitud</span>
+                            <strong>
+                                @FechaHora(usuario.FechaInicioSolicitud) - @FechaHora(usuario.FechaFinSolicitud)
+                            </strong>
+                        </div>
+                    </div>
+
+                    <div class="usuario-actions">
+                        <a class="btn btn-dark @(botonPrincipalHabilitado ? "" : "disabled")"
+                           href="@urlBotonPrincipal"
+                           aria-disabled="@(!botonPrincipalHabilitado).ToString().ToLowerInvariant()">
+                            @textoBotonPrincipal
+                        </a>
+                    </div>
+                </article>
+
+                <article class="panel-card">
+                    <div class="panel-card-header">
+                        <div>
+                            <h4>Cierre de agendamiento</h4>
+                            <p>
+                                @if (hayMultiplesEventosAgendables)
+                                {
+                                    <text>Se muestra el cierre más próximo entre tus eventos disponibles.</text>
+                                }
+                                else
+                                {
+                                    <text>Fecha límite configurada por RH para solicitar cita.</text>
+                                }
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="countdown"
+                         data-countdown="@fechaObjetivoContador.ToString("yyyy-MM-ddTHH:mm:ss")">
+
+                        <div>
+                            <strong data-days>00</strong>
+                            <span>Días</span>
+                        </div>
+
+                        <div>
+                            <strong data-hours>00</strong>
+                            <span>Horas</span>
+                        </div>
+
+                        <div>
+                            <strong data-minutes>00</strong>
+                            <span>Min</span>
+                        </div>
+                    </div>
+
+                    <a class="btn btn-success w-100 mt-3 @(botonPrincipalHabilitado ? "" : "disabled")"
+                       href="@urlBotonPrincipal"
+                       aria-disabled="@(!botonPrincipalHabilitado).ToString().ToLowerInvariant()">
+                        @(hayMultiplesEventosAgendables ? "Elegir evento para agendar" : hayEventosAgendables ? "Agendar cita ahora" : "No hay espacios disponibles")
+                    </a>
+                </article>
+            </div>
+
+            <article class="panel-card mt-4" id="misEventosMapeo">
+                <div class="panel-card-header">
+                    <div>
+                        <h4>Mis eventos de mapeo</h4>
+                        <p>Eventos pasados, actuales y próximos asignados a tu empresa.</p>
+                    </div>
+                </div>
+
+                @if (!eventosUsuario.Any())
+                {
+                    <div class="empty-state">
+                        No hay eventos asignados para tu empresa.
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive mt-3">
+                        <table class="table citas-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Evento</th>
+                                    <th>Empresa</th>
+                                    <th>Periodo del evento</th>
+                                    <th>Cierre de agendamiento</th>
+                                    <th>Estado</th>
+                                    <th class="text-end">Acción</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach (var evento in eventosUsuario)
+                                {
+                                    var puedeAgendarEvento = evento.PuedeAgendar;
+
+                                    var agendarEventoUrl = puedeAgendarEvento
+                                        ? Url.Action("Agendar", "Citas", new
+                                        {
+                                            agendaId = evento.AgendaID,
+                                            agendaEmpresaId = evento.AgendaEmpresaID
+                                        })
+                                        : "#";
+
+                                    var tieneResultadoEvento =
+                                        evento.TieneCita &&
+                                        evento.CitaID.HasValue &&
+                                        string.Equals(evento.EstadoCita, "finalizada", StringComparison.OrdinalIgnoreCase);
+
+                                    <tr>
+                                        <td>
+                                            <strong>@Texto(evento.NombreEvento, "Sin nombre")</strong>
+                                            <small>Agenda #@evento.AgendaID · Asignación #@evento.AgendaEmpresaID</small>
+                                        </td>
+
+                                        <td>
+                                            @Texto(evento.NombreEmpresa, $"Empresa #{evento.EmpresaID}")
+                                        </td>
+
+                                        <td>
+                                            @Fecha(evento.FechaInicioEvento) -
+                                            @Fecha(evento.FechaFinEvento)
+                                        </td>
+
+                                        <td>
+                                            @FechaHora(evento.FechaCierreAgendamiento ?? evento.FechaFinSolicitud)
+                                        </td>
+
+                                        <td>
+                                            <span class="status @EstadoClase(evento.EstadoPantalla)">
+                                                @EstadoTexto(evento.EstadoPantalla)
+                                            </span>
+
+                                            @if (evento.TieneCita)
+                                            {
+                                                <small>
+                                                    @Folio(evento.CitaID)
+                                                    · @Fecha(evento.FechaCita)
+                                                    · @Hora(evento.HoraInicio) - @Hora(evento.HoraFin)
+                                                </small>
+                                            }
+                                            else
+                                            {
+                                                <small>@Texto(evento.MensajeUsuario, "Sin mensaje")</small>
+                                            }
+                                        </td>
+
+                                        <td class="text-end">
+                                            <div class="event-action">
+                                                @if (puedeAgendarEvento)
+                                                {
+                                                    <a class="btn btn-sm btn-success"
+                                                       href="@agendarEventoUrl">
+                                                        Agendar
+                                                    </a>
+                                                }
+                                                @*
+                                                else if (tieneResultadoEvento)
+                                                {
+                                                    <a class="btn btn-sm btn-outline-primary"
+                                                       href="@Url.Action("Resultados", "Citas", new { citaId = evento.CitaID!.Value })">
+                                                        Ver resultados
+                                                    </a>
+                                                }*@
+                                                else if (evento.TieneCita)
+                                                {
+                                                    <span class="status status-info">
+                                                        Cita registrada
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="status status-muted">
+                                                        No disponible
+                                                    </span>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </article>
+
+            <div class="usuario-grid mt-4">
+                <article class="panel-card">
+                    <div class="panel-card-header">
+                        <div>
+                            <h4>Mi cita</h4>
+                            <p>Información de la cita registrada para el evento principal.</p>
+                        </div>
+                    </div>
+
+                    <div class="summary-list">
+                        <div>
+                            <span>Folio</span>
+                            <strong>@Folio(usuario.CitaID)</strong>
+                        </div>
+
+                        <div>
+                            <span>Fecha</span>
+                            <strong>@Fecha(usuario.FechaCita)</strong>
+                        </div>
+
+                        <div>
+                            <span>Horario</span>
+                            <strong>@Hora(usuario.HoraInicio) - @Hora(usuario.HoraFin)</strong>
+                        </div>
+
+                        <div>
+                            <span>Estado</span>
+                            <strong>
+                                <span class="status @EstadoClase(usuario.EstadoCita)">
+                                    @EstadoTexto(usuario.EstadoCita)
+                                </span>
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Formulario</span>
+                            <strong>@EstadoTexto(usuario.EstadoFormulario)</strong>
+                        </div>
+                    </div>
+                </article>
+ @*
+                <article class="panel-card resultado-card">
+               
+                    <div>
+                        <span class="status @(usuario.EntrevistaFinalizada ? "status-success" : "status-muted")">
+                            @(usuario.EntrevistaFinalizada ? "Evaluación completada" : "Evaluación pendiente")
+                        </span>
+
+                        <h4>Tus resultados de mapeo</h4>
+
+                        <p>
+                            @Texto(usuario.ResultadoResumen, "Cuando finalice tu entrevista, aquí podrás consultar tu resumen y tu gráfico de competencias.")
+                        </p>
+
+                        <a class="btn btn-outline-primary @(usuario.EntrevistaFinalizada && usuario.CitaID.HasValue ? "" : "disabled")"
+                           href="@(usuario.EntrevistaFinalizada && usuario.CitaID.HasValue ? resultadosUrl : "#")"
+                           aria-disabled="@(!(usuario.EntrevistaFinalizada && usuario.CitaID.HasValue)).ToString().ToLowerInvariant()">
+                            Ver resultados completos
+                        </a>
+                    </div>
+
+                    <div class="radar-preview">
+                        <div class="radar-shape"></div>
+                    </div>
+                </article>
+                *@
+            </div>
+        </section>
+    }
+
+    @if (!mostrarPanelEditor && !mostrarVistaUsuario)
+    {
+        <div class="alert alert-warning">
+            Tu rol actual no tiene permisos para visualizar el módulo de Mapeo de Talento.
+        </div>
+    }
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll("[data-countdown]").forEach(wrapper => {
+            const targetValue = wrapper.getAttribute("data-countdown");
+            const targetDate = new Date(targetValue).getTime();
+
+            const daysEl = wrapper.querySelector("[data-days]");
+            const hoursEl = wrapper.querySelector("[data-hours]");
+            const minutesEl = wrapper.querySelector("[data-minutes]");
+
+            const pad = value => value.toString().padStart(2, "0");
+
+            function tick() {
+                const now = new Date().getTime();
+                let diff = targetDate - now;
+
+                if (isNaN(targetDate) || diff < 0) {
+                    diff = 0;
+                }
+
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                const minutes = Math.floor((diff / (1000 * 60)) % 60);
+
+                if (daysEl) daysEl.textContent = pad(days);
+                if (hoursEl) hoursEl.textContent = pad(hours);
+                if (minutesEl) minutesEl.textContent = pad(minutes);
+            }
+
+            tick();
+            setInterval(tick, 1000);
+        });
+
+        document.querySelectorAll("a.disabled, a[aria-disabled='true']").forEach(link => {
+            link.addEventListener("click", event => {
+                event.preventDefault();
+            });
+        });
+
+        document.querySelectorAll("a[href='#misEventosMapeo']").forEach(link => {
+            link.addEventListener("click", event => {
+                event.preventDefault();
+
+                const target = document.getElementById("misEventosMapeo");
+
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start"
+                    });
+                }
+            });
+        });
+    });
+</script>

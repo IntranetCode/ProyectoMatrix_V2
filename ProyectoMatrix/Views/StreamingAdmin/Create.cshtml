@@ -1,0 +1,29 @@
+﻿@model VideoItem
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Agregar transmisión";
+}
+
+<section class="admin-hero form-hero">
+    <div>
+        <span class="soft-label">Nuevo contenido</span>
+        <h1>Agregar transmisión</h1>
+        <p>Pega tu enlace .m3u8 y define cómo aparecerá en el sitio público.</p>
+    </div>
+</section>
+
+<section class="form-card light-panel">
+    <form asp-action="Create" method="post">
+        @Html.AntiForgeryToken()
+        <partial name="_VideoForm" model="Model" />
+
+        <div class="form-actions sticky-actions">
+            <button type="submit">Guardar transmisión</button>
+            <a asp-action="Index">Cancelar</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

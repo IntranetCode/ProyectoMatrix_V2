@@ -618,9 +618,29 @@
                                         Cotización @i
                                     </h6>
 
-                                    <input type="text" name="Proveedores[@(i - 1)]" class="form-control" @(i == 1 ? "required" : "") />
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold text-muted">
+                                                Proveedor de la cotización @i
+                                            </label>
+                                            <input type="text"
+                                                   name="Proveedores[@(i - 1)]"
+                                                   class="form-control"
+                                                   placeholder="Ej. Proveedor ABC"
+                                                   @(i == 1 ? "required" : "") />
+                                        </div>
 
-                                    <input type="number" step="0.01" name="Montos[@(i - 1)]" class="form-control" @(i == 1 ? "required" : "") />
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold text-muted">
+                                                Monto total de la cotización @i
+                                            </label>
+                                            <input type="number"
+                                                   step="0.01"
+                                                   min="0"
+                                                   name="Montos[@(i - 1)]"
+                                                   class="form-control"
+                                                   placeholder="Ej. 12500.00"
+                                                   @(i == 1 ? "required" : "") />
+                                        </div>
 
                                     <input type="file"
                                            name="ArchivosCotizacion"

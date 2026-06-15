@@ -1,0 +1,236 @@
+@using ProyectoMatrix.Models
+@model List<ProyectoMatrix.Models.CitasEventoResumenVm>
+
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Administrar agendas";
+}
+
+<style>
+    .agendas-page {
+        --bg: #f6f8fc;
+        --card: #ffffff;
+        --border: #e6eaf2;
+        --text: #101828;
+        --muted: #667085;
+        --green: #10b981;
+        --blue: #2563eb;
+        --red: #ef4444;
+        color: var(--text);
+    }
+
+    .agendas-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .agendas-header h2 {
+        font-weight: 900;
+        margin-bottom: .25rem;
+    }
+
+    .agendas-header p {
+        color: var(--muted);
+        margin-bottom: 0;
+    }
+
+    .agendas-actions {
+        display: flex;
+        gap: .75rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .btn-admin-agenda {
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        padding: .7rem 1rem;
+        font-weight: 900;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        background: #fff;
+        color: var(--text);
+    }
+
+    .btn-admin-agenda-dark {
+        background: #050505;
+        color: #fff;
+        border-color: #050505;
+    }
+
+    .btn-admin-agenda-dark:hover {
+        color: #fff;
+        opacity: .9;
+    }
+
+    .agendas-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        box-shadow: 0 16px 35px rgba(15, 23, 42, .06);
+        padding: 1.25rem;
+    }
+
+    .agendas-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .agendas-table th {
+        background: #f1f5f9;
+        color: #475569;
+        font-size: .76rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        padding: .85rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .agendas-table td {
+        padding: .9rem;
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle;
+    }
+
+    .agendas-table td strong {
+        display: block;
+    }
+
+    .agendas-table td small {
+        color: var(--muted);
+    }
+
+    .table-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: .5rem;
+        flex-wrap: wrap;
+    }
+
+    .empty-state {
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+        color: var(--muted);
+        border-radius: 16px;
+        padding: 1rem;
+        text-align: center;
+        font-weight: 700;
+    }
+
+    @@media (max-width: 768px) {
+        .agendas-header {
+            flex-direction: column;
+        }
+
+        .agendas-actions {
+            justify-content: flex-start;
+        }
+    }
+</style>
+
+<div class="container py-4 agendas-page">
+    <div class="agendas-header">
+        <div>
+            <h2>Administrar agendas creadas</h2>
+            <p>Consulta, edita o elimina las jornadas de mapeo configuradas.</p>
+        </div>
+
+        <div class="agendas-actions">
+            <a class="btn-admin-agenda" href="@Url.Action("Index", "Citas")">
+                ← Volver al panel
+            </a>
+
+            <a class="btn-admin-agenda btn-admin-agenda-dark" href="@Url.Action("CrearAgenda", "Citas")">
+                ➕ Nueva agenda
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["CitasOk"] != null)
+    {
+        <div class="alert alert-success">@TempData["CitasOk"]</div>
+    }
+
+    @if (TempData["CitasError"] != null)
+    {
+        <div class="alert alert-danger">@TempData["CitasError"]</div>
+    }
+
+    <div class="agendas-card">
+        @if (Model == null || !Model.Any())
+        {
+            <div class="empty-state">
+                No hay agendas creadas todavía.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="agendas-table">
+                    <thead>
+                        <tr>
+                            <th>Agenda</th>
+                            <th>Periodo</th>
+                            <th>Empresas</th>
+                            <th>Citas</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var agenda in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@agenda.NombreEvento</strong>
+                                    <small>Agenda #@agenda.AgendaID</small>
+                                </td>
+
+                                <td>
+                                    @agenda.FechaInicio.ToString("dd/MM/yyyy") -
+                                    @agenda.FechaFin.ToString("dd/MM/yyyy")
+                                </td>
+
+                                <td>@agenda.EmpresasHabilitadas</td>
+
+                                <td>@agenda.CitasAgendadas</td>
+
+                                <td>
+                                    <div class="table-actions">
+                                        <a class="btn btn-sm btn-outline-primary"
+                                           href="@Url.Action("CrearAgenda", "Citas", new { agendaId = agenda.AgendaID })">
+                                            Editar
+                                        </a>
+
+                                        <a class="btn btn-sm btn-outline-info"
+                                           href="@Url.Action("Bandeja", "Citas", new { agendaId = agenda.AgendaID })">
+                                            Ver citas
+                                        </a>
+
+                                        <form asp-controller="Citas"
+                                              asp-action="EliminarAgenda"
+                                              method="post"
+                                              class="d-inline"
+                                              onsubmit="return confirm('¿Seguro que deseas eliminar esta agenda?');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="agendaId" value="@agenda.AgendaID" />
+
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                Eliminar
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

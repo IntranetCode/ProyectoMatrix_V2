@@ -1,0 +1,29 @@
+﻿@model VideoItem
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Editar transmisión";
+}
+
+<section class="admin-hero form-hero">
+    <div>
+        <span class="soft-label">Editar contenido</span>
+        <h1>@Model.Title</h1>
+        <p>Ajusta el enlace, portada, visibilidad y calidades disponibles.</p>
+    </div>
+</section>
+
+<section class="form-card light-panel">
+    <form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+        @Html.AntiForgeryToken()
+        <partial name="_VideoForm" model="Model" />
+
+        <div class="form-actions sticky-actions">
+            <button type="submit">Guardar cambios</button>
+            <a asp-action="Index">Cancelar</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

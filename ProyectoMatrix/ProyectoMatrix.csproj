@@ -50,6 +50,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Data\" />
     <Folder Include="wwwroot\contenidos\thumbnails\" />
     <Folder Include="wwwroot\contenidos\videos\" />
     <Folder Include="wwwroot\Imagenes\Fondos\" />

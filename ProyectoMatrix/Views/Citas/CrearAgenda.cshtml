@@ -1,0 +1,1710 @@
+@using ProyectoMatrix.Models
+@model ProyectoMatrix.Models.CrearAgendaVm
+
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = Model.AgendaID > 0 ? "Editar agenda" : "Crear agenda";
+
+    if (Model.Dias == null || !Model.Dias.Any())
+    {
+        Model.Dias = new List<AgendaDiaEditorVm>
+        {
+            new AgendaDiaEditorVm
+            {
+                DiaSemana = 1,
+                NombreDia = "Lunes",
+                Activo = true,
+                HoraInicio = new TimeSpan(9, 0, 0),
+                HoraFin = new TimeSpan(13, 0, 0),
+                DuracionCitaMinutos = 40,
+                DescansoMinutos = 20,
+                CapacidadCitas = 8
+            },
+            new AgendaDiaEditorVm
+            {
+                DiaSemana = 2,
+                NombreDia = "Martes",
+                Activo = true,
+                HoraInicio = new TimeSpan(9, 0, 0),
+                HoraFin = new TimeSpan(13, 0, 0),
+                DuracionCitaMinutos = 40,
+                DescansoMinutos = 20,
+                CapacidadCitas = 8
+            },
+            new AgendaDiaEditorVm
+            {
+                DiaSemana = 3,
+                NombreDia = "Miércoles",
+                Activo = true,
+                HoraInicio = new TimeSpan(9, 0, 0),
+                HoraFin = new TimeSpan(13, 0, 0),
+                DuracionCitaMinutos = 40,
+                DescansoMinutos = 20,
+                CapacidadCitas = 8
+            },
+            new AgendaDiaEditorVm
+            {
+                DiaSemana = 4,
+                NombreDia = "Jueves",
+                Activo = true,
+                HoraInicio = new TimeSpan(9, 0, 0),
+                HoraFin = new TimeSpan(13, 0, 0),
+                DuracionCitaMinutos = 40,
+                DescansoMinutos = 20,
+                CapacidadCitas = 8
+            },
+            new AgendaDiaEditorVm
+            {
+                DiaSemana = 5,
+                NombreDia = "Viernes",
+                Activo = true,
+                HoraInicio = new TimeSpan(9, 0, 0),
+                HoraFin = new TimeSpan(13, 0, 0),
+                DuracionCitaMinutos = 40,
+                DescansoMinutos = 20,
+                CapacidadCitas = 8
+            }
+        };
+    }
+    else
+    {
+        Model.Dias = Model.Dias
+            .Where(x => x.DiaSemana >= 1 && x.DiaSemana <= 5)
+            .OrderBy(x => x.DiaSemana)
+            .ToList();
+    }
+
+    Model.Empresas ??= new List<AgendaEmpresaEditorVm>();
+    Model.Cuestionarios ??= new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
+
+    var estatusActual = string.IsNullOrWhiteSpace(Model.Estatus)
+        ? "borrador"
+        : Model.Estatus.ToLowerInvariant();
+}
+
+@functions {
+    private static string DateValue(DateTime value)
+    {
+        return value == DateTime.MinValue ? string.Empty : value.ToString("yyyy-MM-dd");
+    }
+
+    private static string DateTimeLocalValue(DateTime? value)
+    {
+        return value.HasValue ? value.Value.ToString("yyyy-MM-ddTHH:mm") : string.Empty;
+    }
+
+    private static string TimeValue(TimeSpan value)
+    {
+        return value.ToString(@"hh\:mm");
+    }
+
+    private static string Texto(string? value, string fallback = "Sin información")
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+}
+
+<style>
+    .agenda-page {
+        --agenda-bg: #f6f8fc;
+        --agenda-card: #ffffff;
+        --agenda-soft: #eef4ff;
+        --agenda-soft-2: #f8fafc;
+        --agenda-text: #101828;
+        --agenda-muted: #667085;
+        --agenda-border: #e6eaf2;
+        --agenda-green: #10b981;
+        --agenda-blue: #2563eb;
+        --agenda-yellow: #f59e0b;
+        --agenda-red: #ef4444;
+        color: var(--agenda-text);
+    }
+
+    .agenda-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .agenda-header-actions {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .agenda-header h2 {
+        font-weight: 900;
+        margin-bottom: .35rem;
+        letter-spacing: -.03em;
+    }
+
+    .agenda-header p {
+        color: var(--agenda-muted);
+        margin-bottom: 0;
+    }
+
+    .agenda-tag {
+        background: #d1fae5;
+        color: #047857;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: .82rem;
+        padding: .55rem .85rem;
+        white-space: nowrap;
+    }
+
+    .agenda-layout {
+        display: grid;
+        grid-template-columns: 1fr 330px;
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .agenda-main,
+    .agenda-aside,
+    .agenda-card {
+        background: var(--agenda-card);
+        border: 1px solid var(--agenda-border);
+        border-radius: 22px;
+        box-shadow: 0 16px 35px rgba(15, 23, 42, .06);
+    }
+
+    .agenda-main {
+        padding: 1.4rem;
+    }
+
+    .agenda-aside {
+        padding: 1.2rem;
+        position: sticky;
+        top: 1rem;
+    }
+
+    .agenda-section {
+        padding: 1.3rem 0;
+        border-bottom: 1px solid var(--agenda-border);
+    }
+
+    .agenda-section:first-child {
+        padding-top: 0;
+    }
+
+    .agenda-section:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .section-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .section-heading h3 {
+        font-size: 1.2rem;
+        font-weight: 900;
+        margin: 0;
+    }
+
+    .section-heading p {
+        color: var(--agenda-muted);
+        margin: .2rem 0 0;
+    }
+
+    .section-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        border-radius: 999px;
+        background: var(--agenda-soft);
+        color: #1d4ed8;
+        padding: .4rem .65rem;
+        font-weight: 800;
+        font-size: .76rem;
+        white-space: nowrap;
+    }
+
+    .agenda-field label,
+    .agenda-label {
+        display: block;
+        color: #344054;
+        font-weight: 800;
+        font-size: .86rem;
+        margin-bottom: .4rem;
+    }
+
+    .agenda-control,
+    .agenda-select,
+    .agenda-textarea {
+        width: 100%;
+        border: 1px solid #d7deea;
+        background: #fff;
+        color: var(--agenda-text);
+        border-radius: 14px;
+        padding: .72rem .85rem;
+        outline: 0;
+        transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+
+    .agenda-control:focus,
+    .agenda-select:focus,
+    .agenda-textarea:focus {
+        border-color: var(--agenda-blue);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, .1);
+    }
+
+    .agenda-control[readonly] {
+        background: #f1f5f9;
+        color: #475569;
+        cursor: not-allowed;
+    }
+
+    .agenda-textarea {
+        resize: vertical;
+        min-height: 105px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .form-grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .span-2 {
+        grid-column: span 2;
+    }
+
+    .companies-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .company-card,
+    .day-card {
+        border: 1px solid var(--agenda-border);
+        border-radius: 18px;
+        background: var(--agenda-soft-2);
+        overflow: hidden;
+    }
+
+    .company-card.is-selected,
+    .day-card.is-active {
+        background: #ffffff;
+        border-color: rgba(16, 185, 129, .45);
+        box-shadow: 0 10px 24px rgba(16, 185, 129, .08);
+    }
+
+    .company-head,
+    .day-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: .75rem;
+        padding: .95rem 1rem;
+    }
+
+    .company-title,
+    .day-title {
+        min-width: 0;
+    }
+
+    .company-title strong,
+    .day-title strong {
+        display: block;
+        font-weight: 900;
+        line-height: 1.2;
+    }
+
+    .company-title small,
+    .day-title small {
+        display: block;
+        color: var(--agenda-muted);
+        margin-top: .15rem;
+        font-weight: 600;
+    }
+
+    .company-config,
+    .day-config {
+        border-top: 1px solid var(--agenda-border);
+        padding: 1rem;
+        display: grid;
+        gap: .9rem;
+    }
+
+    .company-config.is-collapsed,
+    .day-config.is-disabled {
+        display: none;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-flex;
+        width: 48px;
+        height: 28px;
+        flex: 0 0 auto;
+        cursor: pointer;
+    }
+
+    .toggle-switch input[type="checkbox"] {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        cursor: pointer;
+    }
+
+    .toggle-switch input[type="hidden"] {
+        display: none;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        border-radius: 999px;
+        background: #cbd5e1;
+        transition: .2s ease;
+    }
+
+    .toggle-slider::before {
+        content: "";
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        left: 3px;
+        top: 3px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 2px 5px rgba(15, 23, 42, .18);
+        transition: .2s ease;
+    }
+
+    .toggle-switch input[type="checkbox"]:checked ~ .toggle-slider {
+        background: var(--agenda-green);
+    }
+
+    .toggle-switch input[type="checkbox"]:checked ~ .toggle-slider::before {
+        transform: translateX(20px);
+    }
+
+    .days-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .mini-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .75rem;
+    }
+
+    .soft-panel {
+        background: linear-gradient(135deg, #ffffff, #edf4ff);
+        border: 1px solid var(--agenda-border);
+        border-radius: 18px;
+        padding: 1rem;
+    }
+
+    .soft-panel h4 {
+        font-size: 1rem;
+        font-weight: 900;
+        margin-bottom: .75rem;
+    }
+
+    .agenda-actions {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: .75rem;
+        margin-top: 1.4rem;
+        padding-top: 1.2rem;
+        border-top: 1px solid var(--agenda-border);
+    }
+
+    .btn-agenda {
+        border-radius: 14px;
+        border: 1px solid transparent;
+        padding: .75rem 1rem;
+        font-weight: 900;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        cursor: pointer;
+    }
+
+    .btn-agenda-dark {
+        background: #050505;
+        color: #fff;
+    }
+
+    .btn-agenda-dark:hover {
+        color: #fff;
+        opacity: .9;
+    }
+
+    .btn-agenda-light {
+        background: #fff;
+        border-color: var(--agenda-border);
+        color: var(--agenda-text);
+    }
+
+    .btn-agenda-green {
+        background: var(--agenda-green);
+        color: #052e16;
+    }
+
+    .btn-agenda-danger {
+        background: #fee2e2;
+        border-color: #fecaca;
+        color: #991b1b;
+    }
+
+    .btn-agenda-danger:hover {
+        color: #7f1d1d;
+        background: #fecaca;
+    }
+
+    .agenda-summary {
+        display: grid;
+        gap: .85rem;
+    }
+
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        gap: .75rem;
+        border-bottom: 1px solid var(--agenda-border);
+        padding-bottom: .75rem;
+    }
+
+    .summary-item:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .summary-item span {
+        color: var(--agenda-muted);
+        font-weight: 700;
+    }
+
+    .summary-item strong {
+        text-align: right;
+    }
+
+    .empty-state {
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+        color: var(--agenda-muted);
+        border-radius: 16px;
+        padding: 1rem;
+        text-align: center;
+        font-weight: 700;
+    }
+
+    .quick-panel {
+        margin-top: 1rem;
+        background: #f8fafc;
+        border: 1px solid var(--agenda-border);
+        border-radius: 18px;
+        padding: 1rem;
+    }
+
+    .quick-panel h4 {
+        font-size: .96rem;
+        font-weight: 900;
+        margin-bottom: .75rem;
+    }
+
+    .quick-actions {
+        display: grid;
+        gap: .6rem;
+    }
+
+    .text-help {
+        color: var(--agenda-muted);
+        font-size: .85rem;
+        margin-top: .35rem;
+    }
+
+    .validation-summary-errors {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        border-radius: 16px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .validation-summary-errors ul {
+        margin-bottom: 0;
+    }
+
+    .agenda-modal-open {
+        overflow: hidden;
+    }
+
+    .agenda-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(15, 23, 42, .58);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .agenda-modal.is-open {
+        display: flex;
+    }
+
+    .agenda-modal-card {
+        width: min(720px, 100%);
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+        background: #fff;
+        border-radius: 22px;
+        box-shadow: 0 30px 70px rgba(15, 23, 42, .32);
+        border: 1px solid var(--agenda-border);
+    }
+
+    .agenda-modal-small {
+        width: min(520px, 100%);
+    }
+
+    .agenda-modal-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem 1.4rem;
+        border-bottom: 1px solid var(--agenda-border);
+    }
+
+    .agenda-modal-header h3 {
+        margin: 0;
+        font-weight: 900;
+    }
+
+    .agenda-modal-header p {
+        margin: .25rem 0 0;
+        color: var(--agenda-muted);
+    }
+
+    .agenda-modal-close {
+        border: 0;
+        background: #f1f5f9;
+        color: #0f172a;
+        width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .agenda-modal-body {
+        padding: 1.4rem;
+    }
+
+    .agenda-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: .75rem;
+        padding: 1rem 1.4rem 1.25rem;
+        border-top: 1px solid var(--agenda-border);
+        flex-wrap: wrap;
+    }
+
+    .modal-detail-list {
+        display: grid;
+        gap: .85rem;
+    }
+
+    .modal-detail-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid var(--agenda-border);
+        padding-bottom: .75rem;
+    }
+
+    .modal-detail-item:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .modal-detail-item span {
+        color: var(--agenda-muted);
+        font-weight: 700;
+    }
+
+    .modal-detail-item strong {
+        text-align: right;
+    }
+
+    .delete-warning {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        border-radius: 16px;
+        padding: 1rem;
+        font-weight: 700;
+    }
+
+    @@media (max-width: 1100px) {
+        .agenda-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .agenda-aside {
+            position: static;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .agenda-header,
+        .section-heading {
+            flex-direction: column;
+        }
+
+        .agenda-header-actions {
+            justify-content: flex-start;
+        }
+
+        .form-grid,
+        .form-grid-3,
+        .companies-grid,
+        .days-grid,
+        .mini-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .span-2 {
+            grid-column: span 1;
+        }
+
+        .agenda-actions {
+            justify-content: stretch;
+        }
+
+        .agenda-actions .btn-agenda {
+            width: 100%;
+        }
+
+        .agenda-modal-footer .btn-agenda {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="container py-4 agenda-page">
+    <div class="agenda-header">
+        <div>
+            <h2>@(Model.AgendaID > 0 ? "Editar Agenda de Mapeo" : "Crear Agenda de Mapeo")</h2>
+            <p>Define el cuestionario, empresas habilitadas, periodo de solicitud y horarios disponibles.</p>
+        </div>
+
+        <div class="agenda-header-actions">
+            <a class="btn-agenda btn-agenda-light"
+               href="@Url.Action("Agendas", "Citas")">
+                📋 Administrar agendas
+            </a>
+
+            <span class="agenda-tag">Configuración RH</span>
+        </div>
+    </div>
+
+    @if (TempData["CitasOk"] != null)
+    {
+        <div class="alert alert-success">@TempData["CitasOk"]</div>
+    }
+
+    @if (TempData["CitasError"] != null)
+    {
+        <div class="alert alert-danger">@TempData["CitasError"]</div>
+    }
+
+    @using (Html.BeginForm("CrearAgenda", "Citas", FormMethod.Post, new { id = "agendaForm" }))
+    {
+        @Html.AntiForgeryToken()
+        @Html.ValidationSummary(false)
+
+       <input type="hidden" name="AgendaID" value="@Model.AgendaID" />
+        <input type="hidden" name="CuestionarioID" value="@(Model.CuestionarioID?.ToString() ?? "")" />
+<input type="hidden" name="Estatus" id="agendaEstatus" value="@Texto(Model.Estatus, "borrador")" />
+
+<input type="hidden" name="OmitirCuestionario" id="OmitirCuestionario" value="false" />
+<input type="hidden" name="CrearCuestionarioDespues" id="CrearCuestionarioDespues" value="false" />
+
+        <input type="hidden" id="DecisionCuestionarioTomada" value="false" />
+
+        <button type="submit"
+        id="submitFromModal"
+        name="AccionFormulario"
+        value="activo"
+        style="display:none;">
+</button>
+
+        <div class="agenda-layout">
+            <main class="agenda-main">
+                <section class="agenda-section">
+                    <div class="section-heading">
+                        <div>
+                            <h3>Información general</h3>
+                            <p>Datos principales del evento de mapeo.</p>
+                        </div>
+                        <span class="section-badge">1. Evento</span>
+                    </div>  
+
+                    <div class="form-grid">
+
+                        <div class="agenda-field">
+                            <label for="Nombre">Nombre del evento</label>
+                            <input class="agenda-control"
+                                   id="Nombre"
+                                   name="Nombre"
+                                   value="@Model.Nombre"
+                                   maxlength="150"
+                                   required
+                                   placeholder="Ej. Jornada Mapeo de Talento." />
+                        </div>
+
+                        <div class="agenda-field span-2">
+                            <label for="Descripcion">Descripción</label>
+                            <textarea class="agenda-textarea"
+                                      id="Descripcion"
+                                      name="Descripcion"
+                                      maxlength="500"
+                                      placeholder="Describe el objetivo de esta agenda...">@Model.Descripcion</textarea>
+                        </div>
+
+                        <div class="agenda-field">
+                            <label for="FechaInicio">Fecha inicio del evento</label>
+                            <input class="agenda-control"
+                                   type="date"
+                                   id="FechaInicio"
+                                   name="FechaInicio"
+                                   value="@DateValue(Model.FechaInicio)"
+                                   required />
+                        </div>
+
+                        <div class="agenda-field">
+                            <label for="FechaFin">Fecha fin del evento</label>
+                            <input class="agenda-control"
+                                   type="date"
+                                   id="FechaFin"
+                                   name="FechaFin"
+                                   value="@DateValue(Model.FechaFin)"
+                                   required />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="agenda-section">
+                    <div class="section-heading">
+                        <div>
+                            <h3>Empresas habilitadas</h3>
+                            <p>Selecciona qué empresas podrán solicitar cita y configura su periodo de apertura.</p>
+                        </div>
+                        <span class="section-badge">2. Empresas</span>
+                    </div>
+
+                    @if (!Model.Empresas.Any())
+                    {
+                        <div class="empty-state">
+                            No hay empresas cargadas. Verifica que el controller llene Model.Empresas desde dbo.Empresas.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="companies-grid">
+                            @for (var i = 0; i < Model.Empresas.Count; i++)
+                            {
+                                var empresa = Model.Empresas[i];
+                                var configId = $"empresaConfig_{i}";
+
+                                <article class="company-card @(empresa.Seleccionada ? "is-selected" : "")" data-company-card>
+                                    <div class="company-head">
+                                        <div class="company-title">
+                                            <strong>@empresa.NombreEmpresa</strong>
+                                            <small>Empresa #@empresa.EmpresaID</small>
+                                        </div>
+
+                                        <label class="toggle-switch" title="Habilitar empresa">
+                                            <input type="checkbox"
+                                                   class="empresa-check"
+                                                   name="Empresas[@i].Seleccionada"
+                                                   value="true"
+                                                   data-target="#@configId"
+                                                   @(empresa.Seleccionada ? "checked" : "") />
+                                            <input type="hidden" name="Empresas[@i].Seleccionada" value="false" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <input type="hidden" name="Empresas[@i].AgendaEmpresaID" value="@empresa.AgendaEmpresaID" />
+                                    <input type="hidden" name="Empresas[@i].EmpresaID" value="@empresa.EmpresaID" />
+                                    <input type="hidden" name="Empresas[@i].NombreEmpresa" value="@empresa.NombreEmpresa" />
+
+                                    <div id="@configId" class="company-config @(empresa.Seleccionada ? "" : "is-collapsed")">
+                                        <div class="mini-grid">
+                                            <div class="agenda-field">
+                                                <label>Inicio solicitud</label>
+                                                <input class="agenda-control"
+                                                       type="datetime-local"
+                                                       name="Empresas[@i].FechaInicioSolicitud"
+                                                       value="@DateTimeLocalValue(empresa.FechaInicioSolicitud)" />
+                                            </div>
+
+                                            <div class="agenda-field">
+                                                <label>Fin solicitud</label>
+                                                <input class="agenda-control"
+                                                       type="datetime-local"
+                                                       name="Empresas[@i].FechaFinSolicitud"
+                                                       value="@DateTimeLocalValue(empresa.FechaFinSolicitud)" />
+                                            </div>
+                                        </div>
+
+                                        <div class="agenda-field">
+                                            <label>Estado de asignación</label>
+                                            <select class="agenda-select" name="Empresas[@i].EstadoAsignacion">
+                                                @foreach (var option in new[]
+                                                {
+                                                    new { Value = "programada", Text = "Programada" },
+                                                    new { Value = "abierta", Text = "Abierta" },
+                                                    new { Value = "cerrada", Text = "Cerrada" },
+                                                    new { Value = "oculta", Text = "Oculta" }
+                                                })
+                                                {
+                                                    if (string.Equals(empresa.EstadoAsignacion, option.Value, StringComparison.OrdinalIgnoreCase))
+                                                    {
+                                                        <option value="@option.Value" selected>@option.Text</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="@option.Value">@option.Text</option>
+                                                    }
+                                                }
+                                            </select>
+                                        </div>
+
+                                        <div class="mini-grid">
+                                            <div>
+                                                <label class="agenda-label">Mostrar antes de inicio</label>
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox"
+                                                           name="Empresas[@i].MostrarAntesDeInicio"
+                                                           value="true"
+                                                           @(empresa.MostrarAntesDeInicio ? "checked" : "") />
+                                                    <input type="hidden" name="Empresas[@i].MostrarAntesDeInicio" value="false" />
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+
+                                            <div>
+                                                <label class="agenda-label">Mostrar después de fin</label>
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox"
+                                                           name="Empresas[@i].MostrarDespuesDeFin"
+                                                           value="true"
+                                                           @(empresa.MostrarDespuesDeFin ? "checked" : "") />
+                                                    <input type="hidden" name="Empresas[@i].MostrarDespuesDeFin" value="false" />
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="agenda-field">
+                                            <label>Mensaje antes de inicio</label>
+                                            <input class="agenda-control"
+                                                   name="Empresas[@i].MensajeAntesDeInicio"
+                                                   value="@empresa.MensajeAntesDeInicio"
+                                                   maxlength="300"
+                                                   placeholder="Ej. Tu periodo abrirá próximamente." />
+                                        </div>
+
+                                        <div class="agenda-field">
+                                            <label>Mensaje después de fin</label>
+                                            <input class="agenda-control"
+                                                   name="Empresas[@i].MensajeDespuesDeFin"
+                                                   value="@empresa.MensajeDespuesDeFin"
+                                                   maxlength="300"
+                                                   placeholder="Ej. El periodo de solicitud ha finalizado." />
+                                        </div>
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                    }
+                </section>
+
+                <section class="agenda-section">
+                    <div class="section-heading">
+                        <div>
+                            <h3>Días, horarios e intervalos</h3>
+                            <p>Configura la jornada laboral y duración de las citas. Solo se consideran días laborales.</p>
+                        </div>
+                        <span class="section-badge">3. Horarios</span>
+                    </div>
+
+                    <div class="days-grid">
+                        @for (var i = 0; i < Model.Dias.Count; i++)
+                        {
+                            var dia = Model.Dias[i];
+                            var dayConfigId = $"dayConfig_{i}";
+
+                            <article class="day-card @(dia.Activo ? "is-active" : "")" data-day-card>
+                                <div class="day-head">
+                                    <div class="day-title">
+                                        <strong>@Texto(dia.NombreDia, $"Día {dia.DiaSemana}")</strong>
+                                        <small>Día laboral #@dia.DiaSemana</small>
+                                    </div>
+
+                                    <label class="toggle-switch" title="Activar día">
+                                        <input type="checkbox"
+                                               class="day-check"
+                                               name="Dias[@i].Activo"
+                                               value="true"
+                                               data-target="#@dayConfigId"
+                                               @(dia.Activo ? "checked" : "") />
+                                        <input type="hidden" name="Dias[@i].Activo" value="false" />
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <input type="hidden" name="Dias[@i].AgendaDiaID" value="@dia.AgendaDiaID" />
+                                <input type="hidden" name="Dias[@i].AgendaID" value="@dia.AgendaID" />
+                                <input type="hidden" name="Dias[@i].DiaSemana" value="@dia.DiaSemana" />
+                                <input type="hidden" name="Dias[@i].NombreDia" value="@Texto(dia.NombreDia, $"Día {dia.DiaSemana}")" />
+
+                                <div id="@dayConfigId" class="day-config @(dia.Activo ? "" : "is-disabled")">
+                                    <div class="soft-panel">
+                                        <h4>Jornada laboral</h4>
+
+                                        <div class="mini-grid">
+                                            <div class="agenda-field">
+                                                <label>Hora inicio</label>
+                                                <input class="agenda-control agenda-time-start"
+                                                       type="time"
+                                                       name="Dias[@i].HoraInicio"
+                                                       value="@TimeValue(dia.HoraInicio)" />
+                                            </div>
+
+                                            <div class="agenda-field">
+                                                <label>Hora fin</label>
+                                                <input class="agenda-control agenda-time-end"
+                                                       type="time"
+                                                       name="Dias[@i].HoraFin"
+                                                       value="@TimeValue(dia.HoraFin)" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="soft-panel">
+                                        <h4>Duración de citas</h4>
+
+                                        <div class="form-grid-3">
+                                            <div class="agenda-field">
+                                                <label>Duración</label>
+                                                <input class="agenda-control agenda-duration"
+                                                       type="number"
+                                                       min="5"
+                                                       max="240"
+                                                       step="5"
+                                                       name="Dias[@i].DuracionCitaMinutos"
+                                                       value="@dia.DuracionCitaMinutos" />
+                                                <div class="text-help">Minutos</div>
+                                            </div>
+
+                                            <div class="agenda-field">
+                                                <label>Intervalo entre entrevistas</label>
+                                                <input class="agenda-control agenda-break"
+                                                       type="number"
+                                                       min="0"
+                                                       max="120"
+                                                       step="5"
+                                                       name="Dias[@i].DescansoMinutos"
+                                                       value="@dia.DescansoMinutos" />
+                                                <div class="text-help">Minutos</div>
+                                            </div>
+
+                                            <div class="agenda-field">
+                                                <label>Citas disponibles</label>
+                                                <input class="agenda-control agenda-capacity"
+                                                       type="number"
+                                                       min="0"
+                                                       name="Dias[@i].CapacidadCitas"
+                                                       value="@dia.CapacidadCitas"
+                                                       readonly />
+                                                <div class="text-help">Se calcula automáticamente</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                </section>
+
+                <div class="agenda-actions">
+                    <a class="btn-agenda btn-agenda-light" href="@Url.Action("Index", "Citas")">
+                        Cancelar
+                    </a>
+
+                    <button type="submit"
+                            class="btn-agenda btn-agenda-light"
+                            name="AccionFormulario"
+                            value="borrador"
+                            data-status-submit="borrador">
+                        Guardar borrador
+                    </button>
+
+                    <button type="submit"
+                            class="btn-agenda btn-agenda-dark"
+                            name="AccionFormulario"
+                            value="activo"
+                            data-status-submit="activo">
+                        Guardar y activar
+                    </button>
+                </div>
+            </main>
+
+            <aside class="agenda-aside">
+                <div class="section-heading">
+                    <div>
+                        <h3>Resumen</h3>
+                        <p>Vista rápida de configuración.</p>
+                    </div>
+                </div>
+
+                <div class="agenda-summary">
+                    <div class="summary-item">
+                        <span>Agenda</span>
+                        <strong>@(Model.AgendaID > 0 ? $"#{Model.AgendaID}" : "Nueva")</strong>
+                    </div>
+
+                    <div class="summary-item">
+                        <span>Estatus</span>
+                        <strong id="summaryStatus">@Texto(Model.Estatus, "borrador")</strong>
+                    </div>
+
+                    <div class="summary-item">
+                        <span>Empresas seleccionadas</span>
+                        <strong id="summaryCompanies">0</strong>
+                    </div>
+
+                    <div class="summary-item">
+                        <span>Días activos</span>
+                        <strong id="summaryDays">0</strong>
+                    </div>
+
+                    <div class="summary-item">
+                        <span>Horario base</span>
+                        <strong id="summaryTime">--:-- - --:--</strong>
+                    </div>
+                </div>
+
+                <div class="quick-panel">
+                    <h4>Gestión del evento</h4>
+
+                    @if (Model.AgendaID > 0)
+                    {
+                        <div class="quick-actions">
+                            <button type="button"
+                                    class="btn-agenda btn-agenda-light"
+                                    data-open-modal="modalVerEvento">
+                                👁 Ver evento
+                            </button>
+
+                            <button type="button"
+                                    class="btn-agenda btn-agenda-light"
+                                    data-open-modal="modalEditarEvento">
+                                ✏️ Editar evento
+                            </button>
+
+                            <button type="button"
+                                    class="btn-agenda btn-agenda-danger"
+                                    data-open-modal="modalEliminarEvento">
+                                🗑 Eliminar evento
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-help mb-0">
+                            Guarda la agenda para habilitar las opciones de ver, editar y eliminar evento.
+                        </p>
+                    }
+                </div>
+
+                <div class="quick-panel">
+                    <h4>Recomendación</h4>
+                    <p class="text-help mb-0">
+                        La capacidad se calcula con la jornada laboral, duración de cita y descanso.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    }
+</div>
+
+@if (Model.AgendaID > 0)
+{
+    <div class="agenda-modal" id="modalVerEvento" aria-hidden="true">
+        <div class="agenda-modal-card">
+            <div class="agenda-modal-header">
+                <div>
+                    <h3>Detalle del evento</h3>
+                    <p>Vista rápida de la agenda configurada.</p>
+                </div>
+
+                <button type="button" class="agenda-modal-close" data-close-modal>×</button>
+            </div>
+
+            <div class="agenda-modal-body">
+                <div class="modal-detail-list">
+                    <div class="modal-detail-item">
+                        <span>Agenda</span>
+                        <strong>#@Model.AgendaID</strong>
+                    </div>
+
+                    <div class="modal-detail-item">
+                        <span>Nombre</span>
+                        <strong>@Texto(Model.Nombre)</strong>
+                    </div>
+
+                    <div class="modal-detail-item">
+                        <span>Descripción</span>
+                        <strong>@Texto(Model.Descripcion)</strong>
+                    </div>
+
+                    <div class="modal-detail-item">
+                        <span>Periodo del evento</span>
+                        <strong>
+                            @Model.FechaInicio.ToString("dd/MM/yyyy") -
+                            @Model.FechaFin.ToString("dd/MM/yyyy")
+                        </strong>
+                    </div>
+
+                    <div class="modal-detail-item">
+                        <span>Estatus</span>
+                        <strong>@Texto(Model.Estatus, "borrador")</strong>
+                    </div>
+
+                    <div class="modal-detail-item">
+                        <span>Empresas seleccionadas</span>
+                        <strong>@Model.Empresas.Count(x => x.Seleccionada)</strong>
+                    </div>
+
+                    <div class="modal-detail-item">
+                        <span>Días activos</span>
+                        <strong>@Model.Dias.Count(x => x.Activo)</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="agenda-modal-footer">
+                <button type="button" class="btn-agenda btn-agenda-light" data-close-modal>
+                    Cerrar
+                </button>
+
+                <button type="button" class="btn-agenda btn-agenda-dark" data-open-modal="modalEditarEvento">
+                    Editar evento
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="agenda-modal" id="modalEditarEvento" aria-hidden="true">
+        <div class="agenda-modal-card">
+            <div class="agenda-modal-header">
+                <div>
+                    <h3>Editar evento</h3>
+                    <p>Modifica la información principal de la agenda.</p>
+                </div>
+
+                <button type="button" class="agenda-modal-close" data-close-modal>×</button>
+            </div>
+
+            <div class="agenda-modal-body">
+                <div class="form-grid">
+                    <div class="agenda-field span-2">
+                        <label for="modalNombreEvento">Nombre del evento</label>
+                        <input class="agenda-control"
+                               id="modalNombreEvento"
+                               value="@Model.Nombre"
+                               maxlength="150" />
+                    </div>
+
+                    <div class="agenda-field span-2">
+                        <label for="modalDescripcionEvento">Descripción</label>
+                        <textarea class="agenda-textarea"
+                                  id="modalDescripcionEvento"
+                                  maxlength="500">@Model.Descripcion</textarea>
+                    </div>
+
+                    <div class="agenda-field">
+                        <label for="modalFechaInicioEvento">Fecha inicio</label>
+                        <input class="agenda-control"
+                               type="date"
+                               id="modalFechaInicioEvento"
+                               value="@DateValue(Model.FechaInicio)" />
+                    </div>
+
+                    <div class="agenda-field">
+                        <label for="modalFechaFinEvento">Fecha fin</label>
+                        <input class="agenda-control"
+                               type="date"
+                               id="modalFechaFinEvento"
+                               value="@DateValue(Model.FechaFin)" />
+                    </div>
+
+                    <div class="agenda-field span-2">
+                        <label for="modalEstatusEvento">Estatus</label>
+                        <select class="agenda-select" id="modalEstatusEvento">
+                            @if (estatusActual == "borrador")
+                            {
+                                <option value="borrador" selected>Borrador</option>
+                            }
+                            else
+                            {
+                                <option value="borrador">Borrador</option>
+                            }
+
+                            @if (estatusActual == "activo")
+                            {
+                                <option value="activo" selected>Activo</option>
+                            }
+                            else
+                            {
+                                <option value="activo">Activo</option>
+                            }
+
+                            @if (estatusActual == "cerrado")
+                            {
+                                <option value="cerrado" selected>Cerrado</option>
+                            }
+                            else
+                            {
+                                <option value="cerrado">Cerrado</option>
+                            }
+
+                            @if (estatusActual == "cancelado")
+                            {
+                                <option value="cancelado" selected>Cancelado</option>
+                            }
+                            else
+                            {
+                                <option value="cancelado">Cancelado</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <p class="text-help mt-3 mb-0">
+                    Al guardar, se actualizará el formulario principal y se enviará la edición al controller.
+                </p>
+            </div>
+
+            <div class="agenda-modal-footer">
+                <button type="button" class="btn-agenda btn-agenda-light" data-close-modal>
+                    Cancelar
+                </button>
+
+                <button type="button" class="btn-agenda btn-agenda-dark" id="btnAplicarEdicionEvento">
+                    Guardar cambios
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="agenda-modal" id="modalEliminarEvento" aria-hidden="true">
+        <div class="agenda-modal-card agenda-modal-small">
+            <div class="agenda-modal-header">
+                <div>
+                    <h3>Eliminar evento</h3>
+                    <p>Esta acción desactivará la agenda.</p>
+                </div>
+
+                <button type="button" class="agenda-modal-close" data-close-modal>×</button>
+            </div>
+
+            <div class="agenda-modal-body">
+                <div class="delete-warning">
+                    Estás por eliminar la agenda <strong>@Texto(Model.Nombre)</strong>.
+                    No se borrará físicamente de la base de datos; se marcará como cancelada e inactiva.
+                </div>
+            </div>
+
+            <div class="agenda-modal-footer">
+                <button type="button" class="btn-agenda btn-agenda-light" data-close-modal>
+                    Cancelar
+                </button>
+
+                <form asp-controller="Citas"
+                      asp-action="EliminarAgenda"
+                      method="post"
+                      class="m-0">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="agendaId" value="@Model.AgendaID" />
+
+                    <button type="submit" class="btn-agenda btn-agenda-danger">
+                        Sí, eliminar evento
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="agenda-modal" id="modalCuestionarioAgenda" aria-hidden="true">
+    <div class="agenda-modal-card agenda-modal-small">
+        <div class="agenda-modal-header">
+            <div>
+                <h3>Cuestionario del evento</h3>
+                <p>Indica si deseas crear un cuestionario para este evento.</p>
+            </div>
+
+            <button type="button" class="agenda-modal-close" data-close-modal>×</button>
+        </div>
+
+        <div class="agenda-modal-body">
+            <p class="mb-0">
+                El evento puede guardarse y agendarse sin cuestionario.
+                Si eliges crear uno, primero se guardará el evento y después se abrirá la pantalla para capturar el cuestionario.
+            </p>
+        </div>
+
+        <div class="agenda-modal-footer">
+            <button type="button"
+                    class="btn-agenda btn-agenda-light"
+                    id="btnNoAgregarCuestionario">
+                No, guardar sin cuestionario
+            </button>
+
+            <button type="button"
+                    class="btn-agenda btn-agenda-dark"
+                    id="btnSiAgregarCuestionario">
+                Sí, crear cuestionario
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("agendaForm");
+        const statusInput = document.getElementById("agendaEstatus");
+        const omitirCuestionarioInput = document.getElementById("OmitirCuestionario");
+        const crearCuestionarioDespuesInput = document.getElementById("CrearCuestionarioDespues");
+        const decisionCuestionarioTomadaInput = document.getElementById("DecisionCuestionarioTomada");
+        const submitFromModal = document.getElementById("submitFromModal");
+
+        const summaryStatus = document.getElementById("summaryStatus");
+        const summaryCompanies = document.getElementById("summaryCompanies");
+        const summaryDays = document.getElementById("summaryDays");
+        const summaryTime = document.getElementById("summaryTime");
+
+        function timeToMinutes(value) {
+            if (!value || !value.includes(":")) return null;
+
+            const parts = value.split(":");
+            const hours = parseInt(parts[0], 10);
+            const minutes = parseInt(parts[1], 10);
+
+            if (isNaN(hours) || isNaN(minutes)) return null;
+
+            return (hours * 60) + minutes;
+        }
+
+        function calculateCapacity(startValue, endValue, durationValue, breakValue) {
+            const start = timeToMinutes(startValue);
+            const end = timeToMinutes(endValue);
+            const duration = parseInt(durationValue, 10);
+            const rest = parseInt(breakValue, 10) || 0;
+
+            if (start === null || end === null) return 0;
+            if (end <= start) return 0;
+            if (isNaN(duration) || duration <= 0) return 0;
+
+            const totalMinutes = end - start;
+            const blockMinutes = duration + rest;
+
+            if (blockMinutes <= 0) return 0;
+
+            return Math.floor((totalMinutes + rest) / blockMinutes);
+        }
+
+        function updateCapacityForCard(card) {
+            if (!card) return;
+
+            const start = card.querySelector(".agenda-time-start");
+            const end = card.querySelector(".agenda-time-end");
+            const duration = card.querySelector(".agenda-duration");
+            const rest = card.querySelector(".agenda-break");
+            const capacity = card.querySelector(".agenda-capacity");
+
+            if (!capacity) return;
+
+            const result = calculateCapacity(
+                start?.value,
+                end?.value,
+                duration?.value,
+                rest?.value
+            );
+
+            capacity.value = result.toString();
+        }
+
+        function updateAllCapacities() {
+            document.querySelectorAll("[data-day-card]").forEach(card => {
+                updateCapacityForCard(card);
+            });
+        }
+
+        function updateCardState(check, selectedClass, disabledClass) {
+            const targetSelector = check.getAttribute("data-target");
+            const target = targetSelector ? document.querySelector(targetSelector) : null;
+            const card = check.closest("[data-company-card], [data-day-card]");
+
+            if (card) {
+                card.classList.toggle(selectedClass, check.checked);
+            }
+
+            if (target && disabledClass) {
+                target.classList.toggle(disabledClass, !check.checked);
+            }
+        }
+
+        function updateSummary() {
+            updateAllCapacities();
+
+            const selectedCompanies = document.querySelectorAll(".empresa-check:checked").length;
+            const activeDays = document.querySelectorAll(".day-check:checked").length;
+            const firstActiveDay = document.querySelector(".day-check:checked");
+
+            if (summaryCompanies) summaryCompanies.textContent = selectedCompanies.toString();
+            if (summaryDays) summaryDays.textContent = activeDays.toString();
+
+            if (summaryStatus && statusInput) {
+                summaryStatus.textContent = statusInput.value || "borrador";
+            }
+
+            if (summaryTime) {
+                if (firstActiveDay) {
+                    const card = firstActiveDay.closest("[data-day-card]");
+                    const start = card?.querySelector(".agenda-time-start")?.value || "--:--";
+                    const end = card?.querySelector(".agenda-time-end")?.value || "--:--";
+                    summaryTime.textContent = start + " - " + end;
+                } else {
+                    summaryTime.textContent = "--:-- - --:--";
+                }
+            }
+        }
+
+        function openModal(id) {
+            const modal = document.getElementById(id);
+
+            if (!modal) return;
+
+            document.querySelectorAll(".agenda-modal.is-open").forEach(item => {
+                item.classList.remove("is-open");
+            });
+
+            modal.classList.add("is-open");
+            document.body.classList.add("agenda-modal-open");
+        }
+
+        function closeModal(modal) {
+            if (!modal) return;
+
+            modal.classList.remove("is-open");
+
+            if (!document.querySelector(".agenda-modal.is-open")) {
+                document.body.classList.remove("agenda-modal-open");
+            }
+        }
+
+        function enviarDesdeModal(crearCuestionario) {
+            if (!form) return;
+
+            if (crearCuestionarioDespuesInput) {
+                crearCuestionarioDespuesInput.value = crearCuestionario ? "true" : "false";
+            }
+
+            if (omitirCuestionarioInput) {
+                omitirCuestionarioInput.value = crearCuestionario ? "false" : "true";
+            }
+
+            if (decisionCuestionarioTomadaInput) {
+                decisionCuestionarioTomadaInput.value = "true";
+            }
+
+            if (statusInput && !statusInput.value) {
+                statusInput.value = "activo";
+            }
+
+            if (submitFromModal && statusInput) {
+                submitFromModal.value = statusInput.value || "activo";
+            }
+
+            updateAllCapacities();
+            updateSummary();
+
+            if (!form.checkValidity()) {
+                closeModal(document.getElementById("modalCuestionarioAgenda"));
+                form.reportValidity();
+                return;
+            }
+
+            if (typeof form.requestSubmit === "function" && submitFromModal) {
+                form.requestSubmit(submitFromModal);
+            } else {
+                form.submit();
+            }
+        }
+
+        document.querySelectorAll(".empresa-check").forEach(check => {
+            updateCardState(check, "is-selected", "is-collapsed");
+
+            check.addEventListener("change", () => {
+                updateCardState(check, "is-selected", "is-collapsed");
+                updateSummary();
+            });
+        });
+
+        document.querySelectorAll(".day-check").forEach(check => {
+            updateCardState(check, "is-active", "is-disabled");
+
+            check.addEventListener("change", () => {
+                updateCardState(check, "is-active", "is-disabled");
+                updateSummary();
+            });
+        });
+
+        document.querySelectorAll(".agenda-time-start, .agenda-time-end, .agenda-duration, .agenda-break").forEach(input => {
+            input.addEventListener("input", () => {
+                const card = input.closest("[data-day-card]");
+                updateCapacityForCard(card);
+                updateSummary();
+            });
+
+            input.addEventListener("change", () => {
+                const card = input.closest("[data-day-card]");
+                updateCapacityForCard(card);
+                updateSummary();
+            });
+        });
+
+        document.querySelectorAll("[data-status-submit]").forEach(button => {
+            button.addEventListener("click", () => {
+                const status = button.getAttribute("data-status-submit") || "borrador";
+
+                if (statusInput) {
+                    statusInput.value = status;
+                }
+
+                if (omitirCuestionarioInput) {
+                    omitirCuestionarioInput.value = "false";
+                }
+
+                if (crearCuestionarioDespuesInput) {
+                    crearCuestionarioDespuesInput.value = "false";
+                }
+
+                if (decisionCuestionarioTomadaInput) {
+                    decisionCuestionarioTomadaInput.value = "false";
+                }
+
+                updateSummary();
+            });
+        });
+
+        document.querySelectorAll("input, select, textarea").forEach(input => {
+            input.addEventListener("change", updateSummary);
+            input.addEventListener("input", updateSummary);
+        });
+
+        document.querySelectorAll("[data-open-modal]").forEach(button => {
+            button.addEventListener("click", () => {
+                const modalId = button.getAttribute("data-open-modal");
+                openModal(modalId);
+            });
+        });
+
+        document.querySelectorAll("[data-close-modal]").forEach(button => {
+            button.addEventListener("click", () => {
+                closeModal(button.closest(".agenda-modal"));
+            });
+        });
+
+        document.querySelectorAll(".agenda-modal").forEach(modal => {
+            modal.addEventListener("click", event => {
+                if (event.target === modal) {
+                    closeModal(modal);
+                }
+            });
+        });
+
+        document.addEventListener("keydown", event => {
+            if (event.key === "Escape") {
+                document.querySelectorAll(".agenda-modal.is-open").forEach(closeModal);
+            }
+        });
+
+        const btnSiAgregarCuestionario = document.getElementById("btnSiAgregarCuestionario");
+
+        if (btnSiAgregarCuestionario) {
+            btnSiAgregarCuestionario.addEventListener("click", () => {
+                enviarDesdeModal(true);
+            });
+        }
+
+        const btnNoAgregarCuestionario = document.getElementById("btnNoAgregarCuestionario");
+
+        if (btnNoAgregarCuestionario) {
+            btnNoAgregarCuestionario.addEventListener("click", () => {
+                enviarDesdeModal(false);
+            });
+        }
+
+        if (form) {
+            form.addEventListener("submit", event => {
+                updateAllCapacities();
+
+                if (statusInput && !statusInput.value) {
+                    statusInput.value = "borrador";
+                }
+
+                const decisionTomada = decisionCuestionarioTomadaInput?.value === "true";
+
+                if (!decisionTomada) {
+                    event.preventDefault();
+                    openModal("modalCuestionarioAgenda");
+                    return;
+                }
+            });
+        }
+
+        updateSummary();
+    });
+</script>

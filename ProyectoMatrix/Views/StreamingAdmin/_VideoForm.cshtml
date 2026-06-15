@@ -1,0 +1,108 @@
+﻿@model ProyectoMatrix.Models.VideoItem
+
+<div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+<input type="hidden" asp-for="Id" />
+<input type="hidden" asp-for="CreatedAtUtc" />
+
+<div class="form-section">
+    <div class="form-section-title">
+        <span class="soft-label">Datos visibles</span>
+        <h2>Lo que verá el usuario</h2>
+        <p>Nombre, portada y categoría. Sin textos largos.</p>
+    </div>
+
+    <div class="form-grid">
+        <div class="field full">
+            <label asp-for="Title"></label>
+            <input asp-for="Title" placeholder="Ejemplo: Canal principal" />
+            <span asp-validation-for="Title" class="validation-message"></span>
+        </div>
+
+        <div class="field">
+            <label asp-for="Category"></label>
+            <input asp-for="Category" placeholder="En vivo, deportes, noticias..." />
+            <span asp-validation-for="Category" class="validation-message"></span>
+        </div>
+
+        <div class="field">
+            <label asp-for="DurationLabel"></label>
+            <input asp-for="DurationLabel" placeholder="Ejemplo: En vivo" />
+            <span asp-validation-for="DurationLabel" class="validation-message"></span>
+        </div>
+
+        <div class="field full">
+            <label asp-for="PosterUrl"></label>
+            <input asp-for="PosterUrl" type="url" placeholder="https://sitio.com/portada.jpg" />
+            <small>Opcional. Sirve como imagen del catálogo y fondo del reproductor antes de iniciar.</small>
+            <span asp-validation-for="PosterUrl" class="validation-message"></span>
+        </div>
+
+        <div class="field full">
+            <label asp-for="Description"></label>
+            <textarea asp-for="Description" rows="3" placeholder="Descripción corta para el usuario"></textarea>
+            <span asp-validation-for="Description" class="validation-message"></span>
+        </div>
+    </div>
+</div>
+
+<div class="form-section">
+    <div class="form-section-title">
+        <span class="soft-label">M3U8</span>
+        <h2>Enlaces de reproducción</h2>
+        <p>Pega tu enlace principal .m3u8. Si tienes otros enlaces por calidad, agrégalos abajo.</p>
+    </div>
+
+    <div class="form-grid">
+        <div class="field">
+            <label asp-for="Type"></label>
+            <select asp-for="Type" asp-items="Html.GetEnumSelectList<VideoType>()"></select>
+            <small>Para enlaces .m3u8 usa “Transmisión en vivo”.</small>
+            <span asp-validation-for="Type" class="validation-message"></span>
+        </div>
+
+        <div class="field compact-checks">
+            <label class="checkbox-field bright">
+                <input asp-for="IsActive" />
+                <span>Mostrar al público</span>
+            </label>
+            <label class="checkbox-field bright">
+                <input asp-for="IsFeatured" />
+                <span>Mostrar primero</span>
+            </label>
+        </div>
+
+        <div class="field full">
+            <label asp-for="Url"></label>
+            <input asp-for="Url" type="url" placeholder="https://sitio.com/canal/playlist.m3u8" />
+            <small>Este es el enlace que se reproducirá primero.</small>
+            <span asp-validation-for="Url" class="validation-message"></span>
+        </div>
+
+        <div class="field">
+            <label asp-for="Url1080p"></label>
+            <input asp-for="Url1080p" type="url" placeholder="https://sitio.com/canal/alta.m3u8" />
+            <small>Opcional.</small>
+            <span asp-validation-for="Url1080p" class="validation-message"></span>
+        </div>
+
+        <div class="field">
+            <label asp-for="Url720p"></label>
+            <input asp-for="Url720p" type="url" placeholder="https://sitio.com/canal/media.m3u8" />
+            <small>Opcional.</small>
+            <span asp-validation-for="Url720p" class="validation-message"></span>
+        </div>
+
+        <div class="field full">
+            <label asp-for="Url480p"></label>
+            <input asp-for="Url480p" type="url" placeholder="https://sitio.com/canal/ligera.m3u8" />
+            <small>Opcional. Útil cuando quieres ahorrar datos.</small>
+            <span asp-validation-for="Url480p" class="validation-message"></span>
+        </div>
+
+        <div class="field full admin-warning">
+            <strong>Importante:</strong>
+            <span>Si un enlace vence, bloquea otros sitios o no permite abrirse desde navegador, el reproductor mostrará un aviso claro. Eso depende del dueño del enlace.</span>
+        </div>
+    </div>
+</div>

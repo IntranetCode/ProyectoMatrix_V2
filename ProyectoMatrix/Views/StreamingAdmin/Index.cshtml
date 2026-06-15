@@ -1,0 +1,100 @@
+﻿@model IReadOnlyList<VideoItem>
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Transmisiones";
+    var publicCount = Model.Count(video => video.IsActive);
+    var featuredCount = Model.Count(video => video.IsFeatured);
+}
+
+<section class="admin-hero">
+    <div>
+        <span class="soft-label">Administración</span>
+        <h1>Transmisiones del catálogo</h1>
+        <p>Administra tus enlaces .m3u8, decide qué se muestra al público y ordena las calidades.</p>
+    </div>
+    <a class="primary-action" asp-action="Create">Agregar transmisión</a>
+</section>
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert-success">@message</div>
+}
+
+<section class="admin-stats" aria-label="Resumen del catálogo">
+    <article>
+        <span>Total</span>
+        <strong>@Model.Count</strong>
+        <small>guardados</small>
+    </article>
+    <article>
+        <span>Públicos</span>
+        <strong>@publicCount</strong>
+        <small>visibles</small>
+    </article>
+    <article>
+        <span>Destacados</span>
+        <strong>@featuredCount</strong>
+        <small>se muestran primero</small>
+    </article>
+</section>
+
+<section class="admin-panel light-panel">
+    <div class="admin-toolbar">
+        <div>
+            <span class="soft-label">Contenido</span>
+            <h2>Lista principal</h2>
+        </div>
+        <a class="button-link" asp-controller="Home" asp-action="Index">Vista pública</a>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="empty-state embedded">
+            <h3>No hay transmisiones guardadas.</h3>
+            <p>Agrega tu primer enlace para que aparezca en el sitio público.</p>
+            <a class="primary-action small" asp-action="Create">Crear primera transmisión</a>
+        </div>
+    }
+    else
+    {
+        <div class="admin-list">
+            @foreach (var video in Model)
+            {
+                var qualityCount = video.GetQualityOptions().Count;
+                <article class="admin-video-row">
+                    <div class="admin-thumb" style="@(string.IsNullOrWhiteSpace(video.PosterUrl) ? string.Empty : $"background-image: url('{video.PosterUrl}')")">
+                        <span>▶</span>
+                    </div>
+                    <div class="admin-video-copy">
+                        <div class="row-heading">
+                            <h3>@video.Title</h3>
+                            @if (video.IsActive)
+                            {
+                                <span class="status active">Visible</span>
+                            }
+                            else
+                            {
+                                <span class="status inactive">Oculto</span>
+                            }
+                            @if (video.IsFeatured)
+                            {
+                                <span class="status featured">Destacado</span>
+                            }
+                        </div>
+                        <p>@(string.IsNullOrWhiteSpace(video.Description) ? "Sin descripción pública." : video.Description)</p>
+                        <div class="admin-tags">
+                            <span>@(string.IsNullOrWhiteSpace(video.Category) ? "Sin categoría" : video.Category)</span>
+                            <span>@(string.IsNullOrWhiteSpace(video.DurationLabel) ? "Sin duración" : video.DurationLabel)</span>
+                            <span>@video.GetAudienceSourceName()</span>
+                            <span>@qualityCount @(qualityCount == 1 ? "calidad" : "calidades")</span>
+                        </div>
+                    </div>
+                    <div class="row-actions">
+                        <a asp-action="Edit" asp-route-id="@video.Id">Editar</a>
+                        <a class="danger-link" asp-action="Delete" asp-route-id="@video.Id">Eliminar</a>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</section>

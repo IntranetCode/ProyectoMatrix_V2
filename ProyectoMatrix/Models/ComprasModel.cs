@@ -142,6 +142,13 @@
         public bool DentroDePresupuesto { get; set; }
         public string NumeroRequisicion { get; set; } // ID de Requi
         public string Observaciones { get; set; } // En caso de rechazo o nota de desviación
+
+        public int CotizacionID { get; set; }
+        public string? Proveedor { get; set; }
+        public string? ArchivoPath { get; set; }
+        public string? NombreArchivoOriginal { get; set; }
+        public string? Extension { get; set; }
+
     }
 
     public class DetalleCompraVm

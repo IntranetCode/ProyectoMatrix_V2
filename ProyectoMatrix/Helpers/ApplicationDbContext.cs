@@ -63,7 +63,7 @@ namespace ProyectoMatrix.Models
         public DbSet<TransportePlanEmbarque> TransportePlanEmbarque { get; set; }
         public DbSet<TransporteHistorialEstado> TransporteHistorialEstados { get; set; }
         public DbSet<ProyectoMatrix.Models.EmpleadoDepartamento> EmpleadoDepartamentos { get; set; }
-        public DbSet<Departamento> Departamentos { get; set; }
+      //  public DbSet<Departamento> Departamentos { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

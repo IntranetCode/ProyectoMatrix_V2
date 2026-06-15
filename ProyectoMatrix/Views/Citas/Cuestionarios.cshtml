@@ -1,0 +1,1149 @@
+@model ProyectoMatrix.Models.CuestionariosIndexVm
+
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Cuestionarios";
+}
+
+<style>
+    .cuestionarios-page {
+        --cq-bg: #f6f8fc;
+        --cq-card: #ffffff;
+        --cq-border: #e6eaf2;
+        --cq-text: #172033;
+        --cq-muted: #6b7280;
+        --cq-blue: #2563eb;
+        --cq-blue-soft: #dbeafe;
+        --cq-green: #10b981;
+        --cq-green-soft: #d1fae5;
+        --cq-yellow: #f59e0b;
+        --cq-yellow-soft: #fef3c7;
+        --cq-red: #ef4444;
+        --cq-red-soft: #fee2e2;
+        color: var(--cq-text);
+    }
+
+    .cq-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .cq-header h2 {
+        font-weight: 850;
+        margin-bottom: .25rem;
+        letter-spacing: -.02em;
+    }
+
+    .cq-header p {
+        margin-bottom: 0;
+        color: var(--cq-muted);
+    }
+
+    .cq-header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .65rem;
+    }
+
+    .cq-shell {
+        background: var(--cq-bg);
+        border: 1px solid var(--cq-border);
+        border-radius: 24px;
+        padding: 1.5rem;
+    }
+
+    .cq-card {
+        background: var(--cq-card);
+        border: 1px solid var(--cq-border);
+        border-radius: 20px;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, .06);
+    }
+
+    .cq-card-body {
+        padding: 1.25rem;
+    }
+
+    .cq-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .cq-metric {
+        background: #ffffff;
+        border: 1px solid var(--cq-border);
+        border-radius: 20px;
+        padding: 1.1rem;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+    }
+
+    .cq-metric span {
+        display: block;
+        color: var(--cq-muted);
+        font-weight: 800;
+        font-size: .82rem;
+        margin-bottom: .3rem;
+    }
+
+    .cq-metric strong {
+        display: block;
+        font-size: 1.8rem;
+        font-weight: 900;
+        line-height: 1;
+    }
+
+    .cq-filter-card {
+        margin-bottom: 1rem;
+    }
+
+    .cq-filter-grid {
+        display: grid;
+        grid-template-columns: 1fr 220px auto;
+        gap: .85rem;
+        align-items: end;
+    }
+
+    .cq-form-label {
+        font-weight: 800;
+        color: #374151;
+        font-size: .85rem;
+        margin-bottom: .45rem;
+    }
+
+    .cq-input,
+    .cq-select {
+        border: 1px solid var(--cq-border);
+        border-radius: 14px;
+        background: #fff;
+        padding: .75rem .9rem;
+        width: 100%;
+        outline: none;
+        color: var(--cq-text);
+    }
+
+    .cq-input:focus,
+    .cq-select:focus {
+        border-color: var(--cq-blue);
+        box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .12);
+    }
+
+    .cq-table-card {
+        overflow: hidden;
+    }
+
+    .cq-table-wrap {
+        width: 100%;
+    }
+
+    .cq-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .cq-table thead th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: .76rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        padding: 1rem;
+        border-bottom: 1px solid var(--cq-border);
+        white-space: nowrap;
+    }
+
+    .cq-table tbody td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--cq-border);
+        vertical-align: middle;
+    }
+
+    .cq-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .cq-title-cell strong {
+        display: block;
+        font-weight: 900;
+        margin-bottom: .15rem;
+    }
+
+    .cq-title-cell small {
+        color: var(--cq-muted);
+        display: block;
+        max-width: 520px;
+    }
+
+    .cq-pill {
+        border-radius: 999px;
+        padding: .42rem .75rem;
+        font-size: .76rem;
+        font-weight: 850;
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        white-space: nowrap;
+    }
+
+    .cq-pill.borrador {
+        background: var(--cq-yellow-soft);
+        color: #b45309;
+    }
+
+    .cq-pill.activo {
+        background: var(--cq-green-soft);
+        color: #047857;
+    }
+
+    .cq-pill.cerrado {
+        background: var(--cq-red-soft);
+        color: #b91c1c;
+    }
+
+    .cq-pill.info {
+        background: var(--cq-blue-soft);
+        color: #1d4ed8;
+    }
+
+    .cq-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: .45rem;
+        flex-wrap: wrap;
+    }
+
+    .cq-empty {
+        text-align: center;
+        padding: 3rem 1.5rem;
+        color: var(--cq-muted);
+    }
+
+    .cq-empty-icon {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 1rem;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--cq-blue-soft);
+        color: #1d4ed8;
+        font-size: 2rem;
+        font-weight: 900;
+    }
+    .cq-detail-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, .62);
+    z-index: 1050;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    }
+
+    .cq-detail-backdrop.open {
+        display: flex;
+    }
+
+    .cq-detail-modal {
+        width: min(980px, 100%);
+        max-height: 92vh;
+        background: #ffffff;
+        border-radius: 28px;
+        overflow: hidden;
+        box-shadow: 0 32px 90px rgba(15, 23, 42, .35);
+        border: 1px solid rgba(255, 255, 255, .4);
+    }
+
+    .cq-detail-hero {
+        background:
+            radial-gradient(circle at top left, rgba(37, 99, 235, .22), transparent 35%),
+            linear-gradient(135deg, #0f172a, #1e3a8a);
+        color: #ffffff;
+        padding: 1.5rem;
+        position: relative;
+    }
+
+    .cq-detail-close {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 38px;
+        height: 38px;
+        border: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, .16);
+        color: #ffffff;
+        font-size: 1.3rem;
+        line-height: 1;
+    }
+
+    .cq-detail-hero h3 {
+        font-weight: 900;
+        margin-bottom: .35rem;
+        padding-right: 3rem;
+    }
+
+    .cq-detail-hero p {
+        color: rgba(255, 255, 255, .78);
+        margin-bottom: 1rem;
+        max-width: 720px;
+    }
+
+    .cq-detail-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+    }
+
+    .cq-detail-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        border-radius: 999px;
+        padding: .45rem .75rem;
+        background: rgba(255, 255, 255, .14);
+        color: #ffffff;
+        font-size: .78rem;
+        font-weight: 850;
+    }
+
+    .cq-detail-body {
+        padding: 1.25rem;
+        max-height: calc(92vh - 190px);
+        overflow-y: auto;
+        background: #f8fafc;
+    }
+
+    .cq-detail-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .85rem;
+        margin-bottom: 1rem;
+    }
+
+    .cq-detail-metric {
+        background: #ffffff;
+        border: 1px solid var(--cq-border);
+        border-radius: 18px;
+        padding: 1rem;
+    }
+
+    .cq-detail-metric span {
+        display: block;
+        color: var(--cq-muted);
+        font-size: .78rem;
+        font-weight: 850;
+        margin-bottom: .25rem;
+    }
+
+    .cq-detail-metric strong {
+        display: block;
+        font-size: 1.35rem;
+        font-weight: 950;
+    }
+
+    .cq-detail-section-title {
+        font-weight: 950;
+        margin: 1.25rem 0 .75rem;
+    }
+
+    .cq-detail-question {
+        background: #ffffff;
+        border: 1px solid var(--cq-border);
+        border-radius: 22px;
+        padding: 1rem;
+        margin-bottom: .85rem;
+    }
+
+    .cq-detail-question-head {
+        display: flex;
+        align-items: flex-start;
+        gap: .85rem;
+        margin-bottom: .85rem;
+    }
+
+    .cq-detail-question-number {
+        width: 38px;
+        height: 38px;
+        border-radius: 14px;
+        background: var(--cq-blue-soft);
+        color: #1d4ed8;
+        display: grid;
+        place-items: center;
+        font-weight: 950;
+        flex: 0 0 auto;
+    }
+
+    .cq-detail-question-head strong {
+        display: block;
+        font-weight: 950;
+    }
+
+    .cq-detail-question-head small {
+        display: block;
+        color: var(--cq-muted);
+        margin-top: .2rem;
+    }
+
+    .cq-detail-preview-box {
+        border: 1px solid var(--cq-border);
+        background: #f8fafc;
+        border-radius: 16px;
+        padding: .85rem;
+        color: var(--cq-muted);
+        font-weight: 700;
+    }
+
+    .cq-detail-options {
+        display: grid;
+        gap: .55rem;
+    }
+
+    .cq-detail-option {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr) auto;
+        gap: .65rem;
+        align-items: center;
+        border: 1px solid var(--cq-border);
+        background: #f8fafc;
+        border-radius: 16px;
+        padding: .75rem .85rem;
+    }
+
+    .cq-detail-option-symbol {
+        width: 28px;
+        height: 28px;
+        border-radius: 10px;
+        background: #ffffff;
+        border: 1px solid var(--cq-border);
+        display: grid;
+        place-items: center;
+        color: var(--cq-muted);
+        font-weight: 900;
+    }
+
+    .cq-detail-score {
+        border-radius: 999px;
+        background: var(--cq-blue-soft);
+        color: #1d4ed8;
+        padding: .35rem .65rem;
+        font-size: .75rem;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .cq-detail-scale-labels {
+        display: flex;
+        justify-content: space-between;
+        gap: .75rem;
+        color: var(--cq-muted);
+        font-weight: 850;
+        margin-bottom: .6rem;
+    }
+
+    .cq-detail-scale {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+    }
+
+    .cq-detail-scale-item {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: #ffffff;
+        border: 1px solid var(--cq-border);
+        font-weight: 950;
+    }
+
+    .cq-detail-json {
+        margin-top: .75rem;
+        font-size: .78rem;
+    }
+
+    .cq-detail-json summary {
+        cursor: pointer;
+        color: var(--cq-blue);
+        font-weight: 850;
+    }
+
+    .cq-detail-json pre {
+        margin-top: .5rem;
+        background: #0f172a;
+        color: #e5e7eb;
+        border-radius: 14px;
+        padding: .85rem;
+        white-space: pre-wrap;
+    }
+
+    .cq-detail-loading {
+        text-align: center;
+        padding: 2rem;
+        color: var(--cq-muted);
+        font-weight: 850;
+    }
+
+    .cq-detail-error {
+        border-radius: 18px;
+        background: var(--cq-red-soft);
+        color: #991b1b;
+        padding: 1rem;
+        font-weight: 850;
+    }
+
+    @@media (max-width: 768px) {
+        .cq-detail-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .cq-detail-option {
+            grid-template-columns: 32px 1fr;
+        }
+
+        .cq-detail-score {
+            grid-column: 2;
+            justify-self: start;
+        }
+    }
+
+    @@media (max-width: 520px) {
+        .cq-detail-metrics {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 992px) {
+        .cq-header {
+            flex-direction: column;
+        }
+
+        .cq-header-actions {
+            justify-content: flex-start;
+        }
+
+        .cq-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .cq-filter-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .cq-table {
+            min-width: 920px;
+        }
+
+        .cq-table-wrap {
+            overflow-x: auto;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .cq-shell {
+            padding: 1rem;
+        }
+
+        .cq-metrics {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="container py-4 cuestionarios-page">
+    <div class="cq-header">
+        <div>
+            <h2>Cuestionarios</h2>
+            <p>Administra los cuestionarios creados para el mapeo de talento.</p>
+        </div>
+
+        <div class="cq-header-actions">
+            <a class="btn btn-outline-secondary" href="@Url.Action("CrearCuestionario", "Citas")">
+                ← Volver a crear cuestionario
+            </a>
+
+            <a class="btn btn-outline-dark" href="@Url.Action("Index", "Citas")">
+                Ir al panel
+            </a>
+
+            <a class="btn btn-success" href="@Url.Action("CrearCuestionario", "Citas")">
+                ➕ Nuevo cuestionario
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["CitasOk"] != null)
+    {
+        <div class="alert alert-success">
+            @TempData["CitasOk"]
+        </div>
+    }
+
+    @if (TempData["CitasError"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["CitasError"]
+        </div>
+    }
+
+    <section class="cq-shell">
+        <div class="cq-metrics">
+            <div class="cq-metric">
+                <span>Total</span>
+                <strong>@Model.TotalCuestionarios</strong>
+            </div>
+
+            <div class="cq-metric">
+                <span>Borradores</span>
+                <strong>@Model.TotalBorradores</strong>
+            </div>
+
+            <div class="cq-metric">
+                <span>Activos</span>
+                <strong>@Model.TotalActivos</strong>
+            </div>
+
+            <div class="cq-metric">
+                <span>Cerrados</span>
+                <strong>@Model.TotalCerrados</strong>
+            </div>
+        </div>
+
+        <div class="cq-card cq-filter-card">
+            <div class="cq-card-body">
+                <form method="get" action="@Url.Action("Cuestionarios", "Citas")">
+                    <div class="cq-filter-grid">
+                        <div>
+                            <label class="cq-form-label">Buscar cuestionario</label>
+                            <input class="cq-input"
+                                   type="text"
+                                   name="busqueda"
+                                   value="@Model.Busqueda"
+                                   placeholder="Buscar por nombre o descripción..." />
+                        </div>
+
+                        <div>
+                            <label class="cq-form-label">Estatus</label>
+                            <select class="cq-select" name="estatus">
+                                <option value="todos" selected="@(Model.FiltroEstatus == "todos")">Todos</option>
+                                <option value="borrador" selected="@(Model.FiltroEstatus == "borrador")">Borradores</option>
+                                <option value="activo" selected="@(Model.FiltroEstatus == "activo")">Activos</option>
+                                <option value="cerrado" selected="@(Model.FiltroEstatus == "cerrado")">Cerrados</option>
+                            </select>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                Filtrar
+                            </button>
+
+                            <a class="btn btn-outline-secondary" href="@Url.Action("Cuestionarios", "Citas")">
+                                Limpiar
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="cq-card cq-table-card">
+            @if (Model.Cuestionarios != null && Model.Cuestionarios.Any())
+            {
+                <div class="cq-table-wrap">
+                    <table class="cq-table">
+                        <thead>
+                            <tr>
+                                <th>Cuestionario</th>
+                                <th>Versión</th>
+                                <th>Estatus</th>
+                                <th>Preguntas</th>
+                                <th>Fecha creación</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var item in Model.Cuestionarios)
+                            {
+                                var cuestionarioId = item.CuestionarioID;
+
+                                var estatusNormalizado = string.IsNullOrWhiteSpace(item.Estatus)
+                                    ? "borrador"
+                                    : item.Estatus.Trim().ToLowerInvariant();
+
+                                var estatusTexto = estatusNormalizado switch
+                                {
+                                    "activo" => "Activo",
+                                    "cerrado" => "Cerrado",
+                                    _ => "Borrador"
+                                };
+
+                                <tr>
+                                    <td class="cq-title-cell">
+                                        <strong>@item.Nombre</strong>
+
+                                        <small>
+                                            @(string.IsNullOrWhiteSpace(item.Descripcion)
+                                                ? "Sin descripción"
+                                                : item.Descripcion)
+                                        </small>
+
+                                        @if (!string.IsNullOrWhiteSpace(item.CreadoPor))
+                                        {
+                                            <small>Creado por: @item.CreadoPor</small>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        <span class="cq-pill info">v @item.Version</span>
+                                    </td>
+
+                                    <td>
+                                        <span class="cq-pill @estatusNormalizado">
+                                            ● @estatusTexto
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <strong>@item.TotalPreguntas</strong>
+                                    </td>
+
+                                    <td>
+                                        @item.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+                                    </td>
+
+                                    <td>
+                                        <div class="cq-actions">
+                                            @if (cuestionarioId > 0)
+                                            {
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-dark"
+                                                        data-ver-cuestionario="@cuestionarioId">
+                                                    Ver
+                                                </button>
+                                                <a class="btn btn-sm btn-outline-primary"
+                                                   href="@Url.Action("CrearCuestionario", "Citas", new { cuestionarioId = cuestionarioId })">
+                                                    Editar
+                                                </a>
+
+                                                @if (estatusNormalizado == "borrador")
+                                                {
+                                                    <form method="post"
+                                                          action="@Url.Action("CambiarEstatusCuestionario", "Citas")"
+                                                          class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="cuestionarioId" value="@cuestionarioId" />
+                                                        <input type="hidden" name="estatus" value="activo" />
+
+                                                        <button type="submit" class="btn btn-sm btn-success">
+                                                            Activar
+                                                        </button>
+                                                    </form>
+                                                }
+
+                                                @if (estatusNormalizado == "activo")
+                                                {
+                                                    <form method="post"
+                                                          action="@Url.Action("CambiarEstatusCuestionario", "Citas")"
+                                                          class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="cuestionarioId" value="@cuestionarioId" />
+                                                        <input type="hidden" name="estatus" value="cerrado" />
+
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                            Cerrar
+                                                        </button>
+                                                    </form>
+                                                }
+
+                                                @if (estatusNormalizado == "cerrado")
+                                                {
+                                                    <form method="post"
+                                                          action="@Url.Action("CambiarEstatusCuestionario", "Citas")"
+                                                          class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="cuestionarioId" value="@cuestionarioId" />
+                                                        <input type="hidden" name="estatus" value="borrador" />
+
+                                                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                            Reabrir
+                                                        </button>
+                                                    </form>
+                                                }
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="cq-empty">
+                    <div class="cq-empty-icon">?</div>
+
+                    <h4>No hay cuestionarios todavía</h4>
+
+                    <p>
+                        Crea tu primer cuestionario para empezar a configurar el mapeo de talento.
+                    </p>
+
+                    <a class="btn btn-success" href="@Url.Action("CrearCuestionario", "Citas")">
+                        Crear cuestionario
+                    </a>
+                </div>
+            }
+        </div>
+    </section>
+
+    <div class="cq-detail-backdrop" id="modalDetalleCuestionario">
+        <div class="cq-detail-modal">
+            <div class="cq-detail-hero" id="detalleHero">
+                <button type="button" class="cq-detail-close" data-cerrar-detalle>×</button>
+
+                <h3>Detalle del cuestionario</h3>
+                <p>Consulta toda la información registrada en el formulario seleccionado.</p>
+
+                <div class="cq-detail-badges">
+                    <span class="cq-detail-badge">RH / Cuestionarios</span>
+                    <span class="cq-detail-badge">Vista detallada</span>
+                </div>
+            </div>
+
+            <div class="cq-detail-body" id="detalleContenido">
+                <div class="cq-detail-loading">
+                    Cargando información del cuestionario...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const modal = document.getElementById("modalDetalleCuestionario");
+            const detalleHero = document.getElementById("detalleHero");
+            const detalleContenido = document.getElementById("detalleContenido");
+            const detalleUrl = '@Url.Action("DetalleCuestionario", "Citas")';
+
+            function abrirModalDetalle() {
+                modal.classList.add("open");
+                document.body.style.overflow = "hidden";
+            }
+
+            function cerrarModalDetalle() {
+                modal.classList.remove("open");
+                document.body.style.overflow = "";
+            }
+
+            function escaparHtml(valor) {
+                return String(valor ?? "")
+                    .replaceAll("&", "&amp;")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;")
+                    .replaceAll('"', "&quot;")
+                    .replaceAll("'", "&#039;");
+            }
+
+            function textoTipo(tipo) {
+                switch ((tipo || "").toLowerCase()) {
+                    case "escala": return "Escala";
+                    case "opcion_multiple": return "Opción múltiple";
+                    case "checkbox": return "Checkbox";
+                    default: return "Texto";
+                }
+            }
+
+            function textoBool(valor) {
+                return valor ? "Sí" : "No";
+            }
+
+            function claseEstatus(estatus) {
+                const value = (estatus || "borrador").toLowerCase();
+
+                if (value === "activo") return "cq-pill activo";
+                if (value === "cerrado") return "cq-pill cerrado";
+
+                return "cq-pill borrador";
+            }
+
+            function parseConfig(json) {
+                try {
+                    return JSON.parse(json || "{}");
+                } catch {
+                    return {};
+                }
+            }
+
+            function renderHero(cuestionario) {
+                detalleHero.innerHTML = `
+                    <button type="button" class="cq-detail-close" data-cerrar-detalle>×</button>
+
+                    <h3>${escaparHtml(cuestionario.nombre || "Cuestionario sin nombre")}</h3>
+                    <p>${escaparHtml(cuestionario.descripcion || "Sin descripción registrada.")}</p>
+
+                    <div class="cq-detail-badges">
+                        <span class="cq-detail-badge">ID #${escaparHtml(cuestionario.cuestionarioId)}</span>
+                        <span class="cq-detail-badge">Versión ${escaparHtml(cuestionario.version)}</span>
+                        <span class="cq-detail-badge">${escaparHtml(cuestionario.estatus || "borrador")}</span>
+                        <span class="cq-detail-badge">${escaparHtml(cuestionario.totalPreguntas)} pregunta(s)</span>
+                    </div>
+                `;
+
+                detalleHero.querySelector("[data-cerrar-detalle]")
+                    .addEventListener("click", cerrarModalDetalle);
+            }
+
+            function renderPreguntas(preguntas) {
+                if (!preguntas || preguntas.length === 0) {
+                    return `
+                        <div class="cq-detail-preview-box">
+                            Este cuestionario todavía no tiene preguntas registradas.
+                        </div>
+                    `;
+                }
+
+                return preguntas.map((p, index) => {
+                    const tipo = (p.tipoPregunta || "texto").toLowerCase();
+                    const opciones = p.opciones || [];
+                    const config = parseConfig(p.configuracionJson);
+                    const tieneConfig = p.configuracionJson && p.configuracionJson.trim() !== "";
+
+                    let cuerpo = "";
+
+                    if (tipo === "texto") {
+                        cuerpo = `
+                            <div class="cq-detail-preview-box">
+                                Respuesta abierta del entrevistador o colaborador.
+                            </div>
+                        `;
+                    }
+
+                    if (tipo === "escala") {
+                        const min = Number(config.min ?? 1);
+                        const max = Number(config.max ?? 5);
+                        const etiquetaMin = config.etiquetaMin || "Bajo";
+                        const etiquetaMax = config.etiquetaMax || "Alto";
+
+                        let escalaHtml = "";
+
+                        for (let i = min; i <= max; i++) {
+                            escalaHtml += `<div class="cq-detail-scale-item">${i}</div>`;
+                        }
+
+                        cuerpo = `
+                            <div class="cq-detail-scale-labels">
+                                <span>${escaparHtml(etiquetaMin)}</span>
+                                <span>${escaparHtml(etiquetaMax)}</span>
+                            </div>
+
+                            <div class="cq-detail-scale">
+                                ${escalaHtml}
+                            </div>
+                        `;
+                    }
+
+                    if (tipo === "opcion_multiple" || tipo === "checkbox") {
+                        if (opciones.length === 0) {
+                            cuerpo = `
+                                <div class="cq-detail-preview-box">
+                                    Esta pregunta no tiene opciones registradas.
+                                </div>
+                            `;
+                        } else {
+                            const simbolo = tipo === "checkbox" ? "☐" : "○";
+
+                            cuerpo = `
+                                <div class="cq-detail-options">
+                                    ${opciones.map(o => `
+                                        <div class="cq-detail-option">
+                                            <div class="cq-detail-option-symbol">${simbolo}</div>
+                                            <div>
+                                                <strong>${escaparHtml(o.textoOpcion || "Opción sin texto")}</strong>
+                                                <div class="text-muted small">
+                                                    Orden: ${escaparHtml(o.orden)} · Activa: ${escaparHtml(textoBool(o.activa))}
+                                                </div>
+                                            </div>
+                                            <span class="cq-detail-score">
+                                                Puntaje: ${escaparHtml(o.valorPuntaje)}
+                                            </span>
+                                        </div>
+                                    `).join("")}
+                                </div>
+                            `;
+                        }
+                    }
+
+                    if (tieneConfig && tipo !== "escala") {
+                        cuerpo += `
+                            <details class="cq-detail-json">
+                                <summary>Ver configuración JSON</summary>
+                                <pre>${escaparHtml(p.configuracionJson)}</pre>
+                            </details>
+                        `;
+                    }
+
+                    return `
+                        <article class="cq-detail-question">
+                            <div class="cq-detail-question-head">
+                                <div class="cq-detail-question-number">${index + 1}</div>
+                                <div>
+                                    <strong>${escaparHtml(p.textoPregunta || "Pregunta sin texto")}</strong>
+                                    <small>
+                                        Tipo: ${escaparHtml(textoTipo(tipo))}
+                                        · Dimensión: ${escaparHtml(p.dimension || "Sin dimensión")}
+                                        · Obligatoria: ${escaparHtml(textoBool(p.obligatoria))}
+                                        · Activa: ${escaparHtml(textoBool(p.activa))}
+                                    </small>
+                                </div>
+                            </div>
+
+                            ${cuerpo}
+                        </article>
+                    `;
+                }).join("");
+            }
+
+            function renderDetalle(cuestionario) {
+                renderHero(cuestionario);
+
+                const preguntas = cuestionario.preguntas || [];
+                const totalOpciones = preguntas.reduce((acc, p) => acc + ((p.opciones || []).length), 0);
+                const totalEscalas = preguntas.filter(p => (p.tipoPregunta || "").toLowerCase() === "escala").length;
+                const dimensiones = new Set(
+                    preguntas
+                        .map(p => p.dimension)
+                        .filter(x => x && x.trim() !== "")
+                );
+
+                detalleContenido.innerHTML = `
+                    <div class="cq-detail-metrics">
+                        <div class="cq-detail-metric">
+                            <span>Estatus</span>
+                            <strong>${escaparHtml(cuestionario.estatus || "borrador")}</strong>
+                        </div>
+
+                        <div class="cq-detail-metric">
+                            <span>Preguntas</span>
+                            <strong>${escaparHtml(preguntas.length)}</strong>
+                        </div>
+
+                        <div class="cq-detail-metric">
+                            <span>Opciones</span>
+                            <strong>${escaparHtml(totalOpciones)}</strong>
+                        </div>
+
+                        <div class="cq-detail-metric">
+                            <span>Dimensiones</span>
+                            <strong>${escaparHtml(dimensiones.size)}</strong>
+                        </div>
+                    </div>
+
+                    <div class="cq-detail-metrics">
+                        <div class="cq-detail-metric">
+                            <span>Fecha creación</span>
+                            <strong style="font-size:1rem;">${escaparHtml(cuestionario.fechaCreacion || "Sin fecha")}</strong>
+                        </div>
+
+                        <div class="cq-detail-metric">
+                            <span>Creado por</span>
+                            <strong style="font-size:1rem;">
+                                ${escaparHtml(cuestionario.creadoPor || ("Usuario #" + cuestionario.creadoPorUsuarioId))}
+                            </strong>
+                        </div>
+
+                        <div class="cq-detail-metric">
+                            <span>Activo</span>
+                            <strong>${escaparHtml(textoBool(cuestionario.activo))}</strong>
+                        </div>
+
+                        <div class="cq-detail-metric">
+                            <span>Escalas</span>
+                            <strong>${escaparHtml(totalEscalas)}</strong>
+                        </div>
+                    </div>
+
+                    <h4 class="cq-detail-section-title">Preguntas del cuestionario</h4>
+
+                    ${renderPreguntas(preguntas)}
+                `;
+            }
+
+            async function cargarDetalle(cuestionarioId) {
+                detalleHero.innerHTML = `
+                    <button type="button" class="cq-detail-close" data-cerrar-detalle>×</button>
+                    <h3>Detalle del cuestionario</h3>
+                    <p>Estamos consultando la información registrada.</p>
+                    <div class="cq-detail-badges">
+                        <span class="cq-detail-badge">Cargando...</span>
+                    </div>
+                `;
+
+                detalleHero.querySelector("[data-cerrar-detalle]")
+                    .addEventListener("click", cerrarModalDetalle);
+
+                detalleContenido.innerHTML = `
+                    <div class="cq-detail-loading">
+                        Cargando información del cuestionario...
+                    </div>
+                `;
+
+                abrirModalDetalle();
+
+                try {
+                    const response = await fetch(`${detalleUrl}?cuestionarioId=${encodeURIComponent(cuestionarioId)}`);
+
+                    if (!response.ok) {
+                        throw new Error("No se pudo obtener el cuestionario.");
+                    }
+
+                    const data = await response.json();
+
+                    if (!data.ok) {
+                        throw new Error(data.mensaje || "No se pudo obtener el cuestionario.");
+                    }
+
+                    renderDetalle(data.cuestionario);
+                } catch (error) {
+                    detalleContenido.innerHTML = `
+                        <div class="cq-detail-error">
+                            ${escaparHtml(error.message || "Ocurrió un error al consultar el cuestionario.")}
+                        </div>
+                    `;
+                }
+            }
+
+            document.querySelectorAll("[data-ver-cuestionario]").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const cuestionarioId = btn.getAttribute("data-ver-cuestionario");
+                    cargarDetalle(cuestionarioId);
+                });
+            });
+
+            document.querySelectorAll("[data-cerrar-detalle]").forEach(btn => {
+                btn.addEventListener("click", cerrarModalDetalle);
+            });
+
+            modal.addEventListener("click", event => {
+                if (event.target === modal) {
+                    cerrarModalDetalle();
+                }
+            });
+
+            document.addEventListener("keydown", event => {
+                if (event.key === "Escape" && modal.classList.contains("open")) {
+                    cerrarModalDetalle();
+                }
+            });
+        });
+    </script>
+}

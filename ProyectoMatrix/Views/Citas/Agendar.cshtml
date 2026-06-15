@@ -1,0 +1,1166 @@
+@using System.Globalization
+@using ProyectoMatrix.Models
+@model ProyectoMatrix.Models.AgendarCitaVm
+
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Agendar Cita";
+
+    var cultura = CultureInfo.GetCultureInfo("es-MX");
+    var ahora = DateTime.Now;
+
+    var slots = Model.Slots ?? new List<SlotDisponibleVm>();
+
+    var fechas = slots
+        .GroupBy(x => x.Fecha.Date)
+        .OrderBy(x => x.Key)
+        .ToList();
+
+    var primerDiaDisponible = fechas
+        .Where(g => g.Any(s =>
+            s.Disponible &&
+            s.Fecha.Date >= ahora.Date &&
+            s.Fecha.Date.Add(s.HoraInicio) > ahora))
+        .Select(g => g.Key)
+        .FirstOrDefault();
+
+    var primerDia = primerDiaDisponible != DateTime.MinValue
+        ? primerDiaDisponible
+        : fechas.FirstOrDefault()?.Key ?? DateTime.Today;
+
+    var slotsManana = slots
+        .Where(x => x.HoraInicio < new TimeSpan(12, 0, 0))
+        .OrderBy(x => x.Fecha)
+        .ThenBy(x => x.HoraInicio)
+        .ToList();
+
+    var slotsTarde = slots
+        .Where(x => x.HoraInicio >= new TimeSpan(12, 0, 0))
+        .OrderBy(x => x.Fecha)
+        .ThenBy(x => x.HoraInicio)
+        .ToList();
+
+    var totalFechas = fechas.Count;
+
+    var totalHorariosDisponibles = slots.Count(x =>
+        x.Disponible &&
+        x.Fecha.Date >= ahora.Date &&
+        x.Fecha.Date.Add(x.HoraInicio) > ahora);
+
+    var totalHorarios = slots.Count;
+}
+
+@functions {
+    private static string Hora(TimeSpan hora)
+    {
+        return hora.ToString(@"hh\:mm");
+    }
+
+    private static string Hora12(TimeSpan hora)
+    {
+        var date = DateTime.Today.Add(hora);
+        return date.ToString("hh:mm", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static string Meridiano(TimeSpan hora)
+    {
+        return hora.Hours < 12 ? "AM" : "PM";
+    }
+
+    private static string FechaIso(DateTime fecha)
+    {
+        return fecha.ToString("yyyy-MM-dd");
+    }
+
+    private static string FechaLarga(DateTime fecha)
+    {
+        return fecha.ToString("dddd, dd 'de' MMMM 'de' yyyy", CultureInfo.GetCultureInfo("es-MX"));
+    }
+
+    private static string FechaCorta(DateTime fecha)
+    {
+        return fecha.ToString("dd MMM", CultureInfo.GetCultureInfo("es-MX"));
+    }
+
+    private static string DiaCorto(DateTime fecha)
+    {
+        return fecha.ToString("ddd", CultureInfo.GetCultureInfo("es-MX")).ToUpperInvariant();
+    }
+
+    private static string RangoHora(TimeSpan inicio, TimeSpan fin)
+    {
+        return $"{Hora(inicio)} - {Hora(fin)}";
+    }
+
+    private static bool SlotEstaBloqueado(SlotDisponibleVm slot, DateTime ahora)
+    {
+        var fechaHoraInicio = slot.Fecha.Date.Add(slot.HoraInicio);
+
+        return !slot.Disponible || fechaHoraInicio <= ahora;
+    }
+
+    private static string MotivoBloqueoSlot(SlotDisponibleVm slot, DateTime ahora)
+    {
+        var fechaHoraInicio = slot.Fecha.Date.Add(slot.HoraInicio);
+
+        if (fechaHoraInicio <= ahora)
+            return "Horario vencido";
+
+        if (!slot.Disponible)
+            return "Horario ocupado";
+
+        return "Disponible";
+    }
+}
+
+<style>
+    .agendar-page {
+        --ag-bg: #f6f8fc;
+        --ag-card: #ffffff;
+        --ag-border: #e6eaf2;
+        --ag-text: #172033;
+        --ag-muted: #6b7280;
+        --ag-green: #10b981;
+        --ag-green-dark: #047857;
+        --ag-green-soft: #d1fae5;
+        --ag-blue: #2563eb;
+        --ag-blue-soft: #dbeafe;
+        --ag-yellow-soft: #fef3c7;
+        --ag-yellow-text: #b45309;
+        --ag-red-soft: #fee2e2;
+        --ag-red-text: #b91c1c;
+        --ag-gray-soft: #f3f4f6;
+        --ag-gray-text: #6b7280;
+        color: var(--ag-text);
+    }
+
+    .ag-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .ag-header h2 {
+        font-weight: 900;
+        margin-bottom: .25rem;
+        letter-spacing: -.03em;
+    }
+
+    .ag-header p {
+        color: var(--ag-muted);
+        margin-bottom: 0;
+    }
+
+    .ag-header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .65rem;
+    }
+
+    .ag-shell {
+        background: var(--ag-bg);
+        border: 1px solid var(--ag-border);
+        border-radius: 24px;
+        padding: 1.5rem;
+    }
+
+    .ag-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .ag-kpi,
+    .ag-card {
+        background: var(--ag-card);
+        border: 1px solid var(--ag-border);
+        border-radius: 20px;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, .06);
+    }
+
+    .ag-kpi {
+        padding: 1.1rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ag-kpi::after {
+        content: "";
+        position: absolute;
+        top: -28px;
+        right: -28px;
+        width: 86px;
+        height: 86px;
+        border-radius: 50%;
+        opacity: .13;
+        background: var(--ag-green);
+    }
+
+    .ag-kpi.blue::after {
+        background: var(--ag-blue);
+    }
+
+    .ag-kpi.yellow::after {
+        background: #f59e0b;
+    }
+
+    .ag-kpi-label {
+        color: var(--ag-muted);
+        text-transform: uppercase;
+        font-size: .72rem;
+        letter-spacing: .08em;
+        font-weight: 900;
+    }
+
+    .ag-kpi-value {
+        display: block;
+        margin-top: .55rem;
+        font-size: 1.55rem;
+        line-height: 1.1;
+        font-weight: 950;
+        color: var(--ag-text);
+    }
+
+    .ag-kpi-caption {
+        display: block;
+        margin-top: .35rem;
+        color: var(--ag-muted);
+        font-size: .88rem;
+        font-weight: 650;
+    }
+
+    .ag-grid-main {
+        display: grid;
+        grid-template-columns: minmax(280px, .75fr) minmax(0, 1.25fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .ag-card-head {
+        padding: 1.25rem 1.25rem 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .ag-card-head h4 {
+        margin-bottom: .25rem;
+        font-weight: 850;
+        letter-spacing: -.02em;
+    }
+
+    .ag-card-head p {
+        margin-bottom: 0;
+        color: var(--ag-muted);
+    }
+
+    .ag-card-body {
+        padding: 1.25rem;
+    }
+
+    .ag-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        border-radius: 999px;
+        padding: .4rem .7rem;
+        background: var(--ag-green-soft);
+        color: var(--ag-green-dark);
+        font-size: .76rem;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .ag-pill.info {
+        background: var(--ag-blue-soft);
+        color: #1d4ed8;
+    }
+
+    .ag-pill.warning {
+        background: var(--ag-yellow-soft);
+        color: var(--ag-yellow-text);
+    }
+
+    .ag-pill.muted {
+        background: var(--ag-gray-soft);
+        color: var(--ag-gray-text);
+    }
+
+    .ag-info-list {
+        display: grid;
+        gap: .85rem;
+    }
+
+    .ag-info-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid var(--ag-border);
+        padding-bottom: .75rem;
+    }
+
+    .ag-info-item:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .ag-info-item span {
+        color: var(--ag-muted);
+        font-weight: 800;
+        font-size: .85rem;
+    }
+
+    .ag-info-item strong {
+        text-align: right;
+        font-weight: 850;
+    }
+
+    .ag-date-list {
+        display: grid;
+        gap: .65rem;
+        max-height: 420px;
+        overflow: auto;
+        padding-right: .25rem;
+    }
+
+    .ag-date-btn {
+        width: 100%;
+        border: 1px solid var(--ag-border);
+        background: #fff;
+        border-radius: 16px;
+        padding: .9rem;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: .8rem;
+        text-align: left;
+        cursor: pointer;
+        transition: .16s ease;
+    }
+
+    .ag-date-btn:hover {
+        border-color: var(--ag-green-dark);
+        background: #f0fdf4;
+    }
+
+    .ag-date-btn.active {
+        border-color: var(--ag-green-dark);
+        background: #ecfdf5;
+        box-shadow: 0 0 0 .2rem rgba(16, 185, 129, .10);
+    }
+
+    .ag-date-btn.is-disabled {
+        background: #f3f4f6;
+        color: #9ca3af;
+        border-color: #e5e7eb;
+        cursor: not-allowed;
+        opacity: .78;
+    }
+
+    .ag-date-btn.is-disabled:hover {
+        border-color: #e5e7eb;
+        background: #f3f4f6;
+    }
+
+    .ag-date-btn.is-disabled.active {
+        border-color: #d1d5db;
+        background: #f3f4f6;
+        box-shadow: none;
+    }
+
+    .ag-date-day {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        background: #f1f5f9;
+        display: grid;
+        place-items: center;
+        color: var(--ag-text);
+        font-weight: 950;
+        line-height: 1.05;
+    }
+
+    .ag-date-btn.active .ag-date-day {
+        background: var(--ag-green-dark);
+        color: #fff;
+    }
+
+    .ag-date-btn.is-disabled .ag-date-day {
+        background: #e5e7eb;
+        color: #9ca3af;
+    }
+
+    .ag-date-day small {
+        display: block;
+        font-size: .62rem;
+        font-weight: 950;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .ag-date-text strong {
+        display: block;
+        font-weight: 900;
+        text-transform: capitalize;
+    }
+
+    .ag-date-text small {
+        display: block;
+        color: var(--ag-muted);
+        margin-top: .15rem;
+        font-weight: 700;
+    }
+
+    .ag-date-btn.is-disabled .ag-date-text small {
+        color: #9ca3af;
+    }
+
+    .ag-date-count {
+        border-radius: 999px;
+        background: #eef4ff;
+        color: #1d4ed8;
+        padding: .35rem .6rem;
+        font-size: .75rem;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .ag-date-count.disabled {
+        background: #e5e7eb;
+        color: #6b7280;
+    }
+
+    .ag-slot-section {
+        margin-bottom: 1.25rem;
+    }
+
+    .ag-slot-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .ag-slot-title {
+        color: var(--ag-muted);
+        font-size: .78rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        margin-bottom: .75rem;
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+    }
+
+    .ag-slot-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .65rem;
+    }
+
+    .ag-slot-btn {
+    display: grid;
+    place-items: center;
+    gap: .15rem;
+    }
+
+    .slot-hour {
+        display: block;
+        font-size: .98rem;
+        font-weight: 950;
+        line-height: 1;
+    }
+
+    .slot-period {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        border-radius: 999px;
+        padding: .12rem .4rem;
+        background: #eef4ff;
+        color: #1d4ed8;
+        font-size: .65rem;
+        font-weight: 950;
+        letter-spacing: .08em;
+    }
+
+    .ag-slot-btn.active .slot-period {
+        background: rgba(255, 255, 255, .22);
+        color: #fff;
+    }
+
+    .ag-slot-btn.is-disabled .slot-period {
+        background: #e5e7eb;
+        color: #9ca3af;
+    }
+
+    .ag-slot-btn:hover {
+        border-color: var(--ag-green-dark);
+        background: #b1b8b3;
+    }
+
+    .ag-slot-btn.active {
+        background: var(--ag-green-dark);
+        border-color: var(--ag-green-dark);
+        color: #fff;
+        box-shadow: 0 12px 24px rgba(4, 120, 87, .18);
+    }
+
+    .ag-slot-btn.is-disabled {
+        background: #f3f4f6;
+        border-color: #e5e7eb;
+        color: #9ca3af;
+        cursor: not-allowed;
+        text-decoration: line-through;
+        box-shadow: none;
+    }
+
+    .ag-slot-btn.is-disabled:hover {
+        background: #f3f4f6;
+        border-color: #e5e7eb;
+    }
+
+    .ag-slot-btn.is-disabled::after {
+        content: attr(data-reason);
+        display: block;
+        font-size: .65rem;
+        font-weight: 800;
+        text-decoration: none;
+        margin-top: .2rem;
+        color: #6b7280;
+    }
+
+    .ag-summary {
+        background: linear-gradient(135deg, #ffffff, #eef6ff);
+        border: 1px solid #dbeafe;
+        border-radius: 18px;
+        padding: 1rem;
+        display: grid;
+        gap: .75rem;
+    }
+
+    .ag-summary-main {
+        font-weight: 950;
+        font-size: 1.05rem;
+    }
+
+    .ag-summary-sub {
+        color: var(--ag-muted);
+        font-weight: 750;
+    }
+
+    .ag-summary-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        border-top: 1px solid #dbeafe;
+        padding-top: .75rem;
+    }
+
+    .ag-summary-row span {
+        color: var(--ag-muted);
+        font-weight: 800;
+    }
+
+    .ag-summary-row strong {
+        text-align: right;
+    }
+
+    .ag-footer {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--ag-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .ag-footer-note {
+        color: var(--ag-muted);
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    .ag-empty {
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+        color: var(--ag-muted);
+        border-radius: 16px;
+        padding: 1rem;
+        text-align: center;
+        font-weight: 800;
+    }
+
+    .ag-actions {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: .65rem;
+    }
+
+    .btn-ag-primary {
+        background: #030712;
+        color: #fff;
+        border-color: #030712;
+        font-weight: 850;
+        border-radius: 12px;
+        min-height: 42px;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .btn-ag-primary:hover {
+        background: #000;
+        color: #fff;
+    }
+
+    .btn-ag-primary:disabled {
+        background: #9ca3af;
+        border-color: #9ca3af;
+        cursor: not-allowed;
+    }
+
+    .btn-ag-secondary {
+        border-radius: 12px;
+        min-height: 42px;
+        font-weight: 850;
+    }
+
+    @@media (max-width: 1200px) {
+        .ag-slot-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 992px) {
+        .ag-header,
+        .ag-card-head,
+        .ag-footer {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .ag-header-actions,
+        .ag-actions {
+            justify-content: flex-start;
+            width: 100%;
+        }
+
+        .ag-kpi-grid,
+        .ag-grid-main {
+            grid-template-columns: 1fr;
+        }
+
+        .ag-slot-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .ag-shell {
+            padding: 1rem;
+        }
+
+        .ag-kpi-grid,
+        .ag-slot-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .ag-date-btn {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .ag-date-count {
+            grid-column: 1 / -1;
+            width: fit-content;
+        }
+    }
+</style>
+
+<div class="container py-4 agendar-page">
+    <div class="ag-header">
+        <div>
+            <h2>Agendar Cita de Mapeo</h2>
+            <p>Selecciona una fecha y un horario disponible para tu sesión de mapeo de talento.</p>
+        </div>
+
+        <div class="ag-header-actions">
+            <a class="btn btn-outline-secondary btn-ag-secondary" asp-controller="Citas" asp-action="Index">
+                ← Volver al panel
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["CitasOk"] != null)
+    {
+        <div class="alert alert-success">
+            @TempData["CitasOk"]
+        </div>
+    }
+
+    @if (TempData["CitasError"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["CitasError"]
+        </div>
+    }
+
+    <section class="ag-shell">
+        <form asp-controller="Citas" asp-action="Agendar" method="post" id="formAgendarCita">
+            @Html.AntiForgeryToken()
+
+            <input type="hidden" asp-for="AgendaID" />
+            <input type="hidden" asp-for="AgendaEmpresaID" />
+            <input type="hidden" name="FechaCita" id="FechaCita" />
+            <input type="hidden" name="HoraInicio" id="HoraInicio" />
+            <input type="hidden" name="HoraFin" id="HoraFin" />
+
+            <div class="ag-kpi-grid">
+                <article class="ag-kpi">
+                    <div class="ag-kpi-label">Evento</div>
+                    <strong class="ag-kpi-value">@Model.NombreEvento</strong>
+                    <span class="ag-kpi-caption">Mapeo de talento y competencias</span>
+                </article>
+
+                <article class="ag-kpi blue">
+                    <div class="ag-kpi-label">Fechas configuradas</div>
+                    <strong class="ag-kpi-value">@totalFechas</strong>
+                    <span class="ag-kpi-caption">Días mostrados</span>
+                </article>
+
+                <article class="ag-kpi yellow">
+                    <div class="ag-kpi-label">Horarios disponibles</div>
+                    <strong class="ag-kpi-value">@totalHorariosDisponibles</strong>
+                    <span class="ag-kpi-caption">De @totalHorarios horarios configurados</span>
+                </article>
+
+                <article class="ag-kpi">
+                    <div class="ag-kpi-label">Duración estimada</div>
+                    <strong class="ag-kpi-value">40 min</strong>
+                    <span class="ag-kpi-caption">Una persona por horario</span>
+                </article>
+            </div>
+
+            <div class="ag-grid-main">
+                <aside>
+                    <article class="ag-card mb-3">
+                        <div class="ag-card-head">
+                            <div>
+                                <h4>Información del evento</h4>
+                                <p>Periodo autorizado para solicitar cita.</p>
+                            </div>
+
+                            <span class="ag-pill">Activo</span>
+                        </div>
+
+                        <div class="ag-card-body">
+                            <div class="ag-info-list">
+                                <div class="ag-info-item">
+                                    <span>Evento</span>
+                                    <strong>@Model.NombreEvento</strong>
+                                </div>
+
+                                <div class="ag-info-item">
+                                    <span>Inicio de solicitud</span>
+                                    <strong>@Model.FechaInicioSolicitud.ToString("dd/MM/yyyy HH:mm")</strong>
+                                </div>
+
+                                <div class="ag-info-item">
+                                    <span>Fin de solicitud</span>
+                                    <strong>@Model.FechaFinSolicitud.ToString("dd/MM/yyyy HH:mm")</strong>
+                                </div>
+
+                                <div class="ag-info-item">
+                                    <span>Tipo de evaluación</span>
+                                    <strong>Mapeo de talento</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="ag-card">
+                        <div class="ag-card-head">
+                            <div>
+                                <h4>Selecciona una fecha</h4>
+                                <p>Días configurados por RH. Los días sin espacios se muestran bloqueados.</p>
+                            </div>
+
+                            <span class="ag-pill info">@totalFechas días</span>
+                        </div>
+
+                        <div class="ag-card-body">
+                            @if (!fechas.Any())
+                            {
+                                <div class="ag-empty">
+                                    No hay fechas configuradas por el momento.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="ag-date-list">
+                                    @foreach (var grupo in fechas)
+                                    {
+                                        var fecha = grupo.Key;
+
+                                        var disponiblesFecha = grupo.Count(s =>
+                                            s.Disponible &&
+                                            s.Fecha.Date >= ahora.Date &&
+                                            s.Fecha.Date.Add(s.HoraInicio) > ahora);
+
+                                        var fechaBloqueada = disponiblesFecha <= 0;
+                                        var active = fecha == primerDia ? "active" : "";
+                                        var disabledClass = fechaBloqueada ? "is-disabled" : "";
+
+                                        <button type="button"
+                                                class="ag-date-btn @active @disabledClass"
+                                                data-date="@FechaIso(fecha)"
+                                                data-display="@FechaLarga(fecha)"
+                                                data-disabled="@fechaBloqueada.ToString().ToLowerInvariant()">
+                                            <span class="ag-date-day">
+                                                <span>
+                                                    @fecha.Day
+                                                    <small>@DiaCorto(fecha)</small>
+                                                </span>
+                                            </span>
+
+                                            <span class="ag-date-text">
+                                                <strong>@FechaCorta(fecha)</strong>
+                                                <small>@FechaLarga(fecha)</small>
+                                            </span>
+
+                                            <span class="ag-date-count @(fechaBloqueada ? "disabled" : "")">
+                                                @(disponiblesFecha > 0 ? $"{disponiblesFecha} disponibles" : "Sin espacios")
+                                            </span>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </article>
+                </aside>
+
+                <main class="ag-card">
+                    <div class="ag-card-head">
+                        <div>
+                            <h4>Horarios disponibles</h4>
+                            <p>Elige el horario que mejor se ajuste a tu disponibilidad.</p>
+                        </div>
+
+                        <span class="ag-pill warning" id="FechaSeleccionadaPill">
+                            Selecciona fecha
+                        </span>
+                    </div>
+
+                    <div class="ag-card-body">
+                        @if (!slots.Any())
+                        {
+                            <div class="ag-empty">
+                                No hay horarios configurados para esta agenda.
+                            </div>
+                        }
+                        else
+                        {
+                            @if (slotsManana.Any())
+                            {
+                                <section class="ag-slot-section">
+                                    <div class="ag-slot-title">☀ AM</div>
+
+                                    <div class="ag-slot-grid">
+                                        @foreach (var slot in slotsManana)
+                                        {
+                                            var bloqueado = SlotEstaBloqueado(slot, ahora);
+                                            var motivo = MotivoBloqueoSlot(slot, ahora);
+
+                                            <button type="button"
+                                                    class="ag-slot-btn @(bloqueado ? "is-disabled" : "")"
+                                                    data-date="@FechaIso(slot.Fecha)"
+                                                    data-start="@Hora(slot.HoraInicio)"
+                                                    data-end="@Hora(slot.HoraFin)"
+                                                    data-disabled="@bloqueado.ToString().ToLowerInvariant()"
+                                                    data-reason="@motivo"
+                                                    aria-disabled="@bloqueado.ToString().ToLowerInvariant()"
+                                                    title="@motivo">
+                                                <span class="slot-hour">@Hora12(slot.HoraInicio)</span>
+                                                <span class="slot-period">@Meridiano(slot.HoraInicio)</span>
+                                            </button>
+                                        }
+                                    </div>
+                                </section>
+                            }
+
+                            @if (slotsTarde.Any())
+                            {
+                                <section class="ag-slot-section">
+                                    <div class="ag-slot-title">◐ PM</div>
+
+                                    <div class="ag-slot-grid">
+                                        @foreach (var slot in slotsTarde)
+                                        {
+                                            var bloqueado = SlotEstaBloqueado(slot, ahora);
+                                            var motivo = MotivoBloqueoSlot(slot, ahora);
+
+                                            <button type="button"
+                                                    class="ag-slot-btn @(bloqueado ? "is-disabled" : "")"
+                                                    data-date="@FechaIso(slot.Fecha)"
+                                                    data-start="@Hora(slot.HoraInicio)"
+                                                    data-end="@Hora(slot.HoraFin)"
+                                                    data-disabled="@bloqueado.ToString().ToLowerInvariant()"
+                                                    data-reason="@motivo"
+                                                    aria-disabled="@bloqueado.ToString().ToLowerInvariant()"
+                                                    title="@motivo">
+                                                <span class="slot-hour">@Hora12(slot.HoraInicio)</span>
+                                                <span class="slot-period">@Meridiano(slot.HoraInicio)</span>
+                                            </button>
+                                        }
+                                    </div>
+                                </section>
+                            }
+
+                            <div class="ag-empty" id="SinHorariosFecha" style="display:none;">
+                                No hay horarios disponibles para la fecha seleccionada.
+                            </div>
+
+                            <div class="ag-summary mt-4">
+                                <div>
+                                    <div class="ag-summary-main" id="ResumenFecha">
+                                        Selecciona una fecha
+                                    </div>
+                                    <div class="ag-summary-sub" id="ResumenHora">
+                                        Después elige un horario disponible.
+                                    </div>
+                                </div>
+
+                                <div class="ag-summary-row">
+                                    <span>Evento</span>
+                                    <strong>@Model.NombreEvento</strong>
+                                </div>
+
+                                <div class="ag-summary-row">
+                                    <span>Duración estimada</span>
+                                    <strong>40 minutos</strong>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="ag-footer">
+                            <div class="ag-footer-note">
+                                <span>ⓘ</span>
+                                <span>Los horarios en gris ya vencieron o están ocupados.</span>
+                            </div>
+
+                            <div class="ag-actions">
+                                <a class="btn btn-outline-secondary btn-ag-secondary" asp-controller="Citas" asp-action="Index">
+                                    Cancelar
+                                </a>
+
+                                <button type="submit" class="btn btn-ag-primary" id="btnConfirmar" disabled>
+                                    Confirmar Agendamiento
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </form>
+    </section>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const dateButtons = document.querySelectorAll(".ag-date-btn[data-date]");
+        const slotButtons = document.querySelectorAll(".ag-slot-btn");
+
+        const fechaInput = document.getElementById("FechaCita");
+        const horaInicioInput = document.getElementById("HoraInicio");
+        const horaFinInput = document.getElementById("HoraFin");
+
+        const resumenFecha = document.getElementById("ResumenFecha");
+        const resumenHora = document.getElementById("ResumenHora");
+        const btnConfirmar = document.getElementById("btnConfirmar");
+        const fechaSeleccionadaPill = document.getElementById("FechaSeleccionadaPill");
+        const sinHorariosFecha = document.getElementById("SinHorariosFecha");
+        const form = document.getElementById("formAgendarCita");
+
+        let selectedDate = null;
+        let selectedDateDisplay = null;
+        let selectedStart = null;
+        let selectedEnd = null;
+
+        function formatIsoDate(isoDate) {
+            if (!isoDate) return "";
+
+            const parts = isoDate.split("-");
+
+            if (parts.length !== 3) return isoDate;
+
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        function isDisabled(element) {
+            return element.getAttribute("data-disabled") === "true";
+        }
+
+        function clearSlotSelection() {
+            selectedStart = null;
+            selectedEnd = null;
+
+            slotButtons.forEach(slot => {
+                slot.classList.remove("active");
+            });
+        }
+
+        function updateSlotsVisibility() {
+            let visibles = 0;
+            let disponibles = 0;
+
+            slotButtons.forEach(slot => {
+                const slotDate = slot.getAttribute("data-date");
+                const visible = !selectedDate || slotDate === selectedDate;
+
+                slot.style.display = visible ? "" : "none";
+
+                if (visible) {
+                    visibles++;
+
+                    if (!isDisabled(slot)) {
+                        disponibles++;
+                    }
+                }
+            });
+
+            if (sinHorariosFecha) {
+                sinHorariosFecha.style.display = visibles === 0 || disponibles === 0 ? "" : "none";
+                sinHorariosFecha.textContent = visibles === 0
+                    ? "No hay horarios configurados para la fecha seleccionada."
+                    : "Todos los horarios de esta fecha ya vencieron o están ocupados.";
+            }
+        }
+
+        function updateSummary() {
+            if (selectedDate) {
+                fechaInput.value = selectedDate;
+                resumenFecha.textContent = selectedDateDisplay || formatIsoDate(selectedDate);
+
+                if (fechaSeleccionadaPill) {
+                    fechaSeleccionadaPill.textContent = formatIsoDate(selectedDate);
+                    fechaSeleccionadaPill.classList.remove("muted");
+                }
+            } else {
+                fechaInput.value = "";
+                resumenFecha.textContent = "Selecciona una fecha";
+
+                if (fechaSeleccionadaPill) {
+                    fechaSeleccionadaPill.textContent = "Selecciona fecha";
+                    fechaSeleccionadaPill.classList.add("muted");
+                }
+            }
+
+            if (selectedStart && selectedEnd) {
+                horaInicioInput.value = selectedStart;
+                horaFinInput.value = selectedEnd;
+                resumenHora.textContent = `${selectedStart} - ${selectedEnd}`;
+                btnConfirmar.disabled = false;
+            } else {
+                horaInicioInput.value = "";
+                horaFinInput.value = "";
+                resumenHora.textContent = "Después elige un horario disponible.";
+                btnConfirmar.disabled = true;
+            }
+        }
+
+        function selectDate(btn) {
+            if (!btn) return;
+
+            dateButtons.forEach(x => x.classList.remove("active"));
+            btn.classList.add("active");
+
+            selectedDate = btn.getAttribute("data-date");
+            selectedDateDisplay = btn.getAttribute("data-display");
+
+            clearSlotSelection();
+            updateSlotsVisibility();
+            updateSummary();
+        }
+
+        function selectFirstEnabledDate() {
+            const enabledDate = Array.from(dateButtons)
+                .find(btn => !isDisabled(btn));
+
+            if (enabledDate) {
+                selectDate(enabledDate);
+                return;
+            }
+
+            if (dateButtons.length > 0) {
+                selectDate(dateButtons[0]);
+                return;
+            }
+
+            updateSlotsVisibility();
+            updateSummary();
+        }
+
+        dateButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                if (isDisabled(btn)) {
+                    selectDate(btn);
+                    return;
+                }
+
+                selectDate(btn);
+            });
+        });
+
+        slotButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                if (isDisabled(btn)) {
+                    return;
+                }
+
+                const slotDate = btn.getAttribute("data-date");
+
+                if (!selectedDate || selectedDate !== slotDate) {
+                    selectedDate = slotDate;
+
+                    dateButtons.forEach(dateBtn => {
+                        const isActive = dateBtn.getAttribute("data-date") === selectedDate;
+                        dateBtn.classList.toggle("active", isActive);
+
+                        if (isActive) {
+                            selectedDateDisplay = dateBtn.getAttribute("data-display");
+                        }
+                    });
+
+                    updateSlotsVisibility();
+                }
+
+                slotButtons.forEach(x => x.classList.remove("active"));
+                btn.classList.add("active");
+
+                selectedStart = btn.getAttribute("data-start");
+                selectedEnd = btn.getAttribute("data-end");
+
+                updateSummary();
+            });
+        });
+
+        selectFirstEnabledDate();
+
+        if (form) {
+            form.addEventListener("submit", event => {
+                if (!fechaInput.value || !horaInicioInput.value || !horaFinInput.value) {
+                    event.preventDefault();
+                    alert("Selecciona una fecha y un horario disponible antes de confirmar.");
+                }
+            });
+        }
+    });
+</script>
