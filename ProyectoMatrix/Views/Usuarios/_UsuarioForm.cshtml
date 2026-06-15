@@ -1,4 +1,5 @@
 ﻿@using System.Linq
+@using Microsoft.AspNetCore.Mvc.Rendering
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @using ProyectoMatrix.Models.ModelUsuarios
 @model UsuarioFormViewModel
@@ -116,7 +117,7 @@
                             <input asp-for="Telefono" class="form-control form-control-modern" placeholder="+52 000 000 0000" />
                         </div>
                         <div class="col-12">
-                            <label asp-for="Correo" class="form-label-modern"></label>
+                            <label asp-for="Correo" class="form-label-modern">Correo electrónico <span class="text-muted fw-normal">(opcional)</span></label>
                             <input asp-for="Correo" type="email" class="form-control form-control-modern" placeholder="correo@ejemplo.com" />
                             <span asp-validation-for="Correo" class="text-danger small"></span>
                         </div>
@@ -151,20 +152,41 @@
                         </div>
 
 
+                        @{
+                            var departamentos = ViewBag.Departamentos as IEnumerable<SelectListItem> 
+                                                ?? Enumerable.Empty<SelectListItem>();
+
+                            var departamentoActual = Model.DepartamentoID?.ToString();
+                        }
+
                         <div class="col-md-12 mb-3">
                             <label asp-for="DepartamentoID" class="form-label-modern">Departamento</label>
+
                             <div style="position: relative;">
                                 <i class="fas fa-sitemap text-primary"
-                                   style="position:absolute; left:10px; top:50%; transform:translateY(-50%); z-index:10; pointer-events:none;"></i>
+                                style="position:absolute; left:10px; top:50%; transform:translateY(-50%); z-index:10; pointer-events:none;"></i>
 
                                 <select asp-for="DepartamentoID"
                                         id="selectDepartamento"
-                                        class="form-select"
-                                        style="padding-left: 32px;"
-                                        asp-items="ViewBag.Departamentos">
+                                        name="DepartamentoID"
+                                        class="form-select form-control-modern"
+                                        style="padding-left: 32px;">
                                     <option value="">-- Seleccione un Departamento --</option>
+
+                                    @foreach (var depto in departamentos)
+                                    {
+                                        if (depto.Value == departamentoActual)
+                                        {
+                                            <option value="@depto.Value" selected>@depto.Text</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@depto.Value">@depto.Text</option>
+                                        }
+                                    }
                                 </select>
                             </div>
+
                             <span asp-validation-for="DepartamentoID" class="text-danger small"></span>
                         </div>
 
@@ -462,6 +484,24 @@
             </div>
         </div>
     }
+</div>
+
+<!-- MODAL DE CONFIRMACIÓN PARA GUARDADO AJAX -->
+<div class="modal fade" id="modalUsuarioGuardado" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Cambios guardados</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p id="modalUsuarioGuardadoMensaje" class="mb-0">Los cambios se han guardado correctamente.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="btnModalUsuarioGuardadoOk" data-bs-dismiss="modal">Aceptar</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ESTILOS -->
@@ -839,6 +879,80 @@
 </style>
 
 <script>
+    // ===== GUARDADO DEL FORMULARIO DE USUARIO =====
+    (function () {
+        const userForm = document.getElementById('user-form');
+        if (!userForm) return;
+
+        function mostrarModalConfirmacion(message, redirectUrl) {
+            const modalEl = document.getElementById('modalUsuarioGuardado');
+            const msgEl = document.getElementById('modalUsuarioGuardadoMensaje');
+            if (msgEl) msgEl.textContent = message || 'Los cambios se han guardado correctamente.';
+
+            if (!modalEl || !window.bootstrap?.Modal) {
+                alert(message || 'Los cambios se han guardado correctamente.');
+                if (redirectUrl) window.location.href = redirectUrl;
+                return;
+            }
+
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modalEl.addEventListener('hidden.bs.modal', function handler() {
+                modalEl.removeEventListener('hidden.bs.modal', handler);
+                if (redirectUrl) window.location.href = redirectUrl;
+            });
+            modal.show();
+        }
+
+        userForm.addEventListener('submit', async function (e) {
+            if (window.jQuery && $.validator && !$(userForm).valid()) return;
+
+            e.preventDefault();
+
+            const submitBtn = userForm.querySelector('button[type="submit"]');
+            const originalHtml = submitBtn?.innerHTML;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+            }
+
+            try {
+                const response = await fetch(userForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: new FormData(userForm),
+                    credentials: 'same-origin'
+                });
+
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const data = await response.json();
+                    if (!response.ok || !data?.ok) throw new Error(data?.message || 'No fue posible guardar los cambios.');
+                    mostrarModalConfirmacion(data.message, data.redirectUrl);
+                    return;
+                }
+
+                const html = await response.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const updatedForm = doc.getElementById('user-form');
+                if (updatedForm) {
+                    userForm.outerHTML = updatedForm.outerHTML;
+                } else {
+                    throw new Error('La respuesta del servidor no pudo procesarse correctamente.');
+                }
+            } catch (err) {
+                alert(err.message || 'Error al guardar los cambios.');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHtml;
+                }
+            }
+        });
+    })();
+
     // ===== GESTOR DE PERMISOS =====
     (function () {
         const ovForm = document.getElementById('ov-form');
@@ -976,7 +1090,18 @@
         minimumInputLength: 1
     };
 
-        
+        // 1. Selector de Departamento vinculado directamente al campo DepartamentoID
+        $('#selectDepartamento').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: $('#user-form'),
+            placeholder: '-- Seleccione un Departamento --',
+            allowClear: true,
+            language: {
+                noResults: () => "No se encontraron resultados"
+            }
+        });
+
         // 2. Buscador de Jefes
         $('#selectJefe').select2({
             ...commonOptions,

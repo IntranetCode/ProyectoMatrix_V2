@@ -1,2882 +1,2289 @@
-﻿@model List<ProyectoMatrix.Models.Departamento>
-    
+﻿@model ProyectoMatrix.Models.OperacionesIndexVm
+@using System.Text.Json
+@using System.Text.Json.Serialization
+
 @{
-    ViewData["Title"] = "Tablero Operativo";
+    ViewData["Title"] = "Dashboard KPIs";
     Layout = "_LayoutComunicados";
 
-    var misPermisos = ViewBag.MisPermisos as List<int> ?? new List<int>();
+    var jsonOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
 }
+
+<style>
+
+:root {
+    --ops-bg-1: #eef6fc;
+    --ops-bg-2: #f8fafc;
+    --ops-bg-3: #e9f2f9;
+    --ops-navy: #082f49;
+    --ops-navy-2: #0f3d63;
+    --ops-blue: #0ea5e9;
+    --ops-blue-2: #0369a1;
+    --ops-cyan: #7dd3fc;
+    --ops-text: #0f172a;
+    --ops-muted: #64748b;
+    --ops-soft: #f8fafc;
+    --ops-soft-2: #eef6ff;
+    --ops-border: rgba(15, 23, 42, 0.11);
+    --ops-border-strong: rgba(15, 23, 42, 0.18);
+    --ops-white: #ffffff;
+    --ops-success: #16a34a;
+    --ops-warning: #f59e0b;
+    --ops-danger: #dc2626;
+    --ops-info: #0284c7;
+    --ops-shadow-sm: 0 8px 22px rgba(15, 23, 42, 0.06);
+    --ops-shadow-md: 0 14px 35px rgba(15, 23, 42, 0.10);
+    --ops-shadow-lg: 0 24px 70px rgba(15, 23, 42, 0.14);
+    --ops-radius-sm: 12px;
+    --ops-radius-md: 18px;
+    --ops-radius-lg: 24px;
+    --ops-radius-xl: 30px;
+}
+
+/* ----------------------------------------------------------
+   Fondo y ancho global para vistas de Operaciones
+   ---------------------------------------------------------- */
+
+body:has(.ops-shell),
+body:has(.kpis-shell),
+body:has(.ops-v2-page),
+body:has(.kpis-v2-page) {
+    background:
+        radial-gradient(circle at 8% 0%, rgba(14, 165, 233, 0.18), transparent 30%),
+        radial-gradient(circle at 92% 4%, rgba(8, 47, 73, 0.14), transparent 34%),
+        linear-gradient(135deg, var(--ops-bg-1) 0%, var(--ops-bg-2) 44%, var(--ops-bg-3) 100%) !important;
+    color: var(--ops-text) !important;
+}
+
+body:has(.ops-shell) .container,
+body:has(.kpis-shell) .container,
+body:has(.ops-v2-page) .container,
+body:has(.kpis-v2-page) .container,
+body:has(.ops-shell) .container-lg,
+body:has(.kpis-shell) .container-lg,
+body:has(.ops-shell) .container-xl,
+body:has(.kpis-shell) .container-xl,
+body:has(.ops-shell) .container-xxl,
+body:has(.kpis-shell) .container-xxl {
+    max-width: none !important;
+    width: 100% !important;
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+}
+
+.ops-v2-page,
+.kpis-v2-page {
+    min-height: calc(100vh - 72px) !important;
+    padding: 18px clamp(14px, 1.6vw, 28px) 30px !important;
+    background:
+        radial-gradient(circle at top left, rgba(14, 165, 233, 0.16), transparent 30%),
+        radial-gradient(circle at top right, rgba(8, 47, 73, 0.11), transparent 34%),
+        transparent !important;
+}
+
+.ops-shell,
+.kpis-shell {
+    width: min(100%, 1720px) !important;
+    max-width: calc(100vw - 76px) !important;
+    margin: 18px auto 32px !important;
+    padding: clamp(16px, 1.6vw, 26px) !important;
+    border-radius: var(--ops-radius-xl) !important;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(236, 247, 255, 0.72)) !important;
+    border: 1px solid rgba(255,255,255,0.72) !important;
+    box-shadow: var(--ops-shadow-lg) !important;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: visible;
+}
+
+.ops-shell::before,
+.kpis-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+        linear-gradient(90deg, rgba(14, 165, 233, 0.18), transparent 28%),
+        linear-gradient(180deg, rgba(255,255,255,0.45), transparent 30%);
+    opacity: .9;
+    z-index: 0;
+}
+
+.ops-shell > *,
+.kpis-shell > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* ----------------------------------------------------------
+   Encabezados / Hero
+   ---------------------------------------------------------- */
+
+.ops-header,
+.hero-card {
+    border-radius: var(--ops-radius-lg) !important;
+    border: 1px solid rgba(255,255,255,0.85) !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.96), rgba(224,242,254,0.92)) !important;
+    box-shadow: var(--ops-shadow-md) !important;
+}
+
+.ops-header {
+    padding: clamp(18px, 1.8vw, 28px) !important;
+    margin-bottom: 18px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 18px !important;
+}
+
+.hero-card {
+    padding: clamp(18px, 1.8vw, 28px) !important;
+    margin-bottom: 18px !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.ops-header::after,
+.hero-card::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 7px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--ops-blue), var(--ops-navy-2));
+    border-radius: 999px;
+    opacity: .95;
+}
+
+.ops-title,
+.hero-title {
+    font-size: clamp(2rem, 3.1vw, 3.35rem) !important;
+    line-height: 0.96 !important;
+    font-weight: 950 !important;
+    letter-spacing: -0.055em !important;
+    margin: 0 !important;
+    color: var(--ops-text) !important;
+    text-shadow: 0 1px 0 rgba(255,255,255,.8);
+}
+
+.ops-subtitle,
+.hero-subtitle {
+    color: #475569 !important;
+    font-weight: 700 !important;
+    line-height: 1.55 !important;
+    margin: 8px 0 0 !important;
+    max-width: 920px !important;
+}
+
+.ops-title-eyebrow,
+.ops-pill,
+.pill-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    border-radius: 999px !important;
+    padding: 7px 13px !important;
+    background: linear-gradient(135deg, #dff5ff, #cfeeff) !important;
+    border: 1px solid rgba(14, 165, 233, 0.20) !important;
+    color: #075985 !important;
+    font-size: .74rem !important;
+    font-weight: 950 !important;
+    letter-spacing: .055em !important;
+    text-transform: uppercase !important;
+    box-shadow: 0 7px 16px rgba(14, 165, 233, .12) !important;
+}
+
+.ops-actions,
+.hero-card .d-flex.gap-2,
+.ops-header .d-flex.gap-2 {
+    align-items: center !important;
+}
+
+/* ----------------------------------------------------------
+   Botones
+   ---------------------------------------------------------- */
+
+.ops-btn,
+.btn-soft,
+.btn-outline-soft,
+.btn-soft-primary,
+.btn-primary-soft,
+.btn-soft-danger,
+.btn-danger-soft {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    min-height: 40px !important;
+    padding: 10px 16px !important;
+    border-radius: 999px !important;
+    font-size: .82rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    background: rgba(255,255,255,0.94) !important;
+    color: #0f172a !important;
+    box-shadow: var(--ops-shadow-sm) !important;
+    transition: transform .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease !important;
+    cursor: pointer !important;
+}
+
+.ops-btn:hover,
+.btn-soft:hover,
+.btn-outline-soft:hover,
+.btn-soft-primary:hover,
+.btn-primary-soft:hover,
+.btn-soft-danger:hover,
+.btn-danger-soft:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: var(--ops-shadow-md) !important;
+    color: #0f172a !important;
+}
+
+.ops-btn.primary,
+.btn-soft-primary,
+.btn-primary-soft,
+.btn-soft.btn-primary-soft {
+    background: linear-gradient(135deg, var(--ops-blue-2), var(--ops-blue)) !important;
+    border-color: rgba(14, 165, 233, .22) !important;
+    color: white !important;
+}
+
+.ops-btn.primary:hover,
+.btn-soft-primary:hover,
+.btn-primary-soft:hover,
+.btn-soft.btn-primary-soft:hover {
+    color: white !important;
+    background: linear-gradient(135deg, #075985, #0284c7) !important;
+}
+
+.btn-soft-danger,
+.btn-danger-soft,
+.btn-soft.btn-danger-soft {
+    background: linear-gradient(135deg, #dc2626, #f97316) !important;
+    color: white !important;
+    border-color: rgba(220,38,38,.20) !important;
+}
+
+.btn-soft-danger:hover,
+.btn-danger-soft:hover,
+.btn-soft.btn-danger-soft:hover {
+    color: white !important;
+    background: linear-gradient(135deg, #b91c1c, #ea580c) !important;
+}
+
+/* ----------------------------------------------------------
+   Paneles / tarjetas base
+   ---------------------------------------------------------- */
+
+.ops-panel,
+.ops-toolbar,
+.manager-card,
+.kpi-item,
+.editor-card,
+.hist-card,
+.table-card,
+.summary-card,
+.kpi-card,
+.empty-state,
+.empty-box {
+    background: rgba(255, 255, 255, 0.96) !important;
+    border: 1px solid rgba(203, 213, 225, 0.82) !important;
+    border-radius: var(--ops-radius-lg) !important;
+    box-shadow: var(--ops-shadow-sm) !important;
+}
+
+.ops-panel,
+.manager-card,
+.kpi-item,
+.editor-card,
+.hist-card,
+.table-card,
+.kpi-card {
+    overflow: hidden !important;
+}
+
+.ops-panel:hover,
+.manager-card:hover,
+.kpi-item:hover,
+.hist-card:hover,
+.kpi-card:hover,
+.summary-card:hover {
+    box-shadow: var(--ops-shadow-md) !important;
+}
+
+.manager-header,
+.kpi-item-head,
+.hist-head,
+.kpi-card-header,
+.ops-panel .ops-dashboard-head,
+.ops-dashboard-head {
+    padding: 16px 20px !important;
+    border-bottom: 1px solid rgba(203, 213, 225, 0.75) !important;
+    background:
+        linear-gradient(135deg, #ffffff 0%, #eff8ff 100%) !important;
+}
+
+.manager-body,
+.kpi-item-body,
+.kpi-body,
+.table-card > .table-responsive,
+.hist-card > .p-3,
+.editor-card {
+    padding: clamp(16px, 1.4vw, 22px) !important;
+}
+
+/* ----------------------------------------------------------
+   Dashboard Index
+   ---------------------------------------------------------- */
+
+.ops-grid {
+    display: grid !important;
+    grid-template-columns: minmax(250px, 300px) minmax(0, 1fr) !important;
+    gap: 18px !important;
+    align-items: start !important;
+}
+
+.ops-main {
+    min-width: 0 !important;
+}
+
+.ops-sidebar {
+    position: sticky !important;
+    top: 12px !important;
+    padding: 0 !important;
+}
+
+.ops-sidebar-title {
+    padding: 16px 18px !important;
+    margin: 0 !important;
+    background: linear-gradient(135deg, var(--ops-navy), var(--ops-navy-2)) !important;
+    color: white !important;
+    font-weight: 950 !important;
+    letter-spacing: -.02em !important;
+}
+
+.ops-depto-list {
+    padding: 12px !important;
+    display: grid !important;
+    gap: 10px !important;
+}
+
+.ops-depto-item {
+    display: block !important;
+    border-radius: 16px !important;
+    padding: 14px 14px !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(203, 213, 225, .95) !important;
+    box-shadow: 0 5px 14px rgba(15, 23, 42, .04) !important;
+    color: var(--ops-text) !important;
+    text-decoration: none !important;
+    transition: transform .16s ease, border-color .16s ease, background .16s ease !important;
+}
+
+.ops-depto-item:hover,
+.ops-depto-item.active,
+.ops-depto-item[aria-current="true"] {
+    transform: translateY(-1px) !important;
+    border-color: rgba(14, 165, 233, .65) !important;
+    background: linear-gradient(135deg, #ffffff, #eaf7ff) !important;
+}
+
+.ops-depto-name {
+    font-size: .86rem !important;
+    font-weight: 950 !important;
+    color: var(--ops-text) !important;
+}
+
+.ops-depto-meta {
+    margin-top: 4px !important;
+    color: var(--ops-muted) !important;
+    font-weight: 800 !important;
+    font-size: .74rem !important;
+}
+
+.ops-filters {
+    padding: 14px !important;
+    margin-bottom: 16px !important;
+}
+
+.ops-filter-grid {
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    align-items: end !important;
+}
+
+.ops-field label,
+.form-label-mini,
+.form-label {
+    font-size: .70rem !important;
+    line-height: 1.1 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .065em !important;
+    color: #53667d !important;
+    font-weight: 950 !important;
+    margin-bottom: 7px !important;
+}
+
+.ops-kpi-summary,
+.summary-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    margin-bottom: 16px !important;
+}
+
+.ops-summary-card,
+.summary-card {
+    padding: 18px !important;
+    min-height: 130px !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.ops-summary-card::before,
+.summary-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: var(--ops-blue);
+    opacity: .9;
+}
+
+.ops-summary-card.state-success::before { background: var(--ops-success); }
+.ops-summary-card.state-warning::before { background: var(--ops-warning); }
+.ops-summary-card.state-danger::before { background: var(--ops-danger); }
+
+.ops-summary-top {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+}
+
+.ops-summary-icon {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 14px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #e0f2fe !important;
+    color: var(--ops-blue-2) !important;
+}
+
+.ops-summary-title,
+.summary-label {
+    color: #53667d !important;
+    font-size: .76rem !important;
+    font-weight: 950 !important;
+    line-height: 1.15 !important;
+}
+
+.ops-summary-value,
+.summary-value {
+    font-size: clamp(1.45rem, 2.1vw, 2rem) !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    color: var(--ops-text) !important;
+}
+
+.ops-summary-subtitle {
+    margin-top: 8px !important;
+    color: #64748b !important;
+    font-size: .78rem !important;
+    font-weight: 800 !important;
+}
+
+.ops-global-chart {
+    height: clamp(340px, 42vh, 560px) !important;
+    width: 100% !important;
+}
+
+.ops-kpi-grid,
+.kpi-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 18px !important;
+}
+
+.ops-kpi-card.size-Grande,
+.ops-kpi-card.size-grande,
+.kpi-card.size-Grande,
+.kpi-card.size-grande {
+    grid-column: 1 / -1 !important;
+}
+
+.ops-kpi-head {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+    padding: 18px 20px 10px !important;
+}
+
+.ops-kpi-title,
+.kpi-name,
+.kpi-title,
+.hist-title {
+    font-size: 1.05rem !important;
+    color: var(--ops-text) !important;
+    font-weight: 950 !important;
+    letter-spacing: -.025em !important;
+    margin: 0 !important;
+}
+
+.ops-kpi-subtitle,
+.kpi-meta,
+.hist-sub,
+.kpi-subtitle {
+    font-size: .78rem !important;
+    color: var(--ops-muted) !important;
+    font-weight: 800 !important;
+    margin-top: 3px !important;
+}
+
+.ops-kpi-value,
+.ops-kpi-result {
+    padding: 0 20px !important;
+    font-size: clamp(1.6rem, 2.35vw, 2.6rem) !important;
+    font-weight: 950 !important;
+    color: var(--ops-text) !important;
+    letter-spacing: -.04em !important;
+}
+
+.ops-kpi-meta {
+    padding: 5px 20px 0 !important;
+    color: var(--ops-muted) !important;
+    font-size: .78rem !important;
+    font-weight: 800 !important;
+}
+
+.ops-kpi-chart {
+    height: 320px !important;
+    min-height: 320px !important;
+    padding: 8px 10px 16px !important;
+}
+
+.ops-kpi-card.size-Grande .ops-kpi-chart,
+.ops-kpi-card.size-grande .ops-kpi-chart {
+    height: 430px !important;
+}
+
+.ops-kpi-card.size-Compacta .ops-kpi-chart,
+.ops-kpi-card.size-compacta .ops-kpi-chart {
+    height: 260px !important;
+}
+
+.ops-badge,
+.badge {
+    border-radius: 999px !important;
+    font-weight: 950 !important;
+    letter-spacing: .01em !important;
+}
+
+.ops-badge.success,
+.badge.success {
+    background: #dcfce7 !important;
+    color: #166534 !important;
+}
+
+.ops-badge.danger,
+.badge.danger {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+}
+
+.ops-badge.warning,
+.badge.warning {
+    background: #fef3c7 !important;
+    color: #92400e !important;
+}
+
+.ops-badge.neutral,
+.badge.neutral {
+    background: #e2e8f0 !important;
+    color: #334155 !important;
+}
+
+/* ----------------------------------------------------------
+   Gestor / Nueva métrica
+   ---------------------------------------------------------- */
+
+.manager-card,
+.editor-card {
+    margin-bottom: 18px !important;
+}
+
+.manager-header {
+    font-size: 1.04rem !important;
+    font-weight: 950 !important;
+    color: var(--ops-text) !important;
+}
+
+.kpi-item {
+    margin-bottom: 14px !important;
+}
+
+.kpi-item-head {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+}
+
+.kpi-item-body {
+    background: linear-gradient(180deg, #ffffff, #f8fbff) !important;
+}
+
+.variable-row,
+.variable-box {
+    border: 1px dashed rgba(100, 116, 139, 0.34) !important;
+    border-radius: var(--ops-radius-md) !important;
+    padding: 14px !important;
+    margin-bottom: 12px !important;
+    background: linear-gradient(135deg, #ffffff, #f8fbff) !important;
+}
+
+.variable-row:hover,
+.variable-box:hover {
+    border-color: rgba(14, 165, 233, .55) !important;
+    background: linear-gradient(135deg, #ffffff, #eef9ff) !important;
+}
+
+.variable-name {
+    color: var(--ops-text) !important;
+    font-size: .88rem !important;
+    font-weight: 950 !important;
+}
+
+/* ----------------------------------------------------------
+   Formularios
+   ---------------------------------------------------------- */
+
+.form-control,
+.form-select {
+    min-height: 42px !important;
+    border-radius: 13px !important;
+    border: 1px solid #d7e3ef !important;
+    color: var(--ops-text) !important;
+    font-weight: 800 !important;
+    background-color: rgba(255,255,255,.96) !important;
+    box-shadow: 0 2px 0 rgba(15,23,42,.02) !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: rgba(14, 165, 233, .7) !important;
+    box-shadow: 0 0 0 .22rem rgba(14, 165, 233, .15) !important;
+}
+
+.input-group-text {
+    border-radius: 13px !important;
+    border: 1px solid #d7e3ef !important;
+    background: #eef6ff !important;
+    color: #075985 !important;
+    font-weight: 950 !important;
+}
+
+.form-check-input {
+    border-color: #9fb5cc !important;
+}
+
+.form-check-input:checked {
+    background-color: var(--ops-blue-2) !important;
+    border-color: var(--ops-blue-2) !important;
+}
+
+/* ----------------------------------------------------------
+   Captura
+   ---------------------------------------------------------- */
+
+.ops-toolbar {
+    padding: 16px !important;
+    margin-bottom: 18px !important;
+}
+
+.kpi-captura-card .kpi-card-header {
+    background: linear-gradient(135deg, #ffffff, #eaf7ff) !important;
+}
+
+.kpi-captura-card .kpi-body {
+    background: #ffffff !important;
+}
+
+/* ----------------------------------------------------------
+   Historial / Tablas / Importacion
+   ---------------------------------------------------------- */
+
+.hist-card {
+    margin-bottom: 14px !important;
+}
+
+.hist-head {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+}
+
+.value-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    border-radius: 999px !important;
+    padding: 7px 11px !important;
+    margin: 3px !important;
+    background: #eef6ff !important;
+    border: 1px solid #dbeafe !important;
+    color: #17324f !important;
+    font-size: .78rem !important;
+    font-weight: 900 !important;
+}
+
+.table-card {
+    padding: 0 !important;
+}
+
+.table-card .table,
+.table {
+    --bs-table-bg: transparent !important;
+    margin-bottom: 0 !important;
+    vertical-align: middle !important;
+}
+
+.table thead th {
+    background: linear-gradient(135deg, var(--ops-navy), var(--ops-navy-2)) !important;
+    color: white !important;
+    border: none !important;
+    font-size: .74rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: .06em !important;
+    font-weight: 950 !important;
+    padding: 13px 14px !important;
+}
+
+.table tbody td {
+    border-color: rgba(203, 213, 225, 0.75) !important;
+    padding: 12px 14px !important;
+    color: #1e293b !important;
+    font-weight: 750 !important;
+}
+
+.table-hover tbody tr:hover {
+    background: rgba(14, 165, 233, 0.07) !important;
+}
+
+.summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    margin: 18px 0 !important;
+}
+
+.alert {
+    border-radius: var(--ops-radius-md) !important;
+    font-weight: 850 !important;
+    border: 1px solid rgba(15,23,42,.08) !important;
+    box-shadow: var(--ops-shadow-sm) !important;
+}
+
+.empty-state,
+.empty-box,
+.ops-empty {
+    padding: 42px 24px !important;
+    text-align: center !important;
+    color: var(--ops-muted) !important;
+    font-weight: 800 !important;
+}
+
+/* ----------------------------------------------------------
+   Modales
+   ---------------------------------------------------------- */
+
+.modal-content {
+    border: 0 !important;
+    border-radius: 24px !important;
+    overflow: hidden !important;
+    box-shadow: var(--ops-shadow-lg) !important;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, var(--ops-navy), var(--ops-navy-2)) !important;
+    color: white !important;
+    border-bottom: 0 !important;
+}
+
+.modal-title {
+    font-weight: 950 !important;
+}
+
+.modal-body {
+    background: #f8fbff !important;
+}
+
+.modal-footer {
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+}
+
+/* ----------------------------------------------------------
+   Responsive
+   ---------------------------------------------------------- */
+
+@@media (max-width: 1400px) {
+    .ops-shell,
+    .kpis-shell {
+        max-width: calc(100vw - 42px) !important;
+    }
+
+    .ops-filter-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    .ops-kpi-summary,
+    .summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+@@media (max-width: 1100px) {
+    .ops-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .ops-sidebar {
+        position: relative !important;
+        top: auto !important;
+    }
+
+    .ops-depto-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .ops-kpi-grid,
+    .kpi-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+@@media (max-width: 768px) {
+    .ops-v2-page,
+    .kpis-v2-page {
+        padding: 10px !important;
+    }
+
+    .ops-shell,
+    .kpis-shell {
+        max-width: 100% !important;
+        margin: 10px auto 18px !important;
+        padding: 12px !important;
+        border-radius: 20px !important;
+    }
+
+    .ops-header,
+    .hero-card,
+    .kpi-item-head,
+    .hist-head {
+        flex-direction: column !important;
+    }
+
+    .ops-filter-grid,
+    .ops-kpi-summary,
+    .summary-grid,
+    .ops-depto-list {
+        grid-template-columns: 1fr !important;
+    }
+
+    .ops-title,
+    .hero-title {
+        font-size: 2rem !important;
+    }
+}
+
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 
 <style>
     :root {
         --op-bg: #f4f7fb;
-        --op-bg-soft: #eef3f9;
-        --op-surface: #ffffff;
-        --op-surface-2: #f8fafc;
-
-        --op-navy: #072b4a;
-        --op-navy-2: #0f172a;
-        --op-navy-soft: #eaf3fb;
-
-        --op-border: #dbe4ee;
-        --op-border-strong: #cbd5e1;
-
+        --op-surface: rgba(255, 255, 255, 0.92);
+        --op-border: rgba(15, 23, 42, 0.10);
         --op-text: #0f172a;
-        --op-text-soft: #475569;
-        --op-text-muted: #64748b;
-
-        --op-primary: #2563eb;
-        --op-sky: #0ea5e9;
-        --op-cyan: #06b6d4;
-        --op-success: #84cc16;
-        --op-success-2: #22c55e;
-        --op-danger: #ef4444;
-        --op-danger-soft: #fff1f2;
-        --op-warning: #facc15;
-        --op-warning-dark: #a16207;
-        --op-purple: #8b5cf6;
-
-        --op-shadow: 0 12px 30px rgba(15, 23, 42, .08);
-        --op-shadow-hover: 0 18px 38px rgba(15, 23, 42, .14);
+        --op-muted: #64748b;
+        --op-primary: #0f3d63;
+        --op-primary-2: #0ea5e9;
+        --op-success: #16a34a;
+        --op-warning: #f59e0b;
+        --op-danger: #dc2626;
+        --op-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
     }
 
-    body {
+    .ops-v2-page {
+        min-height: calc(100vh - 80px);
+        padding: 24px;
         background:
-            radial-gradient(circle at top left, rgba(14,165,233,.10), transparent 24%),
-            radial-gradient(circle at top right, rgba(132,204,22,.10), transparent 22%),
-            linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
+            radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 28%),
+            radial-gradient(circle at top right, rgba(15, 61, 99, 0.12), transparent 30%),
+            var(--op-bg);
         color: var(--op-text);
     }
 
-    .dashboard-shell {
-        max-width: 1320px;
+    .ops-shell {
+        max-width: 1680px;
         margin: 0 auto;
-        padding-bottom: 2.8rem;
     }
 
-    .dashboard-title {
-        letter-spacing: -.45px;
-        font-weight: 900;
-        color: var(--op-text) !important;
-    }
-
-    .dashboard-title i {
-        color: var(--op-sky) !important;
-        filter: drop-shadow(0 8px 14px rgba(14,165,233,.25));
-    }
-
-    .dashboard-subtitle,
-    .text-muted {
-        color: var(--op-text-muted) !important;
-    }
-
-    .content-zone {
-        max-width: 100%;
-    }
-
-    .dashboard-toolbar {
+    .ops-header {
         display: flex;
-        gap: .75rem;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+    }
+
+    .ops-title-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(14, 165, 233, 0.11);
+        color: #075985;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .ops-title {
+        margin: 10px 0 4px;
+        font-size: clamp(1.8rem, 3vw, 2.7rem);
+        font-weight: 950;
+        letter-spacing: -0.04em;
+    }
+
+    .ops-subtitle {
+        max-width: 860px;
+        color: var(--op-muted);
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .ops-actions {
+        display: flex;
+        gap: 10px;
         flex-wrap: wrap;
         justify-content: flex-end;
-        align-items: center;
     }
 
-    /* BOTONES */
-    .btn-future,
-    .btn-ghost-future {
-        min-height: 42px;
-        border-radius: 15px;
-        font-weight: 900;
-        font-size: .92rem;
-        transition: all .2s ease;
-        box-shadow: 0 8px 18px rgba(15, 23, 42, .10);
-    }
-
-    .btn-future:hover,
-    .btn-ghost-future:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 14px 26px rgba(15, 23, 42, .16);
-    }
-
-    .btn-ghost-future {
-        background: rgba(255,255,255,.92);
+    .ops-btn {
+        border: 1px solid var(--op-border);
+        background: var(--op-surface);
         color: var(--op-text);
-        border: 1px solid var(--op-border-strong);
-        backdrop-filter: blur(10px);
-    }
-
-    .btn-ghost-future:hover {
-        border-color: var(--op-primary);
-        color: var(--op-primary);
-        background: #ffffff;
-    }
-
-    .btn-future-primary {
-        background: linear-gradient(135deg, #2563eb, #0ea5e9);
-        color: #fff;
-        border: none;
-    }
-
-    .btn-future-success {
-        background: linear-gradient(135deg, #a3e635, #84cc16);
-        color: #102a0a;
-        border: none;
-    }
-
-    /* FILTROS */
-    .filter-input-future {
-        border-radius: 16px;
-        overflow: hidden;
-        border: 1px solid var(--op-border);
-        box-shadow: var(--op-shadow);
-        background: #fff;
-    }
-
-    .filter-input-future .input-group-text {
-        background: #ffffff;
-        color: var(--op-success-2);
-        border: 0;
-    }
-
-    .filter-input-future .form-select,
-    .filter-input-future .form-control {
-        border: 0;
-        font-weight: 800;
-        color: var(--op-text);
-        background: #fff;
-    }
-
-    /* SIDEBAR NUEVO */
-    .sidebar-card {
-        position: sticky;
-        top: 1rem;
-        border: 1px solid var(--op-border);
-        background: rgba(255,255,255,.95);
-        box-shadow: var(--op-shadow);
-        border-radius: 24px !important;
-        overflow: hidden;
-        backdrop-filter: blur(14px);
-    }
-
-    .sidebar-header-future {
-        background: linear-gradient(135deg, var(--op-navy-2), var(--op-navy));
-        color: #fff;
-        border-bottom: 0;
-        padding: 1rem 1.1rem !important;
-        font-size: .96rem;
-    }
-
-    .sidebar-header-future i {
-        color: var(--op-success) !important;
-    }
-
-    .sidebar-card .bg-light {
-        background: #f8fafc !important;
-        border-color: var(--op-border) !important;
-    }
-
-    .sidebar-card .input-group {
-        border: 1px solid var(--op-border);
-        background: #ffffff;
-        border-radius: 16px !important;
-    }
-
-    .sidebar-card .input-group-text,
-    .sidebar-card .form-control {
-        background: transparent !important;
-        color: var(--op-text) !important;
-        border: 0 !important;
-    }
-
-    .sidebar-card .form-control::placeholder {
-        color: var(--op-text-muted);
-    }
-
-    .list-group-item {
-        background: #ffffff;
-        border-color: #edf2f7;
-        color: var(--op-text-soft);
-    }
-
-    .op-departamento,
-    #listaResultados button {
-        transition: all .18s ease;
-        border-left: 5px solid transparent;
+        border-radius: 999px;
+        padding: 10px 15px;
         font-weight: 850;
-        color: var(--op-text-soft) !important;
-        background: #ffffff;
-    }
-
-    .op-departamento:hover,
-    #listaResultados button:hover {
-        background: #f8fbff;
-        border-left-color: var(--op-sky);
-        color: var(--op-text) !important;
-        transform: translateX(2px);
-    }
-
-    .active-sidebar {
-        background: linear-gradient(90deg, rgba(132,204,22,.18), rgba(14,165,233,.08)) !important;
-        border-left: 5px solid var(--op-success) !important;
-        color: var(--op-text) !important;
-        font-weight: 950 !important;
-    }
-
-    .active-sidebar i {
-        color: var(--op-navy) !important;
-    }
-
-    .op-departamento i,
-    #listaResultados button i {
-        color: #64748b !important;
-    }
-
-    /* TARJETAS SUPERIORES */
-    .top-widget-card {
-        min-height: 120px;
-        border-radius: 22px;
-        padding: 1rem 1.15rem 1rem 1.25rem;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        border: 1px solid var(--op-border);
-        box-shadow: var(--op-shadow);
-        background:
-            radial-gradient(circle at top right, rgba(14,165,233,.06), transparent 36%),
-            linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-        transition: all .22s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .top-widget-card::before {
-        content: "";
-        position: absolute;
-        inset: 0 auto 0 0;
-        width: 5px;
-        background: var(--accent, var(--op-primary));
-    }
-
-    .top-widget-card::after {
-        content: "";
-        position: absolute;
-        width: 90px;
-        height: 90px;
-        right: -35px;
-        bottom: -35px;
-        border-radius: 50%;
-        background: color-mix(in srgb, var(--accent, var(--op-primary)) 15%, transparent);
-    }
-
-    .top-widget-card:hover {
-        transform: translateY(-4px);
-        box-shadow: var(--op-shadow-hover);
-    }
-
-    .top-widget-title {
-        font-size: .82rem;
-        font-weight: 950;
-        color: var(--op-text-soft);
-        margin-bottom: .45rem;
-        display: flex;
+        font-size: 0.88rem;
+        text-decoration: none;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+        transition: all 0.18s ease;
+        display: inline-flex;
         align-items: center;
-        gap: .45rem;
-        position: relative;
-        z-index: 1;
+        gap: 8px;
     }
 
-    .top-widget-title i {
-        color: var(--accent, var(--op-primary));
+    .ops-btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(14, 165, 233, 0.32);
+        color: var(--op-primary);
     }
 
-    .top-widget-value {
-        font-size: 1.9rem;
-        line-height: 1.05;
-        font-weight: 950;
-        margin: 0;
-        color: var(--accent, var(--op-text));
-        position: relative;
-        z-index: 1;
+    .ops-btn.primary {
+        background: linear-gradient(135deg, #0f3d63, #0ea5e9);
+        color: #fff;
+        border-color: transparent;
     }
 
-    .top-widget-sub {
-        font-size: .8rem;
-        color: var(--op-text-muted);
-        margin-top: .35rem;
-        line-height: 1.35;
-        position: relative;
-        z-index: 1;
+    .ops-grid {
+        display: grid;
+        grid-template-columns: 290px minmax(0, 1fr);
+        gap: 18px;
+        align-items: start;
     }
 
-    /* CARDS PRINCIPALES */
-    .global-chart-card,
-    .ranking-panel,
-    .insight-panel,
-    .metric-wall-card,
-    .chart-card {
+    .ops-panel {
+        background: var(--op-surface);
         border: 1px solid var(--op-border);
-        background: rgba(255,255,255,.96);
+        border-radius: 24px;
         box-shadow: var(--op-shadow);
-        border-radius: 26px;
+        backdrop-filter: blur(12px);
     }
 
-    .global-chart-card {
-        padding: 1.45rem;
-        height: 100%;
+    .ops-sidebar {
+        position: sticky;
+        top: 14px;
+        padding: 18px;
     }
 
-    .global-chart-card-large {
-        min-height: 620px;
-    }
-
-    .global-chart-title {
-        font-size: 1.05rem;
-        font-weight: 950;
-        color: var(--op-text);
-    }
-
-    .global-chart-card .badge {
-        background: #eef4ff !important;
-        color: var(--op-primary) !important;
-        border: 1px solid #dbeafe !important;
-    }
-
-    .ranking-panel {
-        padding: 1.25rem;
-        height: 100%;
-    }
-
-    .ranking-panel h6 {
-        color: var(--op-text) !important;
-    }
-
-    .ranking-item {
+    .ops-sidebar-title {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: .75rem;
-        padding: .9rem 1rem;
-        border-radius: 17px;
-        background: #f8fafc;
-        border: 1px solid var(--op-border);
-        transition: all .2s ease;
-        min-width: 245px;
+        gap: 8px;
+        margin-bottom: 14px;
     }
 
-    .ranking-item:hover {
-        transform: translateY(-2px);
-        background: #ffffff;
-        box-shadow: 0 12px 22px rgba(15, 23, 42, .08);
+    .ops-sidebar-title h3 {
+        margin: 0;
+        font-size: 0.98rem;
+        font-weight: 950;
     }
 
-    .ranking-left {
+    .ops-depto-list {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        max-height: calc(100vh - 280px);
+        overflow: auto;
+        padding-right: 4px;
+    }
+
+    .ops-depto-item {
+        border: 1px solid rgba(15, 23, 42, 0.09);
+        background: #fff;
+        border-radius: 18px;
+        padding: 12px;
+        text-align: left;
+        transition: all 0.18s ease;
+        cursor: pointer;
+        width: 100%;
+    }
+
+    .ops-depto-item:hover,
+    .ops-depto-item.active {
+        border-color: rgba(14, 165, 233, 0.45);
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.10), rgba(15, 61, 99, 0.06));
+        transform: translateX(2px);
+    }
+
+    .ops-depto-name {
+        font-weight: 950;
+        font-size: 0.86rem;
+        color: var(--op-text);
+        line-height: 1.15;
+    }
+
+    .ops-depto-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 7px;
+        color: var(--op-muted);
+        font-size: 0.75rem;
+        font-weight: 750;
+    }
+
+    .ops-main {
+        min-width: 0;
+    }
+
+    .ops-filters {
+        padding: 16px;
+        margin-bottom: 18px;
+    }
+
+    .ops-filter-grid {
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) minmax(120px, 0.7fr) minmax(120px, 0.7fr) minmax(150px, 0.8fr) auto auto;
+        gap: 10px;
+        align-items: end;
+    }
+
+    .ops-field label {
+        display: block;
+        margin: 0 0 5px;
+        color: var(--op-muted);
+        font-size: 0.73rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .ops-field select,
+    .ops-field input {
+        width: 100%;
+        min-height: 42px;
+        border-radius: 14px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: #fff;
+        padding: 8px 12px;
+        color: var(--op-text);
+        font-weight: 750;
+        outline: none;
+    }
+
+    .ops-kpi-summary {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .ops-summary-card {
+        padding: 16px;
+        min-height: 126px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ops-summary-card::after {
+        content: "";
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        border-radius: 999px;
+        right: -42px;
+        top: -42px;
+        background: rgba(14, 165, 233, 0.10);
+    }
+
+    .ops-summary-top {
         display: flex;
         align-items: center;
-        gap: .85rem;
-        min-width: 0;
+        gap: 10px;
+        margin-bottom: 13px;
+        position: relative;
+        z-index: 1;
     }
 
-    .ranking-medal {
-        font-size: 1.4rem;
-        min-width: 32px;
-        text-align: center;
-    }
-
-    .ranking-name {
-        font-weight: 950;
-        color: var(--op-text);
-        margin-bottom: 2px;
-        white-space: normal;
-        overflow-wrap: break-word;
-    }
-
-    .ranking-meta {
-        font-size: .82rem;
-        color: var(--op-text-muted);
-    }
-
-    .ranking-badge {
-        border-radius: 999px;
-        padding: .4rem .72rem;
-        font-size: .84rem;
-        font-weight: 950;
-        white-space: nowrap;
-    }
-
-    .insight-panel {
-        padding: 1.2rem 1.3rem;
-        min-height: 100%;
-    }
-
-    .insight-panel-success {
-        border-left: 5px solid var(--op-success);
-        background: linear-gradient(180deg, #f7fde9 0%, #ffffff 100%);
-    }
-
-    .insight-panel-danger {
-        border-left: 5px solid var(--op-danger);
-        background: linear-gradient(180deg, #fff3f3 0%, #ffffff 100%);
-    }
-
-    .insight-title {
-        font-weight: 950;
-        font-size: 1rem;
-        margin-bottom: 1rem;
-        color: var(--op-text) !important;
-    }
-
-    .insight-item {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: .85rem;
-        align-items: start;
-        padding: .9rem 0;
-        border-bottom: 1px dashed var(--op-border);
-    }
-
-    .insight-item:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-    }
-
-    .insight-kpi {
-        min-width: 0;
-    }
-
-    .insight-area {
-        font-weight: 950;
-        margin-bottom: .15rem;
-        line-height: 1.25;
-        color: var(--op-text);
-    }
-
-    .insight-metric {
-        color: var(--op-text-soft);
-        font-size: .88rem;
-        line-height: 1.35;
-    }
-
-    .insight-chip {
-        border-radius: 999px;
-        padding: .4rem .72rem;
-        font-size: .78rem;
-        font-weight: 950;
-        background: #ffffff;
-        color: var(--op-text);
-        border: 1px solid var(--op-border);
-        white-space: nowrap;
-        align-self: start;
-    }
-
-    .kpi-card {
-        transition: all .25s ease;
-        overflow: hidden;
-        border: none !important;
-    }
-
-    .kpi-card:hover {
-        transform: translateY(-7px);
-        box-shadow: 0 18px 34px rgba(15,23,42,.14) !important;
-    }
-
-    .kpi-icon-bg {
-        position: absolute;
-        font-size: 7rem;
-        right: -15px;
-        bottom: -20px;
-        opacity: 0.12;
-        transform: rotate(-15deg);
-        transition: all .3s ease;
-    }
-
-    .kpi-card:hover .kpi-icon-bg {
-        transform: rotate(0deg) scale(1.08);
-    }
-
-    .metric-wall-card .card-header {
-        background: #f8fbff !important;
-        border-bottom: 1px solid var(--op-border) !important;
-    }
-
-    .metric-wall-card h5 {
-        color: var(--op-text) !important;
-    }
-
-    .wall-select {
-        border-radius: 999px;
-        border: 1px solid var(--op-border);
-        font-weight: 850;
-        background-color: #fff;
-        color: var(--op-text);
-    }
-
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 7px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: #e2e8f0;
-        border-radius: 10px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #94a3b8;
-        border-radius: 10px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #64748b;
-    }
-
-    #chart_global,
-    [id^="chart_"] {
-        background: transparent;
-    }
-
-    @@media (max-width: 1500px) {
-        .insight-item {
-            grid-template-columns: 1fr;
-        }
-
-        .insight-chip {
-            justify-self: start;
-            white-space: normal;
-            max-width: 100%;
-        }
-    }
-
-    @@media (max-width: 1400px) {
-        .top-widget-value {
-            font-size: 1.65rem;
-        }
-
-        .global-chart-card-large {
-            min-height: 580px;
-        }
-    }
-
-    @@media (max-width: 991.98px) {
-        .top-widget-card {
-            min-height: auto;
-        }
-
-        .dashboard-toolbar {
-            justify-content: flex-start;
-        }
-
-        .insight-item {
-            grid-template-columns: 1fr;
-        }
-
-        .insight-chip {
-            white-space: normal;
-        }
-
-        .sidebar-card {
-            position: relative;
-            top: 0;
-        }
-    }
-
-    .btn-dashboard-back {
+    .ops-summary-icon {
+        width: 38px;
+        height: 38px;
         display: inline-flex;
         align-items: center;
-        gap: 7px;
-        height: 32px;
-        padding: 0 13px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.78);
-        color: #0f172a;
-        font-size: 0.82rem;
-        font-weight: 800;
-        line-height: 1;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-        transition: all 0.18s ease;
+        justify-content: center;
+        border-radius: 15px;
+        background: rgba(15, 61, 99, 0.08);
+        color: var(--op-primary);
     }
 
-    .btn-dashboard-back i {
+    .ops-summary-title {
+        color: var(--op-muted);
+        font-size: 0.76rem;
+        font-weight: 950;
+        line-height: 1.1;
+    }
+
+    .ops-summary-value {
+        font-size: 1.65rem;
+        font-weight: 950;
+        letter-spacing: -0.04em;
+        position: relative;
+        z-index: 1;
+    }
+
+    .ops-summary-subtitle {
+        margin-top: 5px;
+        color: var(--op-muted);
         font-size: 0.78rem;
+        font-weight: 700;
+        line-height: 1.25;
+        position: relative;
+        z-index: 1;
     }
 
-    .btn-dashboard-back:hover {
-        background: #0f172a;
-        color: #ffffff;
-        border-color: #0f172a;
-        transform: translateX(-2px);
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+    .state-success .ops-summary-icon { background: rgba(22, 163, 74, 0.12); color: var(--op-success); }
+    .state-danger .ops-summary-icon { background: rgba(220, 38, 38, 0.12); color: var(--op-danger); }
+    .state-warning .ops-summary-icon { background: rgba(245, 158, 11, 0.13); color: var(--op-warning); }
+
+    .ops-dashboard-head {
+        padding: 18px;
+        margin-bottom: 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
     }
+
+    .ops-dashboard-head h2 {
+        margin: 0;
+        font-size: 1.18rem;
+        font-weight: 950;
+    }
+
+    .ops-dashboard-head p {
+        margin: 4px 0 0;
+        color: var(--op-muted);
+        font-weight: 650;
+        font-size: 0.86rem;
+    }
+
+    .ops-global-chart {
+        height: 310px;
+        padding: 8px 12px 14px;
+    }
+
+    .ops-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .ops-kpi-card {
+        grid-column: span 6;
+        overflow: hidden;
+    }
+
+    .ops-kpi-card.size-Grande,
+    .ops-kpi-card.size-grande {
+        grid-column: span 12;
+    }
+
+    .ops-kpi-card.size-Compacta,
+    .ops-kpi-card.size-compacta {
+        grid-column: span 4;
+    }
+
+    .ops-kpi-head {
+        padding: 16px 16px 10px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .ops-kpi-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 950;
+        line-height: 1.18;
+    }
+
+    .ops-kpi-subtitle {
+        margin-top: 5px;
+        color: var(--op-muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .ops-kpi-value {
+        text-align: right;
+        flex: 0 0 auto;
+    }
+
+    .ops-kpi-result {
+        font-size: 1.35rem;
+        font-weight: 950;
+        letter-spacing: -0.03em;
+    }
+
+    .ops-kpi-meta {
+        margin-top: 3px;
+        color: var(--op-muted);
+        font-size: 0.75rem;
+        font-weight: 850;
+    }
+
+    .ops-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 950;
+        margin-top: 7px;
+    }
+
+    .ops-badge.success { background: rgba(22, 163, 74, 0.12); color: #166534; }
+    .ops-badge.danger { background: rgba(220, 38, 38, 0.12); color: #991b1b; }
+    .ops-badge.neutral { background: rgba(100, 116, 139, 0.12); color: #475569; }
+    .ops-badge.warning { background: rgba(245, 158, 11, 0.14); color: #92400e; }
+
+    .ops-kpi-chart {
+        height: 330px;
+        padding: 8px 12px 14px;
+    }
+
+    .ops-kpi-card.size-Compacta .ops-kpi-chart,
+    .ops-kpi-card.size-compacta .ops-kpi-chart {
+        height: 260px;
+    }
+
+    .ops-empty {
+        padding: 38px 24px;
+        text-align: center;
+        color: var(--op-muted);
+    }
+
+    .ops-empty i {
+        font-size: 2.3rem;
+        margin-bottom: 12px;
+        color: rgba(15, 61, 99, 0.35);
+    }
+
+    .ops-loading {
+        position: fixed;
+        inset: 0;
+        background: rgba(248, 250, 252, 0.58);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        backdrop-filter: blur(4px);
+    }
+
+    .ops-loading.active { display: flex; }
+
+    .ops-spinner {
+        background: #fff;
+        border: 1px solid var(--op-border);
+        box-shadow: var(--op-shadow);
+        border-radius: 22px;
+        padding: 18px 22px;
+        font-weight: 950;
+        color: var(--op-primary);
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    @@media (max-width: 1300px) {
+        .ops-kpi-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .ops-kpi-card.size-Compacta,
+        .ops-kpi-card.size-compacta { grid-column: span 6; }
+        .ops-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @@media (max-width: 991px) {
+        .ops-v2-page { padding: 14px; }
+        .ops-header { flex-direction: column; }
+        .ops-actions { justify-content: flex-start; }
+        .ops-grid { grid-template-columns: 1fr; }
+        .ops-sidebar { position: static; }
+        .ops-depto-list { max-height: none; }
+        .ops-kpi-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .ops-kpi-card,
+        .ops-kpi-card.size-Compacta,
+        .ops-kpi-card.size-compacta { grid-column: span 12; }
+    }
+
+    @@media (max-width: 640px) {
+        .ops-kpi-summary { grid-template-columns: 1fr; }
+        .ops-filter-grid { grid-template-columns: 1fr; }
+        .ops-dashboard-head { flex-direction: column; align-items: flex-start; }
+        .ops-kpi-head { flex-direction: column; }
+        .ops-kpi-value { text-align: left; }
+    }
+
+
+    /* ==========================================================
+       AJUSTE INDEX: DOS GRAFICAS POR FILA
+       ========================================================== */
+    .ops-kpi-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 18px !important;
+        align-items: stretch !important;
+    }
+
+    .ops-kpi-card,
+    .ops-kpi-card.size-Grande,
+    .ops-kpi-card.size-grande,
+    .ops-kpi-card.size-Compacta,
+    .ops-kpi-card.size-compacta {
+        grid-column: auto !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .ops-kpi-chart,
+    .ops-kpi-card.size-Grande .ops-kpi-chart,
+    .ops-kpi-card.size-grande .ops-kpi-chart,
+    .ops-kpi-card.size-Compacta .ops-kpi-chart,
+    .ops-kpi-card.size-compacta .ops-kpi-chart {
+        height: 300px !important;
+    }
+
+    @@media (max-width: 1200px) {
+        .ops-kpi-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+
+
+    /* ==========================================================
+       AJUSTES HEADER + MODAL PDF KPIs
+       ========================================================== */
+    .ops-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .ops-btn.back {
+        background: rgba(15, 23, 42, 0.94) !important;
+        color: #ffffff !important;
+        border-color: rgba(15, 23, 42, 0.94) !important;
+    }
+
+    .ops-btn.back:hover {
+        background: #020617 !important;
+        color: #ffffff !important;
+    }
+
+    .ops-btn.pdf {
+        background: linear-gradient(135deg, #fff1f2, #ffffff) !important;
+        color: #991b1b !important;
+        border-color: rgba(248, 113, 113, 0.35) !important;
+    }
+
+    .ops-btn.pdf:hover {
+        background: #dc2626 !important;
+        color: #ffffff !important;
+        border-color: #dc2626 !important;
+    }
+
+    .modal-kpis-pdf {
+        z-index: 20050 !important;
+    }
+
+    .modal-backdrop {
+        z-index: 20040 !important;
+    }
+
+    .modal-kpis-dialog {
+        width: min(96vw, 1320px) !important;
+        max-width: min(96vw, 1320px) !important;
+        margin: 16px auto !important;
+    }
+
+    .modal-kpis-content {
+        height: calc(100vh - 32px) !important;
+        border-radius: 22px !important;
+        overflow: hidden !important;
+        border: 0 !important;
+        box-shadow: 0 30px 90px rgba(0, 0, 0, 0.35) !important;
+    }
+
+    .modal-kpis-header {
+        min-height: 72px !important;
+        background: linear-gradient(135deg, #0f172a, #0c4a6e) !important;
+        color: #ffffff !important;
+        border-bottom: 0 !important;
+        padding: 16px 22px !important;
+    }
+
+    .modal-kpis-body {
+        height: calc(100vh - 154px) !important;
+        padding: 0 !important;
+        background: #111827 !important;
+        overflow: hidden !important;
+    }
+
+    .modal-kpis-body iframe {
+        width: 100% !important;
+        height: 100% !important;
+        border: 0 !important;
+        display: block !important;
+        background: #111827 !important;
+    }
+
+    .modal-kpis-footer {
+        min-height: 82px !important;
+        background: #ffffff !important;
+        border-top: 1px solid #e5e7eb !important;
+        padding: 14px 20px !important;
+    }
+
+    body.modal-open {
+        overflow: hidden !important;
+    }
+
 </style>
 
-<div class="container-fluid px-4 dashboard-shell">
-
-    <div class="d-flex justify-content-between align-items-start mt-4 mb-3 flex-wrap gap-3">        
-        <div>
-            <button type="button"
-                    class="btn-dashboard-back mb-2"
-                    onclick="window.history.back();">
-                <i class="fas fa-arrow-left"></i>
-                <span>Volver</span>
-            </button>
-
-            <h2 class="text-dark fw-bold mb-1 dashboard-title">
-                <i class="fas fa-chart-pie text-primary me-2"></i> Centro de Mando Operativo
-            </h2>
-
-            <p class="dashboard-subtitle mb-0">
-                Visualiza el cumplimiento global y el desempeño por área.
-            </p>
-        </div>
-
-        <div class="dashboard-toolbar">
-
-            @if (misPermisos.Contains(33))
-            {
-                <a href="/Operaciones/Historial" class="btn btn-ghost-future shadow-sm">
-                    <i class="fas fa-history me-1"></i> Historial
-                </a>
-            }
-
-            @if (misPermisos.Contains(32))
-            {
-                <a href="/Operaciones/GestorMetricas" class="btn btn-ghost-future shadow-sm">
-                    <i class="fas fa-cogs me-1"></i> Gestor
-                </a>
-            }
-
-            @if (misPermisos.Contains(31))
-            {
-                <a href="/Operaciones/NuevaMetrica" class="btn btn-future btn-future-primary shadow-sm">
-                    <i class="fas fa-cog me-1"></i> Configurar
-                </a>
-            }
-
-            @if (misPermisos.Contains(34) || misPermisos.Contains(31) || misPermisos.Contains(32))
-            {
-                <a href="/Operaciones/Captura" class="btn btn-future btn-future-success shadow-sm">
-                    <i class="fas fa-plus me-1"></i> Capturar
-                </a>
-            }
-
-            <button type="button"
-                    class="btn btn-danger fw-bold shadow-sm rounded-pill px-3"
-                    data-bs-toggle="modal"
-                    data-bs-target="#modalKpisPdf">
-                <i class="fas fa-file-pdf me-1"></i> Ver KPIs Enero-Abril 2026
-            </button>
-        </div>
-    </div>
-
-    <div class="row mb-4">
-        <div class="col-12 d-flex justify-content-end flex-wrap gap-2">
-
-            <div class="input-group filter-input-future" style="max-width: 250px;">
-                <span class="input-group-text">
-                    <i class="fas fa-calendar-alt"></i>
+<div class="ops-v2-page">
+    <div class="ops-shell">
+        <div class="ops-header">
+            <div>
+                <span class="ops-title-eyebrow">
+                    <i class="fas fa-chart-line"></i>
+                    Operaciones
                 </span>
-                <select id="filtroTiempoGlobal" class="form-select" onchange="aplicarFiltroTiempo()">
-                    <option value="mes">Este Mes</option>
-                    <option value="semana">Esta Semana</option>
-                    <option value="anio" selected>Este Año</option>
-                    <option value="historico">Todo el Historial</option>
-                </select>
+                <h1 class="ops-title">Dashboard de KPIs</h1>
+                <p class="ops-subtitle">
+                    Visualización de KPIs en NS Group.
+                </p>
             </div>
 
-            <div class="input-group filter-input-future d-none" id="contenedorFiltroMes" style="max-width: 220px;">
-                <span class="input-group-text">
-                    <i class="fas fa-calendar-day"></i>
-                </span>
-                <select id="filtroMesGlobal" class="form-select" onchange="aplicarFiltroTiempo()">
-                    <option value="1">Enero</option>
-                    <option value="2">Febrero</option>
-                    <option value="3">Marzo</option>
-                    <option value="4">Abril</option>
-                    <option value="5">Mayo</option>
-                    <option value="6">Junio</option>
-                    <option value="7">Julio</option>
-                    <option value="8">Agosto</option>
-                    <option value="9">Septiembre</option>
-                    <option value="10">Octubre</option>
-                    <option value="11">Noviembre</option>
-                    <option value="12">Diciembre</option>
-                </select>
-            </div>
+            <div class="ops-actions">
+                <button type="button"
+                        class="ops-btn back"
+                        onclick="window.history.back();">
+                    <i class="fas fa-arrow-left"></i>
+                    Volver
+                </button>
 
-            <div class="input-group filter-input-future d-none" id="contenedorFiltroSemana" style="max-width: 220px;">
-                <span class="input-group-text">
-                    <i class="fas fa-calendar-week"></i>
-                </span>
-                <select id="filtroSemanaGlobal" class="form-select" onchange="aplicarFiltroTiempo()">
-                    @for (int i = 1; i <= 53; i++)
+                @if (Model.PuedeCapturar)
+                {
+                    <a class="ops-btn" href="@Url.Action("Captura", "Operaciones")">
+                        <i class="fas fa-keyboard"></i> Captura
+                    </a>
+                }
+
+                @if (Model.PuedeConfigurar)
+                {
+                    <a class="ops-btn" href="@Url.Action("GestorMetricas", "Operaciones")">
+                        <i class="fas fa-sliders"></i> Gestor
+                    </a>
+                }
+
+                @if (Model.PuedeVerHistorial)
+                {
+                    <a class="ops-btn" href="@Url.Action("Historial", "Operaciones")">
+                        <i class="fas fa-clock-rotate-left"></i> Historial
+                    </a>
+                }
+
+                <button type="button"
+                        class="ops-btn pdf"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalKpisPdf">
+                    <i class="fas fa-file-pdf"></i>
+                    KPIs Ene-Abr 2026
+                </button>
+
+                <button type="button"
+                        class="ops-btn primary"
+                        id="btnRefreshDashboard">
+                    <i class="fas fa-rotate"></i>
+                    Recargar datos
+                </button>
+            </div>
+        </div>
+
+        <div class="ops-grid">
+            <aside class="ops-panel ops-sidebar">
+                <div class="ops-sidebar-title">
+                    <h3><i class="fas fa-sitemap me-1"></i> Áreas</h3>
+                    <button type="button" class="ops-btn" id="btnGeneral" style="padding: 7px 10px; font-size: .76rem;">
+                        General
+                    </button>
+                </div>
+
+                <div class="ops-depto-list" id="departamentosList">
+                    @foreach (var depto in Model.Departamentos)
                     {
-                        <option value="@i">Semana @i</option>
-                    }
-                </select>
-            </div>
-
-        </div>
-    </div>
-
-    <div class="row g-4">
-
-        <div class="col-12 col-xl-3 col-xxl-2 mb-4">
-            <div class="card sidebar-card border-0 h-100 rounded-4 overflow-hidden">
-                <div class="card-header sidebar-header-future fw-bold py-3">
-                    <i class="fas fa-sitemap me-2" style="color: #92D050;"></i> Áreas Evaluadas
-                </div>
-
-                <div class="card-body p-0">
-                    <div class="p-3 bg-light border-bottom">
-                        <div class="input-group shadow-sm rounded-4 overflow-hidden">
-                            <span class="input-group-text bg-white border-end-0 text-muted">
-                                <i class="fas fa-search"></i>
-                            </span>
-                            <input type="text"
-                                   id="buscadorDepto"
-                                   class="form-control border-start-0"
-                                   placeholder="Buscar área..."
-                                   onkeyup="filtrarDepartamentos()" />
-                        </div>
-                    </div>
-
-                    <div class="list-group list-group-flush custom-scrollbar" id="listaResultados" style="max-height: 70vh; overflow-y: auto;">
-                        <button class="list-group-item list-group-item-action active-sidebar py-3"
-                            id="btn-depto-0"
-                            onclick="seleccionarDepto(0, 'General')">
-                            <i class="fas fa-globe me-2"></i> Rendimiento Global
+                        <button type="button"
+                                class="ops-depto-item @(depto.Seleccionado ? "active" : "")"
+                                data-departamento-id="@depto.DepartamentoID">
+                            <div class="ops-depto-name">@depto.NombreDepartamento</div>
+                            <div class="ops-depto-meta">
+                                <span>@depto.TotalKpis KPI(s)</span>
+                                <span>@depto.PorcentajeCumplimiento.ToString("N2")%</span>
+                            </div>
                         </button>
-
-                        @foreach (var depto in Model)
-                        {
-                            <button class="list-group-item list-group-item-action op-departamento py-3"
-                                    id="btn-depto-@depto.DepartamentoID"
-                                    onclick="seleccionarDepto(@depto.DepartamentoID, '@depto.NombreDepartamento')">
-                                <i class="fas fa-building text-secondary me-2"></i> @depto.NombreDepartamento
-                            </button>
-                        }
-                    </div>
+                    }
                 </div>
-            </div>
-        </div>
+            </aside>
 
-        <div class="col-12 col-xl-9 col-xxl-10">
-            <div class="card border-0 rounded-4 mb-4 h-100 bg-transparent shadow-none content-zone">
+            <main class="ops-main">
+                <section class="ops-panel ops-filters">
+                    <div class="ops-filter-grid">
+                        <div class="ops-field">
+                            <label>Periodo</label>
+                            <select id="filtroTiempo">
+                                <option value="anio" selected="@(Model.FiltroTiempo == "anio")">Año actual</option>
+                                <option value="trimestre" selected="@(Model.FiltroTiempo == "trimestre")">Trimestre</option>
+                                <option value="mes" selected="@(Model.FiltroTiempo == "mes")">Mes</option>
+                                <option value="semana" selected="@(Model.FiltroTiempo == "semana")">Semana</option>
+                                <option value="dia" selected="@(Model.FiltroTiempo == "dia")">Día</option>
+                                <option value="historico" selected="@(Model.FiltroTiempo == "historico")">Histórico</option>
+                            </select>
+                        </div>
+                        <div class="ops-field">
+                            <label>Mes</label>
+                            <select id="filtroMes">
+                                @for (int i = 1; i <= 12; i++)
+                                {
+                                    var nombreMes = new DateTime(DateTime.Now.Year, i, 1).ToString("MMMM", new System.Globalization.CultureInfo("es-MX"));
+                                    <option value="@i" selected="@(Model.Mes == i)">@nombreMes</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="ops-field">
+                            <label>Semana</label>
+                            <input id="filtroSemana" type="number" min="1" max="53" value="@(Model.Semana ?? 1)" />
+                        </div>
+                        <div class="ops-field">
+                            <label>Día</label>
+                            <input id="filtroDia" type="date" value="@Model.Dia" />
+                        </div>
+                        <button type="button" class="ops-btn primary" id="btnApplyFilters" style="height:42px; justify-content:center;">
+                            <i class="fas fa-filter"></i> Aplicar
+                        </button>
+                        <button type="button" class="ops-btn" id="btnClearFilters" style="height:42px; justify-content:center;">
+                            <i class="fas fa-filter-circle-xmark"></i> Limpiar
+                        </button>
+                    </div>
+                </section>
 
-                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <section class="ops-kpi-summary" id="summaryCards"></section>
+
+                <section class="ops-panel ops-dashboard-head">
                     <div>
-                        <h4 id="titulo-panel" class="fw-bold text-dark mb-1">Visión Ejecutiva Corporativa</h4>
-                        <p class="text-muted small mb-0">
-                            Los datos se actualizan según el periodo seleccionado.
+                        <h2 id="dashboardTitle">@Model.Dashboard.Departamento</h2>
+                        <p id="dashboardSubtitle">
+                            @Model.Dashboard.TotalKpis KPI(s) evaluados · @Model.Dashboard.KpisCumplidos cumplen meta · @Model.Dashboard.KpisNoCumplidos requieren atención
                         </p>
                     </div>
-
-                    <button id="btnExportarExcel"
-                            class="btn btn-ghost-future fw-bold d-none"
-                            disabled
-                            title="Exportación pendiente de configurar">
-                        <i class="fas fa-file-excel me-1 text-success"></i> Exportar a Excel
-                    </button>
-                </div>
-
-                <div id="vistaGlobal">
-
-                    <div id="topWidgets" class="row g-3 mb-4"></div>
-
-                    <div class="row g-4 mb-4">
-                        <div class="col-12">
-                            <div class="global-chart-card global-chart-card-large">
-                                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-                                    <div>
-                                        <div class="global-chart-title mb-1">
-                                            <i class="fas fa-chart-bar me-2"></i> Comparativa de Rendimiento
-                                        </div>
-                                        <small class="text-muted">
-                                            Vista general del cumplimiento por área según el periodo seleccionado.
-                                        </small>
-                                    </div>
-
-                                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2">
-                                        <i class="fas fa-chart-column me-1 text-primary"></i> Vista ejecutiva
-                                    </span>
-                                </div>
-
-                                <div id="chart_global" style="height: 540px; width: 100%;"></div>
-                            </div>
-                        </div>
+                    <div class="ops-badge neutral" id="dashboardScopeBadge">
+                        <i class="fas fa-layer-group"></i>
+                        <span>@(Model.DepartamentoSeleccionadoID.HasValue ? "Área seleccionada" : "Vista general")</span>
                     </div>
+                </section>
 
-                    <div class="row g-4 mb-4">
-                        <div class="col-12">
-                            <div class="ranking-panel">
-                                <div class="px-4 pt-4 pb-2">
-                                    <h6 class="fw-bold text-dark mb-0">
-                                        <i class="fas fa-trophy text-warning me-2"></i> Tabla de Posiciones
-                                    </h6>
-                                    <small class="text-muted">Ranking de áreas según cumplimiento.</small>
-                                </div>
+                <section class="ops-panel" style="margin-bottom:18px;">
+                    <div id="globalChart" class="ops-global-chart"></div>
+                </section>
 
-                                <div class="p-4 pt-3 custom-scrollbar"
-                                     style="max-height: 300px; overflow-y: auto;"
-                                     id="rankingGlobal">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="row g-4" id="insightsGlobal"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="muro_graficas" class="row g-4 d-none"></div>
-
-                <input type="hidden" id="excelIdDepto" value="0" />
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="modalKpisPdf" tabindex="-1" aria-labelledby="modalKpisPdfLabel" aria-hidden="true">
-        <div class="modal-dialog modal-fullscreen-lg-down modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-
-                <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #0f172a, #0c4a6e);">
-                    <div>
-                        <h5 class="modal-title fw-bold" id="modalKpisPdfLabel">
-                            <i class="fas fa-file-pdf me-2 text-danger"></i>
-                            KPIs 25.5.26
-                        </h5>
-                        <small class="text-white-50">
-                            Vista previa del reporte original de KPIs
-                        </small>
-                    </div>
-
-                    <button type="button"
-                            class="btn-close btn-close-white"
-                            data-bs-dismiss="modal"
-                            aria-label="Cerrar">
-                    </button>
-                </div>
-
-                <div class="modal-body p-0 bg-dark">
-                    <iframe id="iframeKpisPdf"
-                            src="@Url.Content("~/contenidos/pdfs/KPIS-25.5.26.pdf")"
-                            style="width: 100%; height: 82vh; border: none; background: #111827;"
-                            title="Reporte KPIs PDF">
-                    </iframe>
-                </div>
-
-                <div class="modal-footer bg-light border-0 d-flex justify-content-between">
-                    <span class="text-muted small">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Se muestra el archivo de los KPIS correspondiente al periodo Enero-Abril 2026.
-                    </span>
-
-                    <div class="d-flex gap-2">
-                        <a href="@Url.Content("~/contenidos/pdfs/KPIS-25.5.26.pdf")"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="btn btn-outline-danger fw-bold rounded-pill px-3">
-                            <i class="fas fa-up-right-from-square me-1"></i>
-                            Abrir en pestaña
-                        </a>
-
-                        <button type="button"
-                                class="btn btn-secondary fw-bold rounded-pill px-3"
-                                data-bs-dismiss="modal">
-                            Cerrar
-                        </button>
-                    </div>
-                </div>
-
-            </div>
+                <section id="kpiGrid" class="ops-kpi-grid"></section>
+            </main>
         </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 
-<script type="text/javascript">
-    const PANTONE_VERDE = '#92D050';
-    const PANTONE_ROJO = '#FF0000';
-    const PANTONE_AMARILLO = '#E2EE0C';
+<div class="modal fade modal-kpis-pdf"
+     id="modalKpisPdf"
+     tabindex="-1"
+     aria-labelledby="modalKpisPdfLabel"
+     aria-hidden="true">
 
-    const CHART_AZUL = '#2563EB';
-    const CHART_CYAN = '#0EA5A4';
-    const CHART_MORADO = '#7C3AED';
-    const CHART_VERDE = '#16A34A';
-    const CHART_NARANJA = '#F59E0B';
-    const CHART_ROSA = '#DB2777';
-    const CHART_GRIS = '#64748B';
+    <div class="modal-dialog modal-kpis-dialog modal-dialog-centered">
+        <div class="modal-content modal-kpis-content">
 
-    const CHART_PALETTE = [
-        CHART_AZUL,
-        CHART_MORADO,
-        CHART_CYAN,
-        CHART_VERDE,
-        CHART_NARANJA,
-        CHART_ROSA,
-        CHART_GRIS
-    ];
+            <div class="modal-header modal-kpis-header">
+                <div>
+                    <h5 class="modal-title fw-bold" id="modalKpisPdfLabel">
+                        <i class="fas fa-file-pdf me-2 text-danger"></i>
+                        KPIs Enero - Abril 2026
+                    </h5>
+                    <small class="text-white-50">
+                        Vista previa del reporte original de KPIs.
+                    </small>
+                </div>
 
-    function valorTextoNoVacio(...valores) {
-        for (const valor of valores) {
-            if (valor === null || valor === undefined) {
-                continue;
+                <button type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"
+                        aria-label="Cerrar">
+                </button>
+            </div>
+
+            <div class="modal-body modal-kpis-body">
+                <iframe id="iframeKpisPdf"
+                        src="@Url.Content("~/contenidos/pdfs/KPIS-25.5.26.pdf")"
+                        title="Reporte KPIs Enero Abril 2026">
+                </iframe>
+            </div>
+
+            <div class="modal-footer modal-kpis-footer">
+                <span class="text-muted small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Se muestra el archivo de KPIs correspondiente al periodo Enero - Abril 2026.
+                </span>
+
+                <div class="d-flex gap-2">
+                    <button type="button"
+                            class="btn btn-secondary fw-bold rounded-pill px-3"
+                            data-bs-dismiss="modal">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="ops-loading" id="dashboardLoading">
+    <div class="ops-spinner">
+        <i class="fas fa-circle-notch fa-spin"></i>
+        Cargando dashboard...
+    </div>
+</div>
+
+<script>
+    const initialDashboard = @Html.Raw(JsonSerializer.Serialize(Model.Dashboard, jsonOptions));
+    const initialDepartamentoId = @(Model.DepartamentoSeleccionadoID.HasValue ? Model.DepartamentoSeleccionadoID.Value.ToString() : "null");
+
+    const endpoints = {
+        general: '@Url.Action("ObtenerDashboardGeneral", "Operaciones")',
+        departamento: '@Url.Action("ObtenerDashboardDepartamento", "Operaciones")'
+    };
+
+    const dashboardState = {
+        departamentoId: initialDepartamentoId,
+        filtroTiempo: document.getElementById('filtroTiempo').value || 'anio',
+        mes: document.getElementById('filtroMes').value || '',
+        semana: document.getElementById('filtroSemana').value || '',
+        dia: document.getElementById('filtroDia').value || ''
+    };
+
+    let dashboardActual = initialDashboard;
+    const chartInstances = new Map();
+
+    function pick(obj, ...keys) {
+        if (!obj) return undefined;
+        for (const key of keys) {
+            if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key] !== undefined && obj[key] !== null) {
+                return obj[key];
             }
+        }
+        return undefined;
+    }
 
-            const texto = valor.toString().trim();
+    function safeArray(value) {
+        return Array.isArray(value) ? value : [];
+    }
 
-            if (texto !== '') {
-                return texto;
-            }
+    function normalizeText(value) {
+        return (value || '').toString().trim().toLowerCase();
+    }
+
+    function getKpis(dashboard) {
+        return safeArray(pick(dashboard, 'kpis', 'Kpis'));
+    }
+
+    function getTarjetas(dashboard) {
+        return safeArray(pick(dashboard, 'tarjetas', 'Tarjetas'));
+    }
+
+    function getHistorial(kpi) {
+        return safeArray(pick(kpi, 'historial', 'Historial'));
+    }
+
+    function getVariables(periodo) {
+        return safeArray(pick(periodo, 'variables', 'Variables'));
+    }
+
+    function getResultado(kpi) {
+        return pick(kpi, 'resultado', 'Resultado') || {};
+    }
+
+    function toNumber(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    function showLoading(show) {
+        document.getElementById('dashboardLoading').classList.toggle('active', !!show);
+    }
+
+    function updateFilterStateFromUi() {
+        dashboardState.filtroTiempo = document.getElementById('filtroTiempo').value || 'anio';
+        dashboardState.mes = document.getElementById('filtroMes').value || '';
+        dashboardState.semana = document.getElementById('filtroSemana').value || '';
+        dashboardState.dia = document.getElementById('filtroDia').value || '';
+    }
+
+    async function cargarDashboard() {
+        updateFilterStateFromUi();
+        showLoading(true);
+
+        const params = new URLSearchParams();
+        params.set('filtroTiempo', dashboardState.filtroTiempo);
+        if (dashboardState.mes) params.set('mes', dashboardState.mes);
+        if (dashboardState.semana) params.set('semana', dashboardState.semana);
+        if (dashboardState.dia) params.set('dia', dashboardState.dia);
+
+        let url = endpoints.general;
+
+        if (dashboardState.departamentoId) {
+            url = endpoints.departamento;
+            params.set('idDepartamento', dashboardState.departamentoId);
         }
 
-        return '';
-    }
-
-    function obtenerTipoValorDesdeKpi(kpi) {
-        if (!kpi) return '';
-
-        return valorTextoNoVacio(
-            kpi.tipoValor,
-            kpi.TipoValor
-        );
-    }
-
-    function obtenerUnidadMedidaDesdeKpi(kpi) {
-        if (!kpi) return '';
-
-        return valorTextoNoVacio(
-            kpi.unidadMedida,
-            kpi.UnidadMedida
-        );
-    }
-
-    function obtenerTipoValorDesdeVariable(variable, kpi) {
-        if (!variable) {
-            return obtenerTipoValorDesdeKpi(kpi);
-        }
-
-        return valorTextoNoVacio(
-            variable.tipoValor,
-            variable.TipoValor,
-            variable.tipoValorVariable,
-            variable.TipoValorVariable,
-            obtenerTipoValorDesdeKpi(kpi)
-        );
-    }
-
-    function obtenerUnidadMedidaDesdeVariable(variable, kpi) {
-        if (!variable) {
-            return obtenerUnidadMedidaDesdeKpi(kpi);
-        }
-
-        return valorTextoNoVacio(
-            variable.unidadMedida,
-            variable.UnidadMedida,
-            variable.unidadMedidaVariable,
-            variable.UnidadMedidaVariable,
-            obtenerUnidadMedidaDesdeKpi(kpi)
-        );
-    }
-
-    function obtenerTipoCapturaDesdeVariable(variable) {
-        if (!variable) {
-            return '';
-        }
-
-        return valorTextoNoVacio(
-            variable.tipoCaptura,
-            variable.TipoCaptura,
-            variable.tipoCapturaVariable,
-            variable.TipoCapturaVariable
-        );
-    }
-
-    function esVariableValorFijo(variable) {
-        const tipoCaptura = valorTextoNoVacio(
-            variable?.tipoCaptura,
-            variable?.TipoCaptura,
-            variable?.tipoCapturaVariable,
-            variable?.TipoCapturaVariable
-        ).toLowerCase();
-
-        return tipoCaptura === 'fijo' ||
-               tipoCaptura === 'valor fijo' ||
-               tipoCaptura === 'fixed';
-    }
-
-    function esLineaFija(variable) {
-        const esLinea = variable?.esLinea === true || variable?.EsLinea === true;
-        return esLinea && esVariableValorFijo(variable);
-    }
-
-    function obtenerVariableIdDesdeVariable(variable) {
-        const id = variable?.variableID ??
-                   variable?.VariableID ??
-                   variable?.variableId ??
-                   variable?.VariableId ??
-                   variable?.idVariable ??
-                   variable?.IdVariable ??
-                   null;
-
-        const numero = parseInt(id);
-
-        return isNaN(numero) ? null : numero;
-    }
-
-    function obtenerVariableTarjetaIdDesdeKpi(kpi) {
-        const id = kpi?.variableTarjetaID ??
-                   kpi?.VariableTarjetaID ??
-                   kpi?.variableTarjetaId ??
-                   kpi?.VariableTarjetaId ??
-                   null;
-
-        const numero = parseInt(id);
-
-        return isNaN(numero) || numero <= 0 ? null : numero;
-    }
-
-    function obtenerModoTarjetaDesdeKpi(kpi) {
-        return valorTextoNoVacio(
-            kpi?.modoTarjeta,
-            kpi?.ModoTarjeta,
-            'Automatico'
-        );
-    }
-
-    function normalizarModoTarjeta(modo) {
-        modo = valorTextoNoVacio(modo, 'Automatico').toLowerCase();
-
-        if (modo === 'ultimoperiodo' || modo === 'ultimo' || modo === 'último periodo') {
-            return 'UltimoPeriodo';
-        }
-
-        if (modo === 'promedio') {
-            return 'Promedio';
-        }
-
-        if (modo === 'suma') {
-            return 'Suma';
-        }
-
-        if (modo === 'acumulado') {
-            return 'Acumulado';
-        }
-
-        if (modo === 'promediogeneral') {
-            return 'PromedioGeneral';
-        }
-
-        return 'Automatico';
-    }
-
-    function obtenerEtiquetaModoTarjeta(modo) {
-        modo = normalizarModoTarjeta(modo);
-
-        if (modo === 'UltimoPeriodo') return 'Último periodo';
-        if (modo === 'Promedio') return 'Promedio';
-        if (modo === 'Suma') return 'Suma del periodo';
-        if (modo === 'Acumulado') return 'Acumulado';
-        if (modo === 'PromedioGeneral') return 'Promedio general';
-
-        return 'Automático';
-    }
-
-    function obtenerFirmaUnidad(tipoValor, unidadMedida) {
-        tipoValor = (tipoValor || '').toString().trim().toLowerCase();
-        unidadMedida = (unidadMedida || '').toString().trim().toLowerCase();
-
-        if (tipoValor === 'porcentaje' || unidadMedida === '%') {
-            return 'porcentaje|%';
-        }
-
-        if (tipoValor === 'moneda' || unidadMedida === '$') {
-            return 'moneda|$';
-        }
-
-        if (!unidadMedida || unidadMedida === 'unidades') {
-            return 'entero|unidades';
-        }
-
-        return `${tipoValor || 'entero'}|${unidadMedida}`;
-    }
-
-    function esTipoPorcentaje(tipoValor, unidadMedida) {
-        tipoValor = (tipoValor || '').toString().trim().toLowerCase();
-        unidadMedida = (unidadMedida || '').toString().trim();
-
-        return tipoValor === 'porcentaje' || unidadMedida === '%';
-    }
-
-    function esTipoMoneda(tipoValor, unidadMedida) {
-        tipoValor = (tipoValor || '').toString().trim().toLowerCase();
-        unidadMedida = (unidadMedida || '').toString().trim();
-
-        return tipoValor === 'moneda' || unidadMedida === '$';
-    }
-
-    function formatearValorKpi(valor, tipoValor, unidadMedida) {
-        const numero = parseFloat(valor);
-
-        if (isNaN(numero)) {
-            return valor ?? '-';
-        }
-
-        tipoValor = (tipoValor || '').toString().trim();
-        unidadMedida = (unidadMedida || '').toString().trim();
-
-        if (esTipoPorcentaje(tipoValor, unidadMedida)) {
-            return `${numero.toLocaleString('es-MX', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            })}%`;
-        }
-
-        if (esTipoMoneda(tipoValor, unidadMedida)) {
-            return numero.toLocaleString('es-MX', {
-                style: 'currency',
-                currency: 'MXN',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
+        try {
+            const response = await fetch(`${url}?${params.toString()}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
-        }
 
-        const valorFormateado = numero.toLocaleString('es-MX', {
-            minimumFractionDigits: numero % 1 === 0 ? 0 : 2,
-            maximumFractionDigits: 2
-        });
+            const payload = await response.json();
 
-        if (unidadMedida && unidadMedida.toLowerCase() !== 'unidades') {
-            return `${valorFormateado} ${unidadMedida}`;
-        }
-
-        return valorFormateado;
-    }
-
-    function formatearNumeroCorto(valor) {
-        const numero = parseFloat(valor);
-
-        if (isNaN(numero)) {
-            return valor ?? '-';
-        }
-
-        if (Math.abs(numero) >= 1000000) {
-            return `${(numero / 1000000).toFixed(1)}M`;
-        }
-
-        if (Math.abs(numero) >= 1000) {
-            return `${(numero / 1000).toFixed(1)}K`;
-        }
-
-        return numero.toFixed(0);
-    }
-
-    function formatearValorKpiCorto(valor, tipoValor, unidadMedida) {
-        const numero = parseFloat(valor);
-
-        if (isNaN(numero)) {
-            return valor ?? '-';
-        }
-
-        tipoValor = (tipoValor || '').toString().trim();
-        unidadMedida = (unidadMedida || '').toString().trim();
-
-        if (esTipoPorcentaje(tipoValor, unidadMedida)) {
-            return `${numero.toFixed(0)}%`;
-        }
-
-        if (esTipoMoneda(tipoValor, unidadMedida)) {
-            if (Math.abs(numero) >= 1000000) {
-                return `$${(numero / 1000000).toFixed(1)}M`;
+            if (!payload.ok) {
+                console.warn(payload.mensaje || 'No se pudo cargar el dashboard.');
+                return;
             }
 
-            if (Math.abs(numero) >= 1000) {
-                return `$${(numero / 1000).toFixed(1)}K`;
-            }
-
-            return `$${numero.toFixed(0)}`;
+            dashboardActual = payload.dashboard || payload.Dashboard;
+            renderDashboard(dashboardActual);
+        } catch (error) {
+            console.error('Error al cargar dashboard V2:', error);
+        } finally {
+            showLoading(false);
         }
-
-        const valorCorto = formatearNumeroCorto(numero);
-
-        if (unidadMedida && unidadMedida.toLowerCase() !== 'unidades') {
-            return `${valorCorto} ${unidadMedida}`;
-        }
-
-        return valorCorto;
     }
 
-    function obtenerNombreEje(tipoValor, unidadMedida) {
-        tipoValor = (tipoValor || '').toString().trim();
-        unidadMedida = (unidadMedida || '').toString().trim();
+    function setDepartamentoActivo(idDepartamento) {
+        dashboardState.departamentoId = idDepartamento && Number(idDepartamento) > 0 ? Number(idDepartamento) : null;
 
-        if (esTipoPorcentaje(tipoValor, unidadMedida)) {
-            return 'Porcentaje';
-        }
-
-        if (esTipoMoneda(tipoValor, unidadMedida)) {
-            return 'Pesos MXN';
-        }
-
-        if (unidadMedida && unidadMedida.toLowerCase() !== 'unidades') {
-            return unidadMedida;
-        }
-
-        return 'Valores';
-    }
-
-    function obtenerConfiguracionEjeValores(configVariables) {
-        const variablesDeValor = configVariables.filter(cv => !esTipoPorcentaje(cv.tipoValor, cv.unidadMedida));
-
-        if (variablesDeValor.length === 0) {
-            return {
-                name: 'Valores',
-                tipoValor: '',
-                unidadMedida: ''
-            };
-        }
-
-        const firmas = [...new Set(variablesDeValor.map(cv => obtenerFirmaUnidad(cv.tipoValor, cv.unidadMedida)))];
-
-        // Si todas las variables de valor comparten unidad, el eje puede mostrar esa unidad.
-        // Si el KPI mezcla unidades distintas, el eje queda neutral y cada serie se formatea en tooltip/tarjeta.
-        if (firmas.length === 1) {
-            const primera = variablesDeValor[0];
-
-            return {
-                name: obtenerNombreEje(primera.tipoValor, primera.unidadMedida),
-                tipoValor: primera.tipoValor,
-                unidadMedida: primera.unidadMedida
-            };
-        }
-
-        return {
-            name: 'Valores',
-            tipoValor: '',
-            unidadMedida: ''
-        };
-    }
-
-
-    function obtenerHistorialKpi(kpi) {
-        return kpi?.historial ?? kpi?.Historial ?? [];
-    }
-
-    function obtenerVariablesPeriodo(periodo) {
-        return periodo?.variables ?? periodo?.Variables ?? [];
-    }
-
-    function esVariableMeta(variable) {
-        const nombre = valorTextoNoVacio(
-            variable?.nombre,
-            variable?.Nombre,
-            variable?.nombreVariable,
-            variable?.NombreVariable
-        ).toLowerCase();
-
-        const esLinea = variable?.esLinea === true || variable?.EsLinea === true;
-
-        return esLinea || nombre.includes('meta');
-    }
-
-    function evaluarCumplimientoMeta(valor, meta, sentido) {
-        const valorNumerico = parseFloat(valor);
-        const metaNumerica = parseFloat(meta);
-
-        if (isNaN(valorNumerico) || isNaN(metaNumerica) || !sentido) {
-            return null;
-        }
-
-        if (sentido === 'MayorMejor') {
-            return valorNumerico >= metaNumerica;
-        }
-
-        if (sentido === 'MenorMejor') {
-            return valorNumerico <= metaNumerica;
-        }
-
-        if (sentido === 'Exacto') {
-            return Math.round(valorNumerico * 100) / 100 === Math.round(metaNumerica * 100) / 100;
-        }
-
-        return null;
-    }
-
-    function obtenerTextoMeta(meta, sentido, tipoValor, unidadMedida) {
-        if (meta === null || meta === undefined || meta === '') {
-            return '';
-        }
-
-        const metaFormateada = formatearValorKpi(meta, tipoValor, unidadMedida);
-
-        if (sentido === 'MenorMejor') {
-            return `Meta: < ${metaFormateada}`;
-        }
-
-        if (sentido === 'MayorMejor') {
-            return `Meta: ≥ ${metaFormateada}`;
-        }
-
-        if (sentido === 'Exacto') {
-            return `Meta: = ${metaFormateada}`;
-        }
-
-        return `Meta: ${metaFormateada}`;
-    }
-
-    function calcularPromedioGeneralKpi(kpi) {
-        const historial = obtenerHistorialKpi(kpi);
-        const valores = [];
-        const firmas = new Set();
-        const nombresVariables = new Set();
-
-        let tipoValorGeneral = obtenerTipoValorDesdeKpi(kpi);
-        let unidadGeneral = obtenerUnidadMedidaDesdeKpi(kpi);
-        let meta = null;
-        let sentido = null;
-
-        historial.forEach(periodo => {
-            obtenerVariablesPeriodo(periodo).forEach(variable => {
-                if (meta === null || meta === undefined) {
-                    meta = variable?.meta ?? variable?.Meta ?? null;
-                }
-
-                if (sentido === null || sentido === undefined) {
-                    sentido = variable?.sentido ?? variable?.Sentido ?? null;
-                }
-
-                if (esVariableMeta(variable)) {
-                    return;
-                }
-
-                const valor = parseFloat(variable?.valor ?? variable?.Valor);
-
-                if (isNaN(valor)) {
-                    return;
-                }
-
-                const nombre = valorTextoNoVacio(variable?.nombre, variable?.Nombre);
-                const tipoValor = obtenerTipoValorDesdeVariable(variable, kpi);
-                const unidadMedida = obtenerUnidadMedidaDesdeVariable(variable, kpi);
-
-                valores.push(valor);
-                firmas.add(obtenerFirmaUnidad(tipoValor, unidadMedida));
-
-                if (nombre) {
-                    nombresVariables.add(nombre);
-                }
-
-                tipoValorGeneral = tipoValor;
-                unidadGeneral = unidadMedida;
-            });
+        document.querySelectorAll('.ops-depto-item').forEach(btn => {
+            const id = Number(btn.dataset.departamentoId);
+            btn.classList.toggle('active', dashboardState.departamentoId === id);
         });
 
-        if (!valores.length) {
-            return {
-                promedio: null,
-                conteo: 0,
-                puedePromediar: false,
-                motivo: 'sin-valores'
-            };
-        }
-
-        // Solo promediamos variables internas cuando el KPI es de porcentaje.
-        // En KPIs de moneda o cantidades, promediar Proyectado + Real genera
-        // tarjetas incorrectas frente a Power BI.
-        if (!esTipoPorcentaje(tipoValorGeneral, unidadGeneral)) {
-            return {
-                promedio: null,
-                conteo: valores.length,
-                puedePromediar: false,
-                motivo: 'promedio-solo-porcentaje'
-            };
-        }
-
-        if (firmas.size > 1) {
-            return {
-                promedio: null,
-                conteo: valores.length,
-                puedePromediar: false,
-                motivo: 'unidades-mixtas'
-            };
-        }
-
-        if (nombresVariables.size < 2) {
-            return {
-                promedio: null,
-                conteo: valores.length,
-                puedePromediar: false,
-                motivo: 'una-variable'
-            };
-        }
-
-        const suma = valores.reduce((total, valor) => total + valor, 0);
-
-        return {
-            promedio: suma / valores.length,
-            conteo: valores.length,
-            puedePromediar: true,
-            tipoValor: tipoValorGeneral,
-            unidadMedida: unidadGeneral,
-            meta,
-            sentido
-        };
+        cargarDashboard();
     }
 
-    function calcularTarjetaConfiguradaKpi(kpi) {
-        const variableTarjetaId = obtenerVariableTarjetaIdDesdeKpi(kpi);
-        const modoTarjeta = normalizarModoTarjeta(obtenerModoTarjetaDesdeKpi(kpi));
-
-        if (!variableTarjetaId) {
-            return {
-                tieneConfiguracion: false
-            };
-        }
-
-        const historial = obtenerHistorialKpi(kpi);
-        const valores = [];
-
-        let nombreVariable = '';
-        let tipoValor = obtenerTipoValorDesdeKpi(kpi);
-        let unidadMedida = obtenerUnidadMedidaDesdeKpi(kpi);
-        let meta = null;
-        let sentido = null;
-
-        historial.forEach(periodo => {
-            obtenerVariablesPeriodo(periodo).forEach(variable => {
-                const idVariable = obtenerVariableIdDesdeVariable(variable);
-
-                if (idVariable !== variableTarjetaId) {
-                    return;
-                }
-
-                const valor = parseFloat(variable?.valor ?? variable?.Valor);
-
-                if (isNaN(valor)) {
-                    return;
-                }
-
-                valores.push({
-                    valor,
-                    periodo: periodo?.periodo ?? periodo?.Periodo ?? '',
-                    variable
-                });
-
-                nombreVariable = valorTextoNoVacio(
-                    variable?.nombre,
-                    variable?.Nombre,
-                    variable?.nombreVariable,
-                    variable?.NombreVariable,
-                    nombreVariable
-                );
-
-                tipoValor = obtenerTipoValorDesdeVariable(variable, kpi);
-                unidadMedida = obtenerUnidadMedidaDesdeVariable(variable, kpi);
-
-                if (meta === null || meta === undefined) {
-                    meta = variable?.meta ?? variable?.Meta ?? null;
-                }
-
-                if (sentido === null || sentido === undefined) {
-                    sentido = variable?.sentido ?? variable?.Sentido ?? null;
-                }
-            });
-        });
-
-        if (!valores.length) {
-            return {
-                tieneConfiguracion: true,
-                tieneValor: false,
-                variableTarjetaId,
-                modoTarjeta,
-                nombreVariable,
-                tipoValor,
-                unidadMedida,
-                meta,
-                sentido,
-                valor: null,
-                conteo: 0
-            };
-        }
-
-        let valorFinal = 0;
-
-        if (modoTarjeta === 'Promedio') {
-            valorFinal = valores.reduce((total, item) => total + item.valor, 0) / valores.length;
-        }
-        else if (modoTarjeta === 'Suma' || modoTarjeta === 'Acumulado') {
-            valorFinal = valores.reduce((total, item) => total + item.valor, 0);
-        }
-        else {
-            // Automatico y UltimoPeriodo se comportan como Power BI:
-            // muestran el ultimo punto visible del periodo filtrado.
-            valorFinal = valores[valores.length - 1].valor;
-        }
-
-        return {
-            tieneConfiguracion: true,
-            tieneValor: true,
-            variableTarjetaId,
-            modoTarjeta,
-            nombreVariable,
-            tipoValor,
-            unidadMedida,
-            meta,
-            sentido,
-            valor: valorFinal,
-            conteo: valores.length
-        };
+    function limpiarFiltros() {
+        dashboardState.departamentoId = null;
+        document.getElementById('filtroTiempo').value = 'anio';
+        document.getElementById('filtroMes').value = String(new Date().getMonth() + 1);
+        document.getElementById('filtroSemana').value = '1';
+        document.getElementById('filtroDia').value = '';
+        document.querySelectorAll('.ops-depto-item').forEach(btn => btn.classList.remove('active'));
+        cargarDashboard();
     }
 
-    function obtenerValorNumericoEje(valor) {
-        if (valor === null || valor === undefined) {
-            return null;
-        }
+    function renderDashboard(dashboard) {
+        if (!dashboard) return;
 
-        if (Array.isArray(valor)) {
-            valor = valor[1];
-        }
+        const departamento = pick(dashboard, 'departamento', 'Departamento') || 'Vista general';
+        const totalKpis = toNumber(pick(dashboard, 'totalKpis', 'TotalKpis'));
+        const kpisCumplidos = toNumber(pick(dashboard, 'kpisCumplidos', 'KpisCumplidos'));
+        const kpisNoCumplidos = toNumber(pick(dashboard, 'kpisNoCumplidos', 'KpisNoCumplidos'));
 
-        if (typeof valor === 'object' && valor.value !== undefined) {
-            valor = valor.value;
-        }
+        document.getElementById('dashboardTitle').textContent = departamento;
+        document.getElementById('dashboardSubtitle').textContent = `${totalKpis} KPI(s) evaluados · ${kpisCumplidos} cumplen meta · ${kpisNoCumplidos} requieren atención`;
+        document.querySelector('#dashboardScopeBadge span').textContent = dashboardState.departamentoId ? 'Área seleccionada' : 'Vista general';
 
-        const numero = Number(valor);
-        return isNaN(numero) ? null : numero;
+        renderSummaryCards(dashboard);
+        renderGlobalChart(dashboard);
+        renderKpiGrid(dashboard);
     }
 
-    function calcularMaximoEjeInteligente(valores, tipoValor, unidadMedida) {
-        const numeros = valores
-            .map(obtenerValorNumericoEje)
-            .filter(v => v !== null);
+    function renderSummaryCards(dashboard) {
+        const target = document.getElementById('summaryCards');
+        const tarjetas = getTarjetas(dashboard);
 
-        if (!numeros.length) {
-            return 10;
-        }
-
-        const maxDato = Math.max(...numeros, 0);
-        const esPorcentaje = esTipoPorcentaje(tipoValor, unidadMedida);
-
-        if (maxDato <= 0) {
-            return esPorcentaje ? 10 : 5;
-        }
-
-        if (esPorcentaje) {
-            if (maxDato <= 1) return 1.5;
-            if (maxDato <= 2) return 2;
-            if (maxDato <= 5) return 6;
-            if (maxDato <= 10) return 10;
-            if (maxDato <= 15) return 15;
-            if (maxDato <= 25) return 25;
-            if (maxDato <= 50) return 50;
-            if (maxDato <= 100) return 100;
-
-            return Math.ceil((maxDato * 1.15) / 10) * 10;
-        }
-
-        if (maxDato <= 5) return Math.ceil(maxDato + 1);
-        if (maxDato <= 10) return Math.ceil(maxDato + 2);
-        if (maxDato <= 50) return Math.ceil((maxDato * 1.25) / 5) * 5;
-        if (maxDato <= 100) return Math.ceil((maxDato * 1.2) / 10) * 10;
-        if (maxDato <= 1000) return Math.ceil((maxDato * 1.15) / 50) * 50;
-
-        return Math.ceil((maxDato * 1.15) / 100) * 100;
-    }
-
-    function calcularIntervaloEje(maximo) {
-        if (maximo <= 2) return 0.5;
-        if (maximo <= 6) return 1;
-        if (maximo <= 10) return 2;
-        if (maximo <= 25) return 5;
-        if (maximo <= 50) return 10;
-        if (maximo <= 100) return 20;
-
-        return Math.ceil(maximo / 5 / 10) * 10;
-    }
-
-
-    document.addEventListener("DOMContentLoaded", function () {
-        document.getElementById('filtroMesGlobal').value = new Date().getMonth() + 1;
-
-        const now = new Date();
-        const primerDia = new Date(now.getFullYear(), 0, 1);
-        const semanaActual = Math.ceil((((now - primerDia) / 86400000) + primerDia.getDay() + 1) / 7);
-        document.getElementById('filtroSemanaGlobal').value = Math.min(Math.max(semanaActual, 1), 53);
-
-        mostrarSelectorPeriodo();
-        cambiarDepartamento(0, "General");
-
-        window.addEventListener('resize', function () {
-            if (chartGlobalInstance) chartGlobalInstance.resize();
-
-            for (let key in eChartInstances) {
-                eChartInstances[key].resize();
-            }
-        });
-    });
-
-    let vistaEsGeneral = true;
-    let tableroActivo = [];
-    let chartGlobalInstance = null;
-    let eChartInstances = {};
-
-    function filtrarDepartamentos() {
-        const busqueda = document.getElementById('buscadorDepto').value.toLowerCase();
-        const items = document.querySelectorAll('.op-departamento');
-
-        items.forEach(item => {
-            item.style.display = item.textContent.toLowerCase().includes(busqueda) ? "block" : "none";
-        });
-    }
-
-    function seleccionarDepto(id, nombre) {
-        document.querySelectorAll('#listaResultados button').forEach(b => b.classList.remove('active-sidebar'));
-
-        let btn = document.getElementById('btn-depto-' + id);
-
-        if (btn) {
-            btn.classList.add('active-sidebar');
-        }
-
-        document.getElementById('excelIdDepto').value = id;
-
-        cambiarDepartamento(id, nombre);
-    }
-
-    function mostrarSelectorPeriodo() {
-        const filtro = document.getElementById('filtroTiempoGlobal').value;
-        const contenedorMes = document.getElementById('contenedorFiltroMes');
-        const contenedorSemana = document.getElementById('contenedorFiltroSemana');
-
-        contenedorMes.classList.toggle('d-none', filtro !== 'mes');
-        contenedorSemana.classList.toggle('d-none', filtro !== 'semana');
-    }
-
-    function aplicarFiltroTiempo() {
-        mostrarSelectorPeriodo();
-
-        let deptoActual = document.getElementById('excelIdDepto').value || 0;
-        let nombreActual = document.getElementById('titulo-panel').innerText.replace("Desempeño de Área: ", "");
-
-        if (deptoActual == 0) {
-            nombreActual = "General";
-        }
-
-        cambiarDepartamento(deptoActual, nombreActual);
-    }
-
-    function cambiarDepartamento(id, nombreDepto) {
-        vistaEsGeneral = (id == 0);
-
-        document.getElementById('titulo-panel').innerText = vistaEsGeneral
-            ? "Visión Ejecutiva Corporativa"
-            : `Desempeño de Área: ${nombreDepto}`;
-
-        const vistaGlobal = document.getElementById('vistaGlobal');
-        const vistaMuro = document.getElementById('muro_graficas');
-        const btnExcel = document.getElementById('btnExportarExcel');
-
-        const tiempoSeleccionado = document.getElementById('filtroTiempoGlobal').value;
-        const mesSeleccionado = document.getElementById('filtroMesGlobal').value;
-        const semanaSeleccionada = document.getElementById('filtroSemanaGlobal').value;
-
-        const parametrosFecha = `&semana=${semanaSeleccionada}`;
-
-        if (vistaEsGeneral) {
-            vistaGlobal.classList.remove('d-none');
-            vistaMuro.classList.add('d-none');
-            btnExcel.classList.add('d-none');
-
-            document.getElementById('chart_global').innerHTML = `
-                <div class="d-flex justify-content-center align-items-center h-100">
-                    <div class="spinner-border text-primary"></div>
-                </div>
-            `;
-
-            fetch(`/Operaciones/ObtenerDatosGrafica?filtroTiempo=${tiempoSeleccionado}&mes=${mesSeleccionado}${parametrosFecha}&t=${new Date().getTime()}`)
-                .then(r => r.json())
-                .then(datos => {
-                    dibujarResumenGlobal(datos);
-                    dibujarGraficaGlobalECharts(datos);
-                });
-        } else {
-            vistaGlobal.classList.add('d-none');
-            vistaMuro.classList.remove('d-none');
-            btnExcel.classList.add('d-none');
-
-            vistaMuro.innerHTML = `
-                <div class="col-12 text-center py-5">
-                    <div class="spinner-border" style="color: ${PANTONE_VERDE};"></div>
-                    <p class="mt-2 text-muted">Cargando métricas del área...</p>
-                </div>
-            `;
-
-            fetch(`/Operaciones/ObtenerTableroDepartamento?idDepartamento=${id}&filtroTiempo=${tiempoSeleccionado}&mes=${mesSeleccionado}${parametrosFecha}&t=${new Date().getTime()}`)
-                .then(r => r.json())
-                .then(tablero => {
-                    tableroActivo = tablero;
-                    dibujarMuroDeGraficasECharts(tableroActivo);
-                });
-        }
-    }
-
-    function dibujarResumenGlobal(datos) {
-        let textoPeriodo = "Global";
-        const filtroSelect = document.getElementById('filtroTiempoGlobal');
-
-        if (filtroSelect) {
-            textoPeriodo = filtroSelect.options[filtroSelect.selectedIndex].text;
-            const valorFiltro = filtroSelect.value;
-
-            if (valorFiltro === 'mes') {
-                const mesSelect = document.getElementById('filtroMesGlobal');
-                textoPeriodo = "Mes: " + mesSelect.options[mesSelect.selectedIndex].text;
-            } else if (valorFiltro === 'semana') {
-                const semSelect = document.getElementById('filtroSemanaGlobal');
-                textoPeriodo = semSelect.options[semSelect.selectedIndex].text;
-            }
-        }
-
-        if (!datos || datos.length === 0) {
-            document.getElementById('topWidgets').innerHTML = `
-                <div class="col-12">
-                    <div class="alert shadow-sm border-0 rounded-4 text-center p-4 bg-white border-start border-4" style="border-left-color: ${PANTONE_AMARILLO} !important;">
-                        <i class="fas fa-folder-open fa-3x mb-3 opacity-50" style="color: ${PANTONE_AMARILLO};"></i>
-                        <h5 class="fw-bold text-dark">No hay evaluaciones en este periodo</h5>
-                        <p class="text-muted mb-0">No hay metas configuradas o capturadas en: <b>${textoPeriodo}</b>.</p>
-                    </div>
-                </div>
-            `;
-
-            document.getElementById('rankingGlobal').innerHTML = `
-                <div class="text-center text-muted mt-5">
-                    <i class="fas fa-trophy fa-2x mb-2 opacity-25"></i>
-                    <p>Sin ranking disponible</p>
-                </div>
-            `;
-
-            document.getElementById('insightsGlobal').innerHTML = '';
+        if (!tarjetas.length) {
+            target.innerHTML = '';
             return;
         }
 
-        let datosOrdenados = [...datos].sort((a, b) => b.valor - a.valor);
-        let totalKpisEmpresa = datos.reduce((acc, d) => acc + d.totalKpis, 0);
-        let totalCumplidosEmpresa = datos.reduce((acc, d) => acc + d.cumplidos, 0);
+        target.innerHTML = tarjetas.map(card => {
+            const estado = pick(card, 'estadoVisual', 'EstadoVisual') || 'neutral';
+            const icono = pick(card, 'icono', 'Icono') || 'fas fa-chart-line';
+            const titulo = pick(card, 'titulo', 'Titulo') || '';
+            const valor = pick(card, 'valor', 'Valor') || '--';
+            const subtitulo = pick(card, 'subtitulo', 'Subtitulo') || '';
 
-        let tasaCumplimientoGlobal = totalKpisEmpresa > 0
-            ? ((totalCumplidosEmpresa / totalKpisEmpresa) * 100).toFixed(2)
-            : 0;
-
-        let colorSemaforo = tasaCumplimientoGlobal < 60
-            ? '#ff0000'
-            : (tasaCumplimientoGlobal < 80 ? '#facc15' : '#a3e635');
-
-        let mejorArea = datosOrdenados[0];
-
-        document.getElementById('topWidgets').innerHTML = `
-            <div class="col-12 col-md-6 col-xl-3">
-                <div class="top-widget-card" style="--accent:${colorSemaforo};">
-                    <div class="top-widget-title">
-                        <i class="fas fa-chart-line"></i>
-                        Éxito ${textoPeriodo}
+            return `
+                <article class="ops-panel ops-summary-card state-${estado}">
+                    <div class="ops-summary-top">
+                        <span class="ops-summary-icon"><i class="${icono}"></i></span>
+                        <span class="ops-summary-title">${escapeHtml(titulo)}</span>
                     </div>
-                    <h2 class="top-widget-value" style="color:${colorSemaforo};">
-                        ${tasaCumplimientoGlobal}%
-                    </h2>
-                    <div class="top-widget-sub">Cumplimiento global del periodo</div>
-                </div>
-            </div>
-
-            <div class="col-12 col-md-6 col-xl-3">
-                <div class="top-widget-card" style="--accent:#38bdf8;">
-                    <div class="top-widget-title">
-                        <i class="fas fa-bullseye"></i>
-                        Metas Logradas
-                    </div>
-                    <h2 class="top-widget-value" style="color:#2563EB;">
-                        ${totalCumplidosEmpresa}
-                        <span style="font-size:1.1rem;color:#94A3B8;font-weight:800;">/ ${totalKpisEmpresa}</span>
-                    </h2>
-                    <div class="top-widget-sub">Metas cumplidas frente al total evaluado</div>
-                </div>
-            </div>
-
-            <div class="col-12 col-md-6 col-xl-3">
-                <div class="top-widget-card" style="--accent:#facc15;">
-                    <div class="top-widget-title">
-                        <i class="fas fa-medal"></i>
-                        Área Líder
-                    </div>
-                    <h2 class="top-widget-value text-truncate" style="color:#7C8700;font-size:1.8rem;" title="${mejorArea.departamento}">
-                        ${mejorArea.departamento}
-                    </h2>
-                    <div class="top-widget-sub">Área con mejor desempeño actual</div>
-                </div>
-            </div>
-
-            <div class="col-12 col-md-6 col-xl-3">
-                <div class="top-widget-card" style="--accent:#22d3ee;">
-                    <div class="top-widget-title">
-                        <i class="fas fa-sync-alt"></i>
-                        Áreas Activas
-                    </div>
-                    <h2 class="top-widget-value" style="color:#06B6D4;">
-                        ${datos.length}
-                    </h2>
-                    <div class="top-widget-sub">Áreas con métricas en el periodo</div>
-                </div>
-            </div>
-        `;
-
-        let rankingHtml = '';
-
-        datosOrdenados.forEach((d, index) => {
-            let colorHex = d.valor < 60
-                ? PANTONE_ROJO
-                : (d.valor < 80 ? PANTONE_AMARILLO : PANTONE_VERDE);
-
-            let textColor = (colorHex === PANTONE_AMARILLO || colorHex === PANTONE_VERDE) ? '#111' : '#fff';
-
-            let medalla = index === 0
-                ? '🥇'
-                : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `<span class="badge bg-light text-muted border">${index + 1}</span>`));
-
-            rankingHtml += `
-                <div class="ranking-item" style="border-left: 4px solid ${colorHex};">
-                    <div class="ranking-left">
-                        <div class="ranking-medal">${medalla}</div>
-                        <div class="min-w-0">
-                            <div class="ranking-name text-truncate" title="${d.departamento}">
-                                ${d.departamento}
-                            </div>
-                            <div class="ranking-meta">${d.cumplidos} de ${d.totalKpis} metas</div>
-                        </div>
-                    </div>
-
-                    <span class="ranking-badge" style="background:${colorHex}; color:${textColor};">
-                        ${d.valor}%
-                    </span>
-                </div>
+                    <div class="ops-summary-value">${escapeHtml(valor)}</div>
+                    <div class="ops-summary-subtitle">${escapeHtml(subtitulo)}</div>
+                </article>
             `;
-        });
-
-        const rankingElement = document.getElementById('rankingGlobal');
-        rankingElement.classList.add('d-flex', 'flex-wrap', 'gap-3');
-        rankingElement.innerHTML = rankingHtml;
-
-        let kpisExitosos = [];
-        let kpisFallidos = [];
-
-        datos.forEach(d => {
-            d.detalle.forEach(k => {
-                if (k.cumple) {
-                    kpisExitosos.push({ depto: d.departamento, ...k });
-                } else {
-                    kpisFallidos.push({ depto: d.departamento, ...k });
-                }
-            });
-        });
-
-        document.getElementById('insightsGlobal').innerHTML = `
-            <div class="col-12 col-xxl-6">
-                <div class="insight-panel insight-panel-success">
-                    <div class="insight-title" style="color:#4a7522;">
-                        <i class="fas fa-star me-2"></i> Metas Logradas
-                    </div>
-
-                    ${
-                        kpisExitosos.length > 0
-                            ? kpisExitosos.slice(0, 5).map(k => `
-                                <div class="insight-item">
-                                    <div class="insight-kpi">
-                                        <div class="insight-area" style="color:#5E9B24;">
-                                            <i class="fas fa-check-circle me-2"></i>${k.depto}
-                                        </div>
-                                        <div class="insight-metric">${k.nombreKpi}</div>
-                                    </div>
-                                    <div class="insight-chip">
-                                        Logró: ${k.promedioActual} (Meta: ${k.metaEsperada})
-                                    </div>
-                                </div>
-                            `).join('')
-                            : `
-                                <div class="text-muted">
-                                    Aún no hay metas superadas en este periodo.
-                                </div>
-                            `
-                    }
-                </div>
-            </div>
-
-            <div class="col-12 col-xxl-6">
-                <div class="insight-panel insight-panel-danger">
-                    <div class="insight-title" style="color:#B91C1C;">
-                        <i class="fas fa-exclamation-triangle me-2"></i> Metas No Alcanzadas
-                    </div>
-
-                    ${
-                        kpisFallidos.length > 0
-                            ? kpisFallidos.slice(0, 5).map(k => `
-                                <div class="insight-item">
-                                    <div class="insight-kpi">
-                                        <div class="insight-area" style="color:#DC2626;">
-                                            <i class="fas fa-times-circle me-2"></i>${k.depto}
-                                        </div>
-                                        <div class="insight-metric">${k.nombreKpi}</div>
-                                    </div>
-                                    <div class="insight-chip">
-                                        Cayó a: ${k.promedioActual} (Meta: ${k.metaEsperada})
-                                    </div>
-                                </div>
-                            `).join('')
-                            : `
-                                <div class="text-muted">
-                                    ¡Excelente! Ninguna meta reprobada.
-                                </div>
-                            `
-                    }
-                </div>
-            </div>
-        `;
+        }).join('');
     }
 
-    function dibujarGraficaGlobalECharts(datos) {
-        let chartDom = document.getElementById('chart_global');
+    function renderGlobalChart(dashboard) {
+        const el = document.getElementById('globalChart');
+        const kpis = getKpis(dashboard);
 
-        if (!chartDom) return;
+        const data = kpis.map(kpi => {
+            const resultado = getResultado(kpi);
+            return {
+                name: pick(kpi, 'nombreMetrica', 'NombreMetrica') || 'KPI',
+                value: toNumber(pick(resultado, 'resultado', 'Resultado')),
+                cumple: pick(resultado, 'cumpleMeta', 'CumpleMeta'),
+                label: pick(resultado, 'resultadoFormateado', 'ResultadoFormateado') || ''
+            };
+        });
 
-        if (chartGlobalInstance) {
-            chartGlobalInstance.dispose();
+        disposeChart('globalChart');
+        const chart = echarts.init(el);
+        chartInstances.set('globalChart', chart);
+
+        if (!data.length) {
+            chart.setOption(emptyChartOption('Sin KPIs para el filtro actual'));
+            return;
         }
 
-        chartGlobalInstance = echarts.init(chartDom);
-
-        let categorias = datos.length > 0 ? datos.map(d => d.departamento) : ['Sin datos'];
-        let valores = datos.length > 0 ? datos.map(d => d.valor) : [0];
-
-        let option = {
-            backgroundColor: 'transparent',
+        chart.setOption({
             tooltip: {
                 trigger: 'axis',
-                axisPointer: {
-                    type: 'shadow',
-                    shadowStyle: {
-                        color: 'rgba(37,99,235,.08)'
-                    }
-                },
-                backgroundColor: '#0f172a',
-                borderColor: '#334155',
-                borderWidth: 1,
-                textStyle: {
-                    color: '#f8fafc',
-                    fontSize: 13
-                },
-                padding: 12,
-                formatter: function (params) {
-                    let deptData = datos.find(d => d.departamento === params[0].name);
-
-                    if (!deptData) {
-                        return 'Sin datos';
-                    }
-
-                    return `
-                        <div style="font-weight:900;margin-bottom:4px;">${deptData.departamento}</div>
-                        <div>Tasa de Éxito: <b>${deptData.valor}%</b></div>
-                        <div>${deptData.cumplidos} de ${deptData.totalKpis} metas cumplidas</div>
-                    `;
+                axisPointer: { type: 'shadow' },
+                formatter: params => {
+                    const p = params[0];
+                    const row = data[p.dataIndex];
+                    return `<strong>${escapeHtml(row.name)}</strong><br/>Resultado: ${escapeHtml(row.label || p.value)}`;
                 }
             },
-            grid: {
-                left: '5%',
-                right: '5%',
-                bottom: '12%',
-                top: '10%',
-                containLabel: true
-            },
+            grid: { left: 48, right: 26, top: 28, bottom: 92 },
             xAxis: {
                 type: 'category',
-                data: categorias,
-                axisTick: {
-                    show: false
-                },
-                axisLine: {
-                    lineStyle: {
-                        color: '#94a3b8'
-                    }
-                },
+                data: data.map(x => x.name),
                 axisLabel: {
                     interval: 0,
-                    rotate: categorias.length > 5 ? 18 : 0,
-                    fontSize: 12,
-                    fontWeight: 800,
-                    color: '#334155',
-                    margin: 14
+                    rotate: 35,
+                    width: 95,
+                    overflow: 'truncate'
                 }
             },
             yAxis: {
                 type: 'value',
-                max: 100,
-                axisLine: {
-                    show: false
-                },
-                axisTick: {
-                    show: false
-                },
-                axisLabel: {
-                    formatter: '{value}%',
-                    color: '#334155',
-                    fontSize: 12,
-                    fontWeight: 800
-                },
-                name: 'Nivel de Cumplimiento',
-                nameGap: 28,
-                nameTextStyle: {
-                    color: '#0f172a',
-                    fontWeight: 900,
-                    fontSize: 12
-                },
-                splitLine: {
-                    lineStyle: {
-                        color: '#e2e8f0',
-                        type: 'solid'
-                    }
-                }
+                splitLine: { lineStyle: { type: 'dashed' } }
             },
-            series: [
-                {
-                    name: 'Tasa de Éxito',
-                    type: 'bar',
-                    barWidth: categorias.length <= 3 ? '18%' : '38%',
-                    data: valores.map((v, index) => {
-                        let color = CHART_PALETTE[index % CHART_PALETTE.length];
-
-                        return {
-                            value: v,
-                            itemStyle: {
-                                color: color,
-                                borderRadius: [12, 12, 0, 0]
-                            }
-                        };
-                    }),
-                    label: {
-                        show: true,
-                        position: 'top',
-                        formatter: '{c}%',
-                        color: '#0f172a',
-                        fontWeight: 900,
-                        fontSize: 12
-                    },
-                    emphasis: {
-                        itemStyle: {
-                            shadowBlur: 16,
-                            shadowColor: 'rgba(15,23,42,.24)'
-                        }
-                    },
-                    markLine: {
-                        silent: true,
-                        symbol: 'none',
-                        lineStyle: {
-                            type: 'dashed',
-                            width: 2,
-                            color: '#f59e0b'
-                        },
-                        label: {
-                            formatter: 'Meta 80%',
-                            color: '#92400e',
-                            fontWeight: 900,
-                            fontSize: 12,
-                            backgroundColor: '#fff7ed',
-                            borderColor: '#fed7aa',
-                            borderWidth: 1,
-                            borderRadius: 8,
-                            padding: [4, 8]
-                        },
-                        data: [
-                            { yAxis: 80 }
-                        ]
-                    },
-                    animationDuration: 1200,
-                    animationEasing: 'cubicOut'
+            series: [{
+                name: 'Resultado KPI',
+                type: 'bar',
+                data: data.map(x => x.value),
+                barMaxWidth: 42,
+                itemStyle: {
+                    borderRadius: [8, 8, 0, 0]
                 }
-            ]
+            }]
+        });
+    }
+
+    function renderKpiGrid(dashboard) {
+        const target = document.getElementById('kpiGrid');
+        const kpis = getKpis(dashboard);
+
+        disposeKpiCharts();
+
+        if (!kpis.length) {
+            target.innerHTML = `
+                <div class="ops-panel ops-empty" style="grid-column: 1 / -1;">
+                    <i class="fas fa-chart-simple"></i>
+                    <h3>No hay KPIs con datos para este filtro</h3>
+                    <p>Prueba cambiando el periodo o seleccionando otra área.</p>
+                </div>
+            `;
+            return;
+        }
+
+        target.innerHTML = kpis.map(kpi => buildKpiCard(kpi)).join('');
+
+        kpis.forEach(kpi => {
+            const id = `kpiChart_${pick(kpi, 'metricaID', 'MetricaID')}`;
+            renderKpiChart(id, kpi);
+        });
+    }
+
+    function buildKpiCard(kpi) {
+        const metricaId = pick(kpi, 'metricaID', 'MetricaID');
+        const nombre = pick(kpi, 'nombreMetrica', 'NombreMetrica') || 'KPI';
+        const departamento = pick(kpi, 'departamento', 'Departamento') || '';
+        const frecuencia = pick(kpi, 'frecuencia', 'Frecuencia') || '';
+        const modo = pick(kpi, 'modoCalculoKpi', 'ModoCalculoKpi') || 'Promedio';
+        const tamano = pick(kpi, 'tamanoGrafica', 'TamanoGrafica') || 'Normal';
+        const resultado = getResultado(kpi);
+        const estado = pick(resultado, 'estadoVisual', 'EstadoVisual') || 'neutral';
+        const resultadoTexto = pick(resultado, 'resultadoFormateado', 'ResultadoFormateado') || '--';
+        const metaTexto = pick(resultado, 'metaFormateada', 'MetaFormateada') || '';
+        const descripcion = pick(resultado, 'descripcionCalculo', 'DescripcionCalculo') || '';
+
+        const badgeIcon = estado === 'success'
+            ? 'fa-circle-check'
+            : estado === 'danger'
+                ? 'fa-triangle-exclamation'
+                : 'fa-circle-info';
+
+        const badgeText = estado === 'success'
+            ? 'Cumple meta'
+            : estado === 'danger'
+                ? 'Fuera de meta'
+                : 'Sin evaluación';
+
+        return `
+            <article class="ops-panel ops-kpi-card size-${escapeHtml(tamano)}">
+                <div class="ops-kpi-head">
+                    <div>
+                        <h3 class="ops-kpi-title">${escapeHtml(nombre)}</h3>
+                        <div class="ops-kpi-subtitle">${escapeHtml(departamento)} · ${escapeHtml(frecuencia)} · ${escapeHtml(modo)}</div>
+                        <span class="ops-badge ${escapeHtml(estado)}"><i class="fas ${badgeIcon}"></i>${badgeText}</span>
+                    </div>
+                    <div class="ops-kpi-value">
+                        <div class="ops-kpi-result">${escapeHtml(resultadoTexto)}</div>
+                        <div class="ops-kpi-meta">${metaTexto ? 'Meta: ' + escapeHtml(metaTexto) : 'Sin meta'}</div>
+                        <div class="ops-kpi-meta">${escapeHtml(descripcion)}</div>
+                    </div>
+                </div>
+                <div class="ops-kpi-chart" id="kpiChart_${metricaId}"></div>
+            </article>
+        `;
+    }
+
+    function renderKpiChart(elementId, kpi) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+
+        const historial = getHistorial(kpi);
+        const tipoGrafica = normalizeText(pick(kpi, 'tipoGrafica', 'TipoGrafica') || 'ComboChart');
+        const resultado = getResultado(kpi);
+        const modo = normalizeText(pick(kpi, 'modoCalculoKpi', 'ModoCalculoKpi') || 'Promedio');
+        const mostrarMeta = pick(kpi, 'mostrarMetaEnGrafica', 'MostrarMetaEnGrafica') !== false;
+        const meta = pick(kpi, 'metaEsperada', 'MetaEsperada');
+
+        const chart = echarts.init(el);
+        chartInstances.set(elementId, chart);
+
+        if (!historial.length) {
+            chart.setOption(emptyChartOption('Sin historial capturado'));
+            return;
+        }
+
+        if (tipoGrafica.includes('pie') || tipoGrafica.includes('pastel') || tipoGrafica.includes('doughnut') || tipoGrafica.includes('dona')) {
+            chart.setOption(buildPieOption(kpi, historial));
+            return;
+        }
+
+        const periodos = historial.map(p => pick(p, 'periodo', 'Periodo') || 'Periodo');
+        const variableNames = collectVariableNames(historial);
+        const stacked = tipoGrafica.includes('stacked') || tipoGrafica.includes('apilad');
+        const lineOnly = tipoGrafica.includes('line') || tipoGrafica.includes('linea') || tipoGrafica.includes('línea');
+        const area = tipoGrafica.includes('area') || tipoGrafica.includes('área');
+
+        const series = variableNames.map(nombre => {
+            const data = historial.map(periodo => {
+                const variable = getVariables(periodo).find(v => (pick(v, 'nombre', 'Nombre') || '') === nombre);
+                return variable ? toNumber(pick(variable, 'valor', 'Valor')) : null;
+            });
+
+            const sampleVariable = historial.flatMap(getVariables).find(v => (pick(v, 'nombre', 'Nombre') || '') === nombre) || {};
+            const esLinea = pick(sampleVariable, 'esLinea', 'EsLinea') === true;
+            const tipoCaptura = normalizeText(pick(sampleVariable, 'tipoCaptura', 'TipoCaptura') || 'Manual');
+
+            const serie = {
+                name: nombre,
+                type: lineOnly || esLinea ? 'line' : 'bar',
+                data,
+                smooth: lineOnly || esLinea,
+                symbolSize: lineOnly || esLinea ? 8 : 0,
+                emphasis: { focus: 'series' }
+            };
+
+            if (stacked && serie.type === 'bar') serie.stack = 'total';
+            if (area && serie.type === 'line') serie.areaStyle = {};
+            if (esLinea && tipoCaptura === 'fijo') serie.lineStyle = { type: 'dashed', width: 2 };
+            if (serie.type === 'bar') serie.itemStyle = { borderRadius: [6, 6, 0, 0] };
+
+            return serie;
+        });
+
+        const resultadoSerie = {
+            name: 'Resultado KPI',
+            type: 'line',
+            yAxisIndex: shouldUseSecondaryAxis(kpi) ? 1 : 0,
+            data: historial.map(p => {
+                const r = pick(p, 'resultadoKpi', 'ResultadoKpi');
+                return r === null || r === undefined ? null : toNumber(r);
+            }),
+            smooth: true,
+            symbolSize: 9,
+            lineStyle: { width: 3 },
+            emphasis: { focus: 'series' }
         };
 
-        chartGlobalInstance.setOption(option);
-    }
-
-    function dibujarMuroDeGraficasECharts(tablero) {
-        const contenedor = document.getElementById('muro_graficas');
-        contenedor.innerHTML = '';
-
-        if (!tablero || tablero.length === 0) {
-            contenedor.innerHTML = `
-                <div class="col-12 text-center py-5 text-muted">
-                    <div class="card chart-card border-0 rounded-4 p-5">
-                        <i class="fas fa-folder-open fa-3x mb-3"></i>
-                        <h5>No hay historial para esta área</h5>
-                        <p class="mb-0">Cuando existan registros activos, las gráficas aparecerán aquí.</p>
-                    </div>
-                </div>
-            `;
-            return;
+        if (mostrarMeta && meta !== null && meta !== undefined) {
+            resultadoSerie.markLine = buildMetaMarkLine(kpi, resultadoSerie.yAxisIndex);
         }
 
-        let textoPeriodoWall = "del Periodo";
-        const filtroSelect = document.getElementById('filtroTiempoGlobal');
+        series.push(resultadoSerie);
 
-        if (filtroSelect) {
-            textoPeriodoWall = filtroSelect.options[filtroSelect.selectedIndex].text;
-        }
+        const yAxis = [{
+            type: 'value',
+            splitLine: { lineStyle: { type: 'dashed' } }
+        }];
 
-        tablero.forEach(kpi => {
-            let tarjetasHTML = '';
-            const tipoValorKpi = obtenerTipoValorDesdeKpi(kpi);
-            const unidadMedidaKpi = obtenerUnidadMedidaDesdeKpi(kpi);
-
-            if (kpi.historial && kpi.historial.length > 0) {
-                let primeraVariable = kpi.historial[0].variables[0];
-                let metaKpi = primeraVariable?.meta;
-                let sentidoKpi = primeraVariable?.sentido;
-                let conteoEvaluaciones = kpi.historial.length;
-
-                let variablesAgrupadas = {};
-
-                kpi.historial.forEach(h => {
-                    h.variables.forEach(v => {
-                        if (!variablesAgrupadas[v.nombre]) {
-                            variablesAgrupadas[v.nombre] = {
-                                nombre: v.nombre,
-                                esLinea: v.esLinea,
-                                suma: 0,
-                                conteo: 0,
-                                tipoValor: obtenerTipoValorDesdeVariable(v, kpi),
-                                unidadMedida: obtenerUnidadMedidaDesdeVariable(v, kpi),
-                                tipoCaptura: obtenerTipoCapturaDesdeVariable(v)
-                            };
-                        }
-
-                        variablesAgrupadas[v.nombre].suma += parseFloat(v.valor) || 0;
-                        variablesAgrupadas[v.nombre].conteo++;
-                    });
-                });
-
-                const tarjetaConfiguradaKpi = calcularTarjetaConfiguradaKpi(kpi);
-                const promedioGeneralKpi = calcularPromedioGeneralKpi(kpi);
-
-                if (tarjetaConfiguradaKpi.tieneConfiguracion) {
-                    const cumpleTarjeta = evaluarCumplimientoMeta(
-                        tarjetaConfiguradaKpi.valor,
-                        tarjetaConfiguradaKpi.meta,
-                        tarjetaConfiguradaKpi.sentido
-                    );
-
-                    let colorFondoTarjeta = '#0d6efd';
-                    let colorTextoTarjeta = '#fff';
-
-                    if (cumpleTarjeta !== null) {
-                        colorFondoTarjeta = cumpleTarjeta ? PANTONE_VERDE : PANTONE_ROJO;
-                        colorTextoTarjeta = cumpleTarjeta ? '#111' : '#fff';
-                    }
-
-                    const valorTarjetaFormateado = tarjetaConfiguradaKpi.tieneValor
-                        ? formatearValorKpi(
-                            tarjetaConfiguradaKpi.valor,
-                            tarjetaConfiguradaKpi.tipoValor,
-                            tarjetaConfiguradaKpi.unidadMedida
-                        )
-                        : '-';
-
-                    const textoMetaTarjeta = obtenerTextoMeta(
-                        tarjetaConfiguradaKpi.meta,
-                        tarjetaConfiguradaKpi.sentido,
-                        tarjetaConfiguradaKpi.tipoValor,
-                        tarjetaConfiguradaKpi.unidadMedida
-                    );
-
-                    tarjetasHTML += `
-                        <div class="col-md-4 col-sm-6 mb-3">
-                            <div class="card kpi-card border-0 shadow-sm rounded-4 h-100" style="background-color: ${colorFondoTarjeta}; color: ${colorTextoTarjeta};">
-                                <div class="card-body p-4 position-relative">
-                                    <i class="fas fa-chart-line kpi-icon-bg" style="color: ${colorTextoTarjeta}; opacity: 0.15;"></i>
-                                    <h6 class="fw-bold text-uppercase mb-1" style="opacity: 0.9; letter-spacing: 1px;">
-                                        ${kpi.nombreMetrica}
-                                    </h6>
-                                    <h2 class="display-6 fw-bolder mb-2">${valorTarjetaFormateado}</h2>
-                                    ${textoMetaTarjeta
-                                        ? `<div class="fw-bold mb-3" style="opacity:.92;">${textoMetaTarjeta}</div>`
-                                        : `<div class="mb-3">&nbsp;</div>`
-                                    }
-                                    <div class="d-flex justify-content-between align-items-center mt-auto gap-2">
-                                        <span class="badge bg-white text-dark rounded-pill px-3 shadow-sm py-2 text-truncate" title="${tarjetaConfiguradaKpi.nombreVariable || 'Variable destacada'}">
-                                            ${tarjetaConfiguradaKpi.nombreVariable || 'Variable destacada'}
-                                        </span>
-                                        <span class="small fw-bold text-end" style="opacity: 0.9;">
-                                            ${obtenerEtiquetaModoTarjeta(tarjetaConfiguradaKpi.modoTarjeta)}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-                else if (promedioGeneralKpi.puedePromediar) {
-                    const cumplePromedioGeneral = evaluarCumplimientoMeta(
-                        promedioGeneralKpi.promedio,
-                        promedioGeneralKpi.meta,
-                        promedioGeneralKpi.sentido
-                    );
-
-                    let colorFondoGeneral = '#0d6efd';
-                    let colorTextoGeneral = '#fff';
-
-                    if (cumplePromedioGeneral !== null) {
-                        colorFondoGeneral = cumplePromedioGeneral ? PANTONE_VERDE : PANTONE_ROJO;
-                        colorTextoGeneral = cumplePromedioGeneral ? '#111' : '#fff';
-                    }
-
-                    const valorGeneralFormateado = formatearValorKpi(
-                        promedioGeneralKpi.promedio,
-                        promedioGeneralKpi.tipoValor,
-                        promedioGeneralKpi.unidadMedida
-                    );
-
-                    const textoMetaGeneral = obtenerTextoMeta(
-                        promedioGeneralKpi.meta,
-                        promedioGeneralKpi.sentido,
-                        promedioGeneralKpi.tipoValor,
-                        promedioGeneralKpi.unidadMedida
-                    );
-
-                    tarjetasHTML += `
-                        <div class="col-md-4 col-sm-6 mb-3">
-                            <div class="card kpi-card border-0 shadow-sm rounded-4 h-100" style="background-color: ${colorFondoGeneral}; color: ${colorTextoGeneral};">
-                                <div class="card-body p-4 position-relative">
-                                    <i class="fas fa-chart-pie kpi-icon-bg" style="color: ${colorTextoGeneral}; opacity: 0.15;"></i>
-                                    <h6 class="fw-bold text-uppercase mb-1" style="opacity: 0.9; letter-spacing: 1px;">
-                                        ${kpi.nombreMetrica}
-                                    </h6>
-                                    <h2 class="display-6 fw-bolder mb-2">${valorGeneralFormateado}</h2>
-                                    ${textoMetaGeneral
-                                        ? `<div class="fw-bold mb-3" style="opacity:.92;">${textoMetaGeneral}</div>`
-                                        : `<div class="mb-3">&nbsp;</div>`
-                                    }
-                                    <div class="d-flex justify-content-between align-items-center mt-auto">
-                                        <span class="badge bg-white text-dark rounded-pill px-3 shadow-sm py-2">
-                                            Promedio general
-                                        </span>
-                                        <span class="small fw-bold" style="opacity: 0.9;">
-                                            ${promedioGeneralKpi.conteo} valores
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                // Si el KPI tiene tarjeta configurada, mostramos solo esa tarjeta.
-                // Si no tiene tarjeta configurada y tampoco puede calcular promedio general,
-                // mostramos sus variables por separado.
-                if (!tarjetaConfiguradaKpi.tieneConfiguracion && !promedioGeneralKpi.puedePromediar) {
-                    Object.values(variablesAgrupadas).forEach((v, index) => {
-                        let colorFondo = '#0d6efd';
-                        let colorTexto = '#fff';
-                        let promedioFinal = v.conteo > 0 ? (v.suma / v.conteo) : 0;
-                        let promedioEvaluable = parseFloat(promedioFinal);
-
-                        if (v.esLinea) {
-                            colorFondo = PANTONE_AMARILLO;
-                            colorTexto = '#111';
-                        }
-                        else {
-                            const cumpleMeta = evaluarCumplimientoMeta(
-                                promedioEvaluable,
-                                metaKpi,
-                                sentidoKpi
-                            );
-
-                            if (cumpleMeta !== null) {
-                                colorFondo = cumpleMeta ? PANTONE_VERDE : PANTONE_ROJO;
-                                colorTexto = cumpleMeta ? '#111' : '#fff';
-                            }
-                        }
-
-                        let icono = v.esLinea ? 'fa-bullseye' : 'fa-chart-bar';
-                        let etiqueta = v.esLinea
-                            ? '<i class="fas fa-star" style="color: #ff9900;"></i> Meta Establecida'
-                            : `Promedio (${conteoEvaluaciones} eval.)`;
-
-                        let valorFormateado = formatearValorKpi(
-                            promedioFinal,
-                            valorTextoNoVacio(v.tipoValor, tipoValorKpi),
-                            valorTextoNoVacio(v.unidadMedida, unidadMedidaKpi)
-                        );
-
-                        tarjetasHTML += `
-                            <div class="col-md-4 col-sm-6 mb-3">
-                                <div class="card kpi-card border-0 shadow-sm rounded-4 h-100" style="background-color: ${colorFondo}; color: ${colorTexto};">
-                                    <div class="card-body p-4 position-relative">
-                                        <i class="fas ${icono} kpi-icon-bg" style="color: ${colorTexto}; opacity: 0.15;"></i>
-                                        <h6 class="fw-bold text-uppercase mb-1" style="opacity: 0.85; letter-spacing: 1px;">
-                                            ${v.nombre}
-                                        </h6>
-                                        <h2 class="display-6 fw-bolder mb-3">${valorFormateado}</h2>
-                                        <div class="d-flex justify-content-between align-items-center mt-auto">
-                                            <span class="badge bg-white text-dark rounded-pill px-3 shadow-sm py-2">${etiqueta}</span>
-                                            <span class="small fw-bold" style="opacity: 0.9;">
-                                                <i class="fas fa-calendar me-1"></i> ${textoPeriodoWall}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                }
-            contenedor.innerHTML += `
-                <div class="col-12 mb-4">
-                    <div class="card metric-wall-card border-0 rounded-4 overflow-hidden">
-                        <div class="card-header bg-white border-bottom-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <div>
-                                <h5 class="mb-0 fw-bold text-dark">
-                                    <i class="fas fa-cube text-primary me-2"></i>${kpi.nombreMetrica}
-                                </h5>
-                                <small class="text-muted">Historial activo según periodo seleccionado</small>
-                            </div>
-
-                            <select class="form-select form-select-sm shadow-sm wall-select w-auto"
-                                    onchange="cambiarTipoGraficaMuro(${kpi.metricaID}, this.value)">
-                                <option value="ComboChart" ${kpi.tipoGrafica === 'ComboChart' ? 'selected' : ''}>Gráfica Mixta</option>
-                                <option value="ColumnChart" ${kpi.tipoGrafica === 'ColumnChart' ? 'selected' : ''}>Gráfica de Barras</option>
-                                <option value="StackedBarChart" ${kpi.tipoGrafica === 'StackedBarChart' ? 'selected' : ''}>Barras Apiladas</option>
-                                <option value="LineChart" ${kpi.tipoGrafica === 'LineChart' ? 'selected' : ''}>Gráfica de Líneas</option>
-                                <option value="AreaChart" ${kpi.tipoGrafica === 'AreaChart' ? 'selected' : ''}>Gráfica de Área</option>
-                                <option value="StackedAreaChart" ${kpi.tipoGrafica === 'StackedAreaChart' ? 'selected' : ''}>Área Apilada</option>
-                                <option value="PieChart" ${kpi.tipoGrafica === 'PieChart' ? 'selected' : ''}>Gráfica de Pastel</option>
-                                <option value="DoughnutChart" ${kpi.tipoGrafica === 'DoughnutChart' ? 'selected' : ''}>Gráfica de Dona</option>
-                            </select>
-                        </div>
-
-                        <div class="card-body">
-                            <div class="row mb-2">${tarjetasHTML}</div>
-
-                            <div class="card chart-card border-0 rounded-4 p-3">
-                                <div id="chart_${kpi.metricaID}" style="height: 420px; width: 100%;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            }
-        });
-
-        tablero.forEach(kpi => dibujarUnicaGraficaECharts(kpi, kpi.tipoGrafica));
-    }
-
-    function cambiarTipoGraficaMuro(metricaID, nuevoTipo) {
-        let kpiEncontrado = tableroActivo.find(k => k.metricaID === metricaID);
-
-        if (kpiEncontrado) {
-            dibujarUnicaGraficaECharts(kpiEncontrado, nuevoTipo);
-        }
-    }
-
-    function dibujarUnicaGraficaECharts(kpi, tipoGraficaElegido) {
-        let chartDom = document.getElementById('chart_' + kpi.metricaID);
-        let myChart;
-
-        if (!chartDom) {
-            return;
-        }
-
-        if (eChartInstances[kpi.metricaID]) {
-            eChartInstances[kpi.metricaID].dispose();
-        }
-
-        myChart = echarts.init(chartDom);
-        eChartInstances[kpi.metricaID] = myChart;
-
-        const tipoValorKpi = obtenerTipoValorDesdeKpi(kpi);
-        const unidadMedidaKpi = obtenerUnidadMedidaDesdeKpi(kpi);
-
-        let categorias = kpi.historial.map(h => h.periodo);
-        let configVariables = [];
-        let seriesData = [];
-
-        let coloresBaseAuxiliares = CHART_PALETTE;
-
-        kpi.historial.forEach(h => {
-            h.variables.forEach(v => {
-                if (!configVariables.find(cv => cv.nombre === v.nombre)) {
-                    configVariables.push({
-                        nombre: v.nombre,
-                        esLinea: v.esLinea,
-                        tipoValor: obtenerTipoValorDesdeVariable(v, kpi),
-                        unidadMedida: obtenerUnidadMedidaDesdeVariable(v, kpi),
-                        tipoCaptura: obtenerTipoCapturaDesdeVariable(v),
-                        esLineaFija: esLineaFija(v)
-                    });
-                }
-            });
-        });
-
-        const esGraficaCircular = tipoGraficaElegido === 'PieChart' || tipoGraficaElegido === 'DoughnutChart';
-
-        if (esGraficaCircular) {
-            const variablesCircular = configVariables.filter(cv => !cv.esLinea);
-
-            let dataCircular = variablesCircular.map((cv, index) => {
-                const total = kpi.historial.reduce((suma, h) => {
-                    const variable = h.variables.find(v => v.nombre === cv.nombre);
-                    return suma + (parseFloat(variable?.valor) || 0);
-                }, 0);
-
-                return {
-                    name: cv.nombre,
-                    value: total,
-                    itemStyle: {
-                        color: coloresBaseAuxiliares[index % coloresBaseAuxiliares.length]
-                    },
-                    tipoValor: cv.tipoValor,
-                    unidadMedida: cv.unidadMedida
-                };
-            }).filter(item => item.value > 0);
-
-            if (dataCircular.length === 0) {
-                dataCircular = [{
-                    name: 'Sin datos',
-                    value: 0,
-                    itemStyle: { color: CHART_GRIS },
-                    tipoValor: tipoValorKpi,
-                    unidadMedida: unidadMedidaKpi
-                }];
-            }
-
-            myChart.setOption({
-                backgroundColor: 'transparent',
-                tooltip: {
-                    trigger: 'item',
-                    backgroundColor: '#0f172a',
-                    borderColor: '#334155',
-                    borderWidth: 1,
-                    textStyle: { color: '#f8fafc' },
-                    formatter: function (params) {
-                        const item = params.data || {};
-                        return `
-                            <div style="font-weight:900;margin-bottom:6px;">${params.name}</div>
-                            <div style="display:flex;justify-content:space-between;gap:18px;">
-                                <span>Total del periodo</span>
-                                <strong>${formatearValorKpi(params.value, item.tipoValor, item.unidadMedida)}</strong>
-                            </div>
-                            <div style="opacity:.8;margin-top:4px;">Participación: <b>${params.percent}%</b></div>
-                        `;
-                    }
-                },
-                legend: {
-                    bottom: '0%',
-                    textStyle: {
-                        color: '#334155',
-                        fontWeight: 700
-                    }
-                },
-                toolbox: {
-                    show: true,
-                    right: 10,
-                    feature: {
-                        saveAsImage: { title: 'Descargar' }
-                    },
-                    iconStyle: {
-                        borderColor: '#64748b'
-                    },
-                    emphasis: {
-                        iconStyle: {
-                            borderColor: '#2563eb'
-                        }
-                    }
-                },
-                series: [
-                    {
-                        name: kpi.nombreMetrica,
-                        type: 'pie',
-                        radius: tipoGraficaElegido === 'DoughnutChart' ? ['45%', '68%'] : '68%',
-                        center: ['50%', '46%'],
-                        avoidLabelOverlap: true,
-                        data: dataCircular,
-                        label: {
-                            color: '#0f172a',
-                            fontWeight: 900,
-                            formatter: function (params) {
-                                return `${params.name}\n${params.percent}%`;
-                            }
-                        },
-                        labelLine: {
-                            lineStyle: {
-                                color: '#94a3b8'
-                            }
-                        },
-                        emphasis: {
-                            scale: true,
-                            scaleSize: 8,
-                            itemStyle: {
-                                shadowBlur: 18,
-                                shadowColor: 'rgba(15,23,42,.22)'
-                            }
-                        },
-                        animationDuration: 1000
-                    }
-                ]
-            });
-
-            return;
-        }
-
-        let tieneValores = false;
-        let tienePorcentajes = false;
-
-        configVariables.forEach(cv => {
-            if (esTipoPorcentaje(cv.tipoValor, cv.unidadMedida)) {
-                tienePorcentajes = true;
-            } else {
-                tieneValores = true;
-            }
-        });
-
-        let yAxisConfig = [];
-
-        const ejeValores = obtenerConfiguracionEjeValores(configVariables);
-
-        if (tieneValores) {
-            yAxisConfig.push({
+        if (resultadoSerie.yAxisIndex === 1) {
+            yAxis.push({
                 type: 'value',
-                name: ejeValores.name,
-                position: 'left',
-                axisLine: { show: true },
-                tipoValor: ejeValores.tipoValor,
-                unidadMedida: ejeValores.unidadMedida
+                splitLine: { show: false },
+                axisLabel: { formatter: value => formatAxisValue(value, pick(resultado, 'tipoValor', 'TipoValor'), pick(resultado, 'unidadMedida', 'UnidadMedida')) }
             });
         }
 
-        if (tienePorcentajes) {
-            yAxisConfig.push({
-                type: 'value',
-                name: 'Porcentaje',
-                position: tieneValores ? 'right' : 'left',
-                max: 100,
-                axisLabel: { formatter: '{value}%' },
-                splitLine: { show: !tieneValores },
-                axisLine: { show: true },
-                tipoValor: 'Porcentaje',
-                unidadMedida: '%'
-            });
-        }
-
-        if (yAxisConfig.length === 0) {
-            yAxisConfig.push({
-                type: 'value',
-                name: 'Valores',
-                tipoValor: '',
-                unidadMedida: ''
-            });
-        }
-
-        const esGraficaApilada = tipoGraficaElegido === 'StackedBarChart';
-        const esGraficaAreaApilada = tipoGraficaElegido === 'StackedAreaChart';
-
-        let masterType = (tipoGraficaElegido === 'LineChart' || tipoGraficaElegido === 'AreaChart' || esGraficaAreaApilada)
-            ? 'line'
-            : 'bar';
-
-        configVariables.forEach((cv, index) => {
-            let esPorcentaje = esTipoPorcentaje(cv.tipoValor, cv.unidadMedida);
-            let yIndex = 0;
-
-            if (tieneValores && tienePorcentajes && esPorcentaje) {
-                yIndex = 1;
-            }
-
-            let tipoSerie = masterType;
-
-            // Las variables marcadas como linea se mantienen como linea,
-            // aunque el usuario seleccione barras o barras apiladas.
-            // Esto permite que metas fijas se vean como referencia visual.
-            if (cv.esLinea) {
-                tipoSerie = 'line';
-            }
-
-            if (esGraficaApilada && !cv.esLinea) {
-                tipoSerie = 'bar';
-            }
-
-            if (esGraficaAreaApilada && !cv.esLinea) {
-                tipoSerie = 'line';
-            }
-
-            const esLineaDeValorFijo = cv.esLineaFija === true;
-
-            let colorBaseSerie = cv.esLinea
-                ? '#F59E0B'
-                : coloresBaseAuxiliares[index % coloresBaseAuxiliares.length];
-
-            let seriesDataCalculada = kpi.historial.map(h => {
-                let variable = h.variables.find(v => v.nombre === cv.nombre);
-                let val = variable ? variable.valor : 0;
-
-                return {
-                    value: val,
-                    itemStyle: {
-                        color: colorBaseSerie
-                    }
-                };
-            });
-
-            let serieObj = {
-                name: cv.nombre,
-                type: tipoSerie,
-                yAxisIndex: yIndex,
-                data: seriesDataCalculada,
-
-                // Para la grafica tipo Power BI del centro:
-                // variables normales apiladas + meta/linea por encima.
-                stack: (esGraficaApilada || esGraficaAreaApilada) && !cv.esLinea ? `total_${yIndex}` : undefined,
-                barMaxWidth: esGraficaApilada ? 56 : undefined,
-
-                itemStyle: {
-                    color: colorBaseSerie,
-                    borderRadius: tipoSerie === 'bar' && !esGraficaApilada ? [6, 6, 0, 0] : 0
-                },
-                label: {
-                    show: esGraficaApilada && tipoSerie === 'bar',
-                    position: 'inside',
-                    color: '#ffffff',
-                    fontWeight: 900,
-                    fontSize: 11,
-                    textBorderColor: 'rgba(15,23,42,.35)',
-                    textBorderWidth: 2,
-                    formatter: function (params) {
-                        const valor = obtenerValorNumericoEje(params.value);
-
-                        if (valor === null || valor === 0) {
-                            return '';
-                        }
-
-                        return formatearValorKpiCorto(valor, cv.tipoValor, cv.unidadMedida);
-                    }
-                },
-                lineStyle: {
-                    width: tipoSerie === 'line' ? 3 : 0,
-                    color: colorBaseSerie,
-                    type: esLineaDeValorFijo ? 'dashed' : 'solid',
-                    shadowColor: 'rgba(15,23,42,.18)',
-                    shadowBlur: tipoSerie === 'line' ? 8 : 0
-                },
-                emphasis: {
-                    focus: 'series'
-                },
-                symbol: tipoSerie === 'line' ? 'circle' : 'none',
-                symbolSize: tipoSerie === 'line' ? 8 : 0,
-                smooth: true,
-                z: tipoSerie === 'line' ? 10 : 2,
-                animationDuration: 1000,
-                tipoValor: cv.tipoValor,
-                unidadMedida: cv.unidadMedida,
-                tipoCaptura: cv.tipoCaptura,
-                esLineaFija: esLineaDeValorFijo
-            };
-
-            if ((tipoGraficaElegido === 'AreaChart' || esGraficaAreaApilada) && !cv.esLinea) {
-                serieObj.areaStyle = {
-                    opacity: esGraficaAreaApilada ? 0.28 : 0.18,
-                    color: colorBaseSerie
-                };
-            }
-
-            seriesData.push(serieObj);
-        });
-
-        yAxisConfig = yAxisConfig.map((axis, axisIndex) => {
-            const valoresDelEje = [];
-            const seriesDelEje = seriesData.filter(serie => (serie.yAxisIndex || 0) === axisIndex);
-
-            seriesDelEje.forEach(serie => {
-                if (Array.isArray(serie.data)) {
-                    serie.data.forEach(valor => valoresDelEje.push(valor));
-                }
-            });
-
-            // En barras apiladas el eje debe considerar el total acumulado por periodo,
-            // no solo el valor individual mas alto.
-            if (esGraficaApilada || esGraficaAreaApilada) {
-                categorias.forEach((_, categoriaIndex) => {
-                    const totalApilado = seriesDelEje
-                        .filter(serie => serie.stack)
-                        .reduce((total, serie) => {
-                            return total + (obtenerValorNumericoEje(serie.data[categoriaIndex]) || 0);
-                        }, 0);
-
-                    if (totalApilado > 0) {
-                        valoresDelEje.push(totalApilado);
-                    }
-                });
-            }
-
-            const maximoInteligente = calcularMaximoEjeInteligente(
-                valoresDelEje,
-                axis.tipoValor,
-                axis.unidadMedida
-            );
-
-            return {
-                ...axis,
-                min: 0,
-                max: maximoInteligente,
-                interval: calcularIntervaloEje(maximoInteligente)
-            };
-        });
-
-        let option = {
-            backgroundColor: 'transparent',
+        chart.setOption({
             tooltip: {
                 trigger: 'axis',
-                axisPointer: {
-                    type: 'cross',
-                    label: {
-                        backgroundColor: '#0f172a'
-                    }
-                },
-                backgroundColor: '#0f172a',
-                borderColor: '#334155',
-                borderWidth: 1,
-                textStyle: {
-                    color: '#f8fafc'
-                },
-                formatter: function (params) {
-                    let html = `<div style="font-weight:900;margin-bottom:6px;">${params[0].axisValue}</div>`;
-                    let totalApilado = 0;
-                    let tipoValorTotal = '';
-                    let unidadMedidaTotal = '';
-
-                    params.forEach(p => {
-                        const configSerie = configVariables.find(cv => cv.nombre === p.seriesName);
-                        const tipoValor = valorTextoNoVacio(configSerie?.tipoValor, tipoValorKpi);
-                        const unidadMedida = valorTextoNoVacio(configSerie?.unidadMedida, unidadMedidaKpi);
-                        const valorNumerico = obtenerValorNumericoEje(p.value) || 0;
-
-                        if ((esGraficaApilada || esGraficaAreaApilada) && !configSerie?.esLinea) {
-                            totalApilado += valorNumerico;
-                            tipoValorTotal = tipoValor;
-                            unidadMedidaTotal = unidadMedida;
-                        }
-
-                        html += `
-                            <div style="display:flex;justify-content:space-between;gap:18px;align-items:center;">
-                                <span>${p.marker} ${p.seriesName}</span>
-                                <strong>${formatearValorKpi(p.value, tipoValor, unidadMedida)}</strong>
-                            </div>
-                        `;
-                    });
-
-                    if ((esGraficaApilada || esGraficaAreaApilada) && totalApilado > 0) {
-                        html += `
-                            <div style="border-top:1px solid rgba(248,250,252,.22);margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;gap:18px;">
-                                <span>Total apilado</span>
-                                <strong>${formatearValorKpi(totalApilado, tipoValorTotal, unidadMedidaTotal)}</strong>
-                            </div>
-                        `;
-                    }
-
-                    return html;
-                }
+                confine: true
             },
             legend: {
-                bottom: '0%',
-                textStyle: {
-                    color: '#334155',
-                    fontWeight: 700
-                }
-            },
-            toolbox: {
-                show: true,
-                right: 10,
-                feature: {
-                    saveAsImage: { title: 'Descargar' },
-                    magicType: {
-                        type: ['line', 'bar'],
-                        title: {
-                            line: 'Línea',
-                            bar: 'Barras'
-                        }
-                    }
-                },
-                iconStyle: {
-                    borderColor: '#64748b'
-                },
-                emphasis: {
-                    iconStyle: {
-                        borderColor: '#2563eb'
-                    }
-                }
+                type: 'scroll',
+                top: 4,
+                left: 12,
+                right: 12
             },
             grid: {
-                left: '4%',
-                right: tieneValores && tienePorcentajes ? '7%' : '5%',
-                bottom: '16%',
-                top: '10%',
-                containLabel: true
+                left: 48,
+                right: resultadoSerie.yAxisIndex === 1 ? 58 : 26,
+                top: 58,
+                bottom: 42
             },
             xAxis: {
                 type: 'category',
-                data: categorias,
-                axisTick: {
-                    show: false
-                },
-                axisLine: {
-                    lineStyle: {
-                        color: '#94a3b8'
-                    }
-                },
-                axisLabel: {
-                    color: '#334155',
-                    fontWeight: 800,
-                    fontSize: 11
-                }
+                data: periodos,
+                axisLabel: { interval: 0 }
             },
-            yAxis: yAxisConfig.map(axis => ({
-                ...axis,
-                axisLine: {
-                    show: false
-                },
-                axisTick: {
-                    show: false
-                },
-                axisLabel: {
-                    ...(axis.axisLabel || {}),
-                    color: '#334155',
-                    fontWeight: 800,
-                    formatter: function (value) {
-                        if (axis.axisLabel && typeof axis.axisLabel.formatter === 'string') {
-                            return axis.axisLabel.formatter.replace('{value}', value);
-                        }
-
-                        return formatearValorKpiCorto(value, axis.tipoValor, axis.unidadMedida);
-                    }
-                },
-                nameTextStyle: {
-                    color: '#0f172a',
-                    fontWeight: 900
-                },
-                splitLine: {
-                    show: axis.splitLine?.show !== false,
-                    lineStyle: {
-                        color: '#e2e8f0'
-                    }
-                }
-            })),
-            series: seriesData
-        };
-
-        myChart.setOption(option);
+            yAxis,
+            series
+        });
     }
 
+    function buildPieOption(kpi, historial) {
+        const ultimoPeriodo = historial[historial.length - 1];
+        const variables = getVariables(ultimoPeriodo)
+            .filter(v => pick(v, 'esLinea', 'EsLinea') !== true)
+            .map(v => ({
+                name: pick(v, 'nombre', 'Nombre') || 'Variable',
+                value: toNumber(pick(v, 'valor', 'Valor'))
+            }))
+            .filter(v => v.value !== 0);
+
+        const tipoGrafica = normalizeText(pick(kpi, 'tipoGrafica', 'TipoGrafica') || '');
+        const isDoughnut = tipoGrafica.includes('doughnut') || tipoGrafica.includes('dona');
+
+        if (!variables.length) return emptyChartOption('Sin datos para gráfica circular');
+
+        return {
+            tooltip: { trigger: 'item' },
+            legend: { type: 'scroll', bottom: 0 },
+            series: [{
+                type: 'pie',
+                radius: isDoughnut ? ['45%', '72%'] : '72%',
+                center: ['50%', '45%'],
+                data: variables,
+                label: { formatter: '{b}: {d}%' }
+            }]
+        };
+    }
+
+    function collectVariableNames(historial) {
+        const set = new Set();
+        historial.forEach(periodo => {
+            getVariables(periodo).forEach(v => {
+                const name = pick(v, 'nombre', 'Nombre');
+                if (name) set.add(name);
+            });
+        });
+        return Array.from(set);
+    }
+
+    function shouldUseSecondaryAxis(kpi) {
+        const modo = normalizeText(pick(kpi, 'modoCalculoKpi', 'ModoCalculoKpi') || '');
+        return modo.includes('ratio') || modo.includes('ponderado');
+    }
+
+    function buildMetaMarkLine(kpi, yAxisIndex) {
+        const meta = pick(kpi, 'metaEsperada', 'MetaEsperada');
+        const resultado = getResultado(kpi);
+        const metaTexto = pick(resultado, 'metaFormateada', 'MetaFormateada') || meta;
+
+        if (meta === null || meta === undefined) return null;
+
+        return {
+            silent: true,
+            symbol: 'none',
+            lineStyle: { type: 'dashed', width: 2 },
+            label: {
+                formatter: `Meta: ${metaTexto}`,
+                fontWeight: 800,
+                borderRadius: 8,
+                padding: [4, 8]
+            },
+            data: [{ yAxis: toNumber(meta) }]
+        };
+    }
+
+    function emptyChartOption(message) {
+        return {
+            title: {
+                text: message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { fontSize: 14, fontWeight: 800, color: '#64748b' }
+            },
+            xAxis: { show: false },
+            yAxis: { show: false },
+            series: []
+        };
+    }
+
+    function formatAxisValue(value, tipoValor, unidadMedida) {
+        tipoValor = normalizeText(tipoValor);
+        unidadMedida = (unidadMedida || '').trim();
+
+        if (tipoValor.includes('porcentaje') || unidadMedida === '%') return `${value}%`;
+        if (tipoValor.includes('moneda') || unidadMedida === '$') return `$${value}`;
+        return value;
+    }
+
+    function disposeChart(id) {
+        const current = chartInstances.get(id);
+        if (current) {
+            current.dispose();
+            chartInstances.delete(id);
+        }
+    }
+
+    function disposeKpiCharts() {
+        Array.from(chartInstances.keys()).forEach(id => {
+            if (id !== 'globalChart') disposeChart(id);
+        });
+    }
+
+    function escapeHtml(value) {
+        return (value ?? '').toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const modalKpisPdf = document.getElementById('modalKpisPdf');
+
+        if (modalKpisPdf && modalKpisPdf.parentElement !== document.body) {
+            document.body.appendChild(modalKpisPdf);
+        }
+
+        renderDashboard(dashboardActual);
+
+        document.getElementById('btnApplyFilters').addEventListener('click', cargarDashboard);
+        document.getElementById('btnRefreshDashboard').addEventListener('click', cargarDashboard);
+        document.getElementById('btnClearFilters').addEventListener('click', limpiarFiltros);
+        document.getElementById('btnGeneral').addEventListener('click', () => setDepartamentoActivo(null));
+
+        document.querySelectorAll('.ops-depto-item').forEach(btn => {
+            btn.addEventListener('click', () => setDepartamentoActivo(btn.dataset.departamentoId));
+        });
+
+        window.addEventListener('resize', () => {
+            chartInstances.forEach(chart => chart.resize());
+        });
+    });
 </script>

@@ -42,5 +42,18 @@ namespace ProyectoMatrix.Models
         public string? ModoTarjeta { get; set; }
 
         public virtual List<CatMetricas_Variables> VariablesConfiguradas { get; set; } = new();
+
+        public string? ModoCalculoKpi { get; set; }
+
+        //Nuevos campos para variables configurables    
+        public int? VariableNumeradorID { get; set; }
+
+        public int? VariableDenominadorID { get; set; }
+
+        public int? VariablePesoID { get; set; }
+
+        public bool MostrarMetaEnGrafica { get; set; } = true;
+
+        public string? TamanoGrafica { get; set; }
     }
 }

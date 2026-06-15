@@ -1,831 +1,1050 @@
-@model List<ProyectoMatrix.Models.RegistroKpi>
-
+@model ProyectoMatrix.Models.OperacionesHistorialIndexVm
 @{
-    ViewData["Title"] = "Historial de Capturas";
+    ViewData["Title"] = "Historial KPIs";
     Layout = "_LayoutComunicados";
-
-    string ObtenerNombrePeriodo(string frecuencia, int periodo, int anio)
-    {
-        if (frecuencia == "Mensual")
-        {
-            string[] meses = { "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
-            return (periodo >= 1 && periodo <= 12) ? meses[periodo - 1] : $"Mes {periodo}";
-        }
-        else if (frecuencia == "Semanal")
-        {
-            return $"Semana {periodo}";
-        }
-        else if (frecuencia == "Diario")
-        {
-            try
-            {
-                return new DateTime(anio, 1, 1).AddDays(periodo - 1).ToString("dd/MMM/yyyy");
-            }
-            catch
-            {
-                return $"Día {periodo}";
-            }
-        }
-
-        return $"P-{periodo}";
-    }
-
-    var registros = Model ?? new List<ProyectoMatrix.Models.RegistroKpi>();
-
-    var deptosUnicos = registros
-        .Where(r => r.Metrica?.Departamento != null)
-        .Select(r => r.Metrica.Departamento)
-        .GroupBy(d => d.DepartamentoID)
-        .Select(g => g.First())
-        .OrderBy(d => d.NombreDepartamento)
-        .ToList();
-
-    var misPermisos = ViewBag.MisPermisos as List<int> ?? new List<int>();
-    bool puedeEditarHistorial = misPermisos.Contains(32) || misPermisos.Contains(31);
-
-    int totalRegistros = registros.Count;
-    int totalDeptos = deptosUnicos.Count;
-    int totalKpis = registros
-        .Where(r => r.Metrica != null)
-        .Select(r => r.MetricaID)
-        .Distinct()
-        .Count();
-
-    int totalValores = registros.Sum(r => r.DetallesValores?.Count ?? 0);
+    int? departamentoFiltro = ViewBag.DepartamentoFiltro as int?;
+    int? anioFiltro = ViewBag.AnioFiltro as int?;
+    int? metricaFiltro = ViewBag.MetricaFiltro as int?;
 }
 
 <style>
-    .history-shell {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(248,250,252,.98));
+
+:root {
+    --ops-bg-1: #eef6fc;
+    --ops-bg-2: #f8fafc;
+    --ops-bg-3: #e9f2f9;
+    --ops-navy: #082f49;
+    --ops-navy-2: #0f3d63;
+    --ops-blue: #0ea5e9;
+    --ops-blue-2: #0369a1;
+    --ops-cyan: #7dd3fc;
+    --ops-text: #0f172a;
+    --ops-muted: #64748b;
+    --ops-soft: #f8fafc;
+    --ops-soft-2: #eef6ff;
+    --ops-border: rgba(15, 23, 42, 0.11);
+    --ops-border-strong: rgba(15, 23, 42, 0.18);
+    --ops-white: #ffffff;
+    --ops-success: #16a34a;
+    --ops-warning: #f59e0b;
+    --ops-danger: #dc2626;
+    --ops-info: #0284c7;
+    --ops-shadow-sm: 0 8px 22px rgba(15, 23, 42, 0.06);
+    --ops-shadow-md: 0 14px 35px rgba(15, 23, 42, 0.10);
+    --ops-shadow-lg: 0 24px 70px rgba(15, 23, 42, 0.14);
+    --ops-radius-sm: 12px;
+    --ops-radius-md: 18px;
+    --ops-radius-lg: 24px;
+    --ops-radius-xl: 30px;
+}
+
+/* ----------------------------------------------------------
+   Fondo y ancho global para vistas de Operaciones
+   ---------------------------------------------------------- */
+
+body:has(.ops-shell),
+body:has(.kpis-shell),
+body:has(.ops-v2-page),
+body:has(.kpis-v2-page) {
+    background:
+        radial-gradient(circle at 8% 0%, rgba(14, 165, 233, 0.18), transparent 30%),
+        radial-gradient(circle at 92% 4%, rgba(8, 47, 73, 0.14), transparent 34%),
+        linear-gradient(135deg, var(--ops-bg-1) 0%, var(--ops-bg-2) 44%, var(--ops-bg-3) 100%) !important;
+    color: var(--ops-text) !important;
+}
+
+body:has(.ops-shell) .container,
+body:has(.kpis-shell) .container,
+body:has(.ops-v2-page) .container,
+body:has(.kpis-v2-page) .container,
+body:has(.ops-shell) .container-lg,
+body:has(.kpis-shell) .container-lg,
+body:has(.ops-shell) .container-xl,
+body:has(.kpis-shell) .container-xl,
+body:has(.ops-shell) .container-xxl,
+body:has(.kpis-shell) .container-xxl {
+    max-width: none !important;
+    width: 100% !important;
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+}
+
+.ops-v2-page,
+.kpis-v2-page {
+    min-height: calc(100vh - 72px) !important;
+    padding: 18px clamp(14px, 1.6vw, 28px) 30px !important;
+    background:
+        radial-gradient(circle at top left, rgba(14, 165, 233, 0.16), transparent 30%),
+        radial-gradient(circle at top right, rgba(8, 47, 73, 0.11), transparent 34%),
+        transparent !important;
+}
+
+.ops-shell,
+.kpis-shell {
+    width: min(100%, 1720px) !important;
+    max-width: calc(100vw - 76px) !important;
+    margin: 18px auto 32px !important;
+    padding: clamp(16px, 1.6vw, 26px) !important;
+    border-radius: var(--ops-radius-xl) !important;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(236, 247, 255, 0.72)) !important;
+    border: 1px solid rgba(255,255,255,0.72) !important;
+    box-shadow: var(--ops-shadow-lg) !important;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: visible;
+}
+
+.ops-shell::before,
+.kpis-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+        linear-gradient(90deg, rgba(14, 165, 233, 0.18), transparent 28%),
+        linear-gradient(180deg, rgba(255,255,255,0.45), transparent 30%);
+    opacity: .9;
+    z-index: 0;
+}
+
+.ops-shell > *,
+.kpis-shell > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* ----------------------------------------------------------
+   Encabezados / Hero
+   ---------------------------------------------------------- */
+
+.ops-header,
+.hero-card {
+    border-radius: var(--ops-radius-lg) !important;
+    border: 1px solid rgba(255,255,255,0.85) !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.96), rgba(224,242,254,0.92)) !important;
+    box-shadow: var(--ops-shadow-md) !important;
+}
+
+.ops-header {
+    padding: clamp(18px, 1.8vw, 28px) !important;
+    margin-bottom: 18px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 18px !important;
+}
+
+.hero-card {
+    padding: clamp(18px, 1.8vw, 28px) !important;
+    margin-bottom: 18px !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.ops-header::after,
+.hero-card::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 7px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--ops-blue), var(--ops-navy-2));
+    border-radius: 999px;
+    opacity: .95;
+}
+
+.ops-title,
+.hero-title {
+    font-size: clamp(2rem, 3.1vw, 3.35rem) !important;
+    line-height: 0.96 !important;
+    font-weight: 950 !important;
+    letter-spacing: -0.055em !important;
+    margin: 0 !important;
+    color: var(--ops-text) !important;
+    text-shadow: 0 1px 0 rgba(255,255,255,.8);
+}
+
+.ops-subtitle,
+.hero-subtitle {
+    color: #475569 !important;
+    font-weight: 700 !important;
+    line-height: 1.55 !important;
+    margin: 8px 0 0 !important;
+    max-width: 920px !important;
+}
+
+.ops-title-eyebrow,
+.ops-pill,
+.pill-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    border-radius: 999px !important;
+    padding: 7px 13px !important;
+    background: linear-gradient(135deg, #dff5ff, #cfeeff) !important;
+    border: 1px solid rgba(14, 165, 233, 0.20) !important;
+    color: #075985 !important;
+    font-size: .74rem !important;
+    font-weight: 950 !important;
+    letter-spacing: .055em !important;
+    text-transform: uppercase !important;
+    box-shadow: 0 7px 16px rgba(14, 165, 233, .12) !important;
+}
+
+.ops-actions,
+.hero-card .d-flex.gap-2,
+.ops-header .d-flex.gap-2 {
+    align-items: center !important;
+}
+
+/* ----------------------------------------------------------
+   Botones
+   ---------------------------------------------------------- */
+
+.ops-btn,
+.btn-soft,
+.btn-outline-soft,
+.btn-soft-primary,
+.btn-primary-soft,
+.btn-soft-danger,
+.btn-danger-soft {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    min-height: 40px !important;
+    padding: 10px 16px !important;
+    border-radius: 999px !important;
+    font-size: .82rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    background: rgba(255,255,255,0.94) !important;
+    color: #0f172a !important;
+    box-shadow: var(--ops-shadow-sm) !important;
+    transition: transform .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease !important;
+    cursor: pointer !important;
+}
+
+.ops-btn:hover,
+.btn-soft:hover,
+.btn-outline-soft:hover,
+.btn-soft-primary:hover,
+.btn-primary-soft:hover,
+.btn-soft-danger:hover,
+.btn-danger-soft:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: var(--ops-shadow-md) !important;
+    color: #0f172a !important;
+}
+
+.ops-btn.primary,
+.btn-soft-primary,
+.btn-primary-soft,
+.btn-soft.btn-primary-soft {
+    background: linear-gradient(135deg, var(--ops-blue-2), var(--ops-blue)) !important;
+    border-color: rgba(14, 165, 233, .22) !important;
+    color: white !important;
+}
+
+.ops-btn.primary:hover,
+.btn-soft-primary:hover,
+.btn-primary-soft:hover,
+.btn-soft.btn-primary-soft:hover {
+    color: white !important;
+    background: linear-gradient(135deg, #075985, #0284c7) !important;
+}
+
+.btn-soft-danger,
+.btn-danger-soft,
+.btn-soft.btn-danger-soft {
+    background: linear-gradient(135deg, #dc2626, #f97316) !important;
+    color: white !important;
+    border-color: rgba(220,38,38,.20) !important;
+}
+
+.btn-soft-danger:hover,
+.btn-danger-soft:hover,
+.btn-soft.btn-danger-soft:hover {
+    color: white !important;
+    background: linear-gradient(135deg, #b91c1c, #ea580c) !important;
+}
+
+/* ----------------------------------------------------------
+   Paneles / tarjetas base
+   ---------------------------------------------------------- */
+
+.ops-panel,
+.ops-toolbar,
+.manager-card,
+.kpi-item,
+.editor-card,
+.hist-card,
+.table-card,
+.summary-card,
+.kpi-card,
+.empty-state,
+.empty-box {
+    background: rgba(255, 255, 255, 0.96) !important;
+    border: 1px solid rgba(203, 213, 225, 0.82) !important;
+    border-radius: var(--ops-radius-lg) !important;
+    box-shadow: var(--ops-shadow-sm) !important;
+}
+
+.ops-panel,
+.manager-card,
+.kpi-item,
+.editor-card,
+.hist-card,
+.table-card,
+.kpi-card {
+    overflow: hidden !important;
+}
+
+.ops-panel:hover,
+.manager-card:hover,
+.kpi-item:hover,
+.hist-card:hover,
+.kpi-card:hover,
+.summary-card:hover {
+    box-shadow: var(--ops-shadow-md) !important;
+}
+
+.manager-header,
+.kpi-item-head,
+.hist-head,
+.kpi-card-header,
+.ops-panel .ops-dashboard-head,
+.ops-dashboard-head {
+    padding: 16px 20px !important;
+    border-bottom: 1px solid rgba(203, 213, 225, 0.75) !important;
+    background:
+        linear-gradient(135deg, #ffffff 0%, #eff8ff 100%) !important;
+}
+
+.manager-body,
+.kpi-item-body,
+.kpi-body,
+.table-card > .table-responsive,
+.hist-card > .p-3,
+.editor-card {
+    padding: clamp(16px, 1.4vw, 22px) !important;
+}
+
+/* ----------------------------------------------------------
+   Dashboard Index
+   ---------------------------------------------------------- */
+
+.ops-grid {
+    display: grid !important;
+    grid-template-columns: minmax(250px, 300px) minmax(0, 1fr) !important;
+    gap: 18px !important;
+    align-items: start !important;
+}
+
+.ops-main {
+    min-width: 0 !important;
+}
+
+.ops-sidebar {
+    position: sticky !important;
+    top: 12px !important;
+    padding: 0 !important;
+}
+
+.ops-sidebar-title {
+    padding: 16px 18px !important;
+    margin: 0 !important;
+    background: linear-gradient(135deg, var(--ops-navy), var(--ops-navy-2)) !important;
+    color: white !important;
+    font-weight: 950 !important;
+    letter-spacing: -.02em !important;
+}
+
+.ops-depto-list {
+    padding: 12px !important;
+    display: grid !important;
+    gap: 10px !important;
+}
+
+.ops-depto-item {
+    display: block !important;
+    border-radius: 16px !important;
+    padding: 14px 14px !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(203, 213, 225, .95) !important;
+    box-shadow: 0 5px 14px rgba(15, 23, 42, .04) !important;
+    color: var(--ops-text) !important;
+    text-decoration: none !important;
+    transition: transform .16s ease, border-color .16s ease, background .16s ease !important;
+}
+
+.ops-depto-item:hover,
+.ops-depto-item.active,
+.ops-depto-item[aria-current="true"] {
+    transform: translateY(-1px) !important;
+    border-color: rgba(14, 165, 233, .65) !important;
+    background: linear-gradient(135deg, #ffffff, #eaf7ff) !important;
+}
+
+.ops-depto-name {
+    font-size: .86rem !important;
+    font-weight: 950 !important;
+    color: var(--ops-text) !important;
+}
+
+.ops-depto-meta {
+    margin-top: 4px !important;
+    color: var(--ops-muted) !important;
+    font-weight: 800 !important;
+    font-size: .74rem !important;
+}
+
+.ops-filters {
+    padding: 14px !important;
+    margin-bottom: 16px !important;
+}
+
+.ops-filter-grid {
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    align-items: end !important;
+}
+
+.ops-field label,
+.form-label-mini,
+.form-label {
+    font-size: .70rem !important;
+    line-height: 1.1 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .065em !important;
+    color: #53667d !important;
+    font-weight: 950 !important;
+    margin-bottom: 7px !important;
+}
+
+.ops-kpi-summary,
+.summary-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    margin-bottom: 16px !important;
+}
+
+.ops-summary-card,
+.summary-card {
+    padding: 18px !important;
+    min-height: 130px !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.ops-summary-card::before,
+.summary-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: var(--ops-blue);
+    opacity: .9;
+}
+
+.ops-summary-card.state-success::before { background: var(--ops-success); }
+.ops-summary-card.state-warning::before { background: var(--ops-warning); }
+.ops-summary-card.state-danger::before { background: var(--ops-danger); }
+
+.ops-summary-top {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+}
+
+.ops-summary-icon {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 14px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #e0f2fe !important;
+    color: var(--ops-blue-2) !important;
+}
+
+.ops-summary-title,
+.summary-label {
+    color: #53667d !important;
+    font-size: .76rem !important;
+    font-weight: 950 !important;
+    line-height: 1.15 !important;
+}
+
+.ops-summary-value,
+.summary-value {
+    font-size: clamp(1.45rem, 2.1vw, 2rem) !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    color: var(--ops-text) !important;
+}
+
+.ops-summary-subtitle {
+    margin-top: 8px !important;
+    color: #64748b !important;
+    font-size: .78rem !important;
+    font-weight: 800 !important;
+}
+
+.ops-global-chart {
+    height: clamp(340px, 42vh, 560px) !important;
+    width: 100% !important;
+}
+
+.ops-kpi-grid,
+.kpi-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 18px !important;
+}
+
+.ops-kpi-card.size-Grande,
+.ops-kpi-card.size-grande,
+.kpi-card.size-Grande,
+.kpi-card.size-grande {
+    grid-column: 1 / -1 !important;
+}
+
+.ops-kpi-head {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+    padding: 18px 20px 10px !important;
+}
+
+.ops-kpi-title,
+.kpi-name,
+.kpi-title,
+.hist-title {
+    font-size: 1.05rem !important;
+    color: var(--ops-text) !important;
+    font-weight: 950 !important;
+    letter-spacing: -.025em !important;
+    margin: 0 !important;
+}
+
+.ops-kpi-subtitle,
+.kpi-meta,
+.hist-sub,
+.kpi-subtitle {
+    font-size: .78rem !important;
+    color: var(--ops-muted) !important;
+    font-weight: 800 !important;
+    margin-top: 3px !important;
+}
+
+.ops-kpi-value,
+.ops-kpi-result {
+    padding: 0 20px !important;
+    font-size: clamp(1.6rem, 2.35vw, 2.6rem) !important;
+    font-weight: 950 !important;
+    color: var(--ops-text) !important;
+    letter-spacing: -.04em !important;
+}
+
+.ops-kpi-meta {
+    padding: 5px 20px 0 !important;
+    color: var(--ops-muted) !important;
+    font-size: .78rem !important;
+    font-weight: 800 !important;
+}
+
+.ops-kpi-chart {
+    height: 320px !important;
+    min-height: 320px !important;
+    padding: 8px 10px 16px !important;
+}
+
+.ops-kpi-card.size-Grande .ops-kpi-chart,
+.ops-kpi-card.size-grande .ops-kpi-chart {
+    height: 430px !important;
+}
+
+.ops-kpi-card.size-Compacta .ops-kpi-chart,
+.ops-kpi-card.size-compacta .ops-kpi-chart {
+    height: 260px !important;
+}
+
+.ops-badge,
+.badge {
+    border-radius: 999px !important;
+    font-weight: 950 !important;
+    letter-spacing: .01em !important;
+}
+
+.ops-badge.success,
+.badge.success {
+    background: #dcfce7 !important;
+    color: #166534 !important;
+}
+
+.ops-badge.danger,
+.badge.danger {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+}
+
+.ops-badge.warning,
+.badge.warning {
+    background: #fef3c7 !important;
+    color: #92400e !important;
+}
+
+.ops-badge.neutral,
+.badge.neutral {
+    background: #e2e8f0 !important;
+    color: #334155 !important;
+}
+
+/* ----------------------------------------------------------
+   Gestor / Nueva métrica
+   ---------------------------------------------------------- */
+
+.manager-card,
+.editor-card {
+    margin-bottom: 18px !important;
+}
+
+.manager-header {
+    font-size: 1.04rem !important;
+    font-weight: 950 !important;
+    color: var(--ops-text) !important;
+}
+
+.kpi-item {
+    margin-bottom: 14px !important;
+}
+
+.kpi-item-head {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+}
+
+.kpi-item-body {
+    background: linear-gradient(180deg, #ffffff, #f8fbff) !important;
+}
+
+.variable-row,
+.variable-box {
+    border: 1px dashed rgba(100, 116, 139, 0.34) !important;
+    border-radius: var(--ops-radius-md) !important;
+    padding: 14px !important;
+    margin-bottom: 12px !important;
+    background: linear-gradient(135deg, #ffffff, #f8fbff) !important;
+}
+
+.variable-row:hover,
+.variable-box:hover {
+    border-color: rgba(14, 165, 233, .55) !important;
+    background: linear-gradient(135deg, #ffffff, #eef9ff) !important;
+}
+
+.variable-name {
+    color: var(--ops-text) !important;
+    font-size: .88rem !important;
+    font-weight: 950 !important;
+}
+
+/* ----------------------------------------------------------
+   Formularios
+   ---------------------------------------------------------- */
+
+.form-control,
+.form-select {
+    min-height: 42px !important;
+    border-radius: 13px !important;
+    border: 1px solid #d7e3ef !important;
+    color: var(--ops-text) !important;
+    font-weight: 800 !important;
+    background-color: rgba(255,255,255,.96) !important;
+    box-shadow: 0 2px 0 rgba(15,23,42,.02) !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: rgba(14, 165, 233, .7) !important;
+    box-shadow: 0 0 0 .22rem rgba(14, 165, 233, .15) !important;
+}
+
+.input-group-text {
+    border-radius: 13px !important;
+    border: 1px solid #d7e3ef !important;
+    background: #eef6ff !important;
+    color: #075985 !important;
+    font-weight: 950 !important;
+}
+
+.form-check-input {
+    border-color: #9fb5cc !important;
+}
+
+.form-check-input:checked {
+    background-color: var(--ops-blue-2) !important;
+    border-color: var(--ops-blue-2) !important;
+}
+
+/* ----------------------------------------------------------
+   Captura
+   ---------------------------------------------------------- */
+
+.ops-toolbar {
+    padding: 16px !important;
+    margin-bottom: 18px !important;
+}
+
+.kpi-captura-card .kpi-card-header {
+    background: linear-gradient(135deg, #ffffff, #eaf7ff) !important;
+}
+
+.kpi-captura-card .kpi-body {
+    background: #ffffff !important;
+}
+
+/* ----------------------------------------------------------
+   Historial / Tablas / Importacion
+   ---------------------------------------------------------- */
+
+.hist-card {
+    margin-bottom: 14px !important;
+}
+
+.hist-head {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+}
+
+.value-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    border-radius: 999px !important;
+    padding: 7px 11px !important;
+    margin: 3px !important;
+    background: #eef6ff !important;
+    border: 1px solid #dbeafe !important;
+    color: #17324f !important;
+    font-size: .78rem !important;
+    font-weight: 900 !important;
+}
+
+.table-card {
+    padding: 0 !important;
+}
+
+.table-card .table,
+.table {
+    --bs-table-bg: transparent !important;
+    margin-bottom: 0 !important;
+    vertical-align: middle !important;
+}
+
+.table thead th {
+    background: linear-gradient(135deg, var(--ops-navy), var(--ops-navy-2)) !important;
+    color: white !important;
+    border: none !important;
+    font-size: .74rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: .06em !important;
+    font-weight: 950 !important;
+    padding: 13px 14px !important;
+}
+
+.table tbody td {
+    border-color: rgba(203, 213, 225, 0.75) !important;
+    padding: 12px 14px !important;
+    color: #1e293b !important;
+    font-weight: 750 !important;
+}
+
+.table-hover tbody tr:hover {
+    background: rgba(14, 165, 233, 0.07) !important;
+}
+
+.summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    margin: 18px 0 !important;
+}
+
+.alert {
+    border-radius: var(--ops-radius-md) !important;
+    font-weight: 850 !important;
+    border: 1px solid rgba(15,23,42,.08) !important;
+    box-shadow: var(--ops-shadow-sm) !important;
+}
+
+.empty-state,
+.empty-box,
+.ops-empty {
+    padding: 42px 24px !important;
+    text-align: center !important;
+    color: var(--ops-muted) !important;
+    font-weight: 800 !important;
+}
+
+/* ----------------------------------------------------------
+   Modales
+   ---------------------------------------------------------- */
+
+.modal-content {
+    border: 0 !important;
+    border-radius: 24px !important;
+    overflow: hidden !important;
+    box-shadow: var(--ops-shadow-lg) !important;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, var(--ops-navy), var(--ops-navy-2)) !important;
+    color: white !important;
+    border-bottom: 0 !important;
+}
+
+.modal-title {
+    font-weight: 950 !important;
+}
+
+.modal-body {
+    background: #f8fbff !important;
+}
+
+.modal-footer {
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+}
+
+/* ----------------------------------------------------------
+   Responsive
+   ---------------------------------------------------------- */
+
+@@media (max-width: 1400px) {
+    .ops-shell,
+    .kpis-shell {
+        max-width: calc(100vw - 42px) !important;
     }
 
-    .history-shell::before {
-        content: "";
-        position: absolute;
-        width: 420px;
-        height: 420px;
-        top: -190px;
-        right: -170px;
-        background: radial-gradient(circle, rgba(37,99,235,.16), transparent 65%);
-        pointer-events: none;
+    .ops-filter-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
 
-    .history-shell::after {
-        content: "";
-        position: absolute;
-        width: 360px;
-        height: 360px;
-        left: -170px;
-        bottom: -190px;
-        background: radial-gradient(circle, rgba(22,163,74,.13), transparent 65%);
-        pointer-events: none;
+    .ops-kpi-summary,
+    .summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+@@media (max-width: 1100px) {
+    .ops-grid {
+        grid-template-columns: 1fr !important;
     }
 
-    .history-content {
-        position: relative;
-        z-index: 2;
+    .ops-sidebar {
+        position: relative !important;
+        top: auto !important;
     }
 
-    .stat-card {
-        border: 1px solid rgba(148,163,184,.28);
-        background: rgba(255,255,255,.86);
-        backdrop-filter: blur(10px);
-        box-shadow: 0 12px 26px rgba(15,23,42,.08);
-        transition: all .2s ease;
+    .ops-depto-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
 
-    .stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 16px 32px rgba(15,23,42,.12);
+    .ops-kpi-grid,
+    .kpi-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+@@media (max-width: 768px) {
+    .ops-v2-page,
+    .kpis-v2-page {
+        padding: 10px !important;
     }
 
-    .stat-icon {
-        width: 46px;
-        height: 46px;
-        border-radius: 16px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 10px 18px rgba(15,23,42,.1);
+    .ops-shell,
+    .kpis-shell {
+        max-width: 100% !important;
+        margin: 10px auto 18px !important;
+        padding: 12px !important;
+        border-radius: 20px !important;
     }
 
-    .filter-panel {
-        border: 1px solid rgba(148,163,184,.25);
-        background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(248,250,252,.95));
-        box-shadow: 0 14px 30px rgba(15,23,42,.08);
+    .ops-header,
+    .hero-card,
+    .kpi-item-head,
+    .hist-head {
+        flex-direction: column !important;
     }
 
-    .filter-input {
-        border-radius: 14px;
-        border: 1px solid rgba(148,163,184,.28);
-        background-color: #fff;
-        box-shadow: 0 8px 18px rgba(15,23,42,.04);
+    .ops-filter-grid,
+    .ops-kpi-summary,
+    .summary-grid,
+    .ops-depto-list {
+        grid-template-columns: 1fr !important;
     }
 
-    .filter-input:focus {
-        border-color: #2563eb;
-        box-shadow: 0 0 0 .25rem rgba(37,99,235,.12);
+    .ops-title,
+    .hero-title {
+        font-size: 2rem !important;
     }
+}
 
-    .btn-future {
-        position: relative;
-        overflow: hidden;
-        border: 0;
-        border-radius: 16px;
-        font-weight: 800;
-        letter-spacing: .2px;
-        transition: all .22s ease;
-        box-shadow: 0 12px 24px rgba(15,23,42,.15);
-    }
-
-    .btn-future::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,.35) 45%, transparent 70%);
-        transform: translateX(-120%);
-        transition: transform .6s ease;
-    }
-
-    .btn-future:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 18px 34px rgba(15,23,42,.22);
-    }
-
-    .btn-future:hover::before {
-        transform: translateX(120%);
-    }
-
-    .btn-future-primary {
-        color: white;
-        background: linear-gradient(135deg, #2563eb, #0891b2, #06b6d4);
-    }
-
-    .btn-future-success {
-        color: white;
-        background: linear-gradient(135deg, #22c55e, #16a34a, #0f766e);
-    }
-
-    .btn-future-danger {
-        color: white;
-        background: linear-gradient(135deg, #ef4444, #dc2626, #991b1b);
-    }
-
-    .btn-ghost-future {
-        border-radius: 14px;
-        font-weight: 800;
-        border: 1px solid rgba(148,163,184,.45);
-        background: rgba(255,255,255,.85);
-        backdrop-filter: blur(10px);
-        transition: all .2s ease;
-    }
-
-    .btn-ghost-future:hover {
-        transform: translateY(-2px);
-        border-color: rgba(37,99,235,.4);
-        box-shadow: 0 10px 22px rgba(15,23,42,.12);
-    }
-
-    .table-modern {
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-
-    .table-modern thead th {
-        background: #0f172a;
-        color: #fff;
-        font-size: .82rem;
-        letter-spacing: .3px;
-        text-transform: uppercase;
-        border: 0;
-        white-space: nowrap;
-    }
-
-    .table-modern tbody tr {
-        transition: all .15s ease;
-    }
-
-    .table-modern tbody tr:hover {
-        background-color: #f8fafc;
-    }
-
-    .period-badge {
-        border-radius: 999px;
-        padding: .5rem .75rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #dbeafe, #cffafe);
-        color: #075985;
-        border: 1px solid rgba(14,165,233,.22);
-    }
-
-    .value-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: .35rem;
-        border-radius: 999px;
-        padding: .35rem .6rem;
-        background: #ecfdf5;
-        color: #166534;
-        border: 1px solid rgba(34,197,94,.22);
-        font-weight: 800;
-        margin: .15rem .1rem;
-    }
-
-    .action-btn {
-        width: 36px;
-        height: 36px;
-        border-radius: 13px !important;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .modal-modern .modal-content {
-        border-radius: 24px;
-        overflow: hidden;
-    }
-
-    .modal-modern-header-primary {
-        color: white;
-        background: linear-gradient(135deg, #2563eb, #0891b2);
-    }
-
-    .modal-modern-header-danger {
-        color: white;
-        background: linear-gradient(135deg, #ef4444, #991b1b);
-    }
-
-    .empty-state {
-        padding: 4rem 1rem;
-        text-align: center;
-    }
-
-    .modal-backdrop {
-        z-index: 19990 !important;
-    }
-
-    .modal {
-        z-index: 20000 !important;
-    }
-
-    .modal-dialog {
-        pointer-events: auto !important;
-    }
-
-    .modal-content {
-        position: relative;
-        z-index: 20001 !important;
-    }
+</style>
+<style>
+    .ops-shell{max-width:1240px;margin:18px auto;padding:22px;background:linear-gradient(135deg,#e8f4fb,#f8fafc);border-radius:22px;box-shadow:0 16px 40px rgba(15,23,42,.08)}.ops-header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}.ops-title{font-size:2rem;font-weight:900;color:#0f172a;margin:0}.ops-subtitle{color:#475569;font-weight:600;margin:4px 0 0}.ops-pill{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:8px 13px;background:#e0f2fe;color:#075985;font-size:.78rem;font-weight:900;letter-spacing:.04em;text-transform:uppercase}.btn-soft{border:0;border-radius:999px;background:#fff;color:#0f172a;font-weight:900;padding:10px 15px;box-shadow:0 8px 20px rgba(15,23,42,.08);text-decoration:none}.btn-primary-soft{background:linear-gradient(135deg,#0369a1,#0ea5e9);color:white}.btn-danger-soft{background:linear-gradient(135deg,#dc2626,#f97316);color:white}.btn-soft:hover{transform:translateY(-1px);color:inherit}.btn-primary-soft:hover,.btn-danger-soft:hover{color:white}.ops-toolbar{background:#fff;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(15,23,42,.07);margin-bottom:18px}.form-label-mini{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:900}.form-control,.form-select{border-radius:12px;border:1px solid #dbe4ef;font-weight:700}.hist-card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 10px 24px rgba(15,23,42,.06);margin-bottom:12px;overflow:hidden}.hist-head{padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:12px}.hist-title{font-weight:900;color:#0f172a;margin:0}.hist-sub{font-size:.78rem;color:#64748b;font-weight:800}.value-chip{display:inline-flex;gap:6px;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:6px 10px;margin:3px;font-size:.78rem;font-weight:800}.empty-state{background:#fff;border-radius:20px;padding:35px;text-align:center;color:#64748b;font-weight:700}.modal-content{border-radius:22px;border:0}.alert{border-radius:16px;font-weight:700}@@media(max-width:992px){.ops-header{flex-direction:column}.hist-head{flex-direction:column}}
 </style>
 
-<div class="container-fluid px-4 my-5">
+<div class="ops-shell">
+    <div class="ops-header">
+        <div>
+            <span class="ops-pill"><i class="fas fa-clock-rotate-left"></i> Historial V2</span>
+            <h1 class="ops-title">Historial de KPIs</h1>
+            <p class="ops-subtitle">Consulta, corrige o archiva registros capturados.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn-soft" href="@Url.Action("Index", "Operaciones")"><i class="fas fa-chart-line me-1"></i> Dashboard</a>
+            <a class="btn-soft" href="@Url.Action("Captura", "Operaciones")"><i class="fas fa-keyboard me-1"></i> Captura</a>
+            <a class="btn-soft" href="@Url.Action("GestorMetricas", "Operaciones")"><i class="fas fa-sliders me-1"></i> Gestor</a>
+        </div>
+    </div>
 
     @if (TempData["Mensaje"] != null)
     {
-        <div class="alert alert-@TempData["Tipo"] alert-dismissible fade show shadow-sm" role="alert">
-            <i class="fas @(TempData["Tipo"]?.ToString() == "success" ? "fa-check-circle" : "fa-exclamation-triangle") me-2"></i>
+        var tipo = TempData["Tipo"]?.ToString() ?? "info";
+        <div class="alert alert-@tipo alert-dismissible fade show" role="alert">
             @TempData["Mensaje"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
         </div>
     }
 
-    <div class="card border-0 shadow-lg rounded-4 overflow-hidden history-shell">
-        <div class="card-header bg-dark text-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-            <div>
-                <h4 class="fw-bold text-white mb-0">
-                    <i class="fas fa-history me-2 text-info"></i> Historial de Registros KPI
-                </h4>
-                <small class="opacity-75">
-                    Consulta, filtra y administra los registros capturados.
-                </small>
+    <form method="get" asp-action="Historial" asp-controller="Operaciones" class="ops-toolbar">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label-mini">Área</label>
+                <select class="form-select" name="departamentoId">
+                    <option value="">Todas</option>
+                    @foreach (var depto in Model.Departamentos)
+                    {
+                        <option value="@depto.Value" selected="@(departamentoFiltro.HasValue && departamentoFiltro.Value.ToString() == depto.Value)">@depto.Text</option>
+                    }
+                </select>
             </div>
-
-            <div class="d-flex gap-2">
-                <a href="/Operaciones/Captura" class="btn btn-sm btn-light fw-bold rounded-pill px-3 shadow-sm">
-                    <i class="fas fa-plus-circle me-1 text-success"></i> Nueva Captura
-                </a>
-
-                <a href="/Operaciones/Index" class="btn btn-sm btn-outline-light fw-bold rounded-pill px-3">
-                    <i class="fas fa-chart-line me-1"></i> Ver Tablero
-                </a>
+            <div class="col-md-3">
+                <label class="form-label-mini">Año</label>
+                <input class="form-control" type="number" name="anio" value="@(anioFiltro?.ToString() ?? DateTime.Now.Year.ToString())" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label-mini">KPI ID</label>
+                <input class="form-control" type="number" name="metricaId" value="@(metricaFiltro?.ToString() ?? "")" placeholder="Opcional" />
+            </div>
+            <div class="col-md-2 d-grid">
+                <button class="btn-soft btn-primary-soft" type="submit"><i class="fas fa-filter me-1"></i> Filtrar</button>
             </div>
         </div>
+    </form>
 
-        <div class="card-body p-4 history-content">
-
-            <div class="row g-3 mb-4">
-                <div class="col-6 col-lg-3">
-                    <div class="stat-card rounded-4 p-3 h-100">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="stat-icon bg-primary-subtle text-primary">
-                                <i class="fas fa-database"></i>
-                            </div>
-                            <div>
-                                <div class="fs-4 fw-bold">@totalRegistros</div>
-                                <div class="small text-muted fw-bold">Registros</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-6 col-lg-3">
-                    <div class="stat-card rounded-4 p-3 h-100">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="stat-icon bg-success-subtle text-success">
-                                <i class="fas fa-chart-simple"></i>
-                            </div>
-                            <div>
-                                <div class="fs-4 fw-bold">@totalKpis</div>
-                                <div class="small text-muted fw-bold">KPIs con datos</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-6 col-lg-3">
-                    <div class="stat-card rounded-4 p-3 h-100">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="stat-icon bg-warning-subtle text-warning">
-                                <i class="fas fa-building"></i>
-                            </div>
-                            <div>
-                                <div class="fs-4 fw-bold">@totalDeptos</div>
-                                <div class="small text-muted fw-bold">Áreas</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-6 col-lg-3">
-                    <div class="stat-card rounded-4 p-3 h-100">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="stat-icon bg-info-subtle text-info">
-                                <i class="fas fa-list-check"></i>
-                            </div>
-                            <div>
-                                <div class="fs-4 fw-bold">@totalValores</div>
-                                <div class="small text-muted fw-bold">Valores</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="filter-panel rounded-4 p-4 mb-4">
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-                    <div>
-                        <h6 class="fw-bold text-dark mb-1">
-                            <i class="fas fa-filter me-2 text-success"></i> Filtros de búsqueda
-                        </h6>
-                        <p class="text-muted small mb-0">
-                            Filtra por área, KPI o fecha de registro.
-                        </p>
-                    </div>
-
-                    <button type="button" class="btn btn-ghost-future btn-sm px-3" onclick="limpiarFiltrosHistorial()">
-                        <i class="fas fa-broom me-1"></i> Limpiar filtros
-                    </button>
-                </div>
-
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label small fw-bold text-muted">Área</label>
-                        <select id="filtroDepto" class="form-select filter-input" onchange="filtrarHistorial()">
-                            <option value="">Todas las áreas</option>
-                            @foreach (var d in deptosUnicos)
-                            {
-                                <option value="@d.DepartamentoID">@d.NombreDepartamento</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label small fw-bold text-muted">KPI</label>
-                        <input type="text"
-                               id="filtroKpi"
-                               class="form-control filter-input"
-                               placeholder="Buscar KPI..."
-                               onkeyup="filtrarHistorial()" />
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label small fw-bold text-muted">Desde</label>
-                        <input type="date"
-                               id="filtroFechaDesde"
-                               class="form-control filter-input"
-                               onchange="filtrarHistorial()" />
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label small fw-bold text-muted">Hasta</label>
-                        <input type="date"
-                               id="filtroFechaHasta"
-                               class="form-control filter-input"
-                               onchange="filtrarHistorial()" />
-                    </div>
-                </div>
-
-                <div class="mt-3 small text-muted" id="contadorHistorial">
-                    Mostrando @totalRegistros registro(s)
-                </div>
-            </div>
-
-            <div class="table-responsive rounded-4 border shadow-sm">
-                <table class="table table-hover align-middle mb-0 table-modern" id="tablaHistorial">
-                    <thead>
-                        <tr>
-                            <th class="ps-4">Fecha registro</th>
-                            <th>Área</th>
-                            <th>KPI / Métrica</th>
-                            <th class="text-center">Año</th>
-                            <th class="text-center">Periodo</th>
-                            <th>Valores capturados</th>
-                            <th class="text-center pe-4">Acciones</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        @if (registros.Any())
-                        {
-                            foreach (var item in registros)
-                            {
-                                <tr class="fila-historial"
-                                    data-depto="@item.Metrica.DepartamentoID"
-                                    data-kpi="@item.Metrica.NombreMetrica.ToLower()"
-                                    data-fecha="@item.FechaCaptura.ToString("yyyy-MM-dd")">
-
-                                    <td class="ps-4 text-muted small">
-                                        <i class="far fa-clock me-1"></i>
-                                        @item.FechaCaptura.ToString("dd/MM/yyyy HH:mm")
-                                    </td>
-
-                                    <td>
-                                        <span class="fw-bold text-dark">@item.Metrica.Departamento.NombreDepartamento</span>
-                                    </td>
-
-                                    <td>
-                                        <div class="fw-bold text-primary">@item.Metrica.NombreMetrica</div>
-                                        <div class="small text-muted">
-                                            ID: @item.MetricaID · @item.Metrica.Frecuencia
-                                        </div>
-                                    </td>
-
-                                    <td class="text-center fw-bold">@item.Anio</td>
-
-                                    <td class="text-center">
-                                        <span class="period-badge">
-                                            @ObtenerNombrePeriodo(item.Metrica.Frecuencia, item.NumeroPeriodo, item.Anio)
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        @if (item.DetallesValores != null && item.DetallesValores.Any())
-                                        {
-                                            foreach (var detalle in item.DetallesValores)
-                                            {
-                                                <div class="value-pill">
-                                                    <span>@detalle.Variable.NombreVariable:</span>
-                                                    <span>@detalle.Valor.ToString("N2")</span>
-                                                </div>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted small">Sin valores</span>
-                                        }
-                                    </td>
-
-                                    <td class="text-center pe-4">
-                                        @if (puedeEditarHistorial)
-                                        {
-                                            <div class="btn-group shadow-sm">
-                                                <button type="button"
-                                                        class="btn btn-sm btn-outline-primary action-btn"
-                                                        title="Editar registro"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#modalEditar-@item.RegistroID">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-
-                                                <button type="button"
-                                                        class="btn btn-sm btn-outline-danger action-btn"
-                                                        title="Archivar registro"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#modalEliminar-@item.RegistroID">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-light text-muted border">
-                                                Sin permiso
-                                            </span>
-                                        }
-                                    </td>
-                                </tr>
-
-
-                            }
-                        }
-                        else
-                        {
-                            <tr id="filaVacia">
-                                <td colspan="7" class="empty-state text-muted">
-                                    <i class="fas fa-folder-open fa-3x mb-3"></i>
-                                    <h5 class="fw-bold">Aún no hay registros</h5>
-                                    <p class="mb-0">Cuando captures o importes KPIs, aparecerán aquí.</p>
-                                </td>
-                            </tr>
-                        }
-
-                        <tr id="filaNoResultados" class="d-none">
-                            <td colspan="7" class="empty-state text-warning fw-bold">
-                                <i class="fas fa-search-minus fa-2x mb-2 d-block"></i>
-                                No se encontraron registros que coincidan con los filtros colocados.
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-        </div>
-    </div>
-</div>
-
-
-@if (registros.Any())
-{
-    foreach (var item in registros)
+    @if (!Model.Registros.Any())
     {
-                                <div class="modal fade modal-modern" id="modalEditar-@item.RegistroID" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered modal-lg">
-                                        <div class="modal-content border-0 shadow-lg">
-                                            <div class="modal-header modal-modern-header-primary">
-                                                <div>
-                                                    <h5 class="modal-title fw-bold mb-0">
-                                                        <i class="fas fa-edit me-2"></i> Editar Registro
-                                                    </h5>
-                                                    <small class="opacity-75">Actualiza periodo o valores capturados.</small>
-                                                </div>
-
-                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                            </div>
-
-                                            <form action="/Operaciones/ActualizarKpi" method="post">
-                                                <div class="modal-body p-4">
-                                                    <input type="hidden" name="registroId" value="@item.RegistroID" />
-
-                                                    <div class="alert alert-light border shadow-sm mb-4 rounded-4">
-                                                        <p class="mb-1">
-                                                            <strong>Métrica:</strong> @item.Metrica.NombreMetrica
-                                                        </p>
-                                                        <p class="mb-0">
-                                                            <strong>Departamento:</strong> @item.Metrica.Departamento.NombreDepartamento
-                                                        </p>
-                                                    </div>
-
-                                                    <div class="row mb-3">
-                                                        @if (item.Metrica.Frecuencia == "Diario")
-                                                        {
-                                                            <input type="hidden" name="anio" value="@item.Anio" />
-
-                                                            <div class="col-12">
-                                                                <label class="form-label fw-bold text-danger small">
-                                                                    <i class="fas fa-calendar-day"></i> Fecha exacta del evento
-                                                                </label>
-
-                                                                @{
-                                                                    string fechaEdicion = "";
-                                                                    try
-                                                                    {
-                                                                        fechaEdicion = new DateTime(item.Anio, 1, 1).AddDays(item.NumeroPeriodo - 1).ToString("yyyy-MM-dd");
-                                                                    }
-                                                                    catch
-                                                                    {
-                                                                    }
-                                                                }
-
-                                                                <input type="date"
-                                                                       name="fechaDiaria"
-                                                                       class="form-control border-danger"
-                                                                       value="@fechaEdicion"
-                                                                       required />
-                                                            </div>
-                                                        }
-                                                        else
-                                                        {
-                                                            <div class="col-md-5">
-                                                                <label class="form-label fw-bold text-muted small">Año</label>
-                                                                <input type="number"
-                                                                       name="anio"
-                                                                       class="form-control"
-                                                                       value="@item.Anio"
-                                                                       required />
-                                                            </div>
-
-                                                            <div class="col-md-7">
-                                                                <label class="form-label fw-bold text-success small">
-                                                                    <i class="far fa-calendar-alt"></i> Periodo (@item.Metrica.Frecuencia)
-                                                                </label>
-
-                                                                @if (item.Metrica.Frecuencia == "Mensual")
-                                                                {
-                                                                    <select name="numeroPeriodo" class="form-select border-success" required>
-                                                                        @{
-                                                                            string[] mesesForm = { "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
-                                                                        }
-
-                                                                        @for (int i = 0; i < 12; i++)
-                                                                        {
-                                                                            <option value="@(i + 1)" selected="@(item.NumeroPeriodo == (i + 1))">
-                                                                                @mesesForm[i]
-                                                                            </option>
-                                                                        }
-                                                                    </select>
-                                                                }
-                                                                else if (item.Metrica.Frecuencia == "Semanal")
-                                                                {
-                                                                    <select name="numeroPeriodo" class="form-select border-success" required>
-                                                                        @for (int i = 1; i <= 53; i++)
-                                                                        {
-                                                                            <option value="@i" selected="@(item.NumeroPeriodo == i)">
-                                                                                Semana @i
-                                                                            </option>
-                                                                        }
-                                                                    </select>
-                                                                }
-                                                            </div>
-                                                        }
-                                                    </div>
-
-                                                    <hr class="my-3">
-
-                                                    <h6 class="fw-bold text-secondary mb-3">
-                                                        <i class="fas fa-list-check me-2"></i> Valores capturados
-                                                    </h6>
-
-                                                    @foreach (var detalle in item.DetallesValores)
-                                                    {
-                                                        <div class="mb-3">
-                                                            <label class="form-label fw-bold">
-                                                                @detalle.Variable.NombreVariable
-                                                            </label>
-
-                                                            <input type="number"
-                                                                   step="0.01"
-                                                                   name="valores[@detalle.VariableID]"
-                                                                   class="form-control"
-                                                                   value="@detalle.Valor"
-                                                                   required />
-                                                        </div>
-                                                    }
-                                                </div>
-
-                                                <div class="modal-footer bg-light">
-                                                    <button type="button" class="btn btn-ghost-future" data-bs-dismiss="modal">
-                                                        Cancelar
-                                                    </button>
-
-                                                    <button type="submit" class="btn btn-future btn-future-primary px-4">
-                                                        <i class="fas fa-save me-1"></i> Guardar Cambios
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="modal fade modal-modern" id="modalEliminar-@item.RegistroID" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered modal-sm">
-                                        <div class="modal-content border-0 shadow">
-                                            <div class="modal-header modal-modern-header-danger">
-                                                <h5 class="modal-title fw-bold">
-                                                    <i class="fas fa-box-archive me-2"></i> Archivar
-                                                </h5>
-
-                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                            </div>
-
-                                            <div class="modal-body text-center p-4">
-                                                <i class="fas fa-exclamation-triangle text-danger mb-3" style="font-size: 3rem;"></i>
-
-                                                <h5 class="fw-bold">¿Archivar registro?</h5>
-
-                                                <p class="text-muted small">
-                                                    El registro se desactivará del tablero, pero se conservará en la base de datos como borrado lógico.
-                                                </p>
-
-                                                <form action="/Operaciones/EliminarKpi" method="post" class="mt-4">
-                                                    <input type="hidden" name="id" value="@item.RegistroID" />
-
-                                                    <div class="d-grid gap-2">
-                                                        <button type="submit" class="btn btn-future btn-future-danger">
-                                                            Sí, archivar
-                                                        </button>
-
-                                                        <button type="button" class="btn btn-ghost-future" data-bs-dismiss="modal">
-                                                            Cancelar
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+        <div class="empty-state">
+            <i class="fas fa-box-open fa-2x mb-3"></i>
+            <h5 class="fw-black">Sin registros</h5>
+            <p class="mb-0">No hay capturas para los filtros seleccionados.</p>
+        </div>
     }
-}
+    else
+    {
+        foreach (var registro in Model.Registros)
+        {
+            var modalId = $"modalEditarRegistro{registro.RegistroID}";
+            <div class="hist-card">
+                <div class="hist-head">
+                    <div>
+                        <h5 class="hist-title">@registro.NombreMetrica</h5>
+                        <div class="hist-sub">@registro.Departamento · @registro.Anio · @registro.Periodo · @registro.FechaCaptura.ToString("dd/MM/yyyy HH:mm")</div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn-soft btn-primary-soft" data-bs-toggle="modal" data-bs-target="#@modalId"><i class="fas fa-pen me-1"></i> Editar</button>
+                        <form asp-action="EliminarKpi" asp-controller="Operaciones" method="post" onsubmit="return confirm('¿Archivar este registro?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@registro.RegistroID" />
+                            <button type="submit" class="btn-soft btn-danger-soft"><i class="fas fa-box-archive me-1"></i> Archivar</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="p-3">
+                    @foreach (var valor in registro.Valores)
+                    {
+                        <span class="value-chip">
+                            <span>@valor.Nombre</span>
+                            <strong>@valor.ValorFormateado</strong>
+                        </span>
+                    }
+                </div>
+            </div>
 
-@section Scripts {
-    <script>
-        function filtrarHistorial() {
-            const deptoSel = document.getElementById('filtroDepto').value;
-            const kpiTxt = document.getElementById('filtroKpi').value.toLowerCase().trim();
-            const fechaDesde = document.getElementById('filtroFechaDesde').value;
-            const fechaHasta = document.getElementById('filtroFechaHasta').value;
+            <div class="modal fade" id="@modalId" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <form asp-action="ActualizarKpi" asp-controller="Operaciones" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="registroId" value="@registro.RegistroID" />
+                            <div class="modal-header">
+                                <div>
+                                    <h5 class="modal-title fw-black">Editar registro</h5>
+                                    <small class="text-muted fw-bold">@registro.NombreMetrica · @registro.Departamento</small>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label-mini">Año</label>
+                                        <input class="form-control" type="number" name="anio" value="@registro.Anio" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label-mini">Periodo</label>
+                                        <input class="form-control" type="number" name="numeroPeriodo" value="@registro.NumeroPeriodo" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label-mini">Fecha diaria</label>
+                                        <input class="form-control" type="date" name="fechaDiaria" />
+                                    </div>
+                                </div>
 
-            const filas = document.querySelectorAll('.fila-historial');
-            let filasVisibles = 0;
-
-            filas.forEach(fila => {
-                const deptoId = fila.getAttribute('data-depto');
-                const kpiNombre = fila.getAttribute('data-kpi');
-                const fechaFila = fila.getAttribute('data-fecha');
-
-                const cumpleDepto = deptoSel === "" || deptoId === deptoSel;
-                const cumpleKpi = kpiTxt === "" || kpiNombre.includes(kpiTxt);
-
-                let cumpleFecha = true;
-
-                if (fechaDesde !== "" && fechaFila < fechaDesde) {
-                    cumpleFecha = false;
-                }
-
-                if (fechaHasta !== "" && fechaFila > fechaHasta) {
-                    cumpleFecha = false;
-                }
-
-                if (cumpleDepto && cumpleKpi && cumpleFecha) {
-                    fila.classList.remove('d-none');
-                    filasVisibles++;
-                } else {
-                    fila.classList.add('d-none');
-                }
-            });
-
-            const filaAlerta = document.getElementById('filaNoResultados');
-            const contador = document.getElementById('contadorHistorial');
-
-            if (filaAlerta) {
-                if (filasVisibles === 0 && filas.length > 0) {
-                    filaAlerta.classList.remove('d-none');
-                } else {
-                    filaAlerta.classList.add('d-none');
-                }
-            }
-
-            if (contador) {
-                contador.innerText = `Mostrando ${filasVisibles} registro(s)`;
-            }
+                                @foreach (var valor in registro.Valores)
+                                {
+                                    <div class="mb-2">
+                                        <label class="form-label fw-bold">@valor.Nombre</label>
+                                        <div class="input-group">
+                                            <input class="form-control" type="number" step="0.01" name="valores[@valor.VariableID]" value="@valor.Valor" />
+                                            <span class="input-group-text fw-bold">@(!string.IsNullOrWhiteSpace(valor.UnidadMedida) ? valor.UnidadMedida : "Valor")</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn-soft" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn-soft btn-primary-soft"><i class="fas fa-save me-1"></i> Guardar cambios</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         }
-
-        function limpiarFiltrosHistorial() {
-            document.getElementById('filtroDepto').value = "";
-            document.getElementById('filtroKpi').value = "";
-            document.getElementById('filtroFechaDesde').value = "";
-            document.getElementById('filtroFechaHasta').value = "";
-
-            filtrarHistorial();
-        }
-
-        function limpiarBackdropsBloqueados(forzar = false) {
-            const hayModalAbierto = document.querySelector('.modal.show') !== null;
-
-            if (!forzar && hayModalAbierto) {
-                return;
-            }
-
-            document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
-                backdrop.remove();
-            });
-
-            document.body.classList.remove('modal-open');
-            document.body.style.removeProperty('overflow');
-            document.body.style.removeProperty('padding-right');
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            limpiarBackdropsBloqueados(true);
-
-            document.querySelectorAll('.modal').forEach(modal => {
-                modal.addEventListener('hidden.bs.modal', function () {
-                    setTimeout(function () {
-                        limpiarBackdropsBloqueados(true);
-                    }, 150);
-                });
-            });
-        });
-    </script>
-}
+    }
+</div>
