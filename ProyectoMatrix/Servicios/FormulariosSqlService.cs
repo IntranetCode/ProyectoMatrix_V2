@@ -2,6 +2,9 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using ProyectoMatrix.ViewModels.Formularios;
 using System.Data;
+using System.Globalization;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 namespace ProyectoMatrix.Servicios
@@ -385,51 +388,714 @@ namespace ProyectoMatrix.Servicios
             if (model.UsuarioID <= 0)
                 throw new ArgumentException("UsuarioID inválido.");
 
-            var datosJson = SerializarValoresFormulario(
-                model.Valores ?? new Dictionary<string, string?>()
-            );
+            model.Valores ??= new Dictionary<string, string?>();
 
+            var datosJson = SerializarValoresFormulario(model.Valores);
             var datosPdfJson = datosJson;
 
             await using var connection = new SqlConnection(_connectionString);
-            await using var command = new SqlCommand(@"
-                INSERT INTO dbo.FormularioRespuestas
-                (
-                    IdFormulario,
-                    UsuarioID,
-                    Estado,
-                    DatosJson,
-                    DatosPdfJson,
-                    RespuestaOrigenID,
-                    OrigenTipo,
-                    OrigenID
-                )
-                OUTPUT INSERTED.IdRespuesta
-                VALUES
-                (
-                    @IdFormulario,
-                    @UsuarioID,
-                    @Estado,
-                    @DatosJson,
-                    @DatosPdfJson,
-                    @RespuestaOrigenID,
-                    @OrigenTipo,
-                    @OrigenID
-                );
-            ", connection);
-
-            command.Parameters.AddWithValue("@IdFormulario", model.IdFormulario);
-            command.Parameters.AddWithValue("@UsuarioID", model.UsuarioID);
-            command.Parameters.AddWithValue("@Estado", string.IsNullOrWhiteSpace(model.Estado) ? "Registrado" : model.Estado);
-            command.Parameters.AddWithValue("@DatosJson", datosJson);
-            command.Parameters.AddWithValue("@DatosPdfJson", datosPdfJson);
-            command.Parameters.AddWithValue("@RespuestaOrigenID", (object?)model.RespuestaOrigenID ?? DBNull.Value);
-            command.Parameters.AddWithValue("@OrigenTipo", string.IsNullOrWhiteSpace(model.OrigenTipo) ? (object)DBNull.Value : model.OrigenTipo);
-            command.Parameters.AddWithValue("@OrigenID", (object?)model.OrigenID ?? DBNull.Value);
-
             await connection.OpenAsync();
 
+            await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
+
+            try
+            {
+                var plantilla = await ObtenerMetaPlantillaAsync(connection, transaction, model.IdFormulario);
+
+                await using var command = CrearCommand(connection, transaction, @"
+                    INSERT INTO dbo.FormularioRespuestas
+                    (
+                        IdFormulario,
+                        UsuarioID,
+                        Estado,
+                        DatosJson,
+                        DatosPdfJson,
+                        RespuestaOrigenID,
+                        OrigenTipo,
+                        OrigenID
+                    )
+                    OUTPUT INSERTED.IdRespuesta
+                    VALUES
+                    (
+                        @IdFormulario,
+                        @UsuarioID,
+                        @Estado,
+                        @DatosJson,
+                        @DatosPdfJson,
+                        @RespuestaOrigenID,
+                        @OrigenTipo,
+                        @OrigenID
+                    );
+                ");
+
+                command.Parameters.AddWithValue("@IdFormulario", model.IdFormulario);
+                command.Parameters.AddWithValue("@UsuarioID", model.UsuarioID);
+                command.Parameters.AddWithValue("@Estado", string.IsNullOrWhiteSpace(model.Estado) ? "Registrado" : model.Estado);
+                command.Parameters.AddWithValue("@DatosJson", datosJson);
+                command.Parameters.AddWithValue("@DatosPdfJson", datosPdfJson);
+                command.Parameters.AddWithValue("@RespuestaOrigenID", (object?)model.RespuestaOrigenID ?? DBNull.Value);
+                command.Parameters.AddWithValue("@OrigenTipo", string.IsNullOrWhiteSpace(model.OrigenTipo) ? (object)DBNull.Value : model.OrigenTipo);
+                command.Parameters.AddWithValue("@OrigenID", (object?)model.OrigenID ?? DBNull.Value);
+
+                var idRespuesta = Convert.ToInt32(await command.ExecuteScalarAsync());
+
+                var moduloOperacion =
+                    NormalizarModuloOperacion(model.OrigenTipo)
+                    ?? NormalizarModuloOperacion(plantilla.Categoria);
+
+                int? origenIdFinal = model.OrigenID > 0 ? model.OrigenID : null;
+                string? origenTipoFinal = null;
+
+                // IMPORTANTE:
+                // El FormulariosController ya crea la petición real en Transporte/Guías
+                // y después llama a este método para guardar la respuesta del formulario.
+                // Si aquí volvíamos a crear Transporte/Guía, la petición se duplicaba.
+                // Por eso solo creamos la petición real desde el servicio cuando OrigenID no viene informado.
+                if (string.Equals(moduloOperacion, "Transporte", StringComparison.OrdinalIgnoreCase))
+                {
+                    origenTipoFinal = "Transporte";
+
+                    if (!origenIdFinal.HasValue)
+                    {
+                        origenIdFinal = await CrearTransporteDesdeRespuestaAsync(connection, transaction, model, plantilla, idRespuesta);
+                    }
+                }
+                else if (string.Equals(moduloOperacion, "Guias", StringComparison.OrdinalIgnoreCase))
+                {
+                    origenTipoFinal = "Guias";
+
+                    if (!origenIdFinal.HasValue)
+                    {
+                        origenIdFinal = await CrearGuiaDesdeRespuestaAsync(connection, transaction, model, idRespuesta);
+                    }
+                }
+
+                if (origenIdFinal.HasValue && !string.IsNullOrWhiteSpace(origenTipoFinal))
+                {
+                    await using var updateOrigen = CrearCommand(connection, transaction, @"
+                        UPDATE dbo.FormularioRespuestas
+                        SET
+                            OrigenTipo = @OrigenTipo,
+                            OrigenID = @OrigenID
+                        WHERE IdRespuesta = @IdRespuesta;
+                    ");
+
+                    updateOrigen.Parameters.AddWithValue("@OrigenTipo", origenTipoFinal);
+                    updateOrigen.Parameters.AddWithValue("@OrigenID", origenIdFinal.Value);
+                    updateOrigen.Parameters.AddWithValue("@IdRespuesta", idRespuesta);
+
+                    await updateOrigen.ExecuteNonQueryAsync();
+                }
+
+                await transaction.CommitAsync();
+                return idRespuesta;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        private sealed class FormularioPlantillaMeta
+        {
+            public string? Nombre { get; set; }
+            public string? Categoria { get; set; }
+            public FormularioDatosOficialesViewModel DatosOficiales { get; set; } = new();
+        }
+
+        private SqlCommand CrearCommand(SqlConnection connection, SqlTransaction transaction, string commandText)
+        {
+            return new SqlCommand(commandText, connection, transaction);
+        }
+
+        private async Task<FormularioPlantillaMeta> ObtenerMetaPlantillaAsync(
+            SqlConnection connection,
+            SqlTransaction transaction,
+            int idFormulario)
+        {
+            await using var command = CrearCommand(connection, transaction, @"
+                SELECT TOP 1
+                    Nombre,
+                    Categoria,
+                    DatosFijosPdfJson
+                FROM dbo.FormularioPlantillas
+                WHERE IdFormulario = @IdFormulario;
+            ");
+
+            command.Parameters.AddWithValue("@IdFormulario", idFormulario);
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            if (!await reader.ReadAsync())
+                throw new InvalidOperationException("No se encontró la plantilla del formulario.");
+
+            var meta = new FormularioPlantillaMeta
+            {
+                Nombre = reader["Nombre"] == DBNull.Value ? null : reader["Nombre"]?.ToString(),
+                Categoria = reader["Categoria"] == DBNull.Value ? null : reader["Categoria"]?.ToString()
+            };
+
+            var datosJson = reader["DatosFijosPdfJson"] == DBNull.Value
+                ? null
+                : reader["DatosFijosPdfJson"]?.ToString();
+
+            if (!string.IsNullOrWhiteSpace(datosJson))
+            {
+                try
+                {
+                    meta.DatosOficiales =
+                        JsonSerializer.Deserialize<FormularioDatosOficialesViewModel>(datosJson, _jsonOptions)
+                        ?? new FormularioDatosOficialesViewModel();
+                }
+                catch
+                {
+                    meta.DatosOficiales = new FormularioDatosOficialesViewModel();
+                }
+            }
+
+            return meta;
+        }
+
+        private async Task<int> CrearTransporteDesdeRespuestaAsync(
+            SqlConnection connection,
+            SqlTransaction transaction,
+            FormularioRespuestaViewModel model,
+            FormularioPlantillaMeta plantilla,
+            int idRespuesta)
+        {
+            var valores = model.Valores ?? new Dictionary<string, string?>();
+            var fechaCarga = LeerFecha(valores, "fecha_carga", "FechaCarga");
+            var fechaEmision = LeerFechaTexto(plantilla.DatosOficiales.FechaEmision) ?? new DateTime(2025, 9, 17);
+            var costoFlete = LeerDecimal(valores, "costo_flete", "CostoFlete", "presupuesto_flete");
+
+            var estado = string.IsNullOrWhiteSpace(model.Estado) || model.Estado.Equals("Registrado", StringComparison.OrdinalIgnoreCase)
+                ? "Pendiente"
+                : model.Estado;
+
+            var notificacionLeida = estado.Equals("Autorizada", StringComparison.OrdinalIgnoreCase)
+                || estado.Equals("Finalizada", StringComparison.OrdinalIgnoreCase);
+
+            await using var command = CrearCommand(connection, transaction, @"
+                INSERT INTO dbo.Transporte
+                (
+                    UsuarioID,
+                    Area,
+                    ElaboradoPor,
+                    NombreSolicitante,
+                    Departamento,
+                    FechaEmision,
+                    CodigoFormato,
+                    FechaCarga,
+                    NumeroFactura,
+                    HorarioCarga,
+                    HorarioLlegadaDestino,
+                    DuracionAproxFlete,
+                    Cliente,
+                    Proyecto,
+                    CompaniaSolicitante,
+                    CentroCosto,
+                    AutorizadoPresupuesto,
+                    TipoRuta,
+                    DireccionRecoleccion,
+                    Volumetria,
+                    TipoUnidad,
+                    ComentariosUnidad,
+                    Fletero,
+                    CostoFlete,
+                    EstadoSolicitud,
+                    EstaBorrado,
+                    NotificacionLeida,
+                    FechaRegistro,
+                    FechaActualizacion,
+                    MensajeEdicion
+                )
+                OUTPUT INSERTED.IdTransporte
+                VALUES
+                (
+                    @UsuarioID,
+                    @Area,
+                    @ElaboradoPor,
+                    @NombreSolicitante,
+                    @Departamento,
+                    @FechaEmision,
+                    @CodigoFormato,
+                    @FechaCarga,
+                    @NumeroFactura,
+                    @HorarioCarga,
+                    @HorarioLlegadaDestino,
+                    @DuracionAproxFlete,
+                    @Cliente,
+                    @Proyecto,
+                    @CompaniaSolicitante,
+                    @CentroCosto,
+                    @AutorizadoPresupuesto,
+                    @TipoRuta,
+                    @DireccionRecoleccion,
+                    @Volumetria,
+                    @TipoUnidad,
+                    @ComentariosUnidad,
+                    @Fletero,
+                    @CostoFlete,
+                    @EstadoSolicitud,
+                    0,
+                    @NotificacionLeida,
+                    SYSDATETIME(),
+                    SYSDATETIME(),
+                    @MensajeEdicion
+                );
+            ");
+
+            AgregarParametro(command, "@UsuarioID", model.UsuarioID);
+            AgregarParametro(command, "@Area", Valor(valores, "departamento", "area") ?? plantilla.DatosOficiales.Area ?? "Logística");
+            AgregarParametro(command, "@ElaboradoPor", Valor(valores, "nombre_solicitante", "elaborado_por") ?? plantilla.DatosOficiales.ElaboradoPor);
+            AgregarParametro(command, "@NombreSolicitante", Valor(valores, "nombre_solicitante", "solicitante"));
+            AgregarParametro(command, "@Departamento", Valor(valores, "departamento") ?? plantilla.DatosOficiales.Area);
+            AgregarParametro(command, "@FechaEmision", fechaEmision);
+            AgregarParametro(command, "@CodigoFormato", plantilla.DatosOficiales.Codigo ?? "F-19-06");
+            AgregarParametro(command, "@FechaCarga", fechaCarga);
+            AgregarParametro(command, "@NumeroFactura", Valor(valores, "factura", "numero_factura", "NumeroFactura"));
+            AgregarParametro(command, "@HorarioCarga", Valor(valores, "horario_carga", "HorarioCarga"));
+            AgregarParametro(command, "@HorarioLlegadaDestino", Valor(valores, "horario_llegada_destino", "HorarioLlegadaDestino"));
+            AgregarParametro(command, "@DuracionAproxFlete", Valor(valores, "duracion_aprox_flete", "DuracionAproxFlete"));
+            AgregarParametro(command, "@Cliente", Valor(valores, "cliente", "Cliente"));
+            AgregarParametro(command, "@Proyecto", Valor(valores, "proyecto", "Proyecto"));
+            AgregarParametro(command, "@CompaniaSolicitante", Valor(valores, "compania_solicitante", "CompaniaSolicitante"));
+            AgregarParametro(command, "@CentroCosto", Valor(valores, "centro_costo", "CentroCosto"));
+            AgregarParametro(command, "@AutorizadoPresupuesto", Valor(valores, "autorizado_presupuesto", "AutorizadoPresupuesto"));
+            AgregarParametro(command, "@TipoRuta", Valor(valores, "tipo_ruta", "TipoRuta"));
+            AgregarParametro(command, "@DireccionRecoleccion", Valor(valores, "direccion_recoleccion", "DireccionRecoleccion"));
+            AgregarParametro(command, "@Volumetria", Valor(valores, "volumetria", "Volumetria"));
+            AgregarParametro(command, "@TipoUnidad", Valor(valores, "tipo_unidad", "TipoUnidad"));
+            AgregarParametro(command, "@ComentariosUnidad", Valor(valores, "comentarios_unidad", "ComentariosUnidad", "observaciones"));
+            AgregarParametro(command, "@Fletero", Valor(valores, "fletero", "Fletero"));
+            AgregarParametro(command, "@CostoFlete", costoFlete);
+            AgregarParametro(command, "@EstadoSolicitud", estado);
+            AgregarParametro(command, "@NotificacionLeida", notificacionLeida);
+            AgregarParametro(command, "@MensajeEdicion", $"Solicitud creada desde formulario #{idRespuesta}");
+
+            var idTransporte = Convert.ToInt32(await command.ExecuteScalarAsync());
+
+            await ActualizarFolioTransporteAsync(connection, transaction, idTransporte);
+            await GuardarDestinosTransporteAsync(connection, transaction, idTransporte, Valor(valores, "destinos"));
+            await GuardarPlanEmbarqueTransporteAsync(connection, transaction, idTransporte, Valor(valores, "plan_embarque"));
+            await GuardarHistorialTransporteAsync(connection, transaction, idTransporte, model.UsuarioID, estado);
+
+            return idTransporte;
+        }
+
+        private async Task ActualizarFolioTransporteAsync(SqlConnection connection, SqlTransaction transaction, int idTransporte)
+        {
+            await using var command = CrearCommand(connection, transaction, @"
+                UPDATE dbo.Transporte
+                SET Folio = @Folio
+                WHERE IdTransporte = @IdTransporte;
+            ");
+
+            command.Parameters.AddWithValue("@Folio", $"TR-{idTransporte}");
+            command.Parameters.AddWithValue("@IdTransporte", idTransporte);
+
+            await command.ExecuteNonQueryAsync();
+        }
+
+        private async Task GuardarDestinosTransporteAsync(
+            SqlConnection connection,
+            SqlTransaction transaction,
+            int idTransporte,
+            string? destinosJson)
+        {
+            var destinos = ParseJsonArray(destinosJson)
+                .Where(x =>
+                    !string.IsNullOrWhiteSpace(LeerPropiedad(x, "nombre_recibe"))
+                    || !string.IsNullOrWhiteSpace(LeerPropiedad(x, "contacto"))
+                    || !string.IsNullOrWhiteSpace(LeerPropiedad(x, "direccion")))
+                .ToList();
+
+            for (var i = 0; i < destinos.Count; i++)
+            {
+                await using var command = CrearCommand(connection, transaction, @"
+                    INSERT INTO dbo.TransporteDestinos
+                    (
+                        IdTransporte,
+                        NumeroDestino,
+                        NombreRecibe,
+                        ContactoRecibe,
+                        DireccionDestino
+                    )
+                    VALUES
+                    (
+                        @IdTransporte,
+                        @NumeroDestino,
+                        @NombreRecibe,
+                        @ContactoRecibe,
+                        @DireccionDestino
+                    );
+                ");
+
+                command.Parameters.AddWithValue("@IdTransporte", idTransporte);
+                command.Parameters.AddWithValue("@NumeroDestino", i + 1);
+                AgregarParametro(command, "@NombreRecibe", LeerPropiedad(destinos[i], "nombre_recibe"));
+                AgregarParametro(command, "@ContactoRecibe", LeerPropiedad(destinos[i], "contacto"));
+                AgregarParametro(command, "@DireccionDestino", LeerPropiedad(destinos[i], "direccion"));
+
+                await command.ExecuteNonQueryAsync();
+            }
+        }
+
+        private async Task GuardarPlanEmbarqueTransporteAsync(
+            SqlConnection connection,
+            SqlTransaction transaction,
+            int idTransporte,
+            string? planJson)
+        {
+            var partidas = ParseJsonArray(planJson)
+                .Where(x =>
+                    !string.IsNullOrWhiteSpace(LeerPropiedad(x, "clave_sat"))
+                    || !string.IsNullOrWhiteSpace(LeerPropiedad(x, "descripcion"))
+                    || !string.IsNullOrWhiteSpace(LeerPropiedad(x, "cantidad"))
+                    || !string.IsNullOrWhiteSpace(LeerPropiedad(x, "um"))
+                    || !string.IsNullOrWhiteSpace(LeerPropiedad(x, "peso"))
+                    || !string.IsNullOrWhiteSpace(LeerPropiedad(x, "valor"))
+                    || !string.IsNullOrWhiteSpace(LeerPropiedad(x, "vale_salida_factura")))
+                .ToList();
+
+            foreach (var partida in partidas)
+            {
+                await using var command = CrearCommand(connection, transaction, @"
+                    INSERT INTO dbo.TransportePlanEmbarque
+                    (
+                        IdTransporte,
+                        ClaveSAT,
+                        Descripcion,
+                        Cantidad,
+                        UnidadMedida,
+                        Peso,
+                        Valor,
+                        ValeSalidaFactura
+                    )
+                    VALUES
+                    (
+                        @IdTransporte,
+                        @ClaveSAT,
+                        @Descripcion,
+                        @Cantidad,
+                        @UnidadMedida,
+                        @Peso,
+                        @Valor,
+                        @ValeSalidaFactura
+                    );
+                ");
+
+                command.Parameters.AddWithValue("@IdTransporte", idTransporte);
+                AgregarParametro(command, "@ClaveSAT", LeerPropiedad(partida, "clave_sat"));
+                AgregarParametro(command, "@Descripcion", LeerPropiedad(partida, "descripcion"));
+                AgregarParametro(command, "@Cantidad", ParseDecimalNullable(LeerPropiedad(partida, "cantidad")));
+                AgregarParametro(command, "@UnidadMedida", LeerPropiedad(partida, "um"));
+                AgregarParametro(command, "@Peso", ParseDecimalNullable(LeerPropiedad(partida, "peso")));
+                AgregarParametro(command, "@Valor", ParseDecimalNullable(LeerPropiedad(partida, "valor")));
+                AgregarParametro(command, "@ValeSalidaFactura", LeerPropiedad(partida, "vale_salida_factura"));
+
+                await command.ExecuteNonQueryAsync();
+            }
+        }
+
+        private async Task GuardarHistorialTransporteAsync(
+            SqlConnection connection,
+            SqlTransaction transaction,
+            int idTransporte,
+            int usuarioId,
+            string estado)
+        {
+            await using var command = CrearCommand(connection, transaction, @"
+                IF OBJECT_ID(N'dbo.TransporteHistorialEstados', N'U') IS NOT NULL
+                BEGIN
+                    INSERT INTO dbo.TransporteHistorialEstados
+                    (
+                        IdTransporte,
+                        EstadoAnterior,
+                        EstadoNuevo,
+                        UsuarioID,
+                        Comentario,
+                        FechaMovimiento
+                    )
+                    VALUES
+                    (
+                        @IdTransporte,
+                        NULL,
+                        @EstadoNuevo,
+                        @UsuarioID,
+                        @Comentario,
+                        SYSDATETIME()
+                    );
+                END;
+            ");
+
+            command.Parameters.AddWithValue("@IdTransporte", idTransporte);
+            command.Parameters.AddWithValue("@EstadoNuevo", estado);
+            command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+            command.Parameters.AddWithValue("@Comentario", "Solicitud creada desde plantilla de formulario.");
+
+            await command.ExecuteNonQueryAsync();
+        }
+
+        private async Task<int> CrearGuiaDesdeRespuestaAsync(
+            SqlConnection connection,
+            SqlTransaction transaction,
+            FormularioRespuestaViewModel model,
+            int idRespuesta)
+        {
+            var valores = model.Valores ?? new Dictionary<string, string?>();
+            var estadoGuia = (model.Estado ?? string.Empty).Equals("Pendiente", StringComparison.OrdinalIgnoreCase)
+                ? "Pendiente"
+                : "Activo";
+
+            await using var command = CrearCommand(connection, transaction, @"
+                INSERT INTO dbo.Guias
+                (
+                    UsuarioID,
+                    Empresa,
+                    ClienteProyecto,
+                    QuienGestiona,
+                    TipoRequerimiento,
+                    FechaEnvio,
+                    TipoEntrega,
+                    RemitenteNombre,
+                    RemitenteTelefono,
+                    DireccionRemitenteTipo,
+                    Origen,
+                    CodigoPostalOrigen,
+                    DestinatarioNombre,
+                    DestinatarioTelefono,
+                    DestinatarioCorreo,
+                    CodigoPostalDestino,
+                    Destino,
+                    TipoEnvio,
+                    ContenidoDeclarado,
+                    InformacionDimensionesPeso,
+                    PesoKg,
+                    LargoCm,
+                    AltoCm,
+                    AnchoCm,
+                    RequiereCadenaFrio,
+                    Costo,
+                    Observaciones,
+                    EstadoEdicion,
+                    EstaBorrado,
+                    NotificacionLeida,
+                    FechaSolicitud,
+                    MensajeEdicion
+                )
+                OUTPUT INSERTED.IdGuia
+                VALUES
+                (
+                    @UsuarioID,
+                    @Empresa,
+                    @ClienteProyecto,
+                    @QuienGestiona,
+                    @TipoRequerimiento,
+                    @FechaEnvio,
+                    @TipoEntrega,
+                    @RemitenteNombre,
+                    @RemitenteTelefono,
+                    @DireccionRemitenteTipo,
+                    @Origen,
+                    @CodigoPostalOrigen,
+                    @DestinatarioNombre,
+                    @DestinatarioTelefono,
+                    @DestinatarioCorreo,
+                    @CodigoPostalDestino,
+                    @Destino,
+                    @TipoEnvio,
+                    @ContenidoDeclarado,
+                    @InformacionDimensionesPeso,
+                    @PesoKg,
+                    @LargoCm,
+                    @AltoCm,
+                    @AnchoCm,
+                    @RequiereCadenaFrio,
+                    @Costo,
+                    @Observaciones,
+                    @EstadoEdicion,
+                    0,
+                    @NotificacionLeida,
+                    SYSDATETIME(),
+                    @MensajeEdicion
+                );
+            ");
+
+            AgregarParametro(command, "@UsuarioID", model.UsuarioID);
+            AgregarParametro(command, "@Empresa", Valor(valores, "empresa", "Empresa"));
+            AgregarParametro(command, "@ClienteProyecto", Valor(valores, "cliente_proyecto", "ClienteProyecto"));
+            AgregarParametro(command, "@QuienGestiona", Valor(valores, "quien_gestiona", "QuienGestiona"));
+            AgregarParametro(command, "@TipoRequerimiento", Valor(valores, "tipo_requerimiento", "TipoRequerimiento"));
+            AgregarParametro(command, "@FechaEnvio", LeerFecha(valores, "fecha_envio", "FechaEnvio"));
+            AgregarParametro(command, "@TipoEntrega", Valor(valores, "tipo_entrega", "TipoEntrega"));
+            AgregarParametro(command, "@RemitenteNombre", Valor(valores, "remitente_nombre", "RemitenteNombre"));
+            AgregarParametro(command, "@RemitenteTelefono", Valor(valores, "remitente_telefono", "RemitenteTelefono"));
+            AgregarParametro(command, "@DireccionRemitenteTipo", Valor(valores, "direccion_remitente_tipo", "DireccionRemitenteTipo"));
+            AgregarParametro(command, "@Origen", Valor(valores, "origen", "Origen"));
+            AgregarParametro(command, "@CodigoPostalOrigen", Valor(valores, "codigo_postal_origen", "CodigoPostalOrigen"));
+            AgregarParametro(command, "@DestinatarioNombre", Valor(valores, "destinatario_nombre", "DestinatarioNombre"));
+            AgregarParametro(command, "@DestinatarioTelefono", Valor(valores, "destinatario_telefono", "DestinatarioTelefono"));
+            AgregarParametro(command, "@DestinatarioCorreo", Valor(valores, "destinatario_correo", "DestinatarioCorreo"));
+            AgregarParametro(command, "@CodigoPostalDestino", Valor(valores, "codigo_postal_destino", "CodigoPostalDestino"));
+            AgregarParametro(command, "@Destino", Valor(valores, "destino", "Destino"));
+            AgregarParametro(command, "@TipoEnvio", Valor(valores, "tipo_envio", "TipoEnvio"));
+            AgregarParametro(command, "@ContenidoDeclarado", Valor(valores, "contenido_declarado", "ContenidoDeclarado"));
+            AgregarParametro(command, "@InformacionDimensionesPeso", Valor(valores, "informacion_dimensiones_peso", "InformacionDimensionesPeso"));
+            AgregarParametro(command, "@PesoKg", LeerDecimal(valores, "peso_kg", "PesoKg"));
+            AgregarParametro(command, "@LargoCm", LeerDecimal(valores, "largo_cm", "LargoCm"));
+            AgregarParametro(command, "@AltoCm", LeerDecimal(valores, "alto_cm", "AltoCm"));
+            AgregarParametro(command, "@AnchoCm", LeerDecimal(valores, "ancho_cm", "AnchoCm"));
+            AgregarParametro(command, "@RequiereCadenaFrio", LeerBool(valores, "requiere_cadena_frio", "RequiereCadenaFrio"));
+            AgregarParametro(command, "@Costo", LeerDecimal(valores, "costo", "Costo"));
+            AgregarParametro(command, "@Observaciones", Valor(valores, "observaciones", "Observaciones") ?? $"Petición creada desde formulario #{idRespuesta}");
+            AgregarParametro(command, "@EstadoEdicion", estadoGuia);
+            AgregarParametro(command, "@NotificacionLeida", !estadoGuia.Equals("Pendiente", StringComparison.OrdinalIgnoreCase));
+            AgregarParametro(command, "@MensajeEdicion", estadoGuia.Equals("Pendiente", StringComparison.OrdinalIgnoreCase)
+                ? "Solicitud creada desde formulario. Requiere revisión de Logística."
+                : null);
+
             return Convert.ToInt32(await command.ExecuteScalarAsync());
+        }
+
+        private string? NormalizarModuloOperacion(string? valor)
+        {
+            if (string.IsNullOrWhiteSpace(valor))
+                return null;
+
+            var limpio = valor.Trim();
+
+            if (limpio.Equals("Transporte", StringComparison.OrdinalIgnoreCase)
+                || limpio.Equals("Transportes", StringComparison.OrdinalIgnoreCase))
+                return "Transporte";
+
+            if (limpio.Equals("Guias", StringComparison.OrdinalIgnoreCase)
+                || limpio.Equals("Guías", StringComparison.OrdinalIgnoreCase)
+                || limpio.Equals("Guia", StringComparison.OrdinalIgnoreCase)
+                || limpio.Equals("Guía", StringComparison.OrdinalIgnoreCase))
+                return "Guias";
+
+            return null;
+        }
+
+        private string? Valor(Dictionary<string, string?> valores, params string[] claves)
+        {
+            foreach (var clave in claves)
+            {
+                if (valores.TryGetValue(clave, out var valor) && !string.IsNullOrWhiteSpace(valor))
+                    return valor;
+
+                var encontrado = valores.FirstOrDefault(x => x.Key.Equals(clave, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(encontrado.Value))
+                    return encontrado.Value;
+            }
+
+            return null;
+        }
+
+        private DateTime? LeerFecha(Dictionary<string, string?> valores, params string[] claves)
+        {
+            return LeerFechaTexto(Valor(valores, claves));
+        }
+
+        private DateTime? LeerFechaTexto(string? valor)
+        {
+            if (string.IsNullOrWhiteSpace(valor))
+                return null;
+
+            if (DateTime.TryParse(valor, CultureInfo.GetCultureInfo("es-MX"), DateTimeStyles.None, out var fechaMx))
+                return fechaMx;
+
+            if (DateTime.TryParse(valor, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha))
+                return fecha;
+
+            return null;
+        }
+
+        private decimal? LeerDecimal(Dictionary<string, string?> valores, params string[] claves)
+        {
+            return ParseDecimalNullable(Valor(valores, claves));
+        }
+
+        private decimal? ParseDecimalNullable(string? valor)
+        {
+            if (string.IsNullOrWhiteSpace(valor))
+                return null;
+
+            var limpio = valor
+                .Replace("$", string.Empty)
+                .Replace("MXN", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace("+ IVA", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Trim();
+
+            if (decimal.TryParse(limpio, NumberStyles.Any, CultureInfo.GetCultureInfo("es-MX"), out var decimalMx))
+                return decimalMx;
+
+            if (decimal.TryParse(limpio, NumberStyles.Any, CultureInfo.InvariantCulture, out var decimalInvariant))
+                return decimalInvariant;
+
+            return null;
+        }
+
+        private bool LeerBool(Dictionary<string, string?> valores, params string[] claves)
+        {
+            var valor = Valor(valores, claves);
+
+            if (string.IsNullOrWhiteSpace(valor))
+                return false;
+
+            return valor.Equals("true", StringComparison.OrdinalIgnoreCase)
+                || valor.Equals("1", StringComparison.OrdinalIgnoreCase)
+                || valor.Equals("si", StringComparison.OrdinalIgnoreCase)
+                || valor.Equals("sí", StringComparison.OrdinalIgnoreCase)
+                || valor.Equals("on", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private List<JsonElement> ParseJsonArray(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return new List<JsonElement>();
+
+            try
+            {
+                using var document = JsonDocument.Parse(json);
+
+                if (document.RootElement.ValueKind != JsonValueKind.Array)
+                    return new List<JsonElement>();
+
+                return document.RootElement.EnumerateArray().Select(x => x.Clone()).ToList();
+            }
+            catch
+            {
+                return new List<JsonElement>();
+            }
+        }
+
+        private string? LeerPropiedad(JsonElement element, string propertyName)
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+                return null;
+
+            if (element.TryGetProperty(propertyName, out var prop))
+                return prop.ValueKind == JsonValueKind.String ? prop.GetString() : prop.ToString();
+
+            foreach (var property in element.EnumerateObject())
+            {
+                if (property.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return property.Value.ValueKind == JsonValueKind.String
+                        ? property.Value.GetString()
+                        : property.Value.ToString();
+                }
+            }
+
+            return null;
+        }
+
+        private void AgregarParametro(SqlCommand command, string nombre, object? valor)
+        {
+            command.Parameters.AddWithValue(nombre, valor ?? DBNull.Value);
         }
 
         public async Task<Dictionary<string, string?>> ObtenerValoresRespuestaAsync(int idRespuesta)
@@ -452,6 +1118,89 @@ namespace ProyectoMatrix.Servicios
                 return new Dictionary<string, string?>();
 
             return DeserializarValoresFormulario(datosJson.ToString() ?? "{}");
+        }
+
+
+        public async Task<FormularioRespuestaDetalleViewModel?> ObtenerDetalleRespuestaPorOrigenAsync(string origenTipo, int origenId)
+        {
+            if (string.IsNullOrWhiteSpace(origenTipo) || origenId <= 0)
+                return null;
+
+            await using var connection = new SqlConnection(_connectionString);
+            await using var command = new SqlCommand(@"
+                SELECT TOP 1
+                    r.IdRespuesta,
+                    r.IdFormulario,
+                    r.DatosJson,
+                    r.FechaRegistro,
+                    p.Nombre,
+                    p.Descripcion,
+                    p.Categoria,
+                    p.EstructuraJson,
+                    p.DatosFijosPdfJson,
+                    p.EsPlantillaBase
+                FROM dbo.FormularioRespuestas r
+                INNER JOIN dbo.FormularioPlantillas p
+                    ON p.IdFormulario = r.IdFormulario
+                WHERE r.EstaBorrado = 0
+                  AND r.OrigenID = @OrigenID
+                  AND (
+                        r.OrigenTipo = @OrigenTipo
+                        OR (@OrigenTipo = 'Transporte' AND r.OrigenTipo IN ('Transportes', 'SolicitudTransporte', 'Solicitud de Transporte'))
+                        OR (@OrigenTipo = 'Guias' AND r.OrigenTipo IN ('Guia', 'Guías', 'Guias'))
+                      )
+                ORDER BY r.FechaRegistro DESC, r.IdRespuesta DESC;
+            ", connection);
+
+            command.Parameters.AddWithValue("@OrigenTipo", origenTipo.Trim());
+            command.Parameters.AddWithValue("@OrigenID", origenId);
+
+            await connection.OpenAsync();
+            await using var reader = await command.ExecuteReaderAsync();
+
+            if (!await reader.ReadAsync())
+                return null;
+
+            var datosFijosPdfJson = reader["DatosFijosPdfJson"] == DBNull.Value
+                ? null
+                : reader["DatosFijosPdfJson"]?.ToString();
+
+            var camposPlantilla = DeserializarCampos(reader["EstructuraJson"]?.ToString() ?? "[]");
+            var valores = DeserializarValoresFormulario(reader["DatosJson"]?.ToString() ?? "{}");
+
+            var detalle = new FormularioRespuestaDetalleViewModel
+            {
+                IdRespuesta = Convert.ToInt32(reader["IdRespuesta"]),
+                IdFormulario = Convert.ToInt32(reader["IdFormulario"]),
+                NombreFormulario = reader["Nombre"]?.ToString() ?? "Formulario",
+                Descripcion = reader["Descripcion"] == DBNull.Value ? null : reader["Descripcion"]?.ToString(),
+                Categoria = reader["Categoria"] == DBNull.Value ? null : reader["Categoria"]?.ToString(),
+                EsPlantillaBase = reader["EsPlantillaBase"] != DBNull.Value && Convert.ToBoolean(reader["EsPlantillaBase"]),
+                DatosFijosPdfJson = datosFijosPdfJson,
+                DatosOficiales = FormularioDatosOficialesViewModel.FromJson(datosFijosPdfJson),
+                FechaRegistro = reader["FechaRegistro"] == DBNull.Value ? DateTime.Now : Convert.ToDateTime(reader["FechaRegistro"])
+            };
+
+            foreach (var campo in camposPlantilla)
+            {
+                valores.TryGetValue(campo.Clave, out var valor);
+
+                if (valor == null)
+                {
+                    var encontrado = valores.FirstOrDefault(x => x.Key.Equals(campo.Clave, StringComparison.OrdinalIgnoreCase));
+                    valor = encontrado.Value;
+                }
+
+                detalle.Campos.Add(new FormularioRespuestaCampoValorViewModel
+                {
+                    Clave = campo.Clave,
+                    Etiqueta = string.IsNullOrWhiteSpace(campo.Etiqueta) ? campo.Clave : campo.Etiqueta,
+                    Tipo = campo.Tipo,
+                    Valor = valor
+                });
+            }
+
+            return detalle;
         }
 
         public async Task<FormularioLlenadoViewModel?> PrepararLlenadoAsync(int idFormulario)

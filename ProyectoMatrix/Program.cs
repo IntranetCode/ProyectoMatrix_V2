@@ -143,6 +143,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
 
 
+builder.Services.AddScoped<FormulariosSqlService>();
+
 //Registrando el nuevo servicio creado que es sobre acceso
 
 builder.Services.AddScoped<IServicioAcceso, ServicioAcceso>();

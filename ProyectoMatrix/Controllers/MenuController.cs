@@ -154,7 +154,7 @@ ORDER BY m.MenuID;";
                     {
                         MenuID = rd.GetInt32(rd.GetOrdinal("MenuID")),
                         Nombre = nombreMenu,
-                        Url = string.IsNullOrWhiteSpace(homeUrl) ? GetUrlPorDefecto(nombreMenu) : homeUrl,
+                        Url = GetUrlMenuLogistica(nombreMenu, homeUrl),
                         Icono = GetIconoParaMenu(nombreMenu),
                         Descripcion = GetDescripcionParaMenu(nombreMenu),
                     });
@@ -179,6 +179,19 @@ ORDER BY m.MenuID;";
 
 
         // --- Tus métodos Helper (GetUrlPorDefecto, GetIconoParaMenu, etc.) van aquí sin cambios ---
+        private string GetUrlMenuLogistica(string nombreMenu, string? homeUrl)
+        {
+            var normalized = RemoveAccents(nombreMenu ?? string.Empty).Trim().ToLowerInvariant();
+
+            if (normalized.Contains("guia") || normalized.Contains("guias"))
+                return "/Logistica/Formularios/CentroFormularios?origenModulo=Guias";
+
+            if (normalized.Contains("transporte"))
+                return "/Logistica/Formularios/CentroFormularios?origenModulo=Transporte";
+
+            return string.IsNullOrWhiteSpace(homeUrl) ? GetUrlPorDefecto(nombreMenu) : homeUrl;
+        }
+
         private string GetUrlPorDefecto(string nombreMenu)
         {
             if (string.IsNullOrEmpty(nombreMenu)) return "#";
@@ -194,8 +207,8 @@ ORDER BY m.MenuID;";
                 var x when x.Contains("help") => "/HelpDesk/Index",
                 var x when x.Contains("compras") => "/Compras/Index",
                 var x when x.Contains("nacional") => "/Compras/Nacional",
-                var x when x.Contains("guias") => "/Logistica/Guias",
-                var x when x.Contains("transporte") => "/Logistica/Transporte",
+                var x when RemoveAccents(x).Contains("guia") => "/Logistica/Formularios/CentroFormularios?origenModulo=Guias",
+                var x when RemoveAccents(x).Contains("transporte") => "/Logistica/Formularios/CentroFormularios?origenModulo=Transporte",
                 var x when x.Contains("directorio") => "/Directorio/Index",
                 var x when x.Contains("KPIS") => "/Operaciones/Index",
                 _ => "/"

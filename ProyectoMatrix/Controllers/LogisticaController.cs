@@ -10,8 +10,6 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using ProyectoMatrix.Hubs;
-using ProyectoMatrix.Servicios;
-using ProyectoMatrix.ViewModels.Formularios;
 using System.Security.Claims;
 using System.Data;
 using ClosedXML.Excel;
@@ -32,16 +30,11 @@ namespace ProyectoMatrix.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IHubContext<LogisticaHub> _hubContext;
-        private readonly FormulariosSqlService _formulariosSqlService;
 
-        public LogisticaController(
-            ApplicationDbContext context,
-            IHubContext<LogisticaHub> hubContext,
-            FormulariosSqlService formulariosSqlService)
+        public LogisticaController(ApplicationDbContext context, IHubContext<LogisticaHub> hubContext)
         {
             _context = context;
             _hubContext = hubContext;
-            _formulariosSqlService = formulariosSqlService;
         }
 
         private int ObtenerUsuarioIDActual()
@@ -342,7 +335,7 @@ namespace ProyectoMatrix.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> GuardarTransporteAjax(Transporte modelo, int? FormularioAdicionalId = null, string? FormularioAdicionalDatosJson = null)
+        public async Task<IActionResult> GuardarTransporteAjax(Transporte modelo)
         {
             try
             {
@@ -532,13 +525,6 @@ namespace ProyectoMatrix.Controllers
                     await _context.SaveChangesAsync();
                 }
 
-                await GuardarFormularioAdicionalAsync(
-                    FormularioAdicionalId,
-                    FormularioAdicionalDatosJson,
-                    "Transporte",
-                    modelo.IdTransporte,
-                    idUsuarioActual);
-
                 await _hubContext.Clients.All.SendAsync("ActualizacionLogistica");
                 return Json(new { success = true });
             }
@@ -719,7 +705,7 @@ public IActionResult Guias()
         }
 
         [HttpPost]
-        public async Task<IActionResult> GuardarGuiaAjax(Guia modelo, int? FormularioAdicionalId = null, string? FormularioAdicionalDatosJson = null)
+        public async Task<IActionResult> GuardarGuiaAjax(Guia modelo)
         {
             try
             {
@@ -764,14 +750,6 @@ public IActionResult Guias()
                 }
 
                 await _context.SaveChangesAsync();
-
-                await GuardarFormularioAdicionalAsync(
-                    FormularioAdicionalId,
-                    FormularioAdicionalDatosJson,
-                    "Guias",
-                    modelo.IdGuia,
-                    idUsuarioActual);
-
                 await _hubContext.Clients.All.SendAsync("ActualizacionLogistica");
                 return Json(new { success = true });
             }
@@ -831,79 +809,6 @@ public IActionResult Guias()
             }
             return Ok();
         }
-
-
-        private async Task GuardarFormularioAdicionalAsync(
-            int? idFormulario,
-            string? datosJson,
-            string origenTipo,
-            int origenId,
-            int usuarioId)
-        {
-            if (!idFormulario.HasValue || idFormulario.Value <= 0)
-                return;
-
-            if (origenId <= 0 || usuarioId <= 0)
-                return;
-
-            if (string.IsNullOrWhiteSpace(datosJson))
-                return;
-
-            var valores = ConvertirJsonFormularioAdicionalADiccionario(datosJson);
-
-            if (valores.Count == 0)
-                return;
-
-            var respuesta = new FormularioRespuestaViewModel
-            {
-                IdFormulario = idFormulario.Value,
-                UsuarioID = usuarioId,
-                Estado = "Registrado",
-                Valores = valores,
-                OrigenTipo = origenTipo,
-                OrigenID = origenId
-            };
-
-            await _formulariosSqlService.GuardarRespuestaAsync(respuesta);
-        }
-
-        private Dictionary<string, string?> ConvertirJsonFormularioAdicionalADiccionario(string datosJson)
-        {
-            var valores = new Dictionary<string, string?>();
-
-            if (string.IsNullOrWhiteSpace(datosJson))
-                return valores;
-
-            try
-            {
-                using var document = JsonDocument.Parse(datosJson);
-
-                if (document.RootElement.ValueKind != JsonValueKind.Object)
-                    return valores;
-
-                foreach (var property in document.RootElement.EnumerateObject())
-                {
-                    valores[property.Name] = property.Value.ValueKind switch
-                    {
-                        JsonValueKind.String => property.Value.GetString(),
-                        JsonValueKind.Number => property.Value.GetRawText(),
-                        JsonValueKind.True => "true",
-                        JsonValueKind.False => "false",
-                        JsonValueKind.Array => property.Value.GetRawText(),
-                        JsonValueKind.Object => property.Value.GetRawText(),
-                        JsonValueKind.Null => null,
-                        _ => property.Value.GetRawText()
-                    };
-                }
-            }
-            catch
-            {
-                return new Dictionary<string, string?>();
-            }
-
-            return valores;
-        }
-
 
         // ==========================================
         // MÉTODOS COMPARTIDOS
@@ -1186,12 +1091,12 @@ public IActionResult Guias()
         }
 
         [HttpGet]
-        public async Task<IActionResult> DescargarTransportePDF(int id)
+        public IActionResult DescargarTransportePDF(int id)
         {
-            var transporte = await _context.Transporte
+            var transporte = _context.Transporte
                 .Include(x => x.Destinos)
                 .Include(x => x.PlanEmbarque)
-                .FirstOrDefaultAsync(x => x.IdTransporte == id);
+                .FirstOrDefault(x => x.IdTransporte == id);
 
             if (transporte == null)
             {
@@ -1202,20 +1107,42 @@ public IActionResult Guias()
             transporte.ElaboradoPor = nombreCompleto;
             transporte.NombreSolicitante = nombreCompleto;
 
-            var formulariosAdicionales = await ObtenerFormulariosAdicionalesPdfAsync("Transporte", transporte.IdTransporte);
-
-            var pdfBytes = GenerarPdfTransporte(transporte, formulariosAdicionales);
+            var pdfBytes = GenerarPdfTransporte(transporte);
             var nombreArchivo = $"Solicitud_Transporte_{transporte.Folio ?? transporte.IdTransporte.ToString()}.pdf";
 
             return File(pdfBytes, "application/pdf", nombreArchivo);
         }
 
         [HttpGet]
-        public async Task<IActionResult> DescargarReportePDF(int id)
+        public IActionResult DescargarReportePDF(int id)
         {
-            return await DescargarTransportePDF(id);
+            return DescargarTransportePDF(id);
         }
 
+
+        [HttpGet]
+        public IActionResult DescargarGuiaPDF(int id)
+        {
+            var guia = _context.Guias
+                .AsNoTracking()
+                .FirstOrDefault(x => x.IdGuia == id);
+
+            if (guia == null)
+            {
+                return NotFound();
+            }
+
+            var pdfBytes = GenerarPdfGuia(guia);
+            var nombreArchivo = $"Solicitud_Guia_G-{guia.IdGuia}.pdf";
+
+            return File(pdfBytes, "application/pdf", nombreArchivo);
+        }
+
+        [HttpGet]
+        public IActionResult DescargarReporteGuiaPDF(int id)
+        {
+            return DescargarGuiaPDF(id);
+        }
 
         [HttpGet]
         public IActionResult DescargarReporteGuiasPDF()
@@ -1697,516 +1624,351 @@ public IActionResult Guias()
 
             return File(pdfBytes, "application/pdf", nombreArchivo);
         }
-        private class PdfFormularioAdicional
-        {
-            public int IdRespuesta { get; set; }
-            public int IdFormulario { get; set; }
-            public string NombreFormulario { get; set; } = string.Empty;
-            public string? Categoria { get; set; }
-            public DateTime FechaRegistro { get; set; }
-            public List<PdfFormularioCampo> Campos { get; set; } = new();
-        }
-
-        private class PdfFormularioCampo
-        {
-            public string Clave { get; set; } = string.Empty;
-            public string Etiqueta { get; set; } = string.Empty;
-            public string Tipo { get; set; } = "texto";
-            public string? Valor { get; set; }
-        }
-
-        private async Task<List<PdfFormularioAdicional>> ObtenerFormulariosAdicionalesPdfAsync(string origenTipo, int origenId)
-        {
-            var lista = new List<PdfFormularioAdicional>();
-
-            if (string.IsNullOrWhiteSpace(origenTipo) || origenId <= 0)
-            {
-                return lista;
-            }
-
-            var connection = _context.Database.GetDbConnection();
-            var cerrarConexion = connection.State != ConnectionState.Open;
-
-            if (cerrarConexion)
-            {
-                await connection.OpenAsync();
-            }
-
-            try
-            {
-                await using var command = connection.CreateCommand();
-                command.CommandText = @"
-                    SELECT
-                        r.IdRespuesta,
-                        r.IdFormulario,
-                        p.Nombre AS NombreFormulario,
-                        p.Categoria,
-                        p.EstructuraJson,
-                        r.DatosJson,
-                        r.FechaRegistro
-                    FROM dbo.FormularioRespuestas r
-                    INNER JOIN dbo.FormularioPlantillas p
-                        ON p.IdFormulario = r.IdFormulario
-                    WHERE r.EstaBorrado = 0
-                      AND r.OrigenID = @OrigenID
-                      AND (
-                            r.OrigenTipo = @OrigenTipo
-                            OR (@OrigenTipo = 'Transporte' AND r.OrigenTipo IN ('Transportes', 'SolicitudTransporte', 'Solicitud de Transporte'))
-                            OR (@OrigenTipo = 'Guias' AND r.OrigenTipo IN ('Guia', 'Guías', 'Guias'))
-                          )
-                    ORDER BY r.FechaRegistro DESC;";
-
-                var pOrigenId = command.CreateParameter();
-                pOrigenId.ParameterName = "@OrigenID";
-                pOrigenId.Value = origenId;
-                command.Parameters.Add(pOrigenId);
-
-                var pOrigenTipo = command.CreateParameter();
-                pOrigenTipo.ParameterName = "@OrigenTipo";
-                pOrigenTipo.Value = origenTipo;
-                command.Parameters.Add(pOrigenTipo);
-
-                await using var reader = await command.ExecuteReaderAsync();
-
-                while (await reader.ReadAsync())
-                {
-                    var estructuraJson = reader["EstructuraJson"]?.ToString() ?? "[]";
-                    var datosJson = reader["DatosJson"]?.ToString() ?? "{}";
-
-                    var campos = ConvertirFormularioPdfCampos(estructuraJson, datosJson);
-
-                    lista.Add(new PdfFormularioAdicional
-                    {
-                        IdRespuesta = Convert.ToInt32(reader["IdRespuesta"]),
-                        IdFormulario = Convert.ToInt32(reader["IdFormulario"]),
-                        NombreFormulario = reader["NombreFormulario"]?.ToString() ?? "Formulario adicional",
-                        Categoria = reader["Categoria"] == DBNull.Value ? null : reader["Categoria"]?.ToString(),
-                        FechaRegistro = reader["FechaRegistro"] == DBNull.Value ? DateTime.Now : Convert.ToDateTime(reader["FechaRegistro"]),
-                        Campos = campos
-                    });
-                }
-            }
-            finally
-            {
-                if (cerrarConexion)
-                {
-                    await connection.CloseAsync();
-                }
-            }
-
-            return lista;
-        }
-
-        private static List<PdfFormularioCampo> ConvertirFormularioPdfCampos(string estructuraJson, string datosJson)
-        {
-            var campos = new List<PdfFormularioCampo>();
-            var valores = ConvertirJsonPlanoADiccionario(datosJson);
-
-            try
-            {
-                using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(estructuraJson) ? "[]" : estructuraJson);
-
-                if (doc.RootElement.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var item in doc.RootElement.EnumerateArray())
-                    {
-                        var clave = ObtenerPropiedadJsonTexto(item, "clave") ?? ObtenerPropiedadJsonTexto(item, "Clave") ?? string.Empty;
-                        var etiqueta = ObtenerPropiedadJsonTexto(item, "etiqueta") ?? ObtenerPropiedadJsonTexto(item, "Etiqueta") ?? clave;
-                        var tipo = ObtenerPropiedadJsonTexto(item, "tipo") ?? ObtenerPropiedadJsonTexto(item, "Tipo") ?? "texto";
-
-                        if (string.IsNullOrWhiteSpace(clave))
-                        {
-                            continue;
-                        }
-
-                        valores.TryGetValue(clave, out var valor);
-
-                        campos.Add(new PdfFormularioCampo
-                        {
-                            Clave = clave,
-                            Etiqueta = string.IsNullOrWhiteSpace(etiqueta) ? clave : etiqueta,
-                            Tipo = tipo,
-                            Valor = valor
-                        });
-                    }
-                }
-            }
-            catch
-            {
-                // Si la estructura no se puede leer, abajo se imprimen los valores encontrados en DatosJson.
-            }
-
-            var clavesYaAgregadas = campos
-                .Select(c => c.Clave)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var valor in valores)
-            {
-                if (clavesYaAgregadas.Contains(valor.Key))
-                {
-                    continue;
-                }
-
-                campos.Add(new PdfFormularioCampo
-                {
-                    Clave = valor.Key,
-                    Etiqueta = ConvertirClaveAEtiqueta(valor.Key),
-                    Tipo = "texto",
-                    Valor = valor.Value
-                });
-            }
-
-            return campos;
-        }
-
-        private static Dictionary<string, string?> ConvertirJsonPlanoADiccionario(string datosJson)
-        {
-            var resultado = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-
-            if (string.IsNullOrWhiteSpace(datosJson))
-            {
-                return resultado;
-            }
-
-            try
-            {
-                using var doc = JsonDocument.Parse(datosJson);
-
-                if (doc.RootElement.ValueKind != JsonValueKind.Object)
-                {
-                    return resultado;
-                }
-
-                foreach (var prop in doc.RootElement.EnumerateObject())
-                {
-                    resultado[prop.Name] = ConvertirValorJsonATexto(prop.Value);
-                }
-            }
-            catch
-            {
-                return new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            return resultado;
-        }
-
-        private static string? ObtenerPropiedadJsonTexto(JsonElement element, string nombre)
-        {
-            if (element.ValueKind != JsonValueKind.Object)
-            {
-                return null;
-            }
-
-            if (element.TryGetProperty(nombre, out var prop))
-            {
-                return ConvertirValorJsonATexto(prop);
-            }
-
-            foreach (var item in element.EnumerateObject())
-            {
-                if (string.Equals(item.Name, nombre, StringComparison.OrdinalIgnoreCase))
-                {
-                    return ConvertirValorJsonATexto(item.Value);
-                }
-            }
-
-            return null;
-        }
-
-        private static string? ConvertirValorJsonATexto(JsonElement value)
-        {
-            return value.ValueKind switch
-            {
-                JsonValueKind.String => value.GetString(),
-                JsonValueKind.Number => value.GetRawText(),
-                JsonValueKind.True => "Sí",
-                JsonValueKind.False => "No",
-                JsonValueKind.Null => null,
-                JsonValueKind.Array => value.GetRawText(),
-                JsonValueKind.Object => value.GetRawText(),
-                _ => value.GetRawText()
-            };
-        }
-
-        private static string ConvertirClaveAEtiqueta(string clave)
-        {
-            if (string.IsNullOrWhiteSpace(clave))
-            {
-                return "Campo";
-            }
-
-            var texto = clave.Replace("_", " ").Trim();
-            return char.ToUpper(texto[0]) + texto.Substring(1);
-        }
-
-        private byte[] GenerarPdfTransporte(Transporte transporte, List<PdfFormularioAdicional> formulariosAdicionales)
+        private byte[] GenerarPdfTransporte(Transporte transporte)
         {
             QuestPDF.Settings.License = LicenseType.Community;
-
-            formulariosAdicionales ??= new List<PdfFormularioAdicional>();
 
             return Document.Create(container =>
             {
                 container.Page(page =>
                 {
                     page.Size(PageSizes.Letter);
-                    page.Margin(20);
-                    page.DefaultTextStyle(x => x.FontSize(7).FontFamily("Arial"));
+                    page.Margin(25);
+                    page.DefaultTextStyle(x => x.FontSize(9));
 
-                    page.Content().Column(column =>
-                    {
-                        column.Spacing(5);
-
-                        column.Item().Table(table =>
+                    page.Header()
+                        .Column(column =>
                         {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                for (int i = 0; i < 12; i++)
-                                {
-                                    columns.RelativeColumn();
-                                }
-                            });
-
-                            table.Cell().RowSpan(3).ColumnSpan(2).Element(CeldaValorCentro).Column(c =>
-                            {
-                                c.Item().AlignCenter().Text("NS").FontSize(16).Bold();
-                                c.Item().AlignCenter().Text("GROUP").FontSize(5).Bold();
-                            });
-
-                            table.Cell().ColumnSpan(8).Element(CeldaEtiqueta).Text("NS GROUP").Bold();
-                            table.Cell().ColumnSpan(2).Element(CeldaValorCentro).Text(DateTime.Now.ToString("dd/MM/yyyy HH:mm"));
-
-                            table.Cell().ColumnSpan(10).Element(CeldaEtiqueta).Text("PROCESOS Y MEJORA CONTINUA").Bold();
-
-                            table.Cell().ColumnSpan(10).Element(CeldaTituloPrincipal).Text("Formato de Solicitud de Transporte");
-
-                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Área:");
-                            table.Cell().ColumnSpan(1).Element(CeldaValorCentro).Text("Logística");
-                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Elaborado Por:");
-                            table.Cell().ColumnSpan(2).Element(CeldaValorCentro).Text("Ing. Axel Delgado");
-                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Liberado Por:");
-                            table.Cell().ColumnSpan(2).Element(CeldaValorCentro).Text("Lic. Pedro Bello");
-                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Versión:");
-                            table.Cell().ColumnSpan(1).Element(CeldaValorCentro).Text("03-2025");
-                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Código:");
-                            table.Cell().ColumnSpan(1).Element(CeldaValorCentro).Text("F-19-06");
-
-                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Fecha de Emisión:");
-                            table.Cell().ColumnSpan(2).Element(CeldaValorCentro).Text("17/09/2025");
-                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("Página:");
-                            table.Cell().ColumnSpan(2).Element(CeldaValorCentro).Text("1 de 1");
-                            table.Cell().ColumnSpan(1).Element(CeldaEtiqueta).Text("# ID Folio");
-                            table.Cell().ColumnSpan(5).Element(CeldaValorCentro).Text(Texto(transporte.Folio ?? $"TR-{transporte.IdTransporte}"));
+                            column.Item().Text("Solicitud de Transporte").FontSize(18).SemiBold();
+                            column.Item().Text($"Folio: {Texto(transporte.Folio)}").FontSize(11);
+                            column.Item().LineHorizontal(1);
                         });
 
-                        column.Item().Table(table =>
+                    page.Content()
+                        .PaddingVertical(10)
+                        .Column(column =>
                         {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.RelativeColumn(1.4f);
-                                columns.RelativeColumn(2.2f);
-                                columns.RelativeColumn(1.4f);
-                                columns.RelativeColumn(2.2f);
-                            });
+                            column.Spacing(12);
 
-                            void Fila(string etiqueta1, string valor1, string etiqueta2, string valor2)
-                            {
-                                table.Cell().Element(CeldaEtiqueta).Text(etiqueta1);
-                                table.Cell().Element(CeldaValorCentro).Text(valor1);
-                                table.Cell().Element(CeldaEtiqueta).Text(etiqueta2);
-                                table.Cell().Element(CeldaValorCentro).Text(valor2);
-                            }
+                            column.Item().Text("Datos generales").FontSize(13).SemiBold();
 
-                            Fila("# Factura", Texto(transporte.NumeroFactura), "Duración aprox. De Flete", Texto(transporte.DuracionAproxFlete));
-                            Fila("Fecha de Carga", Fecha(transporte.FechaCarga), "Horario De Llegada a Destino", Texto(transporte.HorarioLlegadaDestino));
-                            Fila("Horario de Carga", Texto(transporte.HorarioCarga), "Proyecto", Texto(transporte.Proyecto));
-                            Fila("Cliente", Texto(transporte.Cliente), "Departamento", Texto(transporte.Departamento));
-                            Fila("Nombre del Solicitante", Texto(transporte.NombreSolicitante), "Autorizado Presupuesto", Texto(transporte.AutorizadoPresupuesto));
-                            Fila("Compañía Solicitante", Texto(transporte.CompaniaSolicitante), "Presupuesto de Flete", "");
-                            Fila("Centro de Costo", Texto(transporte.CentroCosto), "Tipo de Unidad", Texto(transporte.TipoUnidad));
-                            Fila("Tipo de Ruta", Texto(transporte.TipoRuta), "Comentarios de Unidad", Texto(transporte.ComentariosUnidad));
-
-                            table.Cell().Element(CeldaEtiqueta).Text("Dirección de Recolección");
-                            table.Cell().ColumnSpan(3).Element(CeldaValorCentro).Text(Texto(transporte.DireccionRecoleccion));
-
-                            Fila("Volumetría\n(Ancho y Largo - mts)", Texto(transporte.Volumetria), "Fletero", Texto(transporte.Fletero));
-                            table.Cell().Element(CeldaEtiqueta).Text("Costo de Flete");
-                            table.Cell().ColumnSpan(3).Element(CeldaValorCentro).Text($"{Dinero(transporte.CostoFlete)} MXN + IVA");
-                        });
-
-                        column.Item().Table(table =>
-                        {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.ConstantColumn(25);
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn(4);
-                            });
-
-                            table.Cell().ColumnSpan(4).Element(CeldaSeccion).Text("Destinos");
-                            table.Cell().Element(CeldaEncabezado).Text("#");
-                            table.Cell().Element(CeldaEncabezado).Text("Nombre de quien recibe carga");
-                            table.Cell().Element(CeldaEncabezado).Text("Contacto");
-                            table.Cell().Element(CeldaEncabezado).Text("Dirección de destino");
-
-                            var destinos = transporte.Destinos?.OrderBy(x => x.NumeroDestino).ToList() ?? new List<TransporteDestino>();
-
-                            if (destinos.Any())
-                            {
-                                foreach (var destino in destinos)
-                                {
-                                    table.Cell().Element(CeldaValorCentro).Text(destino.NumeroDestino.ToString());
-                                    table.Cell().Element(CeldaValor).Text(Texto(destino.NombreRecibe));
-                                    table.Cell().Element(CeldaValor).Text(Texto(destino.ContactoRecibe));
-                                    table.Cell().Element(CeldaValor).Text(Texto(destino.DireccionDestino));
-                                }
-                            }
-                            else
-                            {
-                                table.Cell().ColumnSpan(4).Element(CeldaValorCentro).Text("Sin destinos registrados.");
-                            }
-                        });
-
-                        column.Item().Table(table =>
-                        {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.RelativeColumn(1.1f);
-                                columns.RelativeColumn(3.2f);
-                                columns.RelativeColumn(.8f);
-                                columns.RelativeColumn(.7f);
-                                columns.RelativeColumn(.8f);
-                                columns.RelativeColumn(1.1f);
-                                columns.RelativeColumn(1.2f);
-                            });
-
-                            table.Cell().ColumnSpan(7).Element(CeldaSeccion).Text("Plan de Embarque");
-                            table.Cell().Element(CeldaEncabezado).Text("Clave SAT");
-                            table.Cell().Element(CeldaEncabezado).Text("Descripción");
-                            table.Cell().Element(CeldaEncabezado).Text("Cantidad");
-                            table.Cell().Element(CeldaEncabezado).Text("UM");
-                            table.Cell().Element(CeldaEncabezado).Text("Peso");
-                            table.Cell().Element(CeldaEncabezado).Text("Valor");
-                            table.Cell().Element(CeldaEncabezado).Text("Vale de salida / Factura");
-
-                            var partidas = transporte.PlanEmbarque?.OrderBy(x => x.IdPlanEmbarque).ToList() ?? new List<TransportePlanEmbarque>();
-
-                            if (partidas.Any())
-                            {
-                                foreach (var item in partidas)
-                                {
-                                    table.Cell().Element(CeldaValor).Text(Texto(item.ClaveSAT));
-                                    table.Cell().Element(CeldaValor).Text(Texto(item.Descripcion));
-                                    table.Cell().Element(CeldaValorCentro).Text(Numero(item.Cantidad));
-                                    table.Cell().Element(CeldaValorCentro).Text(Texto(item.UnidadMedida));
-                                    table.Cell().Element(CeldaValorCentro).Text(Numero(item.Peso));
-                                    table.Cell().Element(CeldaValorDerecha).Text(Dinero(item.Valor));
-                                    table.Cell().Element(CeldaValor).Text(Texto(item.ValeSalidaFactura));
-                                }
-
-                                table.Cell().ColumnSpan(4).Element(CeldaValorDerecha).Text("Totales").Bold();
-                                table.Cell().Element(CeldaValorCentro).Text(Numero(partidas.Sum(x => x.Peso ?? 0)));
-                                table.Cell().Element(CeldaValorDerecha).Text(Dinero(partidas.Sum(x => x.Valor ?? 0)));
-                                table.Cell().Element(CeldaValorCentro).Text("MXN").Bold();
-                            }
-                            else
-                            {
-                                table.Cell().ColumnSpan(7).Element(CeldaValorCentro).Text("Sin partidas registradas.");
-                            }
-                        });
-
-                        if (formulariosAdicionales.Any())
-                        {
                             column.Item().Table(table =>
                             {
                                 table.ColumnsDefinition(columns =>
                                 {
-                                    columns.RelativeColumn(1.4f);
-                                    columns.RelativeColumn(2.2f);
-                                    columns.RelativeColumn(1.4f);
-                                    columns.RelativeColumn(2.2f);
+                                    columns.ConstantColumn(120);
+                                    columns.RelativeColumn();
+                                    columns.ConstantColumn(120);
+                                    columns.RelativeColumn();
                                 });
 
-                                table.Cell().ColumnSpan(4).Element(CeldaSeccion).Text("Formularios adicionales");
-
-                                foreach (var formulario in formulariosAdicionales)
+                                void Fila(string etiqueta1, string valor1, string etiqueta2, string valor2)
                                 {
-                                    table.Cell().ColumnSpan(4).Element(CeldaSubSeccion).Text(Texto(formulario.NombreFormulario));
-
-                                    var campos = formulario.Campos ?? new List<PdfFormularioCampo>();
-
-                                    if (!campos.Any())
-                                    {
-                                        table.Cell().ColumnSpan(4).Element(CeldaValorCentro).Text("Sin datos capturados.");
-                                        continue;
-                                    }
-
-                                    for (int i = 0; i < campos.Count; i += 2)
-                                    {
-                                        var campo1 = campos[i];
-                                        var campo2 = i + 1 < campos.Count ? campos[i + 1] : null;
-
-                                        table.Cell().Element(CeldaEtiqueta).Text(Texto(campo1.Etiqueta));
-                                        table.Cell().Element(CeldaValorCentro).Text(Texto(campo1.Valor));
-
-                                        if (campo2 != null)
-                                        {
-                                            table.Cell().Element(CeldaEtiqueta).Text(Texto(campo2.Etiqueta));
-                                            table.Cell().Element(CeldaValorCentro).Text(Texto(campo2.Valor));
-                                        }
-                                        else
-                                        {
-                                            table.Cell().Element(CeldaEtiqueta).Text("");
-                                            table.Cell().Element(CeldaValorCentro).Text("");
-                                        }
-                                    }
+                                    table.Cell().Element(CeldaEtiqueta).Text(etiqueta1);
+                                    table.Cell().Element(CeldaValor).Text(valor1);
+                                    table.Cell().Element(CeldaEtiqueta).Text(etiqueta2);
+                                    table.Cell().Element(CeldaValor).Text(valor2);
                                 }
-                            });
-                        }
 
-                        column.Item().Row(row =>
-                        {
-                            row.RelativeItem(1.25f).Column(firmas =>
+                                Fila("Estado", Texto(transporte.EstadoSolicitud), "Área", Texto(transporte.Area));
+                                Fila("Elaborado por", Texto(transporte.ElaboradoPor), "Solicitante", Texto(transporte.NombreSolicitante));
+                                Fila("Fecha emisión", Fecha(transporte.FechaEmision), "Fecha carga", Fecha(transporte.FechaCarga));
+                                Fila("Cliente", Texto(transporte.Cliente), "Proyecto", Texto(transporte.Proyecto));
+                                Fila("Departamento", Texto(transporte.Departamento), "Compañía", Texto(transporte.CompaniaSolicitante));
+                                Fila("Centro costo", Texto(transporte.CentroCosto), "Factura", Texto(transporte.NumeroFactura));
+                                Fila("Horario carga", Texto(transporte.HorarioCarga), "Llegada destino", Texto(transporte.HorarioLlegadaDestino));
+                                Fila("Tipo ruta", Texto(transporte.TipoRuta), "Tipo unidad", Texto(transporte.TipoUnidad));
+                                Fila("Fletero", Texto(transporte.Fletero), "Costo flete", Dinero(transporte.CostoFlete));
+                            });
+
+                            column.Item().Text("Dirección de recolección").FontSize(13).SemiBold();
+                            column.Item().Element(CeldaValor).Text(Texto(transporte.DireccionRecoleccion));
+
+                            column.Item().Text("Plan de embarque").FontSize(13).SemiBold();
+
+                            if (transporte.PlanEmbarque != null && transporte.PlanEmbarque.Any())
                             {
-                                firmas.Item().PaddingTop(18).Text("__________________________________________").AlignCenter();
-                                firmas.Item().Text("Nombre y Firma del solicitante").FontSize(7).AlignCenter();
-                                firmas.Item().PaddingTop(12).Text("__________________________________________").AlignCenter();
-                                firmas.Item().Text("Nombre y firma de Logística").FontSize(7).AlignCenter();
-                                firmas.Item().PaddingTop(12).Text("__________________________________________").AlignCenter();
-                                firmas.Item().Text("Nombre y Firma de Conformidad de Costo\nDirector del Solicitante").FontSize(7).AlignCenter();
+                                column.Item().Table(table =>
+                                {
+                                    table.ColumnsDefinition(columns =>
+                                    {
+                                        columns.RelativeColumn(1);
+                                        columns.RelativeColumn(3);
+                                        columns.RelativeColumn(1);
+                                        columns.RelativeColumn(1);
+                                        columns.RelativeColumn(1);
+                                        columns.RelativeColumn(1);
+                                        columns.RelativeColumn(2);
+                                    });
+
+                                    table.Header(header =>
+                                    {
+                                        header.Cell().Element(CeldaEncabezado).Text("Clave SAT");
+                                        header.Cell().Element(CeldaEncabezado).Text("Descripción");
+                                        header.Cell().Element(CeldaEncabezado).Text("Cantidad");
+                                        header.Cell().Element(CeldaEncabezado).Text("Unidad");
+                                        header.Cell().Element(CeldaEncabezado).Text("Peso");
+                                        header.Cell().Element(CeldaEncabezado).Text("Valor");
+                                        header.Cell().Element(CeldaEncabezado).Text("Vale/Factura");
+                                    });
+
+                                    foreach (var item in transporte.PlanEmbarque)
+                                    {
+                                        table.Cell().Element(CeldaValor).Text(Texto(item.ClaveSAT));
+                                        table.Cell().Element(CeldaValor).Text(Texto(item.Descripcion));
+                                        table.Cell().Element(CeldaValor).Text(Numero(item.Cantidad));
+                                        table.Cell().Element(CeldaValor).Text(Texto(item.UnidadMedida));
+                                        table.Cell().Element(CeldaValor).Text(Numero(item.Peso));
+                                        table.Cell().Element(CeldaValor).Text(Dinero(item.Valor));
+                                        table.Cell().Element(CeldaValor).Text(Texto(item.ValeSalidaFactura));
+                                    }
+                                });
+                            }
+                            else
+                            {
+                                column.Item().Text("Sin partidas registradas.");
+                            }
+
+                            column.Item().Text("Destinos").FontSize(13).SemiBold();
+
+                            if (transporte.Destinos != null && transporte.Destinos.Any())
+                            {
+                                column.Item().Table(table =>
+                                {
+                                    table.ColumnsDefinition(columns =>
+                                    {
+                                        columns.ConstantColumn(35);
+                                        columns.RelativeColumn(2);
+                                        columns.RelativeColumn(2);
+                                        columns.RelativeColumn(4);
+                                    });
+
+                                    table.Header(header =>
+                                    {
+                                        header.Cell().Element(CeldaEncabezado).Text("#");
+                                        header.Cell().Element(CeldaEncabezado).Text("Recibe");
+                                        header.Cell().Element(CeldaEncabezado).Text("Contacto");
+                                        header.Cell().Element(CeldaEncabezado).Text("Dirección");
+                                    });
+
+                                    foreach (var destino in transporte.Destinos.OrderBy(x => x.NumeroDestino))
+                                    {
+                                        table.Cell().Element(CeldaValor).Text(destino.NumeroDestino.ToString());
+                                        table.Cell().Element(CeldaValor).Text(Texto(destino.NombreRecibe));
+                                        table.Cell().Element(CeldaValor).Text(Texto(destino.ContactoRecibe));
+                                        table.Cell().Element(CeldaValor).Text(Texto(destino.DireccionDestino));
+                                    }
+                                });
+                            }
+                            else
+                            {
+                                column.Item().Text("Sin destinos registrados.");
+                            }
+                        });
+
+                    page.Footer()
+                        .AlignCenter()
+                        .Text(text =>
+                        {
+                            text.Span("Página ");
+                            text.CurrentPageNumber();
+                            text.Span(" de ");
+                            text.TotalPages();
+                        });
+                });
+            }).GeneratePdf();
+        }
+
+        private byte[] GenerarPdfGuia(Guia guia)
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            string folio = $"G-{guia.IdGuia}";
+            string estado = guia.EstaBorrado ? "Cancelada" : Texto(guia.EstadoEdicion ?? "Activa");
+            var registrosFormulario = LeerRegistrosFormularioGuia(
+                ObtenerPropiedadObjeto(guia,
+                    "FormularioCapturado",
+                    "FormulariosCapturados",
+                    "FormularioCapturadoTexto",
+                    "DatosFormulario",
+                    "FormularioJson",
+                    "RespuestasFormulario"));
+
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.Letter);
+                    page.Margin(24);
+                    page.DefaultTextStyle(x => x.FontSize(8));
+
+                    page.Header()
+                        .Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.ConstantColumn(90);
+                                columns.RelativeColumn();
+                                columns.ConstantColumn(130);
                             });
 
-                            row.RelativeItem(.85f).Table(table =>
+                            table.Cell().RowSpan(3).Element(CeldaValor).AlignCenter().AlignMiddle().Text("NS\nGROUP").SemiBold().FontSize(12);
+                            table.Cell().Element(CeldaEncabezado).Text("NS GROUP");
+                            table.Cell().Element(CeldaValor).AlignCenter().Text(DateTime.Now.ToString("dd/MM/yyyy HH:mm"));
+
+                            table.Cell().Element(CeldaEncabezado).Text("PROCESOS Y MEJORA CONTINUA");
+                            table.Cell().Element(CeldaValor).AlignCenter().Text("Solicitud de Guía").SemiBold();
+
+                            table.Cell().ColumnSpan(2).Element(CeldaEncabezado).AlignCenter().Text($"Solicitud de Guía - {folio}").SemiBold();
+                        });
+
+                    page.Content()
+                        .PaddingVertical(8)
+                        .Column(column =>
+                        {
+                            column.Spacing(8);
+
+                            column.Item().Table(table =>
                             {
                                 table.ColumnsDefinition(columns =>
                                 {
-                                    columns.RelativeColumn(4);
-                                    columns.RelativeColumn(1);
+                                    columns.ConstantColumn(90);
+                                    columns.RelativeColumn();
+                                    columns.ConstantColumn(90);
+                                    columns.RelativeColumn();
                                 });
 
-                                table.Cell().ColumnSpan(2).Element(CeldaSeccion).Text("Checklist");
-                                table.Cell().Element(CeldaValor).Text("1. Formato de Solicitud de Transporte");
-                                table.Cell().Element(CeldaValor).Text("");
-                                table.Cell().Element(CeldaValor).Text("2. Carta Porte");
-                                table.Cell().Element(CeldaValor).Text("");
-                                table.Cell().Element(CeldaValor).Text("3. Factura");
-                                table.Cell().Element(CeldaValor).Text("");
-                                table.Cell().Element(CeldaValor).Text("4. Evidencia (Documentos Firmados)");
-                                table.Cell().Element(CeldaValor).Text("");
-                                table.Cell().Element(CeldaValor).Text("5. Fotografías");
-                                table.Cell().Element(CeldaValor).Text("");
+                                void Fila(string etiqueta1, string valor1, string etiqueta2, string valor2)
+                                {
+                                    table.Cell().Element(CeldaEtiqueta).Text(etiqueta1);
+                                    table.Cell().Element(CeldaValor).Text(valor1);
+                                    table.Cell().Element(CeldaEtiqueta).Text(etiqueta2);
+                                    table.Cell().Element(CeldaValor).Text(valor2);
+                                }
+
+                                table.Cell().ColumnSpan(4).Element(CeldaEncabezado).AlignCenter().Text("Datos generales de la guía").SemiBold();
+                                Fila("Área", "Logística", "Folio", folio);
+                                Fila("Fecha solicitud", Fecha(guia.FechaSolicitud), "Estado", estado);
+                                Fila("Empresa", Texto(guia.Empresa), "Cliente / Proyecto", Texto(guia.ClienteProyecto));
+                                Fila("Departamento", Texto(guia.Departamento), "Quién gestiona", Texto(guia.QuienGestiona));
+                                Fila("Tipo requerimiento", Texto(guia.TipoRequerimiento), "Tipo entrega", Texto(guia.TipoEntrega));
+                                Fila("Fecha envío", Fecha(guia.FechaEnvio), "Tipo envío", Texto(guia.TipoEnvio));
+                                Fila("Costo", "$" + guia.Costo.ToString("N2"), "Cadena de frío", guia.RequiereCadenaFrio == true ? "Sí" : "No");
+                            });
+
+                            column.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.ConstantColumn(90);
+                                    columns.RelativeColumn();
+                                    columns.ConstantColumn(90);
+                                    columns.RelativeColumn();
+                                });
+
+                                void Fila(string etiqueta1, string valor1, string etiqueta2, string valor2)
+                                {
+                                    table.Cell().Element(CeldaEtiqueta).Text(etiqueta1);
+                                    table.Cell().Element(CeldaValor).Text(valor1);
+                                    table.Cell().Element(CeldaEtiqueta).Text(etiqueta2);
+                                    table.Cell().Element(CeldaValor).Text(valor2);
+                                }
+
+                                table.Cell().ColumnSpan(4).Element(CeldaEncabezado).AlignCenter().Text("Origen y destino").SemiBold();
+                                Fila("Remitente", Texto(guia.RemitenteNombre), "Teléfono remitente", Texto(guia.RemitenteTelefono));
+                                Fila("Origen", Texto(guia.Origen), "Código postal origen", Texto(guia.CodigoPostalOrigen));
+                                Fila("Destinatario", Texto(guia.DestinatarioNombre), "Teléfono destinatario", Texto(guia.DestinatarioTelefono));
+                                Fila("Correo destinatario", Texto(guia.DestinatarioCorreo), "Destino", Texto(guia.Destino));
+                                Fila("Código postal destino", Texto(guia.CodigoPostalDestino), "Contenido declarado", Texto(guia.ContenidoDeclarado));
+                            });
+
+                            column.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.ConstantColumn(115);
+                                    columns.RelativeColumn();
+                                    columns.ConstantColumn(90);
+                                    columns.RelativeColumn();
+                                });
+
+                                void Fila(string etiqueta1, string valor1, string etiqueta2, string valor2)
+                                {
+                                    table.Cell().Element(CeldaEtiqueta).Text(etiqueta1);
+                                    table.Cell().Element(CeldaValor).Text(valor1);
+                                    table.Cell().Element(CeldaEtiqueta).Text(etiqueta2);
+                                    table.Cell().Element(CeldaValor).Text(valor2);
+                                }
+
+                                table.Cell().ColumnSpan(4).Element(CeldaEncabezado).AlignCenter().Text("Peso, dimensiones y observaciones").SemiBold();
+                                Fila("Información peso / dimensiones", Texto(guia.InformacionDimensionesPeso), "Peso kg", Numero(guia.PesoKg));
+                                Fila("Largo cm", Numero(guia.LargoCm), "Ancho cm", Numero(guia.AnchoCm));
+                                Fila("Alto cm", Numero(guia.AltoCm), "Observaciones", Texto(guia.Observaciones));
+                            });
+
+                            column.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.ConstantColumn(58);  // Formulario
+                                    columns.ConstantColumn(48);  // Campo
+                                    columns.ConstantColumn(36);  // Registro
+                                    columns.ConstantColumn(50);  // Clave SAT
+                                    columns.RelativeColumn(1.4f); // Descripcion
+                                    columns.ConstantColumn(38);  // Cantidad
+                                    columns.ConstantColumn(28);  // UM
+                                    columns.ConstantColumn(38);  // Peso
+                                    columns.ConstantColumn(45);  // Valor
+                                    columns.ConstantColumn(62);  // Vale / factura
+                                });
+
+                                table.Cell().ColumnSpan(10).Element(CeldaEncabezado).AlignCenter()
+                                    .Text("Formulario capturado").SemiBold();
+
+                                table.Cell().Element(CeldaEncabezado).Text("Formulario").FontSize(6);
+                                table.Cell().Element(CeldaEncabezado).Text("Campo").FontSize(6);
+                                table.Cell().Element(CeldaEncabezado).Text("Registro").FontSize(6);
+                                table.Cell().Element(CeldaEncabezado).Text("Clave SAT").FontSize(6);
+                                table.Cell().Element(CeldaEncabezado).Text("Descripción").FontSize(6);
+                                table.Cell().Element(CeldaEncabezado).Text("Cantidad").FontSize(6);
+                                table.Cell().Element(CeldaEncabezado).Text("UM").FontSize(6);
+                                table.Cell().Element(CeldaEncabezado).Text("Peso").FontSize(6);
+                                table.Cell().Element(CeldaEncabezado).Text("Valor").FontSize(6);
+                                table.Cell().Element(CeldaEncabezado).Text("Vale salida / factura").FontSize(6);
+
+                                if (registrosFormulario.Any())
+                                {
+                                    foreach (var r in registrosFormulario)
+                                    {
+                                        table.Cell().Element(CeldaValorCompacta).Text(ValorFormulario(r, "Formulario")).FontSize(6);
+                                        table.Cell().Element(CeldaValorCompacta).Text(ValorFormulario(r, "Campo")).FontSize(6);
+                                        table.Cell().Element(CeldaValorCompacta).Text(ValorFormulario(r, "Registro")).FontSize(6);
+                                        table.Cell().Element(CeldaValorCompacta).Text(ValorFormulario(r, "ClaveSAT")).FontSize(6);
+                                        table.Cell().Element(CeldaValorCompacta).Text(ValorFormulario(r, "Descripcion")).FontSize(6);
+                                        table.Cell().Element(CeldaValorCompacta).Text(ValorFormulario(r, "Cantidad")).FontSize(6);
+                                        table.Cell().Element(CeldaValorCompacta).Text(ValorFormulario(r, "UM")).FontSize(6);
+                                        table.Cell().Element(CeldaValorCompacta).Text(ValorFormulario(r, "Peso")).FontSize(6);
+                                        table.Cell().Element(CeldaValorCompacta).Text(ValorFormulario(r, "Valor")).FontSize(6);
+                                        table.Cell().Element(CeldaValorCompacta).Text(ValorFormulario(r, "ValeSalidaFactura")).FontSize(6);
+                                    }
+                                }
+                                else
+                                {
+                                    table.Cell().ColumnSpan(10).Element(CeldaValor).AlignCenter()
+                                        .Text("No hay formulario capturado para esta guía.").FontSize(7);
+                                }
                             });
                         });
-                    });
 
-                    page.Footer().AlignCenter().Text(text =>
-                    {
-                        text.Span("Página ");
-                        text.CurrentPageNumber();
-                        text.Span(" de ");
-                        text.TotalPages();
-                    });
+                    page.Footer()
+                        .AlignCenter()
+                        .Text(text =>
+                        {
+                            text.Span("Generado por Sistema NS Intranet | Página ");
+                            text.CurrentPageNumber();
+                            text.Span(" de ");
+                            text.TotalPages();
+                        });
                 });
             }).GeneratePdf();
         }
@@ -2380,50 +2142,258 @@ public IActionResult Guias()
             }).GeneratePdf();
         }
 
-        private static IContainer CeldaTituloPrincipal(IContainer container)
+
+        private static IContainer CeldaValorCompacta(IContainer container)
         {
             return container
                 .Border(1)
-                .Padding(3)
-                .AlignCenter()
-                .DefaultTextStyle(x => x.FontSize(10).SemiBold());
+                .Padding(2)
+                .DefaultTextStyle(x => x.FontSize(6));
         }
 
-        private static IContainer CeldaSeccion(IContainer container)
+        private static object? ObtenerPropiedadObjeto(object? objeto, params string[] nombres)
         {
-            return container
-                .Border(1)
-                .Background(Colors.Grey.Lighten2)
-                .Padding(3)
-                .AlignCenter()
-                .DefaultTextStyle(x => x.FontSize(8).SemiBold());
+            if (objeto == null)
+            {
+                return null;
+            }
+
+            var tipo = objeto.GetType();
+            foreach (var nombre in nombres)
+            {
+                var propiedad = tipo.GetProperty(nombre);
+                if (propiedad != null)
+                {
+                    return propiedad.GetValue(objeto, null);
+                }
+            }
+
+            return null;
         }
 
-        private static IContainer CeldaSubSeccion(IContainer container)
+        private static string ObtenerTextoPropiedadObjeto(object? objeto, params string[] nombres)
         {
-            return container
-                .Border(1)
-                .Background(Colors.Grey.Lighten3)
-                .Padding(3)
-                .DefaultTextStyle(x => x.FontSize(8).SemiBold());
+            var valor = ObtenerPropiedadObjeto(objeto, nombres);
+            return valor == null ? "-" : Texto(Convert.ToString(valor));
         }
 
-        private static IContainer CeldaValorCentro(IContainer container)
+        private static Dictionary<string, string> CrearFilaFormulario()
         {
-            return container
-                .Border(1)
-                .Padding(3)
-                .AlignCenter()
-                .AlignMiddle();
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Formulario"] = "-",
+                ["Campo"] = "-",
+                ["Registro"] = "-",
+                ["ClaveSAT"] = "-",
+                ["Descripcion"] = "-",
+                ["Cantidad"] = "-",
+                ["UM"] = "-",
+                ["Peso"] = "-",
+                ["Valor"] = "-",
+                ["ValeSalidaFactura"] = "-"
+            };
         }
 
-        private static IContainer CeldaValorDerecha(IContainer container)
+        private static string ValorFormulario(Dictionary<string, string> fila, string llave)
         {
-            return container
-                .Border(1)
-                .Padding(3)
-                .AlignRight()
-                .AlignMiddle();
+            return fila.TryGetValue(llave, out var valor) && !string.IsNullOrWhiteSpace(valor)
+                ? valor.Trim()
+                : "-";
+        }
+
+        private static List<Dictionary<string, string>> LeerRegistrosFormularioGuia(object? raw)
+        {
+            var registros = new List<Dictionary<string, string>>();
+
+            if (raw == null)
+            {
+                return registros;
+            }
+
+            if (raw is string texto)
+            {
+                registros.AddRange(LeerRegistrosFormularioTextoGuia(texto));
+                return registros;
+            }
+
+            if (raw is System.Collections.IEnumerable enumerable)
+            {
+                foreach (var item in enumerable)
+                {
+                    if (item == null)
+                    {
+                        continue;
+                    }
+
+                    if (item is string itemTexto)
+                    {
+                        registros.AddRange(LeerRegistrosFormularioTextoGuia(itemTexto));
+                        continue;
+                    }
+
+                    var fila = CrearFilaFormulario();
+                    fila["Formulario"] = ObtenerTextoPropiedadObjeto(item, "Formulario", "NombreFormulario", "TituloFormulario", "Nombre");
+                    fila["Campo"] = ObtenerTextoPropiedadObjeto(item, "Campo", "NombreCampo", "Etiqueta", "Label");
+                    fila["Registro"] = ObtenerTextoPropiedadObjeto(item, "Registro", "NumeroRegistro", "Indice");
+                    fila["ClaveSAT"] = ObtenerTextoPropiedadObjeto(item, "ClaveSAT", "ClaveSat", "Clave Sat");
+                    fila["Descripcion"] = ObtenerTextoPropiedadObjeto(item, "Descripcion", "Descripción", "Description");
+                    fila["Cantidad"] = ObtenerTextoPropiedadObjeto(item, "Cantidad");
+                    fila["UM"] = ObtenerTextoPropiedadObjeto(item, "UM", "UnidadMedida", "Unidad");
+                    fila["Peso"] = ObtenerTextoPropiedadObjeto(item, "Peso", "PesoKg");
+                    fila["Valor"] = ObtenerTextoPropiedadObjeto(item, "Valor", "ValorDeclarado");
+                    fila["ValeSalidaFactura"] = ObtenerTextoPropiedadObjeto(item, "ValeSalidaFactura", "Vale salida / factura", "Factura");
+                    registros.Add(fila);
+                }
+
+                return registros;
+            }
+
+            registros.AddRange(LeerRegistrosFormularioTextoGuia(Convert.ToString(raw)));
+            return registros;
+        }
+
+        private static List<Dictionary<string, string>> LeerRegistrosFormularioTextoGuia(string? texto)
+        {
+            var registros = new List<Dictionary<string, string>>();
+
+            if (string.IsNullOrWhiteSpace(texto))
+            {
+                return registros;
+            }
+
+            texto = texto.Trim();
+
+            if (texto.StartsWith("{") || texto.StartsWith("["))
+            {
+                try
+                {
+                    using var documento = JsonDocument.Parse(texto);
+                    LeerJsonFormularioGuia(documento.RootElement, registros);
+                    if (registros.Any())
+                    {
+                        return registros;
+                    }
+                }
+                catch
+                {
+                    // Si no es JSON válido, continúa con el parser de texto plano.
+                }
+            }
+
+            var formularioActual = "Formulario";
+            var campoActual = "-";
+            var lineas = texto.Replace("\r", "").Split('\n');
+
+            foreach (var lineaOriginal in lineas)
+            {
+                var linea = lineaOriginal.Trim();
+                if (string.IsNullOrWhiteSpace(linea))
+                {
+                    continue;
+                }
+
+                if (!linea.Contains(":") && !linea.Contains("|"))
+                {
+                    formularioActual = linea;
+                    continue;
+                }
+
+                var fila = CrearFilaFormulario();
+                fila["Formulario"] = formularioActual;
+                fila["Campo"] = campoActual;
+
+                var registroMatch = System.Text.RegularExpressions.Regex.Match(linea, @"Registro\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (registroMatch.Success)
+                {
+                    fila["Registro"] = registroMatch.Groups[1].Value;
+                }
+
+                var limpio = System.Text.RegularExpressions.Regex.Replace(linea, @"Registro\s*\d+\s*:\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                var partes = limpio.Split('|');
+
+                foreach (var parteOriginal in partes)
+                {
+                    var parte = parteOriginal.Trim();
+                    if (string.IsNullOrWhiteSpace(parte))
+                    {
+                        continue;
+                    }
+
+                    var match = System.Text.RegularExpressions.Regex.Match(parte, @"^(?<llave>[^:]+):\s*(?<valor>.*)$");
+                    if (!match.Success)
+                    {
+                        if (fila["Campo"] == "-")
+                        {
+                            fila["Campo"] = parte;
+                        }
+                        continue;
+                    }
+
+                    AsignarValorFormulario(fila, match.Groups["llave"].Value, match.Groups["valor"].Value);
+                }
+
+                registros.Add(fila);
+            }
+
+            return registros;
+        }
+
+        private static void LeerJsonFormularioGuia(JsonElement elemento, List<Dictionary<string, string>> registros)
+        {
+            if (elemento.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in elemento.EnumerateArray())
+                {
+                    LeerJsonFormularioGuia(item, registros);
+                }
+                return;
+            }
+
+            if (elemento.ValueKind == JsonValueKind.Object)
+            {
+                var fila = CrearFilaFormulario();
+                var tieneDato = false;
+
+                foreach (var propiedad in elemento.EnumerateObject())
+                {
+                    if (propiedad.Value.ValueKind == JsonValueKind.Object || propiedad.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        LeerJsonFormularioGuia(propiedad.Value, registros);
+                        continue;
+                    }
+
+                    var valor = propiedad.Value.ValueKind == JsonValueKind.Null ? "" : propiedad.Value.ToString();
+                    if (AsignarValorFormulario(fila, propiedad.Name, valor))
+                    {
+                        tieneDato = true;
+                    }
+                }
+
+                if (tieneDato)
+                {
+                    registros.Add(fila);
+                }
+            }
+        }
+
+        private static bool AsignarValorFormulario(Dictionary<string, string> fila, string llaveOriginal, string? valorOriginal)
+        {
+            var llave = (llaveOriginal ?? "").Trim().ToLowerInvariant();
+            var valor = string.IsNullOrWhiteSpace(valorOriginal) ? "-" : valorOriginal.Trim();
+
+            if (llave.Contains("formulario")) fila["Formulario"] = valor;
+            else if (llave.Contains("campo") || llave.Contains("etiqueta") || llave == "label") fila["Campo"] = valor;
+            else if (llave.Contains("registro") || llave.Contains("indice") || llave.Contains("índice")) fila["Registro"] = valor;
+            else if (llave.Contains("clave")) fila["ClaveSAT"] = valor;
+            else if (llave.Contains("descrip")) fila["Descripcion"] = valor;
+            else if (llave.Contains("cantidad")) fila["Cantidad"] = valor;
+            else if (llave == "um" || llave.Contains("unidad")) fila["UM"] = valor;
+            else if (llave.Contains("peso")) fila["Peso"] = valor;
+            else if (llave.Contains("valor")) fila["Valor"] = valor;
+            else if (llave.Contains("vale") || llave.Contains("factura")) fila["ValeSalidaFactura"] = valor;
+            else return false;
+
+            return true;
         }
 
         private static IContainer CeldaEncabezado(IContainer container)

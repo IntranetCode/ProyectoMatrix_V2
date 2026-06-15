@@ -726,6 +726,56 @@
         padding: 18px;
     }
 
+
+
+    .formulario-guide-board {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 12px;
+    }
+
+    .formulario-guide-card {
+        border: 1px solid rgba(14,116,144,.14);
+        border-radius: 18px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fdff 100%);
+        padding: 20px;
+        box-shadow: 0 12px 26px rgba(15,23,42,.06);
+    }
+
+    .formulario-guide-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #0e7490;
+        background: rgba(6,182,212,.12);
+        margin-bottom: 12px;
+    }
+
+    .formulario-guide-title {
+        font-weight: 900;
+        color: #0f172a;
+        margin-bottom: 4px;
+    }
+
+    .formulario-guide-text {
+        color: #64748b;
+        font-size: .88rem;
+        margin: 0 0 14px;
+    }
+
+    .formulario-guide-card .btn {
+        border-radius: 999px;
+        font-weight: 800;
+    }
+
+    @@media (max-width: 768px) {
+        .formulario-guide-board { grid-template-columns: 1fr; }
+    }
+
     @@media (max-width: 991px) {
         .route-line { grid-template-columns: 1fr; }
         .route-arrow { transform: rotate(90deg); }
@@ -1207,46 +1257,6 @@
         .guias-layout-shell + .btn-flotante { display: inline-flex; }
     }
 
-
-
-/* Boton Regresar visible */
-.logistica-back-btn {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 10px !important;
-    min-height: 46px !important;
-    padding: 0 22px !important;
-    border-radius: 14px !important;
-    background: #ffffff !important;
-    color: #0f172a !important;
-    border: 1px solid #dbe3ef !important;
-    font-size: 15px !important;
-    font-weight: 900 !important;
-    line-height: 1 !important;
-    text-decoration: none !important;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08) !important;
-    transition: all 0.18s ease !important;
-}
-
-.logistica-back-btn i {
-    font-size: 14px !important;
-}
-
-.logistica-back-btn:hover,
-.logistica-back-btn:focus {
-    background: #0e7490 !important;
-    color: #ffffff !important;
-    border-color: #0e7490 !important;
-    text-decoration: none !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16) !important;
-}
-
-.guias-page-shell .page-back-zone {
-    margin: 0 0 2px 0 !important;
-}
-
 </style>
 
 <div class="guias-layout-shell fade-in-up" id="inicioPagina">
@@ -1259,28 +1269,22 @@
             </div>
         </div>
 
-        <button type="button" class="side-new-guide" onclick="abrirModalCrear()">
+        <button type="button" class="side-new-guide" onclick="mostrarSeccionGuias('seccionFormularios')">
             <i class="fas fa-paper-plane"></i> Nueva Guía
         </button>
 
         <nav class="side-nav">
             <div class="side-nav-title">Menu principal</div>
-            <a href="/Menu/Grupo/5" class="side-link">
-                <i class="fas fa-th-large"></i><span>Menu</span>
-            </a>
             <button type="button" class="side-link active" onclick="document.getElementById('inicioPagina').scrollIntoView({ behavior: 'smooth' });">
                 <i class="fas fa-map"></i><span>Logística Guías</span>
             </button>
-            <a href="/Logistica/Transporte" class="side-link">
-                <i class="fas fa-truck"></i><span>Logística Transporte</span>
-            </a>
             @if (esLogistica)
             {
                 <button type="button" class="side-link" onclick="abrirModalDashboard()">
                     <i class="fas fa-chart-bar"></i><span>Reportes</span>
                 </button>
             }
-            <button type="button" class="side-link" disabled title="Repositorio para los formularios que se integren al módulo">
+            <button type="button" class="side-link guias-formularios-link" data-target="seccionFormularios" onclick="mostrarSeccionGuias('seccionFormularios')">
                 <i class="fas fa-clipboard-list"></i><span>Formularios</span>
             </button>
 
@@ -1309,7 +1313,7 @@
     <main class="guias-page-shell">
         <div class="guias-top-row">
             <div class="page-back-zone">
-                <a href="/Menu/Grupo/5" class="page-back-btn logistica-back-btn">
+                <a href="/Menu/Grupo/5" class="page-back-btn">
                     <i class="fas fa-arrow-left"></i> Regresar
                 </a>
             </div>
@@ -1404,6 +1408,7 @@
                             @if(esLogistica){
                             <div class="actions-panel">
                                 <button class="btn btn-sm btn-soft-primary rounded-pill" onclick="abrirModalVer(@item.IdGuia)"><i class="fas fa-eye me-1"></i> Ver</button>
+                                <a class="btn btn-sm btn-outline-danger rounded-pill" href="/Logistica/DescargarGuiaPDF?id=@item.IdGuia" target="_blank" title="Imprimir reporte PDF"><i class="fas fa-file-pdf me-1"></i> PDF</a>
                                 <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="abrirModalEditar(@item.IdGuia)"><i class="fas fa-pen me-1"></i> Editar</button>
                                 <button class="btn btn-sm btn-soft-danger rounded-pill" onclick="abrirModalBorrar(@item.IdGuia)"><i class="fas fa-trash me-1"></i> Cancelar</button>
                             </div>
@@ -1475,6 +1480,7 @@
 
                             <div class="actions-panel">
                                 <button class="btn btn-sm btn-soft-primary rounded-pill" onclick="abrirModalVer(@item.IdGuia)"><i class="fas fa-eye me-1"></i> Ver</button>
+                                <a class="btn btn-sm btn-outline-danger rounded-pill" href="/Logistica/DescargarGuiaPDF?id=@item.IdGuia" target="_blank" title="Imprimir reporte PDF"><i class="fas fa-file-pdf me-1"></i> PDF</a>
                                 <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="abrirModalEditar(@item.IdGuia)"><i class="fas fa-pen me-1"></i> Editar</button>
                                 <button class="btn btn-sm btn-soft-danger rounded-pill" onclick="abrirModalBorrar(@item.IdGuia)"><i class="fas fa-trash me-1"></i> Cancelar</button>
                             </div>
@@ -1535,6 +1541,7 @@
 
                                 <div class="actions-panel">
                                     <button class="btn btn-sm btn-soft-primary rounded-pill" onclick="verCambiosEdicionGuia(@item.IdGuia)"><i class="fas fa-code-compare me-1"></i> Comparar</button>
+                                    <a class="btn btn-sm btn-outline-danger rounded-pill" href="/Logistica/DescargarGuiaPDF?id=@item.IdGuia" target="_blank" title="Imprimir reporte PDF"><i class="fas fa-file-pdf me-1"></i> PDF</a>
                                     <button class="btn btn-sm btn-success rounded-pill" onclick="resolverEdicionGuia(@item.IdGuia, 'Aceptada')"><i class="fas fa-check me-1"></i> Aceptar</button>
                                     <button class="btn btn-sm btn-soft-danger rounded-pill" onclick="resolverEdicionGuia(@item.IdGuia, 'Rechazada')"><i class="fas fa-times me-1"></i> Rechazar</button>
                                 </div>
@@ -1586,6 +1593,7 @@
                                 </div>
 
                                 <div class="actions-panel">
+                                    <a class="btn btn-sm btn-outline-danger rounded-pill" href="/Logistica/DescargarGuiaPDF?id=@item.IdGuia" target="_blank" title="Imprimir reporte PDF"><i class="fas fa-file-pdf me-1"></i> PDF</a>
                                     <button class="btn btn-sm btn-soft-success rounded-pill" onclick="restaurarRegistroAjax(@item.IdGuia, 'Guia')"><i class="fas fa-undo me-1"></i> Restaurar</button>
                                     <button class="btn btn-sm btn-soft-danger rounded-pill" onclick="eliminarGuiaDefinitivo(@item.IdGuia)"><i class="fas fa-trash-alt me-1"></i> Eliminar definitivo</button>
                                 </div>
@@ -1600,10 +1608,48 @@
             }
         </div>
     }
+
+
+        <div id="seccionFormularios" data-section="seccionFormularios" class="section-shell mb-5 seccion-filtrable">
+            <div class="section-toolbar">
+                <h5 class="section-title-line" style="color:#0e7490;"><i class="fas fa-clipboard-list me-2"></i> Formularios de guías</h5>
+            </div>
+            <div class="p-3 p-md-4">
+                <div class="section-empty text-start" style="border-style: solid; background: linear-gradient(135deg, rgba(6,182,212,.08), rgba(255,255,255,.95));">
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <div class="metric-icon bg-info bg-opacity-10 text-info"><i class="fas fa-clipboard-check"></i></div>
+                        <div>
+                            <div class="fw-bold mb-1">Nuevo flujo sin modal</div>
+                            <div class="text-muted">El formulario hardcodeado de “Solicitud de guía” ya no se abre desde Nueva Guía. Aquí quedará el repositorio para seleccionar o crear formularios dinámicos.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="formulario-guide-board">
+                    <div class="formulario-guide-card">
+                        <div class="formulario-guide-icon"><i class="fas fa-list-check"></i></div>
+                        <div class="formulario-guide-title">Usar formulario existente</div>
+                        <p class="formulario-guide-text">Espacio reservado para listar formularios activos de guías y capturar una nueva solicitud desde ahí.</p>
+                        <button type="button" class="btn btn-outline-info btn-sm" disabled>
+                            Próximamente
+                        </button>
+                    </div>
+                    <div class="formulario-guide-card">
+                        <div class="formulario-guide-icon"><i class="fas fa-plus"></i></div>
+                        <div class="formulario-guide-title">Crear formulario</div>
+                        <p class="formulario-guide-text">Aquí conectaremos el creador de formularios para agregar campos nuevos sin tocar la vista principal.</p>
+                        <button type="button" class="btn btn-info text-white btn-sm" disabled>
+                            Próximamente
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
 </main>
 </div>
 
-<button class="btn-flotante" onclick="abrirModalCrear()"><i class="fas fa-paper-plane me-2"></i> Solicitar Guía</button>
+<button class="btn-flotante" onclick="mostrarSeccionGuias('seccionFormularios')"><i class="fas fa-paper-plane me-2"></i> Solicitar Guía</button>
 
 <div class="modal fade" id="modalGuia" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
@@ -1874,7 +1920,10 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4" id="contenidoDetalles"></div>
-            <div class="modal-footer bg-light">
+            <div class="modal-footer bg-light d-flex justify-content-between">
+                <a id="btnPdfGuiaDetalle" class="btn btn-danger rounded-pill px-4" target="_blank">
+                    <i class="fas fa-file-pdf me-1"></i> Abrir PDF
+                </a>
                 <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
@@ -2063,6 +2112,10 @@
                 link.classList.toggle('active', link.dataset.target === targetId);
             });
 
+            document.querySelectorAll('.guias-formularios-link').forEach(link => {
+                link.classList.toggle('active', link.dataset.target === targetId);
+            });
+
             const destino = document.getElementById(targetId);
             if (destino) destino.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
@@ -2214,12 +2267,9 @@
         }
 
         function abrirModalCrear() {
-            document.getElementById('formGuia').reset();
-            document.getElementById('IdGuia').value = '0';
-            restaurarBotonGuardar();
-            aplicarCondicionesGuia();
-            mostrarPaso('tab-general-guia');
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalGuia')).show();
+            // El alta de guías ya no debe abrir el modal anterior.
+            // Redirigimos al apartado donde se integrarán los formularios dinámicos.
+            mostrarSeccionGuias('seccionFormularios');
         }
 
         function abrirModalEditar(id) {
@@ -2272,6 +2322,11 @@
         }
 
         function abrirModalVer(id) {
+            const btnPdfDetalle = document.getElementById('btnPdfGuiaDetalle');
+            if (btnPdfDetalle) {
+                btnPdfDetalle.href = '/Logistica/DescargarGuiaPDF?id=' + id;
+            }
+
             $.get('/Logistica/ObtenerGuia/' + id, function (d) {
                 let frio = d.requiereCadenaFrio ? '<span class="badge bg-info">Sí</span>' : '<span class="badge bg-secondary">No</span>';
 

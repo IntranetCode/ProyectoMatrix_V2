@@ -15,7 +15,7 @@
     var esGuias = string.Equals(origenModuloSeguro, "Guias", StringComparison.OrdinalIgnoreCase)
         || string.Equals(origenModuloSeguro, "Guías", StringComparison.OrdinalIgnoreCase);
 
-    var volverUrl = esGuias ? "/Logistica/Guias" : "/Logistica/Transporte";
+    var volverUrl = $"/Logistica/Formularios/CentroFormularios?origenModulo={Uri.EscapeDataString(origenModuloSeguro)}";
     var urlActivas = $"/Logistica/Formularios?origenModulo={Uri.EscapeDataString(origenModuloSeguro)}";
     var urlDesactivadas = $"/Logistica/Formularios?origenModulo={Uri.EscapeDataString(origenModuloSeguro)}&estado=desactivadas";
 
@@ -83,16 +83,6 @@
             margin: 10px 0 0;
             color: rgba(255, 255, 255, .88);
             font-size: .95rem;
-        }
-
-        .formularios-hero-mark {
-            position: absolute;
-            right: 28px;
-            top: 22px;
-            width: 76px;
-            height: 76px;
-            border-radius: 22px;
-            background: rgba(255, 255, 255, .12);
         }
 
         .formularios-page-head {
@@ -341,6 +331,62 @@
             display: flex;
         }
 
+        .save-success-card {
+            width: min(420px, 92vw);
+            background: #ffffff;
+            border-radius: 22px;
+            padding: 34px 28px;
+            text-align: center;
+            box-shadow: 0 26px 70px rgba(15, 23, 42, .34);
+            transform: translateY(8px) scale(.96);
+            opacity: 0;
+            animation: saveSuccessEnter .28s ease forwards;
+        }
+
+        .save-success-icon {
+            width: 74px;
+            height: 74px;
+            margin: 0 auto 18px;
+            border-radius: 999px;
+            background: #dcfce7;
+            color: #16a34a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 900;
+            box-shadow: 0 12px 28px rgba(22, 163, 74, .18);
+            animation: saveCheckPop .42s ease .12s both;
+        }
+
+        .save-success-card h3 {
+            margin: 0;
+            font-size: 1.35rem;
+            font-weight: 900;
+            color: #0f172a;
+            letter-spacing: -.025em;
+        }
+
+        .save-success-card p {
+            margin: 8px 0 0;
+            color: #64748b;
+            font-size: .92rem;
+            line-height: 1.45;
+        }
+
+        @@keyframes saveSuccessEnter {
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        @@keyframes saveCheckPop {
+            0% { transform: scale(.55); opacity: 0; }
+            70% { transform: scale(1.08); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         .modal-card {
             width: min(1120px, 96vw);
             max-height: 90vh;
@@ -522,7 +568,6 @@
 
 <div class="formularios-page" id="inicioPagina">
     <section class="formularios-hero">
-        <div class="formularios-hero-mark"></div>
         <h1>Formularios de logística</h1>
         <p>Administra cuestionarios adicionales para Guías y Transporte.</p>
     </section>
@@ -690,6 +735,14 @@
     </div>
 </div>
 
+<div id="modalGuardadoExitoso" class="confirm-modal-backdrop" role="dialog" aria-modal="true">
+    <div class="save-success-card">
+        <div class="save-success-icon">✓</div>
+        <h3>Petición enviada</h3>
+        <p id="mensajeGuardadoExitoso">La solicitud se guardó correctamente y fue enviada a Logística.</p>
+    </div>
+</div>
+
 @if (esLogistica)
 {
     <div id="modalContenido" class="modal-backdrop-custom" role="dialog" aria-modal="true">
@@ -797,8 +850,26 @@
             }
         }
 
-        function formularioPeticionGuardada(mensaje) {
-            cerrarModalUsarFormulario(true);
+        function formularioPeticionGuardada(mensaje, redirectUrl) {
+            const frame = document.getElementById('modalUsarFrame');
+            const loading = document.getElementById('modalUsarLoading');
+            const modalExito = document.getElementById('modalGuardadoExitoso');
+            const mensajeExito = document.getElementById('mensajeGuardadoExitoso');
+
+            if (frame) {
+                frame.onload = null;
+                frame.style.display = 'none';
+                frame.src = 'about:blank';
+            }
+
+            if (loading) loading.style.display = 'none';
+            if (mensajeExito) mensajeExito.textContent = mensaje || 'La solicitud se guardó correctamente y fue enviada a Logística.';
+            if (modalExito) modalExito.classList.add('show');
+
+            setTimeout(function () {
+                const destino = redirectUrl || '@(esGuias ? "/Logistica/Guias" : "/Logistica/Transporte")';
+                window.location.href = destino;
+            }, 1150);
         }
 
         function formularioPeticionError(mensaje) {

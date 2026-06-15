@@ -207,7 +207,15 @@ namespace ProyectoMatrix.ViewModels.Formularios
 
         public string NombreFormulario { get; set; } = string.Empty;
 
+        public string? Descripcion { get; set; }
+
         public string? Categoria { get; set; }
+
+        public bool EsPlantillaBase { get; set; }
+
+        public string? DatosFijosPdfJson { get; set; }
+
+        public FormularioDatosOficialesViewModel DatosOficiales { get; set; } = new();
 
         public DateTime FechaRegistro { get; set; }
 
