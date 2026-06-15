@@ -3,10 +3,11 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using ProyectoMatrix.Areas.AdminUsuarios.DTOs;
 using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
-using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Models.ModelUsuarios;
 using ProyectoMatrix.Seguridad;
+using ProyectoMatrix.Servicios;
+using System.Net;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -14,13 +15,16 @@ namespace ProyectoMatrix.Controllers
     {
         private readonly IUsuarioService _usuarioService;
         private readonly ApplicationDbContext _context;
+        private readonly ServicioNotificaciones _servicioNotificaciones;
 
         public UsuariosController(
             IUsuarioService usuarioService,
-            ApplicationDbContext context)
+            ApplicationDbContext context,
+            ServicioNotificaciones servicioNotificaciones)
         {
             _usuarioService = usuarioService;
             _context = context;
+            _servicioNotificaciones = servicioNotificaciones;
         }
 
 
@@ -118,7 +122,34 @@ namespace ProyectoMatrix.Controllers
                 ViewBag.Departamentos = await ObtenerListaDepartamentosSQL(viewModel.DepartamentoID);
 
                 await _usuarioService.RegistrarAsync(nuevoUsuarioDto);
-                TempData["SuccessMessage"] = "Usuario creado exitosamente.";
+
+                var usuarioCreado = await _context.Usuarios
+                    .AsNoTracking()
+                    .Where(u => u.Username == viewModel.Username)
+                    .OrderByDescending(u => u.UsuarioID)
+                    .Select(u => new { u.UsuarioID })
+                    .FirstOrDefaultAsync();
+
+                var credencialesEnviadas = await EnviarCredenciales(
+                    usuarioCreado?.UsuarioID,
+                    viewModel.Nombre,
+                    viewModel.Username,
+                    viewModel.Password);
+
+                TempData["SuccessMessage"] = credencialesEnviadas
+                    ? "Usuario creado exitosamente. Las credenciales fueron enviadas al correo registrado."
+                    : "Usuario creado exitosamente. No se enviaron credenciales porque el usuario no tiene correo válido o el envío fue bloqueado por la configuración de notificaciones.";
+
+                if (EsPeticionAjax())
+                {
+                    return Json(new
+                    {
+                        ok = true,
+                        message = TempData["SuccessMessage"]?.ToString(),
+                        redirectUrl = Url.Action(nameof(Index), new { activos = true })
+                    });
+                }
+
                 return RedirectToAction(nameof(Index), new { activos = true });
             }
 
@@ -138,6 +169,9 @@ namespace ProyectoMatrix.Controllers
         {
             var usuarioDto = await _usuarioService.ObtenerParaEditarAsync(id);
             if (usuarioDto == null) return NotFound();
+
+            var departamentoIdActual = usuarioDto.DepartamentoID 
+                           ?? await ObtenerDepartamentoUsuarioAsync(id);
 
             string nombreJefe = "";
             string nombreDepto = "";
@@ -174,19 +208,20 @@ namespace ProyectoMatrix.Controllers
                                 Value = rd["DepartamentoID"].ToString(),
                                 Text = rd["NombreDepartamento"].ToString(),
                                 // Pre-selecciona el depto actual del usuario
-                                Selected = usuarioDto.DepartamentoID.HasValue && (int)rd["DepartamentoID"] == usuarioDto.DepartamentoID.Value
+                                Selected = departamentoIdActual.HasValue && 
+                                           (int)rd["DepartamentoID"] == departamentoIdActual.Value
                             });
                         }
                     }
                 }
 
                 // 3. Obtener nombre del Departamento actual (para el ViewModel)
-                if (usuarioDto.DepartamentoID.HasValue)
+                if (departamentoIdActual.HasValue)
                 {
                     var sqlDepto = "SELECT NombreDepartamento FROM Departamentos WHERE DepartamentoID = @id";
                     using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(sqlDepto, conn))
                     {
-                        cmd.Parameters.AddWithValue("@id", usuarioDto.DepartamentoID);
+                        cmd.Parameters.AddWithValue("@id", departamentoIdActual.Value);
                         nombreDepto = (await cmd.ExecuteScalarAsync())?.ToString() ?? "";
                     }
                 }
@@ -194,6 +229,8 @@ namespace ProyectoMatrix.Controllers
 
             ViewBag.Departamentos = listaDeptos;
             ViewBag.Empresas = new SelectList(_context.Empresas, "EmpresaID", "Nombre", usuarioDto.EmpresasIDs);
+
+            ViewBag.Departamentos = await ObtenerListaDepartamentosSQL(departamentoIdActual);
 
             var viewModel = new UsuarioFormViewModel
             {
@@ -216,10 +253,10 @@ namespace ProyectoMatrix.Controllers
                 FechaNacimiento = usuarioDto.FechaNacimiento,
                 JefeInmediatoPersonaID = usuarioDto.JefeInmediatoPersonaID,
                 JefeInmediatoNombreCompleto = nombreJefe,
-                DepartamentoID = usuarioDto.DepartamentoID,
+                DepartamentoID = departamentoIdActual,
                 NombreDepartamento = nombreDepto
             };
-            // --- LÓGICA DE OVERRIDES (NO TOCADA) ---
+            // --- LÓGICA DE OVERRIDES ---
             List<OverrideItemDto> overridesItems;
             try
             {
@@ -317,7 +354,36 @@ namespace ProyectoMatrix.Controllers
                 };
 
                 await _usuarioService.ActualizarAsync(usuarioEditadoDto);
-                TempData["SuccessMessage"] = "Usuario actualizado correctamente.";
+                
+                var empresaIdParaDepartamento = viewModel.EmpresasIDs?.FirstOrDefault();
+
+                await GuardarDepartamentoUsuarioAsync(
+                    viewModel.UsuarioID!.Value,
+                    viewModel.DepartamentoID,
+                    empresaIdParaDepartamento.HasValue && empresaIdParaDepartamento.Value > 0
+                        ? empresaIdParaDepartamento.Value
+                        : null
+                );
+
+                if (!viewModel.Activo)
+                {
+                    await OcultarContenidoAsignadoAsync(viewModel.UsuarioID!.Value);
+                }
+
+                TempData["SuccessMessage"] = viewModel.Activo
+                    ? "Usuario actualizado correctamente."
+                    : "Usuario actualizado correctamente. Al quedar desactivado, se ocultó su contenido asignado.";
+
+                if (EsPeticionAjax())
+                {
+                    return Json(new
+                    {
+                        ok = true,
+                        message = TempData["SuccessMessage"]?.ToString(),
+                        redirectUrl = Url.Action(nameof(Index), routeValues)
+                    });
+                }
+
                 return RedirectToAction(nameof(Index), routeValues);
             }
 
@@ -332,8 +398,15 @@ namespace ProyectoMatrix.Controllers
             ViewBag.OverrideGrupos = new List<OverridesVm>();
             ViewBag.Overrides = new List<OverrideItemDto>();
 
+            if (EsPeticionAjax())
+            {
+                Response.StatusCode = 400;
+            }
+
             return PartialView("_UsuarioForm", viewModel);
         }
+
+
 
         // POST: /Usuarios/Eliminar/5
         [HttpPost]
@@ -349,6 +422,7 @@ namespace ProyectoMatrix.Controllers
             };
 
             await _usuarioService.DarDeBajaAsync(id);
+            await OcultarContenidoAsignadoAsync(id);
             TempData["SuccessMessage"] = "Usuario dado de baja correctamente.";
             return RedirectToAction(nameof(Index), routeValues);
         }
@@ -365,8 +439,12 @@ namespace ProyectoMatrix.Controllers
         }
 
         [AcceptVerbs("GET", "POST")]
-        public async Task<IActionResult> VerificarCorreo(string correo, int? usuarioID)
+        public async Task<IActionResult> VerificarCorreo(string? correo, int? usuarioID)
         {
+            if (string.IsNullOrWhiteSpace(correo)) return Json(true);
+
+            correo = correo.Trim();
+
             var query = _context.Personas.AsQueryable();
             if (usuarioID.HasValue)
             {
@@ -403,8 +481,7 @@ namespace ProyectoMatrix.Controllers
 
             // Detectar AJAX de forma robusta
             bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest"
-                          || Request.Headers.Accept.ToString().Contains("application/json")
-                          || Request.ContentType?.Contains("application/x-www-form-urlencoded") == true;
+                          || Request.Headers.Accept.ToString().Contains("application/json");
 
             System.Diagnostics.Debug.WriteLine($"🔵 Es AJAX: {isAjax}");
             System.Diagnostics.Debug.WriteLine($"🔵 Headers: X-Requested-With={Request.Headers["X-Requested-With"]}, Accept={Request.Headers.Accept}");
@@ -620,6 +697,117 @@ namespace ProyectoMatrix.Controllers
             return lista;
         }
 
+        private bool EsPeticionAjax()
+        {
+            return Request.Headers["X-Requested-With"] == "XMLHttpRequest"
+                   || Request.Headers.Accept.ToString().Contains("application/json");
+        }
+
+        private async Task<bool> EnviarCredenciales(int? usuarioId, string? nombre, string? username, string? password)
+        {
+            if (!usuarioId.HasValue
+                || string.IsNullOrWhiteSpace(username)
+                || string.IsNullOrWhiteSpace(password))
+            {
+                return false;
+            }
+
+            var nombreSeguro = WebUtility.HtmlEncode(nombre ?? "");
+            var usernameSeguro = WebUtility.HtmlEncode(username);
+            var passwordSeguro = WebUtility.HtmlEncode(password);
+
+            const string asunto = "Credenciales de acceso a la intranet";
+            var html = $@"
+<h2>Bienvenido(a) a la intranet</h2>
+<p>Hola {nombreSeguro},</p>
+<p>Tu usuario fue dado de alta en la intranet.</p>
+<table style=""border-collapse:collapse; margin:12px 0;"">
+    <tr>
+        <td style=""padding:6px 10px; font-weight:bold;"">Usuario:</td>
+        <td style=""padding:6px 10px;"">{usernameSeguro}</td>
+    </tr>
+    <tr>
+        <td style=""padding:6px 10px; font-weight:bold;"">Contraseña:</td>
+        <td style=""padding:6px 10px;"">{passwordSeguro}</td>
+    </tr>
+</table>
+<p>Por seguridad, cambia tu contraseña después del primer inicio de sesión.</p>
+<p>Saludos.</p>";
+
+            try
+            {
+                var resultado = await _servicioNotificaciones.EnviarCursosAUsuariosAsync(
+                    new[] { usuarioId.Value },
+                    asunto,
+                    html,
+                    batchSize: 1);
+
+                return resultado.Enviados > 0 && resultado.Errores == 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"No se pudieron enviar credenciales al usuario: {ex.Message}");
+                return false;
+            }
+        }
+
+        private async Task<int?> ObtenerDepartamentoUsuarioAsync(int usuarioId)
+        {
+            string cnn = _context.Database.GetConnectionString();
+
+            await using var conn = new Microsoft.Data.SqlClient.SqlConnection(cnn);
+            await conn.OpenAsync();
+
+            const string sql = @"
+                SELECT TOP 1 ed.DepartamentoID
+                FROM EmpleadoDepartamentos ed
+                WHERE ed.UsuarioID = @UsuarioID
+                AND ed.Activo = 1
+                ORDER BY ed.FechaAsignacion DESC, ed.EmpleadoDepartamentoID DESC";
+
+            await using var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+            var result = await cmd.ExecuteScalarAsync();
+
+            if (result == null || result == DBNull.Value)
+                return null;
+
+            return Convert.ToInt32(result);
+        }
+
+        private async Task OcultarContenidoAsignadoAsync(int usuarioId)
+        {
+            var menus = await _usuarioService.ObtenerMenusConSubMenusAsync();
+            var denegaciones = menus
+                .SelectMany(menu => menu.SubMenus)
+                .Select(subMenu => new OverrideItemDto
+                {
+                    SubMenuID = subMenu.SubMenuID,
+                    Estado = 0
+                })
+                .ToList();
+
+            if (denegaciones.Any())
+            {
+                await _usuarioService.GuardarOverridesAsync(usuarioId, null, denegaciones);
+            }
+
+            InvalidarCacheMenuSiAplica(usuarioId);
+        }
+
+        private void InvalidarCacheMenuSiAplica(int usuarioId)
+        {
+            HttpContext.Session.Remove("MenuItems");
+            HttpContext.Session.Remove("MenuUsuario");
+
+            var usuarioActualId = HttpContext.Session.GetInt32("UsuarioID");
+            if (usuarioActualId.HasValue && usuarioActualId.Value == usuarioId)
+            {
+                TempData["RefreshMenu"] = "true";
+            }
+        }
+
         // ✅ AGREGAR ESTE MÉTODO AUXILIAR
         private async Task<List<MenuModel>> ObtenerMenuActualizadoAsync(int usuarioId, int? empresaId)
         {
@@ -660,8 +848,116 @@ ORDER BY m.MenuID;";
 
             return lista;
         }
+
+        private async Task GuardarDepartamentoUsuarioAsync(int usuarioId, int? departamentoId, int? empresaId)
+        {
+            if (!departamentoId.HasValue)
+                return;
+
+            string cnn = _context.Database.GetConnectionString();
+
+            await using var conn = new Microsoft.Data.SqlClient.SqlConnection(cnn);
+            await conn.OpenAsync();
+
+            await using var tran = await conn.BeginTransactionAsync();
+
+            try
+            {
+                int? empleadoDepartamentoId = null;
+
+                const string sqlRegistroActivo = @"
+                    SELECT TOP 1 EmpleadoDepartamentoID
+                    FROM EmpleadoDepartamentos
+                    WHERE UsuarioID = @UsuarioID
+                    AND Activo = 1
+                    ORDER BY FechaAsignacion DESC, EmpleadoDepartamentoID DESC";
+
+                await using (var cmdActivo = new Microsoft.Data.SqlClient.SqlCommand(
+                    sqlRegistroActivo,
+                    conn,
+                    (Microsoft.Data.SqlClient.SqlTransaction)tran))
+                {
+                    cmdActivo.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+                    var result = await cmdActivo.ExecuteScalarAsync();
+
+                    if (result != null && result != DBNull.Value)
+                        empleadoDepartamentoId = Convert.ToInt32(result);
+                }
+
+                if (empleadoDepartamentoId.HasValue)
+                {
+                    const string sqlUpdate = @"
+                        UPDATE EmpleadoDepartamentos
+                        SET DepartamentoID = @DepartamentoID,
+                            EmpresaID = COALESCE(@EmpresaID, EmpresaID),
+                            FechaAsignacion = GETDATE()
+                        WHERE EmpleadoDepartamentoID = @EmpleadoDepartamentoID";
+
+                    await using var cmdUpdate = new Microsoft.Data.SqlClient.SqlCommand(
+                        sqlUpdate,
+                        conn,
+                        (Microsoft.Data.SqlClient.SqlTransaction)tran);
+
+                    cmdUpdate.Parameters.AddWithValue("@EmpleadoDepartamentoID", empleadoDepartamentoId.Value);
+                    cmdUpdate.Parameters.AddWithValue("@DepartamentoID", departamentoId.Value);
+                    cmdUpdate.Parameters.AddWithValue("@EmpresaID", empresaId.HasValue && empresaId.Value > 0
+                        ? empresaId.Value
+                        : DBNull.Value);
+
+                    await cmdUpdate.ExecuteNonQueryAsync();
+                }
+                else
+                {
+                    if (!empresaId.HasValue || empresaId.Value <= 0)
+                        throw new InvalidOperationException("No se pudo determinar la empresa para guardar el departamento.");
+
+                    const string sqlInsert = @"
+                        INSERT INTO EmpleadoDepartamentos
+                            (UsuarioID, EmpresaID, DepartamentoID, Activo, FechaAsignacion)
+                        VALUES
+                            (@UsuarioID, @EmpresaID, @DepartamentoID, 1, GETDATE())";
+
+                    await using var cmdInsert = new Microsoft.Data.SqlClient.SqlCommand(
+                        sqlInsert,
+                        conn,
+                        (Microsoft.Data.SqlClient.SqlTransaction)tran);
+
+                    cmdInsert.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                    cmdInsert.Parameters.AddWithValue("@EmpresaID", empresaId.Value);
+                    cmdInsert.Parameters.AddWithValue("@DepartamentoID", departamentoId.Value);
+
+                    await cmdInsert.ExecuteNonQueryAsync();
+                }
+
+                await tran.CommitAsync();
+            }
+            catch
+            {
+                await tran.RollbackAsync();
+                throw;
+            }
+        } 
+
+        private string ResolverTipoAgregacionDefault(string? tipoCaptura, bool esLinea)
+        {
+            if (esLinea)
+                return "ValorFijo";
+
+            if (!string.IsNullOrWhiteSpace(tipoCaptura) &&
+                tipoCaptura.Equals("Fijo", StringComparison.OrdinalIgnoreCase))
+                return "ValorFijo";
+
+            return "Promedio";
+        }
+
+        private bool VariablePerteneceAMetrica(CatMetricas metrica, int? variableId)
+        {
+            if (!variableId.HasValue || variableId.Value <= 0)
+                return false;
+
+            return metrica.VariablesConfiguradas.Any(v => v.VariableID == variableId.Value);
+        }
+
     }
-
-
-
-    }
+}

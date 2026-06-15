@@ -24,6 +24,9 @@ namespace ProyectoMatrix.Models
         public decimal? ValorFijo { get; set; }
         
         public string Formula { get; set; }
+        
+        //Nuevo campo para definir el tipo de agregación (SUM, AVG, etc.) para variables calculadas
+        public string? TipoAgregacion { get; set; }
 
         // Navegación hacia la métrica "padre" a la que pertenece esta variable
         [ForeignKey("MetricaID")]
