@@ -1,7 +1,7 @@
 ﻿@model ProyectoMatrix.Models.DictamenPresupuestalVm
 
 @{
-    ViewData["Title"] = "Detalle de Solicitud";
+    ViewData["Title"] = "Dictamen Presupuestal";
     Layout = "_LayoutComunicados";
 
 }
@@ -23,7 +23,7 @@
             <div class="card border-left-info shadow mb-4">
                 <div class="card-header">
                     <h6 class="m-0 font-weight-bold text-info">
-                        Cotización seleccionada por el solicitante
+                        Cotización seleccionada 
                     </h6>
                 </div>
                 <div class="card-body">
@@ -47,6 +47,160 @@
                 </div>
             </div>
 
+
+            <div class="card shadow mb-4 border-left-warning">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning">
+                        <i class="fas fa-coins mr-2"></i>
+                        Presupuesto declarado por el solicitante
+                    </h6>
+                </div>
+
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 border-right">
+                            <label class="small font-weight-bold text-muted text-uppercase d-block">
+                                Presupuesto solicitado
+                            </label>
+
+                            <span class="h5 font-weight-bold text-gray-800">
+                                @(Model.MontoPresupuestoSolicitado.HasValue
+                                                                ? Model.MontoPresupuestoSolicitado.Value.ToString("C")
+                                                                : "No capturado")
+                            </span>
+                        </div>
+
+                        <div class="col-md-4 border-right">
+                            <label class="small font-weight-bold text-muted text-uppercase d-block">
+                                Cotización dictaminada
+                            </label>
+
+                            <span class="h5 font-weight-bold text-gray-800">
+                                @Model.MontoCotizado.ToString("C")
+                            </span>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="small font-weight-bold text-muted text-uppercase d-block">
+                                Diferencia
+                            </label>
+
+                            @{
+                                decimal presupuesto = Model.MontoPresupuestoSolicitado ?? 0;
+                                decimal diferencia = Model.MontoCotizado - presupuesto;
+                            }
+
+                            @if (Model.MontoPresupuestoSolicitado.HasValue)
+                            {
+                                <span class="h5 font-weight-bold @(diferencia > 0 ? "text-danger" : "text-success")">
+                                    @diferencia.ToString("C")
+                                </span>
+
+                                <small class="d-block text-muted">
+                                    @(diferencia > 0
+                                                                    ? "La cotización supera el presupuesto declarado."
+                                                                    : "La cotización está dentro del presupuesto declarado.")
+                            </small>
+                                                        }
+                            else
+                            {
+                                <span class="text-muted">No disponible</span>
+                            }
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <label class="small font-weight-bold text-muted text-uppercase d-block">
+                                Estatus presupuestal inicial
+                            </label>
+
+                            @if (Model.FueraPresupuestoUsuario)
+                            {
+                                <span class="badge badge-warning">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                                    Fuera de presupuesto
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-success">
+                                    <i class="fas fa-check-circle mr-1"></i>
+                                    Dentro de presupuesto
+                                </span>
+                            }
+                        </div>
+
+                        <div class="col-md-6">
+                            @if (Model.FueraPresupuestoUsuario)
+                            {
+                                if (!string.IsNullOrWhiteSpace(Model.ArchivoDesviacionPath))
+                                {
+                                    <button type="button"
+                                            class="btn btn-outline-warning btn-sm btn-block btn-ver-archivo"
+                                            data-ruta="@Model.ArchivoDesviacionPath"
+                                            data-titulo="Desviación firmada - @Model.Folio">
+                                        <i class="fas fa-eye mr-1"></i>
+                                        Ver archivo de desviación
+                                    </button>
+                                }
+                                else
+                                {
+                                    <div class="alert alert-danger mb-0">
+                                        <i class="fas fa-exclamation-circle mr-1"></i>
+                                        Esta solicitud fue marcada como fuera de presupuesto, pero no tiene archivo de desviación.
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="alert alert-success mb-0">
+                                    <i class="fas fa-check-circle mr-1"></i>
+                                    El usuario declaró que esta compra está dentro de presupuesto.
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow mb-4 border-left-info">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="fas fa-file-excel mr-2"></i>
+                        Formato de requisición
+                    </h6>
+                </div>
+
+                <div class="card-body">
+                    @if (!string.IsNullOrWhiteSpace(Model.ArchivoFormatoRequisicionPath))
+                    {
+                        <p class="mb-2">
+                            <strong>Archivo:</strong>
+                            <span class="text-muted">
+                                @Model.NombreArchivoFormatoRequisicion
+                            </span>
+                        </p>
+
+                        <button type="button"
+                                class="btn btn-outline-primary btn-sm btn-ver-archivo"
+                                data-ruta="@Model.ArchivoFormatoRequisicionPath"
+                                data-titulo="Formato de requisición - @Model.Folio">
+                            <i class="fas fa-eye mr-1"></i>
+                            Ver formato de requisición
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="alert alert-light border mb-0">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            No se cargó formato de requisición para esta solicitud.
+                        </div>
+                    }
+                </div>
+            </div>
 
             <form asp-action="ProcesarDictamen" method="post">
                 <input type="hidden" asp-for="SolicitudID" />
@@ -72,14 +226,16 @@
                         </div>
                     </div>
 
+                    <div class="form-group">
+                        <label class="font-weight-bold">Estatus Presupuestal</label>
+                        <select asp-for="DentroDePresupuesto" class="form-control">
+                            <option value="true">Dentro del Presupuesto</option>
+                            <option value="false">Fuera de Presupuesto (Desviación)</option>
+                        </select>
+                    </div>
+
                     <div id="seccionRequisicion" style="display:none;">
-                        <div class="form-group">
-                            <label class="font-weight-bold">Estatus Presupuestal</label>
-                            <select asp-for="DentroDePresupuesto" class="form-control">
-                                <option value="true">Dentro del Presupuesto</option>
-                                <option value="false">Fuera de Presupuesto (Desviación)</option>
-                            </select>
-                        </div>
+                        
                         <div class="form-group">
                             <label class="font-weight-bold">ID de Requisición</label>
                             <input asp-for="NumeroRequisicion" class="form-control" placeholder="Ingrese ID de Requi..." />
@@ -93,7 +249,51 @@
                         <textarea asp-for="Observaciones" class="form-control" rows="3"></textarea>
                     </div>
                 </div>
+                <hr />
 
+                <div class="card shadow-sm mb-4 border-left-warning">
+                    <div class="card-body">
+                        <h6 class="font-weight-bold text-warning">
+                            <i class="fas fa-folder-open mr-1"></i>
+                            ¿Falta documentación?
+                        </h6>
+
+                        <p class="text-muted mb-3">
+                            Usa esta opción si necesitas que el solicitante cargue o corrija documentos antes de dictaminar.
+                        </p>
+
+                        <button type="button"
+                                class="btn btn-warning btn-block"
+                                id="btnMostrarSolicitarDocumentos">
+                            <i class="fas fa-file-upload mr-1"></i>
+                            Solicitar documentos al usuario
+                        </button>
+
+                        <div id="seccionSolicitarDocumentos" style="display:none;" class="mt-3">
+                            <form asp-action="SolicitarDocumentosPresupuesto" method="post">
+                                @Html.AntiForgeryToken()
+
+                                <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
+
+                                <div class="form-group">
+                                    <label class="font-weight-bold text-warning">
+                                        Indica qué documento falta o qué debe corregirse
+                                    </label>
+
+                                    <textarea name="observaciones"
+                                              class="form-control"
+                                              rows="3"
+                                              required
+                                              placeholder="Ej. Favor de cargar la desviación firmada / formato de requisición correcto / documento actualizado."></textarea>
+                                </div>
+
+                                <button type="submit" class="btn btn-warning btn-block">
+                                    Enviar solicitud de documentos
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
                 <hr />
                 <button type="submit" class="btn btn-success btn-block">Aplicar Dictamen Final</button>
             </form>
@@ -162,27 +362,48 @@
             }
 
             const titulo = $(this).attr('data-titulo') || 'Cotización';
-            const url = '@Url.Action("VerPdfNas", "Compras")' + '?ruta=' + encodeURIComponent(ruta);
+            const url = '@Url.Action("VerArchivoNas", "Compras")' + '?ruta=' + encodeURIComponent(ruta);
 
             const body = document.getElementById("modalArchivoBody");
             document.getElementById("modalArchivoTitulo").innerText = titulo;
 
             const rutaLower = ruta.toLowerCase();
 
-            const esImagen =
-                rutaLower.endsWith(".jpg") ||
-                rutaLower.endsWith(".jpeg") ||
-                rutaLower.endsWith(".png") ||
-                rutaLower.endsWith(".webp");
+           const esImagen =
+            rutaLower.endsWith(".jpg") ||
+            rutaLower.endsWith(".jpeg") ||
+            rutaLower.endsWith(".png") ||
+            rutaLower.endsWith(".webp");
 
-            if (esImagen) {
+        const esExcel =
+            rutaLower.endsWith(".xlsx") ||
+            rutaLower.endsWith(".xls");
+
+        if (esImagen) {
                 body.innerHTML = `
                     <div class="d-flex justify-content-center align-items-center h-100 bg-light">
                         <img src="${url}"
                              class="img-fluid"
                              style="max-height:100%; max-width:100%; object-fit:contain;" />
                     </div>`;
-            } else {
+            }
+                    else if (esExcel) {
+            body.innerHTML = `
+                <div class="d-flex flex-column justify-content-center align-items-center h-100 bg-light text-center p-4">
+                    <i class="fas fa-file-excel fa-4x text-success mb-3"></i>
+                    <h5>El archivo de Excel no se puede previsualizar aquí.</h5>
+                    <p class="text-muted mb-3">
+                        Descárgalo para revisarlo.
+                    </p>
+                    <a href="${url}"
+                       class="btn btn-success"
+                       target="_blank">
+                        Descargar Excel
+                    </a>
+                </div>`;
+        }
+            
+            else {
                 body.innerHTML = `
                     <iframe src="${url}#toolbar=0"
                             width="100%"
@@ -194,6 +415,11 @@
             $('#modalArchivo').modal('show');
         });
         });
+
+                $('#btnMostrarSolicitarDocumentos').on('click', function () {
+            $('#seccionSolicitarDocumentos').stop(true, true).slideToggle();
+        });
+
     </script>
 }
 
@@ -368,7 +594,7 @@
 
    
 
-    @@media(max - width:768px) {
+    @@media (max - width:768px) {
         .btn-group-toggle .btn
 
     {
@@ -381,4 +607,52 @@
     }
 
     }
+
+    .border-left-warning {
+        border-left: 5px solid #f97316 !important;
+    }
+
+    .border-left-info {
+        border-left: 5px solid #0891b2 !important;
+    }
+
+    .text-warning {
+        color: #f97316 !important;
+    }
+
+    .text-gray-800 {
+        color: #0f172a !important;
+    }
+
+    .badge {
+        padding: 0.55rem 0.85rem;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: 0.72rem;
+    }
+
+    .badge-warning {
+        background: #f59e0b !important;
+        color: #ffffff !important;
+    }
+
+    .badge-success {
+        background: #16a34a !important;
+        color: #ffffff !important;
+    }
+
+    .btn-outline-warning {
+        color: #f97316;
+        border-color: #fed7aa;
+        background: #fff7ed;
+        font-weight: 700;
+        border-radius: 10px;
+    }
+
+        .btn-outline-warning:hover {
+            background: #f97316;
+            color: #ffffff;
+            border-color: #f97316;
+        }
+
 </style>

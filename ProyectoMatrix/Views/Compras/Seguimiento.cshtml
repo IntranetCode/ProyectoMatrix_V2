@@ -18,11 +18,30 @@
     Volver
 </a>
 
-<div class="container-fluid mt-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="fw-bold">Seguimiento de Compras</h2>
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="fw-bold">Seguimiento de Compras</h2>
+    <div class="d-flex gap-2">
+        <button type="button"
+                class="btn btn-outline-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#modalCargaCompradores">
+            <i class="fas fa-chart-bar me-1"></i>
+            Carga por comprador
+        </button>
+
+        <a class="btn btn-success"
+           href="@Url.Action("ExportarSeguimientoExcel", "Compras", new {
+                estatus = Context.Request.Query["estatus"].ToString(),
+                departamento = Context.Request.Query["departamento"].ToString(),
+                comprador = Context.Request.Query["comprador"].ToString(),
+                soloRetrasadas = Context.Request.Query["soloRetrasadas"].ToString()
+           })">
+            <i class="fas fa-file-excel me-1"></i>
+            Exportar Excel
+        </a>
     </div>
+</div>
 
     <!-- KPIs -->
     <div class="row mb-4">
@@ -75,18 +94,21 @@
                     <div class="col-md-3 mb-2">
                         <label class="form-label fw-bold">Estatus</label>
 
-                        <select name="estatus" class="form-select">
-                            <option value="">Todos</option>
-                            <option value="1">Solicitado</option>
-                            <option value="2">Cotizado</option>
-                            <option value="3">Presupuesto</option>
-                            <option value="4">OC Generada</option>
-                            <option value="5">OC Enviada</option>
-                            <option value="6">Almacén</option>
-                            <option value="8">Pendiente CxP</option>
-                            <option value="10">Cerrada</option>
-                            <option value="11">Rechazada CxP</option>
-                        </select>
+                       <select name="estatus" class="form-select">
+    <option value="">Todos</option>
+    <option value="1">Solicitada / Pendiente de cotización</option>
+    <option value="2">Cotizaciones cargadas</option>
+    <option value="3">Pendiente documentación usuario</option>
+    <option value="4">En Control Presupuestal</option>
+    <option value="5">Autorizada para O.C.</option>
+    <option value="6">O.C. generada</option>
+    <option value="7">O.C. enviada al proveedor</option>
+    <option value="8">Pendiente recepción almacén</option>
+    <option value="9">Pendiente entrega usuario</option>
+    <option value="10">Cerrada</option>
+    <option value="11">Rechazada por Control Presupuestal</option>
+    <option value="12">Cancelada</option>
+</select>
                     </div>
 
                     <div class="col-md-3 mb-2">
@@ -232,10 +254,10 @@
                                             data-comprador="@(string.IsNullOrWhiteSpace(item.CompradorAsignado) ? "Sin asignar" : item.CompradorAsignado)"
                                             data-compras="@item.DiasCompras"
                                             data-presupuesto="@item.DiasPresupuesto"
-             
+             data-oc="@item.DiasOC"
                                             data-proveedor="@item.DiasProveedor"
                                             data-almacen="@item.DiasAlmacen"
-                                            data-cxp="@item.DiasCxP">
+                                            >
                                         Ver detalles
                                     </button>
 
@@ -262,7 +284,90 @@
 
 </div>
 
-<!-- MODAL ÚNICO -->
+<!-- MODAL de carga por comprador y el de seguimiento -->
+
+<div class="modal fade"
+     id="modalCargaCompradores"
+     tabindex="-1"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    Solicitudes atendidas por comprador
+                </h5>
+
+                <button type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal">
+                </button>
+            </div>
+
+            <div class="modal-body">
+
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Mes</label>
+                        <select id="filtroMesCarga" class="form-select">
+                            <option value="1">Enero</option>
+                            <option value="2">Febrero</option>
+                            <option value="3">Marzo</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Mayo</option>
+                            <option value="6">Junio</option>
+                            <option value="7">Julio</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Septiembre</option>
+                            <option value="10">Octubre</option>
+                            <option value="11">Noviembre</option>
+                            <option value="12">Diciembre</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Año</label>
+                        <select id="filtroAnioCarga" class="form-select">
+                            @for (int anio = DateTime.Now.Year; anio >= DateTime.Now.Year - 3; anio--)
+                            {
+                                <option value="@anio">@anio</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button"
+                                class="btn btn-primary w-100"
+                                id="btnConsultarCarga">
+                            Consultar
+                        </button>
+                    </div>
+                </div>
+
+                <div id="resumenCargaCompradores" class="alert alert-info d-none"></div>
+
+                <div id="graficaCargaCompradores" class="carga-chart"></div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">
+                    Cerrar
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
 <div class="modal fade"
      id="modalDetalleSeguimiento"
      tabindex="-1"
@@ -336,12 +441,7 @@
                         <tr>
                             <td>Recepción en almacén</td>
                             <td id="mdAlmacen"></td>
-                        </tr>
-
-                        <tr>
-                            <td>Cuentas por Pagar</td>
-                            <td id="mdCxP"></td>
-                        </tr>
+                        </tr>                       
 
                     </tbody>
 
@@ -384,7 +484,7 @@
                     const oc = parseInt(btn.dataset.oc || '0');
                     const proveedor = parseInt(btn.dataset.proveedor || '0');
                     const almacen = parseInt(btn.dataset.almacen || '0');
-                    const cxp = parseInt(btn.dataset.cxp || '0');
+                    
 
                     document.getElementById('mdFolio').innerText =
                         btn.dataset.folio || '';
@@ -410,17 +510,106 @@
                     document.getElementById('mdAlmacen').innerText =
                         almacen;
 
-                    document.getElementById('mdCxP').innerText =
-                        cxp;
-
+                    
                     document.getElementById('mdTotal').innerText =
-                        compras + presupuesto + oc + proveedor + almacen + cxp;
+                        compras + presupuesto + oc + proveedor + almacen ;
 
                 });
 
             });
 
         });
+
+        const modalCarga = document.getElementById('modalCargaCompradores');
+const btnConsultarCarga = document.getElementById('btnConsultarCarga');
+
+if (modalCarga) {
+    modalCarga.addEventListener('shown.bs.modal', function () {
+        const hoy = new Date();
+
+        document.getElementById('filtroMesCarga').value = hoy.getMonth() + 1;
+        document.getElementById('filtroAnioCarga').value = hoy.getFullYear();
+
+        cargarGraficaCompradores();
+    });
+}
+
+if (btnConsultarCarga) {
+    btnConsultarCarga.addEventListener('click', function () {
+        cargarGraficaCompradores();
+    });
+}
+
+function cargarGraficaCompradores() {
+    const mes = document.getElementById('filtroMesCarga').value;
+    const anio = document.getElementById('filtroAnioCarga').value;
+
+    const contenedor = document.getElementById('graficaCargaCompradores');
+    const resumen = document.getElementById('resumenCargaCompradores');
+
+    contenedor.innerHTML = '<div class="text-muted">Cargando información...</div>';
+    resumen.classList.add('d-none');
+
+    fetch(`@Url.Action("CargaCompradoresSeguimiento", "Compras")?anio=${anio}&mes=${mes}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('No se pudo obtener la información.');
+            }
+
+            return response.json();
+        })
+        .then(data => {
+            contenedor.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                contenedor.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        No hay solicitudes atendidas en el mes seleccionado.
+                    </div>`;
+                return;
+            }
+
+            const totalAtendidas = data.reduce((sum, x) => sum + x.atendidas, 0);
+            const max = Math.max(...data.map(x => x.atendidas));
+
+            resumen.classList.remove('d-none');
+            resumen.innerHTML = `
+                <strong>Total atendidas:</strong> ${totalAtendidas}
+                &nbsp; | &nbsp;
+                <strong>Compradores:</strong> ${data.length}
+            `;
+
+            data.forEach(item => {
+                const porcentaje = max === 0 ? 0 : Math.round((item.atendidas * 100) / max);
+
+                const row = document.createElement('div');
+                row.className = 'carga-row';
+
+                row.innerHTML = `
+                    <div class="carga-info">
+                        <strong>${item.comprador}</strong>
+                        <small>
+                            Atendidas: ${item.atendidas}
+                        </small>
+                    </div>
+
+                    <div class="carga-bar-wrap">
+                        <div class="carga-bar" style="width:${porcentaje}%">
+                            <span>${item.atendidas}</span>
+                        </div>
+                    </div>
+                `;
+
+                contenedor.appendChild(row);
+            });
+        })
+        .catch(error => {
+            contenedor.innerHTML = `
+                <div class="alert alert-danger">
+                    ${error.message}
+                </div>`;
+        });
+}
     </script>
 
 }
@@ -800,5 +989,58 @@
         .seguimiento-table-container::-webkit-scrollbar-track {
             background: #f1f5f9;
         }
+
+
+.carga-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.carga-row {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 1rem;
+    align-items: center;
+}
+
+.carga-info strong {
+    display: block;
+    color: #0f172a;
+    font-weight: 800;
+}
+
+.carga-info small {
+    color: #64748b;
+    font-weight: 600;
+}
+
+.carga-bar-wrap {
+    background: #e2e8f0;
+    border-radius: 999px;
+    height: 34px;
+    overflow: hidden;
+}
+
+.carga-bar {
+    height: 100%;
+    min-width: 42px;
+    background: linear-gradient(135deg, #2563eb, #0891b2);
+    color: white;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 12px;
+    font-weight: 800;
+    transition: width .3s ease;
+}
+
+@@media (max-width: 768px) {
+    .carga-row {
+        grid-template-columns: 1fr;
+        gap: .4rem;
+    }
+}
 
 </style>

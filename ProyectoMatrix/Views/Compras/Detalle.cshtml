@@ -4,15 +4,17 @@
     ViewData["Title"] = "Detalle de Solicitud";
     Layout = "_LayoutComunicados";
 
-    bool esRechazada = Model.EstatusID == 9;
-    bool rechazadaCxP = Model.EstatusID == 11;
+    bool esRechazada = Model.EstatusID == 11;
+    bool esCancelada = Model.EstatusID == 12;
     bool cerradaAdministrativamente = Model.EstatusID == 10;
-    bool pendienteCxP = Model.EstatusID == 8;
 
-    bool puedeRegistrarOC = Model.EsCompras   && Model.EstatusID == 4    && Model.CotizacionSeleccionadaID.HasValue    && !Model.TieneOC    && !esRechazada;
-    bool puedeEnviarProveedor =   Model.EsCompras    && Model.EstatusID == 4    && Model.TieneOC    && !Model.OCEnviadaProveedor    && !esRechazada;
-  
-    bool puedeEntregarUsuario =    Model.EsCompras    && Model.EstatusID == 6    && Model.RecibidaEnAlmacen    && !Model.EntregadaUsuario    && !esRechazada;
+    bool puedeRegistrarOC =        Model.EsCompras        && Model.EstatusID == 5        && Model.CotizacionSeleccionadaID.HasValue        && !Model.TieneOC        && !esRechazada        && !esCancelada;
+
+    bool puedeEnviarProveedor =        Model.EsCompras        && Model.EstatusID == 6        && Model.TieneOC        && !Model.OCEnviadaProveedor        && !esRechazada        && !esCancelada;
+
+    bool puedeEntregarUsuario =        Model.EsCompras        && Model.EstatusID == 9        && !Model.EntregadaUsuario        && !esRechazada       && !esCancelada;
+
+    bool puedeConfirmarDocumentacion =        Model.EsSolicitante        && Model.EstatusID == 3        && Model.CotizacionSeleccionadaID.HasValue;
 
     string badgeEstatus = Model.EstatusID switch
     {
@@ -24,9 +26,10 @@
         6 => "badge-info",
         7 => "badge-info",
         8 => "badge-warning",
-        9 => "badge-danger",
+        9 => "badge-warning",
         10 => "badge-success",
         11 => "badge-danger",
+        12 => "badge-dark",
         _ => "badge-secondary"
     };
 
@@ -106,6 +109,93 @@
                         </div>
                     </div>
 
+
+                        <div class="card border-left-warning mb-4">
+                            <div class="card-header py-2">
+                                <h6 class="m-0 font-weight-bold text-warning">
+                                    <i class="fas fa-coins mr-2"></i>
+                                    Presupuesto declarado por el solicitante
+                                </h6>
+                            </div>
+
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6 border-right">
+                                        <label class="small font-weight-bold text-muted uppercase d-block">
+                                            Monto presupuesto solicitado
+                                        </label>
+
+                                        <span class="h5 font-weight-bold text-gray-800">
+                                            @(Model.MontoPresupuestoSolicitado.HasValue
+                                                                                        ? Model.MontoPresupuestoSolicitado.Value.ToString("C")
+                                                                                        : "No capturado")
+                                        </span>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="small font-weight-bold text-muted uppercase d-block">
+                                            Estatus presupuestal inicial
+                                        </label>
+
+                                        @if (Model.FueraPresupuestoUsuario)
+                                        {
+                                            <span class="badge badge-warning">
+                                                <i class="fas fa-exclamation-triangle mr-1"></i>
+                                                Fuera de presupuesto
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-success">
+                                                <i class="fas fa-check-circle mr-1"></i>
+                                                Dentro de presupuesto
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+
+                                @if (Model.FueraPresupuestoUsuario)
+                                {
+                                    <hr />
+
+                                    @if (Model.PuedeVerArchivoDesviacion)
+                                    {
+                                        <div class="alert alert-warning mb-3">
+                                            <i class="fas fa-file-signature mr-1"></i>
+                                            Esta solicitud fue marcada como fuera de presupuesto y cuenta con archivo de desviación.
+                                        </div>
+
+                                        @if (!string.IsNullOrWhiteSpace(Model.ArchivoDesviacionPath))
+                                        {
+                                            <button type="button"
+                                                    class="btn btn-outline-warning btn-sm btn-block btn-ver-archivo"
+                                                    data-ruta="@Model.ArchivoDesviacionPath"
+                                                    data-titulo="Desviación firmada - @Model.Folio">
+                                                <i class="fas fa-eye mr-1"></i>
+                                                Ver archivo de desviación
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <div class="alert alert-danger mb-0">
+                                                <i class="fas fa-exclamation-circle mr-1"></i>
+                                                No se encontró archivo de desviación cargado.
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="alert alert-warning mb-0">
+                                            <i class="fas fa-file-signature mr-1"></i>
+                                            El usuario cargó una desviación para revisión de Control Presupuestal.
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+
+
                         @if (!string.IsNullOrEmpty(Model.ArchivoReferenciaPath))
                         {
                             bool esImagenReferencia =
@@ -127,7 +217,7 @@
                                     @if (esImagenReferencia)
                                     {
                                         <div class="text-center">
-                                            <img src="@Url.Action("VerPdfNas", new { ruta = Model.ArchivoReferenciaPath })"
+                                            <img src="@Url.Action("VerArchivoNas", new { ruta = Model.ArchivoReferenciaPath })"
                                                  class="img-fluid rounded border"
                                                  style="max-height:350px;" />
                                         </div>
@@ -137,7 +227,7 @@
                                         <div class="border rounded bg-light"
                                              style="height:400px; overflow:hidden;">
 
-                                            <iframe src="@Url.Action("VerPdfNas", new { ruta = Model.ArchivoReferenciaPath })#toolbar=0"
+                                            <iframe src="@Url.Action("VerArchivoNas", new { ruta = Model.ArchivoReferenciaPath })#toolbar=0"
                                                     width="100%"
                                                     height="100%"
                                                     style="border:none;">
@@ -164,30 +254,62 @@
 
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm" width="100%">
-                            <thead class="bg-gray-100 italic">
-                                <tr>
-                                    <th>Descripción</th>
-                                    <th class="text-center" style="width: 15%">Cant.</th>
-                                    <th class="text-center" style="width: 20%">U.M.</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var mat in Model.Materiales)
-                                {
+                                <thead class="bg-gray-100 italic">
                                     <tr>
-                                        <td>@mat.Nombre</td>
-                                        <td class="text-center">@mat.Cantidad</td>
-                                        <td class="text-center">@mat.UnidadMedida</td>
+                                        <th>Producto</th>
+                                        <th>Descripción</th>
+                                        <th class="text-center" style="width: 12%">Cant.</th>
+                                        <th class="text-center" style="width: 15%">U.M.</th>
+                                        <th class="text-center" style="width: 18%">Referencia</th>
                                     </tr>
-                                }
-                            </tbody>
+                                </thead>
+
+                                <tbody>
+                                    @foreach (var mat in Model.Materiales)
+                                    {
+                                        <tr>
+                                            <td class="font-weight-bold text-gray-800">
+                                                @mat.Nombre
+                                            </td>
+
+                                            <td>
+                                                @(string.IsNullOrWhiteSpace(mat.Descripcion) ? "Sin descripción" : mat.Descripcion)
+                                            </td>
+
+                                            <td class="text-center">
+                                                @mat.Cantidad
+                                            </td>
+
+                                            <td class="text-center">
+                                                @mat.UnidadMedida
+                                            </td>
+
+                                            <td class="text-center">
+                                                @if (!string.IsNullOrWhiteSpace(mat.ArchivoReferenciaPath))
+                                                {
+                                                    <button type="button"
+                                                            class="btn btn-outline-primary btn-sm btn-ver-archivo"
+                                                            data-ruta="@mat.ArchivoReferenciaPath"
+                                                            data-titulo="Referencia - @mat.Nombre">
+                                                        <i class="fas fa-eye mr-1"></i>
+                                                        Ver
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted small">Sin archivo</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
                 @if (
-                                (Model.EstatusID >= 4 || Model.EstatusID == 9)
+                                (Model.EstatusID >= 5 || Model.EstatusID == 11 || Model.EstatusID == 12)
                                 && !string.IsNullOrWhiteSpace(Model.TipoGasto)
                                 && Model.DentroPresupuesto.HasValue
                                 )
@@ -239,27 +361,56 @@
                         @if (!string.IsNullOrEmpty(Model.ObservacionesPresupuesto))
                         {
                             <div class="mt-3 p-2 bg-light border-left-info rounded text-sm">
-                                <small class="font-weight-bold text-info">Notas de Finanzas:</small>
+                                    <small class="font-weight-bold text-info">Notas de Control Presupuestal:</small>
                                 <p class="mb-0 italic">"@Model.ObservacionesPresupuesto"</p>
                             </div>
                         }
                     </div>
+                        @if (!string.IsNullOrWhiteSpace(Model.ArchivoFormatoRequisicionPath))
+                        {
+                            <div class="alert alert-light border mt-2">
+                                <strong>Formato de requisición:</strong><br />
+
+                                <a class="btn btn-sm btn-outline-primary mt-2"
+                                   asp-action="VerArchivoNas"
+                                   asp-route-ruta="@Model.ArchivoFormatoRequisicionPath"
+                                   target="_blank">
+                                    Ver archivo
+                                </a>
+
+                                <span class="text-muted ms-2">
+                                    @Model.NombreArchivoFormatoRequisicion
+                                </span>
+                            </div>
+                        }
                 </div>
             }
 
-            @if (esRechazada)
-            {
-                <div class="card shadow mb-4 border-left-danger">
-                    <div class="card-body text-center">
-                        <h5 class="text-danger font-weight-bold">
-                            <i class="fas fa-ban mr-2"></i>SOLICITUD RECHAZADA
-                        </h5>
-                        <p class="text-muted italic mb-0">Motivo: @Model.ObservacionesPresupuesto</p>
+                @if (esRechazada)
+                {
+                    <div class="card shadow mb-4 border-left-danger">
+                        <div class="card-body text-center">
+                            <h5 class="text-danger font-weight-bold">
+                                <i class="fas fa-ban mr-2"></i>
+                                SOLICITUD RECHAZADA POR CONTROL PRESUPUESTAL
+                            </h5>
+                            <p class="text-muted italic mb-0">Motivo: @Model.ObservacionesPresupuesto</p>
+                        </div>
                     </div>
-                </div>
-            }
+                }
+                @if (esCancelada)
+                {
+                    <div class="card shadow mb-4 border-left-secondary">
+                        <div class="card-body text-center">
+                            <h5 class="text-muted font-weight-bold">
+                                <i class="fas fa-times-circle mr-2"></i>
+                                SOLICITUD CANCELADA
+                            </h5>
+                        </div>
+                    </div>
+                }
 
-            @if (Model.EsCompras && !esRechazada)
+                @if (!esRechazada && !esCancelada)
             {
                 <div class="card shadow mb-4 border-left-primary">
                     <div class="card-header py-3 bg-info text-white">
@@ -296,9 +447,9 @@
                                     }
                                 </div>
                             }
-                            else
-                            {
-                                <form asp-action="RegistrarOC" method="post">
+                                else if (Model.EsCompras)
+                                {
+                                    <form asp-action="RegistrarOC" method="post">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
 
@@ -307,10 +458,10 @@
                                         <input type="text" name="numeroOC" class="form-control" required @(puedeRegistrarOC ? "" : "disabled") />
                                     </div>
 
-                                    <div class="form-group">
-                                        <label class="small font-weight-bold">Proveedor</label>
-                                        <input type="text" name="proveedor" class="form-control" @(puedeRegistrarOC ? "" : "disabled") />
-                                    </div>
+                                        <div class="alert alert-light border">
+                                            <i class="fas fa-info-circle mr-1"></i>
+                                            El proveedor se tomará automáticamente de la cotización dictaminada.
+                                        </div>
 
                                     <div class="form-group">
                                         <label class="small font-weight-bold">Comentarios</label>
@@ -328,7 +479,16 @@
                                         </small>
                                     }
                                 </form>
+
+
                             }
+                                else
+                                {
+                                    <div class="alert alert-light border mb-0">
+                                        <i class="fas fa-clock mr-1"></i>
+                                        La Orden de Compra aún no ha sido registrada por Compras.
+                                    </div>
+                                }
                         </div>
 
                         <hr />
@@ -351,9 +511,9 @@
                                     <strong>Entrega estimada:</strong> @Model.FechaEstimadaEntrega?.ToString("dd/MM/yyyy")
                                 </div>
                             }
-                            else
-                            {
-                                <form asp-action="EnviarOCProveedor" method="post">
+                                else if (Model.EsCompras)
+                                {
+                                    <form asp-action="EnviarOCProveedor" method="post">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
 
@@ -372,6 +532,13 @@
                                     </button>
                                 </form>
                             }
+                                else
+                                {
+                                    <div class="alert alert-light border mb-0">
+                                        <i class="fas fa-clock mr-1"></i>
+                                        La Orden de Compra aún no ha sido enviada al proveedor.
+                                    </div>
+                                }
                         </div>
 
                         <hr />
@@ -391,15 +558,58 @@
 
                                 @if (Model.RecibidaEnAlmacen)
                                 {
-                                    <div class="alert alert-info mb-0">
-                                        <strong>Material recibido en almacén</strong><br />
-                                        <strong>Fecha:</strong> @Model.FechaRecepcionAlmacen?.ToString("dd/MM/yyyy HH:mm")<br />
-                                        <strong>Comentarios:</strong>
-                                        @(string.IsNullOrWhiteSpace(Model.ComentariosRecepcionAlmacen)
-                                                                        ? "Sin comentarios"
-                                                                        : Model.ComentariosRecepcionAlmacen)
-                            </div>
-                                                        }
+                                    <div class="card border-left-success mb-4">
+                                       
+
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <label class="small font-weight-bold text-muted uppercase d-block">
+                                                        Fecha de recepción
+                                                    </label>
+
+                                                    <span class="h6 font-weight-bold text-gray-800">
+                                                        @(Model.FechaRecepcionAlmacen.HasValue
+                                                                                                        ? Model.FechaRecepcionAlmacen.Value.ToString("dd/MM/yyyy HH:mm")
+                                                                                                        : "No registrada")
+                                                                                                                      </span>
+                                                                                                                  </div>
+
+                                                <div class="col-md-6">
+                                                    <label class="small font-weight-bold text-muted uppercase d-block">
+                                                        Comentarios
+                                                    </label>
+
+                                                    <span class="text-gray-800">
+                                                        @(string.IsNullOrWhiteSpace(Model.ComentariosRecepcionAlmacen)
+                                                                                                        ? "Sin comentarios"
+                                                                                                        : Model.ComentariosRecepcionAlmacen)
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                            <hr />
+
+                                    @if (!string.IsNullOrWhiteSpace(Model.EvidenciaRecepcionPath))
+                                            {
+                                                <button type="button"
+                                                        class="btn btn-outline-success btn-sm btn-block btn-ver-archivo"
+                                                        data-ruta="@Model.EvidenciaRecepcionPath"
+                                                        data-titulo="Evidencia de recepción - @Model.Folio">
+                                                    <i class="fas fa-eye mr-1"></i>
+                                                    Ver evidencia de recepción
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <div class="alert alert-warning mb-0">
+                                                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                                                    La recepción fue registrada sin evidencia adjunta.
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
                                 else
                                 {
                                     <div class="alert alert-light border mb-0">
@@ -423,15 +633,15 @@
                             @if (Model.EntregadaUsuario)
                             {
                                 <div class="alert alert-success mb-0">
-                                    <strong>Entregada al usuario - Pendiente de Cuentas por Pagar</strong><br />
+                                        <strong>Entregada al usuario - Solicitud cerrada</strong><br />
                                     <strong>Fecha entrega:</strong> @Model.FechaEntregaUsuario?.ToString("dd/MM/yyyy HH:mm")<br />
                                     <strong>Recibió:</strong> @Model.NombreRecibeUsuario<br />
                                     <strong>Comentarios:</strong> @(string.IsNullOrEmpty(Model.ComentariosEntregaUsuario) ? "Sin comentarios" : Model.ComentariosEntregaUsuario)
                                 </div>
                             }
-                            else
-                            {
-                                <form asp-action="RegistrarEntregaUsuario" method="post">
+                                else if (Model.EsCompras)
+                                {
+                                    <form asp-action="RegistrarEntregaUsuario" method="post" enctype="multipart/form-data">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
 
@@ -445,11 +655,47 @@
                                         <textarea name="comentarios" class="form-control" rows="2" @(puedeEntregarUsuario ? "" : "disabled")></textarea>
                                     </div>
 
+                                        @if (!string.IsNullOrWhiteSpace(Model.EvidenciaEntregaPath))
+                                        {
+                                            <hr />
+
+                                            <button type="button"
+                                                    class="btn btn-outline-success btn-sm btn-block btn-ver-archivo"
+                                                    data-ruta="@Model.EvidenciaEntregaPath"
+                                                    data-titulo="Evidencia de entrega - @Model.Folio">
+                                                <i class="fas fa-eye mr-1"></i>
+                                                Ver evidencia de entrega
+                                            </button>
+                                        }
+
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">
+                                                Evidencia de entrega al usuario
+                                            </label>
+
+                                            <input type="file"
+                                                   name="evidenciaEntrega"
+                                                   class="form-control-file"
+                                                   accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                                   required @(puedeEntregarUsuario ? "" : "disabled") />
+
+                                            <small class="form-text text-muted">
+                                                Adjunta evidencia firmada, foto o documento de entrega.
+                                            </small>
+                                        </div>
+
                                     <button type="submit" class="btn btn-success btn-block shadow" @(puedeEntregarUsuario ? "" : "disabled")>
-                                        <i class="fas fa-check-circle mr-2"></i>Entregar y enviar a CxP
+                                        <i class="fas fa-check-circle mr-2"></i>Entregar y cerrar solicitud
                                     </button>
                                 </form>
                             }
+                                else
+                                {
+                                    <div class="alert alert-light border mb-0">
+                                        <i class="fas fa-clock mr-1"></i>
+                                        La entrega al usuario aún no ha sido registrada por Compras.
+                                    </div>
+                                }
                         </div>
 
                     </div>
@@ -461,7 +707,7 @@
             <div class="card shadow mb-4 border-left-primary">
                 <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-file-invoice-dollar mr-2"></i>Cotización Registrada
+                            <i class="fas fa-file-invoice-dollar mr-2"></i>Cotizaciones registradas
                     </h6>
                 </div>
 
@@ -476,7 +722,7 @@
                             cot.Extension == ".png" ||
                             cot.Extension == ".webp";
 
-                            <div class="card border mb-3 @(cot.EsRecomendada ? "border-success shadow" : "")">
+                                <div class="card border mb-3 @(cot.FueSeleccionadaPorUsuario ? "border-success shadow" : "")">
 
                                 
 
@@ -489,18 +735,14 @@
                                             @cot.Proveedor
                                         </h6>
 
-                                        @if (cot.EsRecomendada)
-                                        {
-                                            <span class="badge badge-success">
-                                                Recomendada
-                                            </span>
-                                        }
+                                       
+
 
                                         @if (cot.FueSeleccionadaPorUsuario)
                                         {
-                                            <span class="badge badge-primary">
-                                                Seleccionada por solicitante
-                                            </span>
+                                                <span class="badge badge-primary">
+                                                    Dictaminada por Compras
+                                                </span>
                                         }
                                     </div>
 
@@ -514,7 +756,7 @@
                                     {
                                         <div class="alert alert-primary mt-2 mb-2">
                                             <i class="fas fa-check-circle mr-1"></i>
-                                            Esta cotización fue seleccionada por el solicitante.
+                                                Esta cotización fue dictaminada por Compras para proceder.
                                         </div>
                                     }
 
@@ -534,7 +776,7 @@
                                     @if (esImagen)
                                     {
                                         <div class="text-center mb-3">
-                                            <img src="@Url.Action("VerPdfNas", new { ruta = cot.ArchivoPath })"
+                                                <img src="@Url.Action("VerArchivoNas", new { ruta = cot.ArchivoPath })"
                                                  class="img-fluid rounded border"
                                                  style="max-height:350px;" />
                                         </div>
@@ -544,7 +786,7 @@
                                         <div class="border rounded bg-light mb-3"
                                              style="height:400px; overflow:hidden;">
 
-                                            <iframe src="@Url.Action("VerPdfNas", new { ruta = cot.ArchivoPath })#toolbar=0"
+                                                <iframe src="@Url.Action("VerArchivoNas", new { ruta = cot.ArchivoPath })#toolbar=0"
                                                     width="100%"
                                                     height="100%"
                                                     style="border:none;">
@@ -560,38 +802,120 @@
                                             Ver archivo
                                         </button>
 
-                                    @if (Model.EsSolicitante
-                                                                && Model.EstatusID == 2
-                                                                && Model.CotizacionSeleccionadaID == null)
-                                    {
-                                        <form asp-action="SeleccionarCotizacion"
-                                              method="post"
-                                              class="mt-2">
+                                        @if (Model.EsCompras
+                                                                        && (Model.EstatusID == 2 || Model.EstatusID == 3)
+                                                                        && (!Model.CotizacionSeleccionadaID.HasValue
+                                                                        || Model.CotizacionSeleccionadaID.Value != cot.CotizacionID))
+                                        {
+                                            <form asp-action="SeleccionarCotizacion"
+                                                  method="post"
+                                                  class="mt-2">
 
-                                            @Html.AntiForgeryToken()
+                                                @Html.AntiForgeryToken()
 
-                                            <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
-                                            <input type="hidden" name="cotizacionId" value="@cot.CotizacionID" />
+                                                <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
+                                                <input type="hidden" name="cotizacionId" value="@cot.CotizacionID" />
 
-                                            <div class="form-group">
-                                                <textarea name="comentarios"
-                                              class="form-control"
-                                              rows="2"
-                                              placeholder="Comentario opcional sobre tu selección"></textarea>
-                                            </div>
+                                                <div class="form-group">
+                                                    <textarea name="comentarios"
+                                                  class="form-control"
+                                                  rows="2"
+                                                  placeholder="Comentario de Compras"></textarea>
+                                                </div>
+
+                                                @if (Model.CotizacionSeleccionadaID.HasValue)
+                                                {
+                                                    <div class="form-group">
+                                                        <textarea name="motivoCambio"
+                                                  class="form-control"
+                                                  rows="2"
+                                                  required
+                                                  placeholder="Motivo obligatorio del cambio de cotización"></textarea>
+                                                    </div>
+                                                }
 
                                             <button type="submit"
                                                     class="btn btn-success btn-sm btn-block">
-                                                Elegir esta cotización
-                                            </button>
-                                        </form>
-                                    }
+                                                @(Model.CotizacionSeleccionadaID.HasValue
+                                                                                        ? "Cambiar a esta cotización"
+                                                                                        : "Dictaminar esta cotización")
+                                    </button>
+                                </form>
+                                                                
+                                                                }
 
+  
                                 </div>
                             </div>
                         }
                     }
-                   
+                        @if (puedeConfirmarDocumentacion)
+                        {
+                            <div class="card shadow mb-4 border-left-warning">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-warning">
+                                        <i class="fas fa-folder-open mr-2"></i>
+                                        Documentación presupuestal pendiente
+                                    </h6>
+                                </div>
+
+                                <div class="card-body">
+                                    <div class="alert alert-info">
+                                        <strong>Revisa la cotización seleccionada por Compras.</strong><br />
+                                        Si la compra está fuera de presupuesto, asegúrate de cargar la desviación.
+                                        Si será requisición, más adelante se deberá adjuntar el formato correspondiente.
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(Model.ObservacionesPresupuesto))
+                                    {
+                                        <div class="alert alert-warning">
+                                            <strong>Control Presupuestal solicita documentación:</strong><br />
+                                            @Model.ObservacionesPresupuesto
+                                        </div>
+                                    }
+
+                                    <form asp-action="ConfirmarDocumentacionPresupuestal" method="post" enctype="multipart/form-data">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
+
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">
+                                                Desviación presupuestal
+                                            </label>
+
+                                            <input type="file"
+                                                   name="archivoDesviacion"
+                                                   class="form-control-file"
+                                                   accept=".pdf,.jpg,.jpeg,.png,.webp" />
+
+                                            <small class="form-text text-muted">
+                                                Adjunta desviación si la compra está fuera de presupuesto.
+                                            </small>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">
+                                                Formato de requisición
+                                            </label>
+
+                                            <input type="file"
+                                                   name="archivoFormatoRequisicion"
+                                                   class="form-control-file"
+                                                   accept=".xlsx,.xls,.pdf" />
+
+                                            <small class="form-text text-muted">
+                                                Adjunta el Excel o PDF del formato de requisición si aplica.
+                                            </small>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary btn-block shadow">
+                                            <i class="fas fa-paper-plane mr-2"></i>
+                                            Confirmar documentación y enviar a Control Presupuestal
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
 
                     else if (Model.EsCompras && Model.EstatusID == 1)
                     {
@@ -648,25 +972,15 @@
                                            accept=".pdf,.jpg,.jpeg,.png,.webp"
                                            @(i == 1 ? "required" : "") />
 
-                                    <div class="form-check">
-                                        <input class="form-check-input"
-                                               type="radio"
-                                               name="CotizacionRecomendada"
-                                               value="@i"
-                                               @(i == 1 ? "checked" : "") />
-
-                                        <label class="form-check-label">
-                                            Recomendada por compras
-                                        </label>
-                                    </div>
+                                   
 
                                 </div>
                             }
 
                             <div class="form-group">
-                                <label class="small font-weight-bold">
-                                    Comentarios de recomendación
-                                </label>
+                                    <label class="small font-weight-bold">
+                                        Comentarios generales de compras
+                                    </label>
 
                                 <textarea name="ComentariosCompras"
                                       class="form-control"
@@ -676,7 +990,7 @@
                             <button type="submit"
                                     class="btn btn-success btn-block shadow">
 
-                                Procesar Cotizaciones
+                                    Guardar cotizaciones
                             </button>
                         </form>
                     }
@@ -747,32 +1061,54 @@
                         const ruta = this.dataset.ruta;
                         const titulo = this.dataset.titulo || "Archivo";
 
-                        const url = '@Url.Action("VerPdfNas", "Compras")' + '?ruta=' + encodeURIComponent(ruta);
+                        const url = '@Url.Action("VerArchivoNas", "Compras")' + '?ruta=' + encodeURIComponent(ruta);
                         const body = document.getElementById("modalArchivoBody");
 
                         document.getElementById("modalArchivoTitulo").innerText = titulo;
 
-                        const esImagen =
-                            ruta.toLowerCase().endsWith(".jpg") ||
-                            ruta.toLowerCase().endsWith(".jpeg") ||
-                            ruta.toLowerCase().endsWith(".png") ||
-                            ruta.toLowerCase().endsWith(".webp");
+                                    const rutaLower = ruta.toLowerCase();
 
-                        if (esImagen) {
-                            body.innerHTML = `
-                                <div class="d-flex justify-content-center align-items-center h-100 bg-light">
-                                    <img src="${url}"
-                                         class="img-fluid"
-                                         style="max-height:100%; max-width:100%; object-fit:contain;" />
-                                </div>`;
-                        } else {
-                            body.innerHTML = `
-                                <iframe src="${url}#toolbar=0"
-                                        width="100%"
-                                        height="100%"
-                                        style="border:none;">
-                                </iframe>`;
-                        }
+            const esImagen =
+                rutaLower.endsWith(".jpg") ||
+                rutaLower.endsWith(".jpeg") ||
+                rutaLower.endsWith(".png") ||
+                rutaLower.endsWith(".webp");
+
+            const esExcel =
+                rutaLower.endsWith(".xlsx") ||
+                rutaLower.endsWith(".xls");
+
+                       if (esImagen) {
+                body.innerHTML = `
+                    <div class="d-flex justify-content-center align-items-center h-100 bg-light">
+                        <img src="${url}"
+                             class="img-fluid"
+                             style="max-height:100%; max-width:100%; object-fit:contain;" />
+                    </div>`;
+            }
+            else if (esExcel) {
+                body.innerHTML = `
+                    <div class="d-flex flex-column justify-content-center align-items-center h-100 bg-light text-center p-4">
+                        <i class="fas fa-file-excel fa-4x text-success mb-3"></i>
+                        <h5>El archivo de Excel no se puede previsualizar aquí.</h5>
+                        <p class="text-muted mb-3">
+                            Descárgalo para revisarlo.
+                        </p>
+                        <a href="${url}"
+                           class="btn btn-success"
+                           target="_blank">
+                            Descargar Excel
+                        </a>
+                    </div>`;
+            }
+            else {
+                body.innerHTML = `
+                    <iframe src="${url}#toolbar=0"
+                            width="100%"
+                            height="100%"
+                            style="border:none;">
+                    </iframe>`;
+            }
 
                         const modal = new bootstrap.Modal(document.getElementById("modalArchivo"));
                         modal.show();
@@ -999,7 +1335,9 @@
             border-left: 5px solid #dc2626 !important;
         }
 
-       
+        .border-left-warning {
+            border-left: 5px solid #f97316 !important;
+        }
 
         .table {
             margin-bottom: 0;

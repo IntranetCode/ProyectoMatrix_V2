@@ -20,16 +20,28 @@
         // Solo para Internacional
         public int? TransporteID { get; set; }
 
+        public decimal? MontoPresupuestoSolicitado { get; set; }
+
+        public bool FueraPresupuestoUsuario { get; set; }
+
+        public IFormFile? ArchivoDesviacion { get; set; }
+
         // Listado de materiales (puedes llenarlo con JavaScript en el front)
         public List<MaterialItem> Materiales { get; set; } = new List<MaterialItem>();
     }
 
     public class MaterialItem
     {
-        public string Nombre { get; set; }
+        public string? Nombre { get; set; }
         public string? Descripcion { get; set; }
         public decimal Cantidad { get; set; }
-        public string UnidadMedida { get; set; }
+        public string? UnidadMedida { get; set; }
+
+        public IFormFile? ArchivoReferencia { get; set; }
+
+        public string? ArchivoReferenciaPath { get; set; }
+        public string? NombreArchivoReferencia { get; set; }
+        public string? ExtensionArchivoReferencia { get; set; }
     }
 
     public class MisComprasVm
@@ -149,6 +161,19 @@
         public string? NombreArchivoOriginal { get; set; }
         public string? Extension { get; set; }
 
+        public decimal? MontoPresupuestoSolicitado { get; set; }
+
+        public bool FueraPresupuestoUsuario { get; set; }
+
+        public string? ArchivoDesviacionPath { get; set; }
+
+        public string? NombreArchivoDesviacion { get; set; }
+
+        public string? ExtensionArchivoDesviacion { get; set; }
+
+        public string? ArchivoFormatoRequisicionPath { get; set; }
+        public string? NombreArchivoFormatoRequisicion { get; set; }
+        public string? ExtensionArchivoFormatoRequisicion { get; set; }
     }
 
     public class DetalleCompraVm
@@ -239,7 +264,39 @@
             _ => "bg-primary"
         };
 
+
+        public decimal? MontoPresupuestoSolicitado { get; set; }
+
+        public bool FueraPresupuestoUsuario { get; set; }
+
+        public string? ArchivoDesviacionPath { get; set; }
+
+        public string? NombreArchivoDesviacion { get; set; }
+
+        public string? ExtensionArchivoDesviacion { get; set; }
+
+        public bool PuedeVerArchivoDesviacion { get; set; }
+
+
+        public string? EvidenciaRecepcionPath { get; set; }
+
+        public string? NombreArchivoEvidencia { get; set; }
+
+        public string? ExtensionArchivoEvidencia { get; set; }
+
+        public bool TieneEvidenciaRecepcion =>
+    !string.IsNullOrWhiteSpace(EvidenciaRecepcionPath);
+
+        public string? EvidenciaEntregaPath { get; set; }
+        public string? NombreArchivoEvidenciaEntrega { get; set; }
+        public string? ExtensionArchivoEvidenciaEntrega { get; set; }
+
         public List<CotizacionDetalleVm> Cotizaciones { get; set; } = new();
+
+        public string? ArchivoFormatoRequisicionPath { get; set; }
+        public string? NombreArchivoFormatoRequisicion { get; set; }
+        public string? ExtensionArchivoFormatoRequisicion { get; set; }
+
 
     }
 
@@ -446,7 +503,7 @@
         public int DiasOC { get; set; }
         public int DiasProveedor { get; set; }
         public int DiasAlmacen { get; set; }
-        public int DiasCxP { get; set; }
+        
 
     }
 

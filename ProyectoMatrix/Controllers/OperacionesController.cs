@@ -24,40 +24,1507 @@ namespace ProyectoMatrix.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<OperacionesController> _logger;
-        private readonly IConfiguration _configuration; 
+        private readonly IConfiguration _configuration;
+
         private List<int>? _misPermisosCache;
+
         private const int PermisoHistorial = 33;
         private const int PermisoConfigurar = 31;
         private const int PermisoGestor = 32;
         private const int PermisoCapturar = 34;
 
-        public OperacionesController(ILogger<OperacionesController> logger, ApplicationDbContext context, IConfiguration configuration)
+        public OperacionesController(
+            ApplicationDbContext context,
+            ILogger<OperacionesController> logger,
+            IConfiguration configuration)
         {
-            _logger = logger;
             _context = context;
+            _logger = logger;
             _configuration = configuration;
         }
 
-        #region 1. TABLERO Y GRÁFICAS (DASHBOARD)
+        #region DASHBOARD - VISTAS
+
         [HttpGet("")]
         [HttpGet("Index")]
-        public IActionResult Index()
+        public IActionResult Index(
+            int? idDepartamento = null,
+            string filtroTiempo = "anio",
+            int? mes = null,
+            int? semana = null,
+            string? dia = null)
         {
             int usuarioId = ObtenerUsuarioIdActual();
+
             if (usuarioId == 0)
                 return RedirectToAction("Login", "Login");
-
-            CargarPermisosViewBag();
 
             Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
             Response.Headers["Pragma"] = "no-cache";
             Response.Headers["Expires"] = "0";
 
+            var permisos = CargarPermisosSubMenuUsuario();
+            ViewBag.MisPermisos = permisos;
+
+            var departamentos = ConstruirDepartamentosDashboard(idDepartamento, filtroTiempo, mes, semana, dia);
+
+            var dashboard = idDepartamento.HasValue && idDepartamento.Value > 0
+                ? ConstruirDashboardDepartamento(idDepartamento.Value, filtroTiempo, mes, semana, dia)
+                : ConstruirDashboardGeneral(filtroTiempo, mes, semana, dia);
+
+            var vm = new OperacionesIndexVm
+            {
+                PuedeCapturar = permisos.Contains(PermisoCapturar) || permisos.Contains(PermisoConfigurar) || permisos.Contains(PermisoGestor),
+                PuedeConfigurar = permisos.Contains(PermisoConfigurar) || permisos.Contains(PermisoGestor),
+                PuedeVerHistorial = permisos.Contains(PermisoHistorial),
+                PuedeGestionarTodosDepartamentos = true,
+                DepartamentoSeleccionadoID = idDepartamento,
+                FiltroTiempo = NormalizarFiltroTiempo(filtroTiempo),
+                Mes = mes,
+                Semana = semana,
+                Dia = dia,
+                Departamentos = departamentos,
+                Dashboard = dashboard
+            };
+
+            return View(vm);
+        }
+
+        #endregion
+
+        #region DASHBOARD - JSON
+
+        [HttpGet("ObtenerDashboardGeneral")]
+        public IActionResult ObtenerDashboardGeneral(
+            string filtroTiempo = "anio",
+            int? mes = null,
+            int? semana = null,
+            string? dia = null)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+                return Json(new { ok = false, mensaje = "Sesión expirada." });
+
+            var dashboard = ConstruirDashboardGeneral(filtroTiempo, mes, semana, dia);
+
+            return Json(new
+            {
+                ok = true,
+                dashboard
+            });
+        }
+
+        [HttpGet("ObtenerDashboardDepartamento")]
+        public IActionResult ObtenerDashboardDepartamento(
+            int idDepartamento,
+            string filtroTiempo = "anio",
+            int? mes = null,
+            int? semana = null,
+            string? dia = null)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+                return Json(new { ok = false, mensaje = "Sesión expirada." });
+
+            if (idDepartamento <= 0)
+                return Json(new { ok = false, mensaje = "Selecciona un departamento válido." });
+
+            var dashboard = ConstruirDashboardDepartamento(idDepartamento, filtroTiempo, mes, semana, dia);
+
+            return Json(new
+            {
+                ok = true,
+                dashboard
+            });
+        }
+
+        [HttpGet("ObtenerDepartamentosDashboard")]
+        public IActionResult ObtenerDepartamentosDashboard(
+            int? idDepartamento = null,
+            string filtroTiempo = "anio",
+            int? mes = null,
+            int? semana = null,
+            string? dia = null)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+                return Json(new { ok = false, mensaje = "Sesión expirada." });
+
+            var departamentos = ConstruirDepartamentosDashboard(idDepartamento, filtroTiempo, mes, semana, dia);
+
+            return Json(new
+            {
+                ok = true,
+                departamentos
+            });
+        }
+
+        #endregion
+
+        #region ARMADO DE DASHBOARD
+
+        private OperacionesDashboardVm ConstruirDashboardGeneral(
+            string filtroTiempo,
+            int? mes,
+            int? semana,
+            string? dia)
+        {
+            var registros = ObtenerRegistrosDashboard(null, filtroTiempo, mes, semana, dia);
+
+            var dashboard = ConstruirDashboardDesdeRegistros(
+                departamentoId: null,
+                nombreDepartamento: "Vista general",
+                registros: registros);
+
+            return dashboard;
+        }
+
+        private OperacionesDashboardVm ConstruirDashboardDepartamento(
+            int idDepartamento,
+            string filtroTiempo,
+            int? mes,
+            int? semana,
+            string? dia)
+        {
+            var departamento = _context.Departamentos
+                .AsNoTracking()
+                .FirstOrDefault(d => d.DepartamentoID == idDepartamento);
+
+            var registros = ObtenerRegistrosDashboard(idDepartamento, filtroTiempo, mes, semana, dia);
+
+            var dashboard = ConstruirDashboardDesdeRegistros(
+                departamentoId: idDepartamento,
+                nombreDepartamento: departamento?.NombreDepartamento ?? "Departamento",
+                registros: registros);
+
+            return dashboard;
+        }
+
+        private OperacionesDashboardVm ConstruirDashboardDesdeRegistros(
+            int? departamentoId,
+            string nombreDepartamento,
+            List<RegistroKpi> registros)
+        {
+            var kpis = registros
+                .Where(r => r.Metrica != null)
+                .GroupBy(r => r.MetricaID)
+                .Select(g => ConstruirKpiDashboard(g.First().Metrica, g.ToList()))
+                .OrderBy(k => k.Departamento)
+                .ThenBy(k => k.NombreMetrica)
+                .ToList();
+
+            int totalKpis = kpis.Count;
+            int kpisCumplidos = kpis.Count(k => k.Resultado.CumpleMeta == true);
+            int kpisNoCumplidos = kpis.Count(k => k.Resultado.CumpleMeta == false);
+            int kpisSinMeta = kpis.Count(k => k.Resultado.CumpleMeta == null);
+
+            decimal porcentajeCumplimiento = totalKpis > 0
+                ? Math.Round((decimal)kpisCumplidos / totalKpis * 100, 2)
+                : 0;
+
+            var dashboard = new OperacionesDashboardVm
+            {
+                DepartamentoID = departamentoId,
+                Departamento = nombreDepartamento,
+                TotalKpis = totalKpis,
+                KpisCumplidos = kpisCumplidos,
+                KpisNoCumplidos = kpisNoCumplidos,
+                KpisSinMeta = kpisSinMeta,
+                PorcentajeCumplimiento = porcentajeCumplimiento,
+                Kpis = kpis
+            };
+
+            dashboard.Tarjetas = ConstruirTarjetasResumen(dashboard);
+
+            return dashboard;
+        }
+
+        private OperacionesKpiDashboardVm ConstruirKpiDashboard(CatMetricas metrica, List<RegistroKpi> registros)
+        {
+            registros = registros
+                .OrderBy(r => r.Anio)
+                .ThenBy(r => r.NumeroPeriodo)
+                .ToList();
+
+            var resultado = CalcularResultadoKpi(metrica, registros);
+
+            var historial = registros
+                .Select(r =>
+                {
+                    var resultadoPeriodo = CalcularResultadoKpi(metrica, new List<RegistroKpi> { r });
+
+                    return new OperacionesKpiPeriodoVm
+                    {
+                        Periodo = FormatearEtiquetaPeriodo(metrica.Frecuencia, r.NumeroPeriodo, r.Anio),
+                        Anio = r.Anio,
+                        NumeroPeriodo = r.NumeroPeriodo,
+                        ResultadoKpi = resultadoPeriodo.Resultado,
+                        ResultadoKpiFormateado = resultadoPeriodo.ResultadoFormateado,
+                        Variables = r.DetallesValores
+                            .OrderBy(v => v.VariableID)
+                            .Select(v => new OperacionesKpiVariablePeriodoVm
+                            {
+                                VariableID = v.VariableID,
+                                Nombre = v.Variable?.NombreVariable ?? string.Empty,
+                                Valor = v.Valor,
+                                ValorFormateado = FormatearValor(
+                                    v.Valor,
+                                    ObtenerTipoValorVariable(metrica, v.Variable),
+                                    ObtenerUnidadVariable(metrica, v.Variable)),
+                                EsLinea = v.Variable?.EsLinea ?? false,
+                                TipoCaptura = string.IsNullOrWhiteSpace(v.Variable?.TipoCaptura) ? "Manual" : v.Variable!.TipoCaptura,
+                                TipoValor = ObtenerTipoValorVariable(metrica, v.Variable),
+                                UnidadMedida = ObtenerUnidadVariable(metrica, v.Variable),
+                                TipoAgregacion = string.IsNullOrWhiteSpace(v.Variable?.TipoAgregacion) ? "Promedio" : v.Variable!.TipoAgregacion!
+                            })
+                            .ToList()
+                    };
+                })
+                .ToList();
+
+            return new OperacionesKpiDashboardVm
+            {
+                MetricaID = metrica.MetricaID,
+                DepartamentoID = metrica.DepartamentoID,
+                Departamento = metrica.Departamento?.NombreDepartamento ?? string.Empty,
+                NombreMetrica = metrica.NombreMetrica,
+                Frecuencia = metrica.Frecuencia,
+                TipoValor = metrica.TipoValor,
+                UnidadMedida = metrica.UnidadMedida ?? string.Empty,
+                TipoGrafica = string.IsNullOrWhiteSpace(metrica.TipoGraficaDefecto) ? "ComboChart" : metrica.TipoGraficaDefecto,
+                TamanoGrafica = string.IsNullOrWhiteSpace(metrica.TamanoGrafica) ? "Normal" : metrica.TamanoGrafica,
+                MetaEsperada = metrica.MetaEsperada,
+                SentidoMeta = metrica.SentidoMeta,
+                MostrarMetaEnGrafica = metrica.MostrarMetaEnGrafica,
+                ModoCalculoKpi = string.IsNullOrWhiteSpace(metrica.ModoCalculoKpi) ? "Promedio" : metrica.ModoCalculoKpi,
+                VariableTarjetaID = metrica.VariableTarjetaID,
+                ModoTarjeta = string.IsNullOrWhiteSpace(metrica.ModoTarjeta) ? "Automatico" : metrica.ModoTarjeta,
+                VariableNumeradorID = metrica.VariableNumeradorID,
+                VariableDenominadorID = metrica.VariableDenominadorID,
+                VariablePesoID = metrica.VariablePesoID,
+                Resultado = resultado,
+                Historial = historial
+            };
+        }
+
+        private List<OperacionesTarjetaResumenVm> ConstruirTarjetasResumen(OperacionesDashboardVm dashboard)
+        {
+            string estadoCumplimiento = dashboard.PorcentajeCumplimiento >= 80
+                ? "success"
+                : dashboard.PorcentajeCumplimiento >= 60
+                    ? "warning"
+                    : "danger";
+
+            var mejorKpi = dashboard.Kpis
+                .Where(k => k.Resultado.CumpleMeta == true)
+                .OrderByDescending(k => k.Resultado.Resultado)
+                .FirstOrDefault();
+
+            var kpiCritico = dashboard.Kpis
+                .Where(k => k.Resultado.CumpleMeta == false)
+                .OrderBy(k => k.Resultado.Resultado)
+                .FirstOrDefault();
+
+            return new List<OperacionesTarjetaResumenVm>
+            {
+                new OperacionesTarjetaResumenVm
+                {
+                    Titulo = "Cumplimiento global",
+                    Valor = $"{dashboard.PorcentajeCumplimiento:N2}%",
+                    Subtitulo = $"{dashboard.KpisCumplidos} de {dashboard.TotalKpis} KPIs cumplen meta",
+                    Icono = "fas fa-chart-pie",
+                    EstadoVisual = estadoCumplimiento
+                },
+                new OperacionesTarjetaResumenVm
+                {
+                    Titulo = "KPIs evaluados",
+                    Valor = dashboard.TotalKpis.ToString("N0"),
+                    Subtitulo = dashboard.KpisSinMeta > 0 ? $"{dashboard.KpisSinMeta} sin meta configurada" : "Todos con evaluación disponible",
+                    Icono = "fas fa-list-check",
+                    EstadoVisual = "neutral"
+                },
+                new OperacionesTarjetaResumenVm
+                {
+                    Titulo = "KPIs cumplidos",
+                    Valor = dashboard.KpisCumplidos.ToString("N0"),
+                    Subtitulo = dashboard.KpisNoCumplidos > 0 ? $"{dashboard.KpisNoCumplidos} requieren atención" : "Sin KPIs fuera de meta",
+                    Icono = "fas fa-circle-check",
+                    EstadoVisual = dashboard.KpisNoCumplidos > 0 ? "warning" : "success"
+                },
+                new OperacionesTarjetaResumenVm
+                {
+                    Titulo = mejorKpi != null ? "Mejor KPI" : "KPI destacado",
+                    Valor = mejorKpi?.Resultado.ResultadoFormateado ?? "--",
+                    Subtitulo = mejorKpi?.NombreMetrica ?? "Sin KPI cumplido en el filtro actual",
+                    Icono = "fas fa-trophy",
+                    EstadoVisual = mejorKpi != null ? "success" : "neutral"
+                },
+                new OperacionesTarjetaResumenVm
+                {
+                    Titulo = kpiCritico != null ? "KPI crítico" : "Sin alertas",
+                    Valor = kpiCritico?.Resultado.ResultadoFormateado ?? "--",
+                    Subtitulo = kpiCritico?.NombreMetrica ?? "No hay KPIs incumplidos en el filtro actual",
+                    Icono = "fas fa-triangle-exclamation",
+                    EstadoVisual = kpiCritico != null ? "danger" : "success"
+                }
+            };
+        }
+
+        private List<OperacionesDepartamentoVm> ConstruirDepartamentosDashboard(
+            int? idDepartamentoSeleccionado,
+            string filtroTiempo,
+            int? mes,
+            int? semana,
+            string? dia)
+        {
+            var departamentos = _context.Departamentos
+                .AsNoTracking()
+                .Where(d => d.Activo)
+                .Where(d => _context.CatMetricas.Any(m => m.Activo && m.DepartamentoID == d.DepartamentoID))
+                .OrderBy(d => d.NombreDepartamento)
+                .ToList();
+
+            var resultado = new List<OperacionesDepartamentoVm>();
+
+            foreach (var depto in departamentos)
+            {
+                var registros = ObtenerRegistrosDashboard(depto.DepartamentoID, filtroTiempo, mes, semana, dia);
+                var dashboard = ConstruirDashboardDesdeRegistros(depto.DepartamentoID, depto.NombreDepartamento, registros);
+
+                resultado.Add(new OperacionesDepartamentoVm
+                {
+                    DepartamentoID = depto.DepartamentoID,
+                    NombreDepartamento = depto.NombreDepartamento,
+                    TotalKpis = dashboard.TotalKpis,
+                    KpisConDatos = dashboard.Kpis.Count(k => k.Historial.Any()),
+                    PorcentajeCumplimiento = dashboard.PorcentajeCumplimiento,
+                    Seleccionado = idDepartamentoSeleccionado.HasValue && idDepartamentoSeleccionado.Value == depto.DepartamentoID
+                });
+            }
+
+            return resultado;
+        }
+
+        #endregion
+
+        #region CONSULTAS BASE
+
+        private List<RegistroKpi> ObtenerRegistrosDashboard(
+            int? idDepartamento,
+            string filtroTiempo,
+            int? mes,
+            int? semana,
+            string? dia)
+        {
+            int anioActual = DateTime.Now.Year;
+            string filtro = NormalizarFiltroTiempo(filtroTiempo);
+
+            var query = _context.RegistroKpis
+                .Include(r => r.DetallesValores)
+                    .ThenInclude(v => v.Variable)
+                .Include(r => r.Metrica)
+                    .ThenInclude(m => m.Departamento)
+                .Include(r => r.Metrica)
+                    .ThenInclude(m => m.VariablesConfiguradas)
+                .Where(r => r.Activo && r.Metrica.Activo)
+                .AsQueryable();
+
+            if (idDepartamento.HasValue && idDepartamento.Value > 0)
+                query = query.Where(r => r.Metrica.DepartamentoID == idDepartamento.Value);
+
+            if (filtro != "historico")
+                query = query.Where(r => r.Anio == anioActual);
+
+            var registros = query
+                .OrderBy(r => r.Metrica.Departamento.NombreDepartamento)
+                .ThenBy(r => r.Metrica.NombreMetrica)
+                .ThenBy(r => r.Anio)
+                .ThenBy(r => r.NumeroPeriodo)
+                .ToList();
+
+            return AplicarFiltroPeriodo(registros, filtro, mes, semana, dia, anioActual);
+        }
+
+        private List<RegistroKpi> AplicarFiltroPeriodo(
+            List<RegistroKpi> registros,
+            string filtroTiempo,
+            int? mes,
+            int? semana,
+            string? dia,
+            int anioActual)
+        {
+            filtroTiempo = NormalizarFiltroTiempo(filtroTiempo);
+
+            if (filtroTiempo == "historico" || filtroTiempo == "anio")
+                return registros;
+
+            int mesActual = mes ?? DateTime.Now.Month;
+            int semanaActual = semana ?? ObtenerSemanaDelAno(DateTime.Now);
+
+            if (filtroTiempo == "mes")
+            {
+                var inicioMes = new DateTime(anioActual, mesActual, 1).DayOfYear;
+                var finMes = new DateTime(anioActual, mesActual, DateTime.DaysInMonth(anioActual, mesActual)).DayOfYear;
+
+                return registros.Where(r =>
+                    EsFrecuencia(r.Metrica.Frecuencia, "Mensual") && r.NumeroPeriodo == mesActual ||
+                    EsFrecuencia(r.Metrica.Frecuencia, "Semanal") && r.NumeroPeriodo >= ((mesActual - 1) * 4 + 1) && r.NumeroPeriodo <= (mesActual * 4) ||
+                    EsFrecuencia(r.Metrica.Frecuencia, "Diario") && r.NumeroPeriodo >= inicioMes && r.NumeroPeriodo <= finMes
+                ).ToList();
+            }
+
+            if (filtroTiempo == "trimestre")
+            {
+                int trimestre = (int)Math.Ceiling(mesActual / 3.0);
+                int mesInicio = (trimestre - 1) * 3 + 1;
+                int mesFin = trimestre * 3;
+
+                var inicioTrimestre = new DateTime(anioActual, mesInicio, 1).DayOfYear;
+                var finTrimestre = new DateTime(anioActual, mesFin, DateTime.DaysInMonth(anioActual, mesFin)).DayOfYear;
+
+                return registros.Where(r =>
+                    EsFrecuencia(r.Metrica.Frecuencia, "Mensual") && r.NumeroPeriodo >= mesInicio && r.NumeroPeriodo <= mesFin ||
+                    EsFrecuencia(r.Metrica.Frecuencia, "Semanal") && r.NumeroPeriodo >= ((mesInicio - 1) * 4 + 1) && r.NumeroPeriodo <= (mesFin * 4) ||
+                    EsFrecuencia(r.Metrica.Frecuencia, "Diario") && r.NumeroPeriodo >= inicioTrimestre && r.NumeroPeriodo <= finTrimestre
+                ).ToList();
+            }
+
+            if (filtroTiempo == "semana")
+            {
+                var rangoDias = ObtenerRangoDiasDelAnoPorSemana(semanaActual, anioActual);
+                int mesDeSemana = ((semanaActual - 1) / 4) + 1;
+                mesDeSemana = Math.Clamp(mesDeSemana, 1, 12);
+
+                return registros.Where(r =>
+                    EsFrecuencia(r.Metrica.Frecuencia, "Semanal") && r.NumeroPeriodo == semanaActual ||
+                    EsFrecuencia(r.Metrica.Frecuencia, "Mensual") && r.NumeroPeriodo == mesDeSemana ||
+                    EsFrecuencia(r.Metrica.Frecuencia, "Diario") && r.NumeroPeriodo >= rangoDias.inicio && r.NumeroPeriodo <= rangoDias.fin
+                ).ToList();
+            }
+
+            if (filtroTiempo == "dia")
+            {
+                int diaPeriodo = DateTime.Now.DayOfYear;
+
+                if (!string.IsNullOrWhiteSpace(dia) && DateTime.TryParse(dia, out var fechaSeleccionada))
+                {
+                    diaPeriodo = fechaSeleccionada.DayOfYear;
+                    anioActual = fechaSeleccionada.Year;
+                }
+
+                var fechaBase = new DateTime(anioActual, 1, 1).AddDays(diaPeriodo - 1);
+                int semanaDia = ObtenerSemanaDelAno(fechaBase);
+                int mesDia = fechaBase.Month;
+
+                return registros.Where(r =>
+                    EsFrecuencia(r.Metrica.Frecuencia, "Diario") && r.NumeroPeriodo == diaPeriodo ||
+                    EsFrecuencia(r.Metrica.Frecuencia, "Semanal") && r.NumeroPeriodo == semanaDia ||
+                    EsFrecuencia(r.Metrica.Frecuencia, "Mensual") && r.NumeroPeriodo == mesDia
+                ).ToList();
+            }
+
+            return registros;
+        }
+
+        #endregion
+
+        #region MOTOR DE CALCULO KPI
+
+        private OperacionesResultadoKpiVm CalcularResultadoKpi(CatMetricas metrica, List<RegistroKpi> registros)
+        {
+            string modo = NormalizarModoCalculo(metrica.ModoCalculoKpi);
+            decimal resultado;
+            string descripcion;
+
+            try
+            {
+                switch (modo)
+                {
+                    case "Ratio":
+                        resultado = CalcularRatio(metrica, registros);
+                        descripcion = "Numerador / denominador * 100";
+                        break;
+
+                    case "PromedioPonderado":
+                        resultado = CalcularPromedioPonderado(metrica, registros);
+                        descripcion = "SUM(valor * peso) / SUM(peso)";
+                        break;
+
+                    case "Suma":
+                        resultado = ObtenerValoresParaCalculo(metrica, registros).Sum();
+                        descripcion = "Suma de valores del periodo visible";
+                        break;
+
+                    case "Conteo":
+                        resultado = ObtenerValoresParaCalculo(metrica, registros).Count;
+                        descripcion = "Conteo de valores capturados";
+                        break;
+
+                    case "UltimoPeriodo":
+                        resultado = CalcularUltimoPeriodo(metrica, registros);
+                        descripcion = "Último valor disponible del periodo visible";
+                        break;
+
+                    case "Acumulado":
+                        resultado = ObtenerValoresParaCalculo(metrica, registros).Sum();
+                        descripcion = "Acumulado del periodo visible";
+                        break;
+
+                    case "PromedioResultados":
+                        resultado = CalcularPromedioResultados(metrica, registros);
+                        descripcion = "Promedio de resultados por variable";
+                        break;
+
+                    case "Formula":
+                        resultado = CalcularFormulaDashboard(metrica, registros);
+                        descripcion = "Fórmula configurada";
+                        break;
+
+                    default:
+                        resultado = CalcularPromedio(metrica, registros);
+                        descripcion = "Promedio de valores del periodo visible";
+                        modo = "Promedio";
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "No se pudo calcular el KPI {MetricaID}. Se regresó 0.", metrica.MetricaID);
+                resultado = 0;
+                descripcion = "No se pudo calcular con la configuración actual";
+            }
+
+            resultado = Math.Round(resultado, 2);
+
+            bool? cumpleMeta = EvaluarCumplimiento(resultado, metrica.MetaEsperada, metrica.SentidoMeta);
+            string estadoVisual = ResolverEstadoVisual(cumpleMeta);
+
+            return new OperacionesResultadoKpiVm
+            {
+                MetricaID = metrica.MetricaID,
+                NombreMetrica = metrica.NombreMetrica,
+                Resultado = resultado,
+                ResultadoFormateado = FormatearValor(resultado, metrica.TipoValor, metrica.UnidadMedida),
+                Meta = metrica.MetaEsperada,
+                MetaFormateada = metrica.MetaEsperada.HasValue
+                    ? FormatearValor(metrica.MetaEsperada.Value, metrica.TipoValor, metrica.UnidadMedida)
+                    : string.Empty,
+                CumpleMeta = cumpleMeta,
+                TipoValor = metrica.TipoValor,
+                UnidadMedida = metrica.UnidadMedida ?? string.Empty,
+                ModoCalculo = modo,
+                DescripcionCalculo = descripcion,
+                EstadoVisual = estadoVisual
+            };
+        }
+
+        private decimal CalcularPromedio(CatMetricas metrica, List<RegistroKpi> registros)
+        {
+            var valores = ObtenerValoresParaCalculo(metrica, registros);
+            return valores.Any() ? valores.Average() : 0;
+        }
+
+        private decimal CalcularRatio(CatMetricas metrica, List<RegistroKpi> registros)
+        {
+            if (!metrica.VariableNumeradorID.HasValue || !metrica.VariableDenominadorID.HasValue)
+                return 0;
+
+            decimal numerador = ObtenerSumaVariable(registros, metrica.VariableNumeradorID.Value);
+            decimal denominador = ObtenerSumaVariable(registros, metrica.VariableDenominadorID.Value);
+
+            if (denominador == 0)
+                return 0;
+
+            return numerador / denominador * 100;
+        }
+
+        private decimal CalcularPromedioPonderado(CatMetricas metrica, List<RegistroKpi> registros)
+        {
+            if (!metrica.VariableNumeradorID.HasValue || !metrica.VariablePesoID.HasValue)
+                return 0;
+
+            decimal sumaPonderada = 0;
+            decimal sumaPesos = 0;
+
+            foreach (var registro in registros)
+            {
+                decimal? valor = ObtenerValorVariable(registro, metrica.VariableNumeradorID.Value);
+                decimal? peso = ObtenerValorVariable(registro, metrica.VariablePesoID.Value);
+
+                if (!valor.HasValue || !peso.HasValue || peso.Value == 0)
+                    continue;
+
+                sumaPonderada += valor.Value * peso.Value;
+                sumaPesos += peso.Value;
+            }
+
+            if (sumaPesos == 0)
+                return 0;
+
+            return sumaPonderada / sumaPesos;
+        }
+
+        private decimal CalcularUltimoPeriodo(CatMetricas metrica, List<RegistroKpi> registros)
+        {
+            var ultimoRegistro = registros
+                .OrderBy(r => r.Anio)
+                .ThenBy(r => r.NumeroPeriodo)
+                .LastOrDefault();
+
+            if (ultimoRegistro == null)
+                return 0;
+
+            if (metrica.VariableTarjetaID.HasValue)
+                return ObtenerValorVariable(ultimoRegistro, metrica.VariableTarjetaID.Value) ?? 0;
+
+            if (metrica.VariableNumeradorID.HasValue)
+                return ObtenerValorVariable(ultimoRegistro, metrica.VariableNumeradorID.Value) ?? 0;
+
+            var valores = ObtenerValoresRegistroNoLinea(ultimoRegistro);
+
+            return valores.Any() ? valores.Average() : 0;
+        }
+
+        private decimal CalcularPromedioResultados(CatMetricas metrica, List<RegistroKpi> registros)
+        {
+            var valoresPorVariable = registros
+                .SelectMany(r => r.DetallesValores)
+                .Where(v => v.Variable != null)
+                .Where(v => !v.Variable.EsLinea)
+                .Where(v => !EsTipoCaptura(v.Variable.TipoCaptura, "Fijo"))
+                .GroupBy(v => v.VariableID)
+                .Select(g => g.Any() ? g.Average(v => v.Valor) : 0)
+                .ToList();
+
+            return valoresPorVariable.Any() ? valoresPorVariable.Average() : 0;
+        }
+
+        private decimal CalcularFormulaDashboard(CatMetricas metrica, List<RegistroKpi> registros)
+        {
+            var variableFormula = metrica.VariablesConfiguradas?
+                .FirstOrDefault(v => EsTipoCaptura(v.TipoCaptura, "Calculado") && !string.IsNullOrWhiteSpace(v.Formula));
+
+            if (variableFormula == null)
+                return CalcularPromedio(metrica, registros);
+
+            var ultimoRegistro = registros
+                .OrderBy(r => r.Anio)
+                .ThenBy(r => r.NumeroPeriodo)
+                .LastOrDefault();
+
+            if (ultimoRegistro == null)
+                return 0;
+
+            var variablesOrdenadas = metrica.VariablesConfiguradas
+                .OrderBy(v => v.VariableID)
+                .ToList();
+
+            var calculado = EvaluarFormulaKpi(variableFormula.Formula ?? string.Empty, variablesOrdenadas, ultimoRegistro.DetallesValores.ToList());
+
+            return calculado ?? 0;
+        }
+
+        private List<decimal> ObtenerValoresParaCalculo(CatMetricas metrica, List<RegistroKpi> registros)
+        {
+            if (metrica.VariableTarjetaID.HasValue)
+            {
+                return registros
+                    .SelectMany(r => r.DetallesValores)
+                    .Where(v => v.VariableID == metrica.VariableTarjetaID.Value)
+                    .Select(v => v.Valor)
+                    .ToList();
+            }
+
+            if (metrica.VariableNumeradorID.HasValue)
+            {
+                return registros
+                    .SelectMany(r => r.DetallesValores)
+                    .Where(v => v.VariableID == metrica.VariableNumeradorID.Value)
+                    .Select(v => v.Valor)
+                    .ToList();
+            }
+
+            return registros
+                .SelectMany(r => r.DetallesValores)
+                .Where(v => v.Variable != null)
+                .Where(v => !v.Variable.EsLinea)
+                .Where(v => !EsTipoCaptura(v.Variable.TipoCaptura, "Fijo"))
+                .Select(v => v.Valor)
+                .ToList();
+        }
+
+        private List<decimal> ObtenerValoresRegistroNoLinea(RegistroKpi registro)
+        {
+            return registro.DetallesValores
+                .Where(v => v.Variable != null)
+                .Where(v => !v.Variable.EsLinea)
+                .Where(v => !EsTipoCaptura(v.Variable.TipoCaptura, "Fijo"))
+                .Select(v => v.Valor)
+                .ToList();
+        }
+
+        private decimal ObtenerSumaVariable(List<RegistroKpi> registros, int variableId)
+        {
+            return registros
+                .SelectMany(r => r.DetallesValores)
+                .Where(v => v.VariableID == variableId)
+                .Sum(v => v.Valor);
+        }
+
+        private decimal? ObtenerValorVariable(RegistroKpi registro, int variableId)
+        {
+            return registro.DetallesValores
+                .FirstOrDefault(v => v.VariableID == variableId)
+                ?.Valor;
+        }
+
+        private decimal? EvaluarFormulaKpi(
+            string formula,
+            List<CatMetricas_Variables> variablesOrdenadas,
+            List<RegistroKpis_Valores> valoresRegistro)
+        {
+            if (string.IsNullOrWhiteSpace(formula))
+                return null;
+
+            string expresion = formula;
+
+            for (int i = 0; i < variablesOrdenadas.Count; i++)
+            {
+                int indiceFormula = i + 1;
+                int variableId = variablesOrdenadas[i].VariableID;
+
+                var valor = valoresRegistro
+                    .FirstOrDefault(v => v.VariableID == variableId)
+                    ?.Valor;
+
+                if (!valor.HasValue)
+                    return null;
+
+                expresion = expresion.Replace(
+                    $"[{indiceFormula}]",
+                    valor.Value.ToString(CultureInfo.InvariantCulture));
+            }
+
+            try
+            {
+                var resultado = new DataTable().Compute(expresion, null);
+
+                if (resultado == null || resultado == DBNull.Value)
+                    return null;
+
+                return Convert.ToDecimal(resultado, CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        #endregion
+
+
+        #region RUTAS COMPATIBLES CON OPERACIONES CONTROLLER ANTERIOR
+
+        // El controller anterior del módulo ya usaba estos nombres de rutas y acciones.
+        // Los conservamos para no romper menús, botones ni formularios existentes.
+
+        [HttpGet("ObtenerDatosGrafica")]
+        public IActionResult ObtenerDatosGrafica(string filtroTiempo = "anio", int? mes = null, int? semana = null, string? dia = null)
+        {
+            return ObtenerDashboardGeneral(filtroTiempo, mes, semana, dia);
+        }
+
+        [HttpGet("ObtenerTableroDepartamento")]
+        public IActionResult ObtenerTableroDepartamento(int idDepartamento, string filtroTiempo = "anio", int? mes = null, int? semana = null, string? dia = null)
+        {
+            return ObtenerDashboardDepartamento(idDepartamento, filtroTiempo, mes, semana, dia);
+        }
+
+        [HttpPost("GuardarMetrica")]
+        [ValidateAntiForgeryToken]
+        public IActionResult GuardarMetrica(OperacionesGuardarKpiPostVm model)
+        {
+            return GuardarConfiguracionKpi(model);
+        }
+
+        [HttpPost("ActualizarMetricaCompleta")]
+        [ValidateAntiForgeryToken]
+        public IActionResult ActualizarMetricaCompleta(OperacionesGuardarKpiPostVm model)
+        {
+            return GuardarConfiguracionKpi(model);
+        }
+
+        [HttpPost("EliminarMetrica")]
+        [ValidateAntiForgeryToken]
+        public IActionResult EliminarMetrica(int id)
+        {
+            return ArchivarMetrica(id);
+        }
+
+        [HttpPost("ActualizarKpi")]
+        [ValidateAntiForgeryToken]
+        public IActionResult ActualizarKpi(int registroId, int? anio, int? numeroPeriodo, DateTime? fechaDiaria, Dictionary<int, decimal> valores)
+        {
+            return ActualizarRegistroKpi(registroId, anio, numeroPeriodo, fechaDiaria, valores);
+        }
+
+        [HttpPost("EliminarKpi")]
+        [ValidateAntiForgeryToken]
+        public IActionResult EliminarKpi(int id)
+        {
+            return ArchivarRegistroKpi(id);
+        }
+
+        #endregion
+
+        #region HELPERS KPI
+
+        private bool? EvaluarCumplimiento(decimal resultado, decimal? meta, string? sentidoMeta)
+        {
+            if (!meta.HasValue || string.IsNullOrWhiteSpace(sentidoMeta))
+                return null;
+
+            string sentido = NormalizarTexto(sentidoMeta);
+            decimal metaRedondeada = Math.Round(meta.Value, 2);
+            decimal resultadoRedondeado = Math.Round(resultado, 2);
+
+            if (sentido.Contains("mayor") || sentido.Contains("arriba") || sentido.Contains("mas") || sentido.Contains(">"))
+                return resultadoRedondeado >= metaRedondeada;
+
+            if (sentido.Contains("menor") || sentido.Contains("abajo") || sentido.Contains("menos") || sentido.Contains("<"))
+                return resultadoRedondeado <= metaRedondeada;
+
+            if (sentido.Contains("exacto") || sentido.Contains("igual") || sentido.Contains("="))
+                return resultadoRedondeado == metaRedondeada;
+
+            return null;
+        }
+
+        private string ResolverEstadoVisual(bool? cumpleMeta)
+        {
+            if (cumpleMeta == true)
+                return "success";
+
+            if (cumpleMeta == false)
+                return "danger";
+
+            return "neutral";
+        }
+
+        private string FormatearValor(decimal valor, string? tipoValor, string? unidadMedida)
+        {
+            tipoValor = tipoValor?.Trim() ?? string.Empty;
+            unidadMedida = unidadMedida?.Trim() ?? string.Empty;
+
+            var cultura = new CultureInfo("es-MX");
+
+            if (tipoValor.Equals("Porcentaje", StringComparison.OrdinalIgnoreCase) || unidadMedida == "%")
+                return $"{valor:N2}%";
+
+            if (tipoValor.Equals("Moneda", StringComparison.OrdinalIgnoreCase) || unidadMedida == "$")
+                return valor.ToString("C2", cultura);
+
+            if (!string.IsNullOrWhiteSpace(unidadMedida) && !unidadMedida.Equals("Unidades", StringComparison.OrdinalIgnoreCase))
+                return $"{valor:N2} {unidadMedida}";
+
+            return valor.ToString("N2", cultura);
+        }
+
+        private string ObtenerTipoValorVariable(CatMetricas metrica, CatMetricas_Variables? variable)
+        {
+            if (!string.IsNullOrWhiteSpace(variable?.TipoValor))
+                return variable.TipoValor!;
+
+            return metrica.TipoValor ?? string.Empty;
+        }
+
+        private string ObtenerUnidadVariable(CatMetricas metrica, CatMetricas_Variables? variable)
+        {
+            if (!string.IsNullOrWhiteSpace(variable?.UnidadMedida))
+                return variable.UnidadMedida!;
+
+            return metrica.UnidadMedida ?? string.Empty;
+        }
+
+        private string NormalizarModoCalculo(string? modo)
+        {
+            if (string.IsNullOrWhiteSpace(modo))
+                return "Promedio";
+
+            string limpio = NormalizarTexto(modo);
+
+            if (limpio.Contains("ratio") || limpio.Contains("porcentajereal"))
+                return "Ratio";
+
+            if (limpio.Contains("ponderado"))
+                return "PromedioPonderado";
+
+            if (limpio.Contains("promedioresultados"))
+                return "PromedioResultados";
+
+            if (limpio.Contains("suma"))
+                return "Suma";
+
+            if (limpio.Contains("conteo"))
+                return "Conteo";
+
+            if (limpio.Contains("ultimo"))
+                return "UltimoPeriodo";
+
+            if (limpio.Contains("acumulado"))
+                return "Acumulado";
+
+            if (limpio.Contains("formula"))
+                return "Formula";
+
+            return "Promedio";
+        }
+
+        private string NormalizarFiltroTiempo(string? filtroTiempo)
+        {
+            string filtro = NormalizarTexto(filtroTiempo ?? "anio");
+
+            if (filtro.Contains("historico"))
+                return "historico";
+
+            if (filtro.Contains("trimestre"))
+                return "trimestre";
+
+            if (filtro.Contains("mes"))
+                return "mes";
+
+            if (filtro.Contains("semana"))
+                return "semana";
+
+            if (filtro.Contains("dia"))
+                return "dia";
+
+            return "anio";
+        }
+
+        private bool EsFrecuencia(string? frecuencia, string frecuenciaEsperada)
+        {
+            return NormalizarTexto(frecuencia ?? string.Empty) == NormalizarTexto(frecuenciaEsperada);
+        }
+
+        private bool EsTipoCaptura(string? tipoCaptura, string tipoEsperado)
+        {
+            return NormalizarTexto(tipoCaptura ?? string.Empty) == NormalizarTexto(tipoEsperado);
+        }
+
+        private string FormatearEtiquetaPeriodo(string frecuencia, int numeroPeriodo, int anio)
+        {
+            if (EsFrecuencia(frecuencia, "Mensual"))
+            {
+                string[] meses = { "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic" };
+                return numeroPeriodo >= 1 && numeroPeriodo <= 12
+                    ? meses[numeroPeriodo - 1]
+                    : $"M-{numeroPeriodo}";
+            }
+
+            if (EsFrecuencia(frecuencia, "Semanal"))
+                return $"Semana {numeroPeriodo}";
+
+            if (EsFrecuencia(frecuencia, "Diario"))
+            {
+                try
+                {
+                    DateTime fecha = new DateTime(anio, 1, 1).AddDays(numeroPeriodo - 1);
+                    return fecha.ToString("dd/MMM", new CultureInfo("es-MX"));
+                }
+                catch
+                {
+                    return $"Día {numeroPeriodo}";
+                }
+            }
+
+            return $"P-{numeroPeriodo}";
+        }
+
+        private int ObtenerSemanaDelAno(DateTime fecha)
+        {
+            return CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(
+                fecha,
+                CalendarWeekRule.FirstFourDayWeek,
+                DayOfWeek.Monday);
+        }
+
+        private (int inicio, int fin) ObtenerRangoDiasDelAnoPorSemana(int semana, int anio)
+        {
+            int inicio = (semana - 1) * 7 + 1;
+            int fin = semana * 7;
+            int diasMaximos = DateTime.IsLeapYear(anio) ? 366 : 365;
+
+            return (Math.Max(1, inicio), Math.Min(fin, diasMaximos));
+        }
+
+        private string NormalizarTexto(string? texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto))
+                return string.Empty;
+
+            texto = texto.Trim().ToLowerInvariant();
+
+            texto = texto
+                .Replace("á", "a")
+                .Replace("é", "e")
+                .Replace("í", "i")
+                .Replace("ó", "o")
+                .Replace("ú", "u")
+                .Replace("ü", "u")
+                .Replace("ñ", "n")
+                .Replace(" ", "")
+                .Replace("_", "")
+                .Replace("-", "")
+                .Replace(".", "")
+                .Replace(":", "")
+                .Replace(";", "")
+                .Replace("/", "")
+                .Replace("\\", "")
+                .Replace("¿", "")
+                .Replace("?", "");
+
+            return texto;
+        }
+
+        private int ObtenerIndiceColumna(System.Data.DataTable tabla, params string[] nombres)
+        {
+            if (tabla == null || nombres == null || nombres.Length == 0)
+                return -1;
+
+            foreach (System.Data.DataColumn columna in tabla.Columns)
+            {
+                string nombreColumna = NormalizarTexto(columna.ColumnName);
+
+                foreach (var nombre in nombres)
+                {
+                    if (nombreColumna == NormalizarTexto(nombre))
+                        return columna.Ordinal;
+                }
+            }
+
+            return -1;
+        }
+
+        private int? ConvertirEntero(object? valor)
+        {
+            if (valor == null || valor == DBNull.Value)
+                return null;
+
+            if (valor is int enteroDirecto)
+                return enteroDirecto;
+
+            if (valor is long longDirecto)
+                return Convert.ToInt32(longDirecto);
+
+            if (valor is decimal decimalDirecto)
+                return Convert.ToInt32(decimalDirecto);
+
+            if (valor is double doubleDirecto)
+                return Convert.ToInt32(doubleDirecto);
+
+            string texto = valor.ToString()?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(texto))
+                return null;
+
+            texto = texto.Replace(",", "").Trim();
+
+            if (int.TryParse(texto, NumberStyles.Any, CultureInfo.InvariantCulture, out int entero))
+                return entero;
+
+            if (int.TryParse(texto, NumberStyles.Any, new CultureInfo("es-MX"), out int enteroMx))
+                return enteroMx;
+
+            if (decimal.TryParse(texto, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal decimalValor))
+                return Convert.ToInt32(decimalValor);
+
+            if (decimal.TryParse(texto, NumberStyles.Any, new CultureInfo("es-MX"), out decimal decimalMx))
+                return Convert.ToInt32(decimalMx);
+
+            return null;
+        }
+
+        private decimal? ConvertirDecimal(object? valor)
+        {
+            if (valor == null || valor == DBNull.Value)
+                return null;
+
+            if (valor is decimal decimalDirecto)
+                return decimalDirecto;
+
+            if (valor is double doubleDirecto)
+                return Convert.ToDecimal(doubleDirecto, CultureInfo.InvariantCulture);
+
+            if (valor is int enteroDirecto)
+                return enteroDirecto;
+
+            string texto = valor.ToString()?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(texto))
+                return null;
+
+            texto = texto.Replace("%", "").Trim();
+
+            if (decimal.TryParse(texto, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal decimalValor))
+                return decimalValor;
+
+            if (decimal.TryParse(texto, NumberStyles.Any, new CultureInfo("es-MX"), out decimal decimalMx))
+                return decimalMx;
+
+            string textoSinComas = texto.Replace(",", "");
+
+            if (decimal.TryParse(textoSinComas, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal decimalSinComas))
+                return decimalSinComas;
+
+            string textoSinPuntos = texto.Replace(".", "").Replace(",", ".");
+
+            if (decimal.TryParse(textoSinPuntos, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal decimalSinPuntos))
+                return decimalSinPuntos;
+
+            return null;
+        }
+
+        private DateTime? ConvertirFecha(object? valor)
+        {
+            if (valor == null || valor == DBNull.Value)
+                return null;
+
+            if (valor is DateTime fechaDirecta)
+                return fechaDirecta;
+
+            string texto = valor.ToString()?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(texto))
+                return null;
+
+            if (DateTime.TryParse(texto, new CultureInfo("es-MX"), DateTimeStyles.None, out DateTime fechaMx))
+                return fechaMx;
+
+            if (DateTime.TryParse(texto, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fechaInvariant))
+                return fechaInvariant;
+
+            if (double.TryParse(texto, NumberStyles.Any, CultureInfo.InvariantCulture, out double numeroExcel))
+            {
+                try
+                {
+                    return DateTime.FromOADate(numeroExcel);
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            return null;
+        }
+
+        private int ObtenerPeriodoImportacion(string? frecuencia, int anio, int? periodo, DateTime? fecha)
+        {
+            frecuencia = frecuencia?.Trim() ?? string.Empty;
+
+            if (frecuencia.Equals("Diario", StringComparison.OrdinalIgnoreCase))
+            {
+                if (fecha.HasValue)
+                    return fecha.Value.DayOfYear;
+
+                return periodo ?? 0;
+            }
+
+            if (frecuencia.Equals("Mensual", StringComparison.OrdinalIgnoreCase))
+            {
+                int valor = periodo ?? 0;
+                return valor >= 1 && valor <= 12 ? valor : 0;
+            }
+
+            if (frecuencia.Equals("Semanal", StringComparison.OrdinalIgnoreCase))
+            {
+                int valor = periodo ?? 0;
+                return valor >= 1 && valor <= 53 ? valor : 0;
+            }
+
+            return periodo ?? 0;
+        }
+
+        #endregion
+
+
+
+
+        #region NUEVA METRICA V2
+
+        [HttpGet("NuevaMetrica")]
+        public IActionResult NuevaMetrica()
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+                return RedirectToAction("Login", "Login");
+
+            var permisos = CargarPermisosSubMenuUsuario();
+            ViewBag.MisPermisos = permisos;
+
+            if (!permisos.Contains(PermisoConfigurar) && !permisos.Contains(PermisoGestor))
+                return Forbid();
+
+            var departamentos = ObtenerDepartamentosPermitidosSelect(usuarioId);
+
+            var vm = new OperacionesKpiEditorVm
+            {
+                MetricaID = 0,
+                NombreMetrica = string.Empty,
+                DepartamentoID = departamentos.Any() && int.TryParse(departamentos.First().Value, out var depId) ? depId : 0,
+                Frecuencia = "Mensual",
+                TipoValor = "Porcentaje",
+                UnidadMedida = "%",
+                SentidoMeta = "MayorMejor",
+                TipoGraficaDefecto = "ComboChart",
+                ModoCalculoKpi = "Promedio",
+                ModoTarjeta = "Automatico",
+                MostrarMetaEnGrafica = true,
+                TamanoGrafica = "Normal",
+                DepartamentosDisponibles = departamentos,
+                Variables = new List<OperacionesVariableEditorVm>
+                {
+                    new OperacionesVariableEditorVm
+                    {
+                        VariableID = 0,
+                        MetricaID = 0,
+                        NombreVariable = string.Empty,
+                        TipoCaptura = "Manual",
+                        TipoAgregacion = "Promedio",
+                        TipoValor = null,
+                        UnidadMedida = null,
+                        EsLinea = false,
+                        OrdenVisual = 1,
+                        Activa = true
+                    }
+                }
+            };
+
+            return View(vm);
+        }
+
+        private List<SelectListItem> ObtenerDepartamentosPermitidosSelect(int usuarioId)
+        {
+            var datosAcceso = ObtenerDatosAccesoUsuario(usuarioId);
+            bool puedeGestionarTodos = UsuarioPuedeGestionarTodosLosDepartamentos(datosAcceso);
+
+            var query = _context.Departamentos
+                .AsNoTracking()
+                .Where(d => d.Activo)
+                .AsQueryable();
+
+            if (!puedeGestionarTodos)
+            {
+                if (datosAcceso.Departamentos.Any())
+                    query = query.Where(d => datosAcceso.Departamentos.Contains(d.DepartamentoID));
+                else
+                    query = query.Where(d => false);
+            }
+
+            return query
+                .OrderBy(d => d.NombreDepartamento)
+                .Select(d => new SelectListItem
+                {
+                    Value = d.DepartamentoID.ToString(),
+                    Text = d.NombreDepartamento
+                })
+                .ToList();
+        }
+
+        #endregion
+
+        #region GESTOR DE METRICAS V2
+
+        [HttpGet("GestorMetricas")]
+        public IActionResult GestorMetricas()
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+                return RedirectToAction("Login", "Login");
+
+            var permisos = CargarPermisosSubMenuUsuario();
+            ViewBag.MisPermisos = permisos;
+
+            if (!permisos.Contains(PermisoGestor) && !permisos.Contains(PermisoConfigurar))
+                return Forbid();
+
+            var vm = ConstruirGestorMetricasVm(usuarioId);
+            return View(vm);
+        }
+
+        [HttpPost("GuardarConfiguracionKpi")]
+        [ValidateAntiForgeryToken]
+        public IActionResult GuardarConfiguracionKpi(OperacionesGuardarKpiPostVm model)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+            {
+                TempData["Mensaje"] = "Sesion expirada.";
+                TempData["Tipo"] = "warning";
+                return RedirectToAction("GestorMetricas");
+            }
+
+            var permisos = CargarPermisosSubMenuUsuario();
+            if (!permisos.Contains(PermisoGestor) && !permisos.Contains(PermisoConfigurar))
+                return Forbid();
+
+            try
+            {
+                if (model.DepartamentoID <= 0)
+                {
+                    TempData["Mensaje"] = "Selecciona un departamento valido.";
+                    TempData["Tipo"] = "warning";
+                    return RedirectToAction("GestorMetricas");
+                }
+
+                if (!UsuarioPuedeAccederDepartamento(usuarioId, model.DepartamentoID))
+                {
+                    TempData["Mensaje"] = "No tienes permiso para crear o editar KPIs de este departamento.";
+                    TempData["Tipo"] = "danger";
+                    return RedirectToAction("GestorMetricas");
+                }
+
+                CatMetricas? metrica;
+                bool esNueva = model.MetricaID <= 0;
+
+                if (esNueva)
+                {
+                    metrica = new CatMetricas
+                    {
+                        Activo = true,
+                        VariablesConfiguradas = new List<CatMetricas_Variables>()
+                    };
+
+                    _context.CatMetricas.Add(metrica);
+                }
+                else
+                {
+                    metrica = _context.CatMetricas
+                        .Include(m => m.VariablesConfiguradas)
+                        .FirstOrDefault(m => m.MetricaID == model.MetricaID);
+
+                    if (metrica == null)
+                    {
+                        TempData["Mensaje"] = "No se encontro el KPI seleccionado.";
+                        TempData["Tipo"] = "warning";
+                        return RedirectToAction("GestorMetricas");
+                    }
+
+                    if (!UsuarioPuedeAccederDepartamento(usuarioId, metrica.DepartamentoID))
+                    {
+                        TempData["Mensaje"] = "No tienes permiso para editar este KPI.";
+                        TempData["Tipo"] = "danger";
+                        return RedirectToAction("GestorMetricas");
+                    }
+                }
+
+                metrica.NombreMetrica = (model.NombreMetrica ?? string.Empty).Trim();
+                metrica.DepartamentoID = model.DepartamentoID;
+                metrica.Frecuencia = string.IsNullOrWhiteSpace(model.Frecuencia) ? "Mensual" : model.Frecuencia.Trim();
+                metrica.TipoValor = string.IsNullOrWhiteSpace(model.TipoValor) ? "Porcentaje" : model.TipoValor.Trim();
+                metrica.UnidadMedida = ResolverUnidadMedida(model.TipoValor, model.UnidadMedida, model.UnidadMedidaPersonalizada);
+                metrica.MetaEsperada = model.MetaEsperada;
+                metrica.SentidoMeta = string.IsNullOrWhiteSpace(model.SentidoMeta) ? null : model.SentidoMeta.Trim();
+                metrica.TipoGraficaDefecto = string.IsNullOrWhiteSpace(model.TipoGraficaDefecto) ? "ComboChart" : model.TipoGraficaDefecto.Trim();
+                metrica.VariableTarjetaID = model.VariableTarjetaID;
+                metrica.ModoTarjeta = string.IsNullOrWhiteSpace(model.ModoTarjeta) ? "Automatico" : model.ModoTarjeta.Trim();
+                metrica.ModoCalculoKpi = string.IsNullOrWhiteSpace(model.ModoCalculoKpi) ? "Promedio" : model.ModoCalculoKpi.Trim();
+                metrica.VariableNumeradorID = model.VariableNumeradorID;
+                metrica.VariableDenominadorID = model.VariableDenominadorID;
+                metrica.VariablePesoID = model.VariablePesoID;
+                metrica.MostrarMetaEnGrafica = model.MostrarMetaEnGrafica;
+                metrica.TamanoGrafica = string.IsNullOrWhiteSpace(model.TamanoGrafica) ? "Normal" : model.TamanoGrafica.Trim();
+                metrica.Activo = true;
+
+                GuardarVariablesEditor(metrica, model.Variables);
+
+                LimpiarReferenciasVariablesInvalidas(metrica);
+
+                _context.SaveChanges();
+
+                TempData["Mensaje"] = esNueva
+                    ? "KPI creado correctamente."
+                    : "KPI actualizado correctamente.";
+                TempData["Tipo"] = "success";
+            }
+            catch (Exception ex)
+            {
+                var detalle = ex.InnerException?.Message ?? ex.Message;
+                _logger.LogError(ex, "Error al guardar configuracion KPI V2.");
+                TempData["Mensaje"] = "Error al guardar el KPI: " + detalle;
+                TempData["Tipo"] = "danger";
+            }
+
+            return RedirectToAction("GestorMetricas");
+        }
+
+        [HttpPost("ArchivarMetrica")]
+        [ValidateAntiForgeryToken]
+        public IActionResult ArchivarMetrica(int id)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+            {
+                TempData["Mensaje"] = "Sesion expirada.";
+                TempData["Tipo"] = "warning";
+                return RedirectToAction("GestorMetricas");
+            }
+
+            var permisos = CargarPermisosSubMenuUsuario();
+            if (!permisos.Contains(PermisoGestor) && !permisos.Contains(PermisoConfigurar))
+                return Forbid();
+
+            try
+            {
+                var metrica = _context.CatMetricas.FirstOrDefault(m => m.MetricaID == id);
+
+                if (metrica == null)
+                {
+                    TempData["Mensaje"] = "No se encontro el KPI.";
+                    TempData["Tipo"] = "warning";
+                    return RedirectToAction("GestorMetricas");
+                }
+
+                if (!UsuarioPuedeAccederDepartamento(usuarioId, metrica.DepartamentoID))
+                {
+                    TempData["Mensaje"] = "No tienes permiso para archivar este KPI.";
+                    TempData["Tipo"] = "danger";
+                    return RedirectToAction("GestorMetricas");
+                }
+
+                metrica.Activo = false;
+                _context.SaveChanges();
+
+                TempData["Mensaje"] = "KPI archivado correctamente.";
+                TempData["Tipo"] = "success";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al archivar KPI V2.");
+                TempData["Mensaje"] = "Error al archivar KPI: " + ex.Message;
+                TempData["Tipo"] = "danger";
+            }
+
+            return RedirectToAction("GestorMetricas");
+        }
+
+        private OperacionesGestorIndexVm ConstruirGestorMetricasVm(int usuarioId)
+        {
             var datosAcceso = ObtenerDatosAccesoUsuario(usuarioId);
             bool puedeGestionarTodos = UsuarioPuedeGestionarTodosLosDepartamentos(datosAcceso);
 
             var departamentosQuery = _context.Departamentos
-                .Where(d => d.Activo && _context.RegistroKpis.Any(r => r.Metrica.DepartamentoID == d.DepartamentoID && r.Activo));
+                .AsNoTracking()
+                .Where(d => d.Activo)
+                .AsQueryable();
 
             if (!puedeGestionarTodos)
             {
@@ -67,341 +1534,232 @@ namespace ProyectoMatrix.Controllers
                     departamentosQuery = departamentosQuery.Where(d => false);
             }
 
-            var departamentosConDatos = departamentosQuery
+            var departamentos = departamentosQuery
                 .OrderBy(d => d.NombreDepartamento)
                 .ToList();
 
-            ViewBag.PuedeGestionarTodosDepartamentos = puedeGestionarTodos;
-            ViewBag.EsUsuarioLimitado = !puedeGestionarTodos;
-
-            return View(departamentosConDatos);
-        }
-
-        // --- GRÁFICA GENERAL (TASA DE CUMPLIMIENTO BI) ---
-        [HttpGet("ObtenerDatosGrafica")]
-        public JsonResult ObtenerDatosGrafica(string filtroTiempo = "anio", int? mes = null, int? semana = null, string? dia = null)
-        {
-            var query = _context.RegistroKpis
-                .Include(r => r.DetallesValores).ThenInclude(v => v.Variable)
-                .Include(r => r.Metrica).ThenInclude(m => m.Departamento)
-                .Where(r => r.Activo == true && r.Metrica.MetaEsperada != null && r.Metrica.SentidoMeta != null);
-
-            int usuarioId = ObtenerUsuarioIdActual();
-            var datosAcceso = ObtenerDatosAccesoUsuario(usuarioId);
-            bool puedeGestionarTodos = UsuarioPuedeGestionarTodosLosDepartamentos(datosAcceso);
-
-            if (!puedeGestionarTodos)
-            {
-                if (datosAcceso.Departamentos.Any())
-                    query = query.Where(r => datosAcceso.Departamentos.Contains(r.Metrica.DepartamentoID));
-                else
-                    query = query.Where(r => false);
-            }
-
-            int anioActual = DateTime.Now.Year;
-            int mesActual = mes ?? DateTime.Now.Month;
-            int semanaActual = semana ?? ObtenerSemanaDelAno(DateTime.Now);
-
-            if (filtroTiempo != "historico")
-                query = query.Where(r => r.Anio == anioActual);
-
-            var registrosEnPeriodo = query.ToList();
-
-            if (filtroTiempo == "mes")
-            {
-                var inicioMes = new DateTime(anioActual, mesActual, 1).DayOfYear;
-                var finMes = new DateTime(anioActual, mesActual, DateTime.DaysInMonth(anioActual, mesActual)).DayOfYear;
-
-                registrosEnPeriodo = registrosEnPeriodo.Where(r =>
-                    (r.Metrica.Frecuencia == "Mensual" && r.NumeroPeriodo == mesActual) ||
-                    (r.Metrica.Frecuencia == "Semanal" && r.NumeroPeriodo >= ((mesActual - 1) * 4) && r.NumeroPeriodo <= (mesActual * 4)) ||
-                    (r.Metrica.Frecuencia == "Diario" && r.NumeroPeriodo >= inicioMes && r.NumeroPeriodo <= finMes)
-                ).ToList();
-            }
-            else if (filtroTiempo == "semana")
-            {
-                var rangoDias = ObtenerRangoDiasDelAnoPorSemana(semanaActual);
-                registrosEnPeriodo = registrosEnPeriodo.Where(r =>
-                    (r.Metrica.Frecuencia == "Semanal" && r.NumeroPeriodo == semanaActual) ||
-                    (r.Metrica.Frecuencia == "Mensual" && r.NumeroPeriodo == ((semanaActual - 1) / 4) + 1) ||
-                    (r.Metrica.Frecuencia == "Diario" && r.NumeroPeriodo >= rangoDias.inicio && r.NumeroPeriodo <= rangoDias.fin)
-                ).ToList();
-            }
-
-            var datos = registrosEnPeriodo
-                .GroupBy(r => r.Metrica.Departamento.NombreDepartamento)
-                .Select(gDepto =>
+            var departamentosSelect = departamentos
+                .Select(d => new SelectListItem
                 {
-                    var kpisEvaluados = gDepto.GroupBy(r => r.Metrica).Select(gKpi =>
-                    {
-                        var metrica = gKpi.Key;
-                        decimal promedioActual = 0;
-
-                        var primeraVariableId = gKpi.SelectMany(r => r.DetallesValores)
-                            .Where(v => v.Variable.EsLinea == false)
-                            .Select(v => v.VariableID)
-                            .FirstOrDefault();
-
-                        var valoresValidos = gKpi.SelectMany(r => r.DetallesValores)
-                            .Where(v => v.VariableID == primeraVariableId)
-                            .Select(v => v.Valor)
-                            .ToList();
-
-                        if (valoresValidos.Any())
-                            promedioActual = valoresValidos.Average();
-
-                        decimal meta = metrica.MetaEsperada ?? 0;
-                        bool cumple = false;
-
-                        if (metrica.SentidoMeta == "MayorMejor") cumple = promedioActual >= meta;
-                        else if (metrica.SentidoMeta == "MenorMejor") cumple = promedioActual <= meta;
-                        else if (metrica.SentidoMeta == "Exacto") cumple = Math.Round(promedioActual, 2) == Math.Round(meta, 2);
-
-                        return new
-                        {
-                            nombreKpi = metrica.NombreMetrica,
-                            promedioActual = Math.Round(promedioActual, 2),
-                            metaEsperada = meta,
-                            cumple = cumple
-                        };
-                    }).ToList();
-
-                    int totalKpis = kpisEvaluados.Count;
-                    int kpisCumplidos = kpisEvaluados.Count(k => k.cumple);
-                    decimal porcentajeCumplimiento = totalKpis > 0 ? Math.Round((decimal)kpisCumplidos / totalKpis * 100, 2) : 0;
-
-                    return new
-                    {
-                        departamento = gDepto.Key,
-                        valor = porcentajeCumplimiento,
-                        totalKpis = totalKpis,
-                        cumplidos = kpisCumplidos,
-                        detalle = kpisEvaluados
-                    };
-                }).ToList();
-
-            return Json(datos);
-        }
-
-        // --- TABLERO POR ÁREA (FILTRO CORREGIDO POR PERIODO REAL) ---
-        [HttpGet("ObtenerTableroDepartamento")]
-        public JsonResult ObtenerTableroDepartamento(int idDepartamento, string filtroTiempo = "anio", int? mes = null, int? semana = null, string? dia = null)
-        {
-            int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0 || !UsuarioPuedeAccederDepartamento(usuarioId, idDepartamento))
-                return Json(new List<object>());
-
-            var query = _context.RegistroKpis
-                .Include(r => r.DetallesValores).ThenInclude(v => v.Variable)
-                .Include(r => r.Metrica)
-                .Where(r => r.Metrica.DepartamentoID == idDepartamento && r.Activo == true);
-
-            int anioActual = DateTime.Now.Year;
-            int mesActual = mes ?? DateTime.Now.Month;
-            int semanaActual = semana ?? ObtenerSemanaDelAno(DateTime.Now);
-            DateTime fechaSeleccionada;
-            int diaDelAno = 0;
-
-            if (!string.IsNullOrEmpty(dia) && DateTime.TryParse(dia, out fechaSeleccionada))
-                diaDelAno = fechaSeleccionada.DayOfYear;
-
-            if (filtroTiempo != "historico")
-                query = query.Where(r => r.Anio == anioActual);
-
-            var registrosEnPeriodo = query
-                .OrderBy(r => r.Anio)
-                .ThenBy(r => r.NumeroPeriodo)
-                .ToList();
-
-            if (filtroTiempo == "mes")
-            {
-                var inicioMes = new DateTime(anioActual, mesActual, 1).DayOfYear;
-                var finMes = new DateTime(anioActual, mesActual, DateTime.DaysInMonth(anioActual, mesActual)).DayOfYear;
-
-                registrosEnPeriodo = registrosEnPeriodo.Where(r =>
-                    (r.Metrica.Frecuencia == "Mensual" && r.NumeroPeriodo == mesActual) ||
-                    (r.Metrica.Frecuencia == "Semanal" && r.NumeroPeriodo >= ((mesActual - 1) * 4) && r.NumeroPeriodo <= (mesActual * 4)) ||
-                    (r.Metrica.Frecuencia == "Diario" && r.NumeroPeriodo >= inicioMes && r.NumeroPeriodo <= finMes)
-                ).ToList();
-            }
-            else if (filtroTiempo == "trimestre")
-            {
-                int trimestre = (int)Math.Ceiling(mesActual / 3.0);
-                int mesInicio = (trimestre - 1) * 3 + 1;
-                int mesFin = trimestre * 3;
-                var inicioTrimestre = new DateTime(anioActual, mesInicio, 1).DayOfYear;
-                var finTrimestre = new DateTime(anioActual, mesFin, DateTime.DaysInMonth(anioActual, mesFin)).DayOfYear;
-
-                registrosEnPeriodo = registrosEnPeriodo.Where(r =>
-                    (r.Metrica.Frecuencia == "Mensual" && r.NumeroPeriodo >= mesInicio && r.NumeroPeriodo <= mesFin) ||
-                    (r.Metrica.Frecuencia == "Semanal" && r.NumeroPeriodo >= ((mesInicio - 1) * 4) && r.NumeroPeriodo <= (mesFin * 4)) ||
-                    (r.Metrica.Frecuencia == "Diario" && r.NumeroPeriodo >= inicioTrimestre && r.NumeroPeriodo <= finTrimestre)
-                ).ToList();
-            }
-            else if (filtroTiempo == "semana")
-            {
-                var rangoDias = ObtenerRangoDiasDelAnoPorSemana(semanaActual);
-
-                registrosEnPeriodo = registrosEnPeriodo.Where(r =>
-                    (r.Metrica.Frecuencia == "Semanal" && r.NumeroPeriodo == semanaActual) ||
-                    (r.Metrica.Frecuencia == "Mensual" && r.NumeroPeriodo == ((semanaActual - 1) / 4) + 1) ||
-                    (r.Metrica.Frecuencia == "Diario" && r.NumeroPeriodo >= rangoDias.inicio && r.NumeroPeriodo <= rangoDias.fin)
-                ).ToList();
-            }
-            else if (filtroTiempo == "dia")
-            {
-                int diaPeriodo = diaDelAno > 0 ? diaDelAno : DateTime.Now.DayOfYear;
-
-                registrosEnPeriodo = registrosEnPeriodo.Where(r =>
-                    (r.Metrica.Frecuencia == "Diario" && r.NumeroPeriodo == diaPeriodo) ||
-                    (r.Metrica.Frecuencia == "Semanal" && r.NumeroPeriodo == ObtenerSemanaDelAno(new DateTime(anioActual, 1, 1).AddDays(diaPeriodo - 1))) ||
-                    (r.Metrica.Frecuencia == "Mensual" && r.NumeroPeriodo == new DateTime(anioActual, 1, 1).AddDays(diaPeriodo - 1).Month)
-                ).ToList();
-            }
-
-            var tablero = registrosEnPeriodo
-                .GroupBy(r => r.Metrica)
-                .Select(g => new
-                {
-                    MetricaID = g.Key.MetricaID,
-                    NombreMetrica = g.Key.NombreMetrica,
-                    TipoValor = g.Key.TipoValor,
-                    UnidadMedida = g.Key.UnidadMedida,
-                    TipoGrafica = g.Key.TipoGraficaDefecto,
-
-                    // NUEVO: configuración de tarjeta
-                    VariableTarjetaID = g.Key.VariableTarjetaID,
-                    ModoTarjeta = g.Key.ModoTarjeta,
-
-                    Historial = g.Select(r => new
-                    {
-                        periodo = FormatearEtiquetaPeriodo(r.Metrica.Frecuencia, r.NumeroPeriodo, r.Anio),
-
-                        variables = r.DetallesValores.Select(v => new
-                        {
-                            variableID = v.VariableID,
-                            nombre = v.Variable.NombreVariable,
-                            valor = v.Valor,
-                            esLinea = v.Variable.EsLinea,
-                            tipoCaptura = string.IsNullOrWhiteSpace(v.Variable.TipoCaptura) ? "Manual" : v.Variable.TipoCaptura,
-                            meta = r.Metrica.MetaEsperada,
-                            sentido = r.Metrica.SentidoMeta,
-                            tipoValor = string.IsNullOrWhiteSpace(v.Variable.TipoValor) ? r.Metrica.TipoValor : v.Variable.TipoValor,
-                            unidadMedida = string.IsNullOrWhiteSpace(v.Variable.UnidadMedida) ? r.Metrica.UnidadMedida : v.Variable.UnidadMedida
-                        }).ToList()
-                    }).ToList()
+                    Value = d.DepartamentoID.ToString(),
+                    Text = d.NombreDepartamento
                 })
                 .ToList();
 
-            return Json(tablero);
-        }
-
-        // --- GRÁFICA POR ÁREA: Comparativa ---
-        [HttpGet("ObtenerDatosPorDepartamento")]
-        public JsonResult ObtenerDatosPorDepartamento(int id)
-        {
-            int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0 || !UsuarioPuedeAccederDepartamento(usuarioId, id))
-                return Json(new List<object>());
-
-            var ultimosRegistros = _context.RegistroKpis
-                .Include(r => r.DetallesValores).ThenInclude(v => v.Variable)
-                .Include(r => r.Metrica)
-                .Where(r => r.Metrica.DepartamentoID == id && r.Activo == true && r.Metrica.TipoValor.ToLower().Contains("porcentaje"))
-                .ToList()
-                .GroupBy(r => r.MetricaID)
-                .Select(g => g.OrderByDescending(r => r.FechaCaptura).First())
-                .ToList();
-
-            var datos = ultimosRegistros
-                .Select(r => new
-                {
-                    metrica = r.Metrica.NombreMetrica,
-                    valor = Math.Round(r.DetallesValores.FirstOrDefault(v => v.Variable.EsLinea == true)?.Valor ?? 0, 2)
-                })
-                .ToList();
-
-            return Json(datos);
-        }
-
-        [HttpGet("ObtenerListaMetricas")]
-        public JsonResult ObtenerListaMetricas()
-        {
-            int usuarioId = ObtenerUsuarioIdActual();
-            var datosAcceso = ObtenerDatosAccesoUsuario(usuarioId);
-            bool puedeGestionarTodos = UsuarioPuedeGestionarTodosLosDepartamentos(datosAcceso);
-
-            var query = _context.CatMetricas
+            var metricasQuery = _context.CatMetricas
                 .Include(m => m.Departamento)
+                .Include(m => m.VariablesConfiguradas)
                 .Where(m => m.Activo)
                 .AsQueryable();
 
             if (!puedeGestionarTodos)
             {
                 if (datosAcceso.Departamentos.Any())
-                    query = query.Where(m => datosAcceso.Departamentos.Contains(m.DepartamentoID));
+                    metricasQuery = metricasQuery.Where(m => datosAcceso.Departamentos.Contains(m.DepartamentoID));
                 else
-                    query = query.Where(m => false);
+                    metricasQuery = metricasQuery.Where(m => false);
             }
 
-            var metricas = query
+            var kpis = metricasQuery
                 .OrderBy(m => m.Departamento.NombreDepartamento)
                 .ThenBy(m => m.NombreMetrica)
-                .Select(m => new
-                {
-                    m.MetricaID,
-                    m.NombreMetrica,
-                    nombreDepartamento = m.Departamento.NombreDepartamento
-                })
-                .ToList();
-            
-            return Json(metricas);
-        }
-
-        [HttpGet("ObtenerHistorialMetrica")]
-        public JsonResult ObtenerHistorialMetrica(int idMetrica, int anio)
-        {
-            int usuarioId = ObtenerUsuarioIdActual();
-            var departamentoMetrica = _context.CatMetricas
-                .Where(m => m.MetricaID == idMetrica)
-                .Select(m => (int?)m.DepartamentoID)
-                .FirstOrDefault();
-
-            if (usuarioId == 0 || !departamentoMetrica.HasValue || !UsuarioPuedeAccederDepartamento(usuarioId, departamentoMetrica.Value))
-                return Json(new List<object>());
-
-            var historial = _context.RegistroKpis
-                .Include(r => r.DetallesValores)
-                    .ThenInclude(v => v.Variable)
-                .Include(r => r.Metrica)
-                .Where(r => r.MetricaID == idMetrica && r.Anio == anio && r.Activo == true)
-                .OrderBy(r => r.NumeroPeriodo)
                 .ToList()
-                .Select(r => new
+                .Select(m => new OperacionesKpiEditorVm
                 {
-                    periodo = FormatearEtiquetaPeriodo(r.Metrica.Frecuencia, r.NumeroPeriodo, r.Anio),
-                    tipoGrafica = r.Metrica.TipoGraficaDefecto,
-                    tipoValor = r.Metrica.TipoValor,
-                    unidadMedida = r.Metrica.UnidadMedida,
-                    variables = r.DetallesValores.Select(v => new
-                    {
-                        variableID = v.VariableID,
-                        nombre = v.Variable.NombreVariable,
-                        valor = v.Valor,
-                        esLinea = v.Variable.EsLinea,
-                        meta = r.Metrica.MetaEsperada,
-                        sentido = r.Metrica.SentidoMeta,
-                        tipoValor = string.IsNullOrWhiteSpace(v.Variable.TipoValor) ? r.Metrica.TipoValor : v.Variable.TipoValor,
-                        unidadMedida = string.IsNullOrWhiteSpace(v.Variable.UnidadMedida) ? r.Metrica.UnidadMedida : v.Variable.UnidadMedida
-                    }).ToList()
+                    MetricaID = m.MetricaID,
+                    NombreMetrica = m.NombreMetrica,
+                    DepartamentoID = m.DepartamentoID,
+                    NombreDepartamento = m.Departamento?.NombreDepartamento ?? string.Empty,
+                    Frecuencia = string.IsNullOrWhiteSpace(m.Frecuencia) ? "Mensual" : m.Frecuencia,
+                    TipoValor = string.IsNullOrWhiteSpace(m.TipoValor) ? "Porcentaje" : m.TipoValor,
+                    UnidadMedida = m.UnidadMedida,
+                    MetaEsperada = m.MetaEsperada,
+                    SentidoMeta = m.SentidoMeta,
+                    TipoGraficaDefecto = string.IsNullOrWhiteSpace(m.TipoGraficaDefecto) ? "ComboChart" : m.TipoGraficaDefecto,
+                    VariableTarjetaID = m.VariableTarjetaID,
+                    ModoTarjeta = string.IsNullOrWhiteSpace(m.ModoTarjeta) ? "Automatico" : m.ModoTarjeta,
+                    ModoCalculoKpi = string.IsNullOrWhiteSpace(m.ModoCalculoKpi) ? "Promedio" : m.ModoCalculoKpi,
+                    VariableNumeradorID = m.VariableNumeradorID,
+                    VariableDenominadorID = m.VariableDenominadorID,
+                    VariablePesoID = m.VariablePesoID,
+                    MostrarMetaEnGrafica = m.MostrarMetaEnGrafica,
+                    TamanoGrafica = string.IsNullOrWhiteSpace(m.TamanoGrafica) ? "Normal" : m.TamanoGrafica,
+                    Activo = m.Activo,
+                    DepartamentosDisponibles = departamentosSelect.Select(CloneSelectItem).ToList(),
+                    Variables = m.VariablesConfiguradas
+                        .OrderBy(v => v.VariableID)
+                        .Select((v, index) => new OperacionesVariableEditorVm
+                        {
+                            VariableID = v.VariableID,
+                            MetricaID = v.MetricaID,
+                            NombreVariable = v.NombreVariable,
+                            EsLinea = v.EsLinea,
+                            TipoValor = v.TipoValor,
+                            UnidadMedida = v.UnidadMedida,
+                            TipoCaptura = string.IsNullOrWhiteSpace(v.TipoCaptura) ? "Manual" : v.TipoCaptura,
+                            ValorFijo = v.ValorFijo,
+                            Formula = v.Formula,
+                            TipoAgregacion = string.IsNullOrWhiteSpace(v.TipoAgregacion) ? ResolverTipoAgregacionDefault(v.TipoCaptura, v.EsLinea) : v.TipoAgregacion,
+                            OrdenVisual = index + 1,
+                            Activa = true
+                        })
+                        .ToList()
                 })
                 .ToList();
 
-            return Json(historial);
+            return new OperacionesGestorIndexVm
+            {
+                PuedeGestionarTodosDepartamentos = puedeGestionarTodos,
+                Departamentos = departamentosSelect,
+                Kpis = kpis
+            };
         }
+
+        private SelectListItem CloneSelectItem(SelectListItem item)
+        {
+            return new SelectListItem
+            {
+                Text = item.Text,
+                Value = item.Value,
+                Selected = item.Selected,
+                Disabled = item.Disabled,
+                Group = item.Group
+            };
+        }
+
+        private void GuardarVariablesEditor(CatMetricas metrica, List<OperacionesVariableEditorVm>? variablesVm)
+        {
+            if (variablesVm == null)
+                return;
+
+            foreach (var variableVm in variablesVm)
+            {
+                if (variableVm == null || string.IsNullOrWhiteSpace(variableVm.NombreVariable))
+                    continue;
+
+                CatMetricas_Variables? variable = null;
+
+                if (variableVm.VariableID > 0)
+                {
+                    variable = metrica.VariablesConfiguradas
+                        .FirstOrDefault(v => v.VariableID == variableVm.VariableID);
+                }
+
+                if (variable == null)
+                {
+                    variable = new CatMetricas_Variables();
+                    metrica.VariablesConfiguradas.Add(variable);
+                }
+
+                string tipoCaptura = string.IsNullOrWhiteSpace(variableVm.TipoCaptura)
+                    ? "Manual"
+                    : variableVm.TipoCaptura.Trim();
+
+                bool esLinea = variableVm.EsLinea;
+
+                variable.NombreVariable = variableVm.NombreVariable.Trim();
+                variable.EsLinea = esLinea;
+                variable.TipoValor = ResolverTipoValorVariableEditor(variableVm.TipoValor);
+                variable.UnidadMedida = string.IsNullOrWhiteSpace(variableVm.UnidadMedida) ? null : variableVm.UnidadMedida.Trim();
+                variable.TipoCaptura = tipoCaptura;
+                variable.ValorFijo = variableVm.ValorFijo;
+                variable.Formula = string.IsNullOrWhiteSpace(variableVm.Formula) ? null : variableVm.Formula.Trim();
+                variable.TipoAgregacion = string.IsNullOrWhiteSpace(variableVm.TipoAgregacion)
+                    ? ResolverTipoAgregacionDefault(tipoCaptura, esLinea)
+                    : variableVm.TipoAgregacion.Trim();
+            }
+        }
+
+        private void LimpiarReferenciasVariablesInvalidas(CatMetricas metrica)
+        {
+            if (!VariablePerteneceAMetrica(metrica, metrica.VariableTarjetaID))
+            {
+                metrica.VariableTarjetaID = null;
+                metrica.ModoTarjeta = "Automatico";
+            }
+
+            if (!VariablePerteneceAMetrica(metrica, metrica.VariableNumeradorID))
+                metrica.VariableNumeradorID = null;
+
+            if (!VariablePerteneceAMetrica(metrica, metrica.VariableDenominadorID))
+                metrica.VariableDenominadorID = null;
+
+            if (!VariablePerteneceAMetrica(metrica, metrica.VariablePesoID))
+                metrica.VariablePesoID = null;
+        }
+
+        private bool VariablePerteneceAMetrica(CatMetricas metrica, int? variableId)
+        {
+            if (!variableId.HasValue || variableId.Value <= 0)
+                return true;
+
+            return metrica.VariablesConfiguradas.Any(v => v.VariableID == variableId.Value);
+        }
+
+        private string? ResolverTipoValorVariableEditor(string? tipoValor)
+        {
+            if (string.IsNullOrWhiteSpace(tipoValor))
+                return null;
+
+            tipoValor = tipoValor.Trim();
+
+            if (tipoValor.Equals("Heredar", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            if (tipoValor.Equals("Porcentaje", StringComparison.OrdinalIgnoreCase))
+                return "Porcentaje";
+
+            if (tipoValor.Equals("Moneda", StringComparison.OrdinalIgnoreCase))
+                return "Moneda";
+
+            if (tipoValor.Equals("Entero", StringComparison.OrdinalIgnoreCase))
+                return "Entero";
+
+            return null;
+        }
+
+        private string ResolverTipoAgregacionDefault(string? tipoCaptura, bool esLinea)
+        {
+            if (esLinea)
+                return "ValorFijo";
+
+            if (!string.IsNullOrWhiteSpace(tipoCaptura) &&
+                tipoCaptura.Equals("Fijo", StringComparison.OrdinalIgnoreCase))
+                return "ValorFijo";
+
+            return "Promedio";
+        }
+
+        private string ResolverUnidadMedida(string? tipoValor, string? unidadMedida, string? unidadMedidaPersonalizada = null)
+        {
+            tipoValor = tipoValor?.Trim() ?? string.Empty;
+            unidadMedida = unidadMedida?.Trim() ?? string.Empty;
+            unidadMedidaPersonalizada = unidadMedidaPersonalizada?.Trim() ?? string.Empty;
+
+            if (tipoValor.Equals("Porcentaje", StringComparison.OrdinalIgnoreCase))
+                return "%";
+
+            if (tipoValor.Equals("Moneda", StringComparison.OrdinalIgnoreCase))
+                return "$";
+
+            if (tipoValor.Equals("Entero", StringComparison.OrdinalIgnoreCase))
+            {
+                if (unidadMedida.Equals("Otro", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(unidadMedidaPersonalizada))
+                    return unidadMedidaPersonalizada;
+
+                if (!string.IsNullOrWhiteSpace(unidadMedida) && !unidadMedida.Equals("Otro", StringComparison.OrdinalIgnoreCase))
+                    return unidadMedida;
+
+                return "Unidades";
+            }
+
+            return string.IsNullOrWhiteSpace(unidadMedida) ? "Unidades" : unidadMedida;
+        }
+
         #endregion
 
-        #region 2. CAPTURA DE DATOS (OPERACIÓN)
+
+        #region CAPTURA E IMPORTACION EXCEL (RUTAS ORIGINALES)
 
         [HttpGet("Captura")]
         public IActionResult Captura()
@@ -550,7 +1908,10 @@ namespace ProyectoMatrix.Controllers
                 valorFijo = v.ValorFijo,
                 formula = v.Formula,
                 tipoValor = string.IsNullOrWhiteSpace(v.TipoValor) ? metrica.TipoValor : v.TipoValor,
-                unidadMedida = string.IsNullOrWhiteSpace(v.UnidadMedida) ? metrica.UnidadMedida : v.UnidadMedida
+                unidadMedida = string.IsNullOrWhiteSpace(v.UnidadMedida) ? metrica.UnidadMedida : v.UnidadMedida,
+                tipoAgregacion = string.IsNullOrWhiteSpace(v.TipoAgregacion)
+                    ? ResolverTipoAgregacionDefault(v.TipoCaptura, v.EsLinea)
+                    : v.TipoAgregacion
             }).ToList();
 
             return Json(variables);
@@ -590,7 +1951,7 @@ namespace ProyectoMatrix.Controllers
                 if (fechaDiaria.HasValue)
                 {
                     periodoFinal = fechaDiaria.Value.DayOfYear;
-                    anioFinal = fechaDiaria.Value.Year;        
+                    anioFinal = fechaDiaria.Value.Year;
                 }
 
                 var registro = new RegistroKpi
@@ -605,12 +1966,12 @@ namespace ProyectoMatrix.Controllers
 
                 if (valores != null)
                 {
-                    foreach(var item in valores)
+                    foreach (var item in valores)
                     {
                         registro.DetallesValores.Add(new RegistroKpis_Valores
                         {
                             VariableID = item.Key,
-                            Valor = item.Value    
+                            Valor = item.Value
                         });
                     }
                 }
@@ -2221,29 +3582,211 @@ namespace ProyectoMatrix.Controllers
 
         #endregion
 
-        #region 3. HISTORIAL DE CAPTURAS (EDICIÓN Y ELIMINACIÓN)
+        #region HISTORIAL V2
 
         [HttpGet("Historial")]
-        public IActionResult Historial()
+        public IActionResult Historial(int? departamentoId = null, int? anio = null, int? metricaId = null)
         {
             int usuarioId = ObtenerUsuarioIdActual();
+
             if (usuarioId == 0)
                 return RedirectToAction("Login", "Login");
 
             var permisos = CargarPermisosSubMenuUsuario();
             ViewBag.MisPermisos = permisos;
-            if (!permisos.Contains(PermisoHistorial))
+
+            if (!permisos.Contains(PermisoHistorial) && !permisos.Contains(PermisoGestor) && !permisos.Contains(PermisoConfigurar))
                 return Forbid();
+
+            var vm = ConstruirHistorialVm(usuarioId, departamentoId, anio, metricaId);
+
+            ViewBag.DepartamentoFiltro = departamentoId;
+            ViewBag.AnioFiltro = anio;
+            ViewBag.MetricaFiltro = metricaId;
+
+            return View(vm);
+        }
+
+        [HttpPost("ActualizarRegistroKpi")]
+        [ValidateAntiForgeryToken]
+        public IActionResult ActualizarRegistroKpi(
+            int registroId,
+            int? anio,
+            int? numeroPeriodo,
+            DateTime? fechaDiaria,
+            Dictionary<int, decimal> valores)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+            {
+                TempData["Mensaje"] = "Sesion expirada.";
+                TempData["Tipo"] = "warning";
+                return RedirectToAction("Historial");
+            }
+
+            try
+            {
+                var registro = _context.RegistroKpis
+                    .Include(r => r.Metrica)
+                        .ThenInclude(m => m.VariablesConfiguradas)
+                    .Include(r => r.DetallesValores)
+                    .FirstOrDefault(r => r.RegistroID == registroId);
+
+                if (registro == null)
+                {
+                    TempData["Mensaje"] = "No se encontro el registro.";
+                    TempData["Tipo"] = "warning";
+                    return RedirectToAction("Historial");
+                }
+
+                if (!UsuarioPuedeAccederDepartamento(usuarioId, registro.Metrica.DepartamentoID))
+                {
+                    TempData["Mensaje"] = "No tienes permiso para editar este registro.";
+                    TempData["Tipo"] = "danger";
+                    return RedirectToAction("Historial");
+                }
+
+                var periodo = ResolverPeriodoCaptura(registro.Metrica, anio, numeroPeriodo, fechaDiaria);
+
+                if (periodo.numeroPeriodo > 0)
+                {
+                    registro.Anio = periodo.anio;
+                    registro.NumeroPeriodo = periodo.numeroPeriodo;
+                }
+
+                int valoresInsertados = 0;
+                int valoresActualizados = 0;
+
+                var variablesPermitidas = registro.Metrica.VariablesConfiguradas
+                    .Select(v => v.VariableID)
+                    .ToHashSet();
+
+                if (valores != null)
+                {
+                    foreach (var item in valores)
+                    {
+                        if (!variablesPermitidas.Contains(item.Key))
+                            continue;
+
+                        UpsertValorRegistro(
+                            registro,
+                            item.Key,
+                            item.Value,
+                            ref valoresInsertados,
+                            ref valoresActualizados);
+                    }
+                }
+
+                AgregarVariablesFijasYCalculadas(
+                    registro,
+                    registro.Metrica,
+                    ref valoresInsertados,
+                    ref valoresActualizados);
+
+                registro.FechaCaptura = DateTime.Now;
+                registro.UsuarioID = usuarioId;
+
+                _context.SaveChanges();
+
+                TempData["Mensaje"] = "Registro actualizado correctamente.";
+                TempData["Tipo"] = "success";
+            }
+            catch (Exception ex)
+            {
+                var detalle = ex.InnerException?.Message ?? ex.Message;
+                _logger.LogError(ex, "Error al actualizar historial KPI V2.");
+                TempData["Mensaje"] = "Error al actualizar el registro: " + detalle;
+                TempData["Tipo"] = "danger";
+            }
+
+            return RedirectToAction("Historial");
+        }
+
+        [HttpPost("ArchivarRegistroKpi")]
+        [ValidateAntiForgeryToken]
+        public IActionResult ArchivarRegistroKpi(int id)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+            {
+                TempData["Mensaje"] = "Sesion expirada.";
+                TempData["Tipo"] = "warning";
+                return RedirectToAction("Historial");
+            }
+
+            try
+            {
+                var registro = _context.RegistroKpis
+                    .Include(r => r.Metrica)
+                    .FirstOrDefault(r => r.RegistroID == id);
+
+                if (registro == null)
+                {
+                    TempData["Mensaje"] = "No se encontro el registro.";
+                    TempData["Tipo"] = "warning";
+                    return RedirectToAction("Historial");
+                }
+
+                if (!UsuarioPuedeAccederDepartamento(usuarioId, registro.Metrica.DepartamentoID))
+                {
+                    TempData["Mensaje"] = "No tienes permiso para archivar este registro.";
+                    TempData["Tipo"] = "danger";
+                    return RedirectToAction("Historial");
+                }
+
+                registro.Activo = false;
+                _context.SaveChanges();
+
+                TempData["Mensaje"] = "Registro archivado correctamente.";
+                TempData["Tipo"] = "success";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al archivar registro KPI V2.");
+                TempData["Mensaje"] = "Error al archivar el registro: " + ex.Message;
+                TempData["Tipo"] = "danger";
+            }
+
+            return RedirectToAction("Historial");
+        }
+
+        private OperacionesHistorialIndexVm ConstruirHistorialVm(
+            int usuarioId,
+            int? departamentoId,
+            int? anio,
+            int? metricaId)
+        {
+            var datosAcceso = ObtenerDatosAccesoUsuario(usuarioId);
+            bool puedeGestionarTodos = UsuarioPuedeGestionarTodosLosDepartamentos(datosAcceso);
+
+            var departamentosQuery = _context.Departamentos
+                .AsNoTracking()
+                .Where(d => d.Activo)
+                .AsQueryable();
+
+            if (!puedeGestionarTodos)
+            {
+                if (datosAcceso.Departamentos.Any())
+                    departamentosQuery = departamentosQuery.Where(d => datosAcceso.Departamentos.Contains(d.DepartamentoID));
+                else
+                    departamentosQuery = departamentosQuery.Where(d => false);
+            }
+
+            var departamentos = departamentosQuery
+                .OrderBy(d => d.NombreDepartamento)
+                .ToList();
 
             var query = _context.RegistroKpis
                 .Include(r => r.Metrica)
                     .ThenInclude(m => m.Departamento)
+                .Include(r => r.Metrica)
+                    .ThenInclude(m => m.VariablesConfiguradas)
                 .Include(r => r.DetallesValores)
                     .ThenInclude(v => v.Variable)
-                .Where(r => r.Activo == true);
-
-            var datosAcceso = ObtenerDatosAccesoUsuario(usuarioId);
-            bool puedeGestionarTodos = UsuarioPuedeGestionarTodosLosDepartamentos(datosAcceso);
+                .Where(r => r.Activo && r.Metrica.Activo)
+                .AsQueryable();
 
             if (!puedeGestionarTodos)
             {
@@ -2253,590 +3796,110 @@ namespace ProyectoMatrix.Controllers
                     query = query.Where(r => false);
             }
 
-            ViewBag.PuedeGestionarTodosDepartamentos = puedeGestionarTodos;
-            ViewBag.EsUsuarioLimitado = !puedeGestionarTodos;
+            if (departamentoId.HasValue && departamentoId.Value > 0)
+                query = query.Where(r => r.Metrica.DepartamentoID == departamentoId.Value);
 
-            var registros = query.OrderByDescending(r => r.FechaCaptura).Take(100).ToList();
+            if (anio.HasValue && anio.Value > 0)
+                query = query.Where(r => r.Anio == anio.Value);
 
-            return View(registros);
-        }
+            if (metricaId.HasValue && metricaId.Value > 0)
+                query = query.Where(r => r.MetricaID == metricaId.Value);
 
-        // --- BORRADO LÓGICO ---
-        [HttpPost("EliminarKpi")]
-        public IActionResult EliminarKpi(int id)
-        {
-            try
-            {
-                int usuarioId = ObtenerUsuarioIdActual();
-                if (usuarioId == 0)
+            var registros = query
+                .OrderByDescending(r => r.Anio)
+                .ThenByDescending(r => r.NumeroPeriodo)
+                .ThenBy(r => r.Metrica.Departamento.NombreDepartamento)
+                .ThenBy(r => r.Metrica.NombreMetrica)
+                .Take(250)
+                .ToList()
+                .Select(r => new OperacionesRegistroHistorialVm
                 {
-                    TempData["Mensaje"] = "Sesión expirada.";
-                    TempData["Tipo"] = "warning";
-                    return RedirectToAction("Historial");
-                }
-
-                var registro = _context.RegistroKpis
-                    .Include(r => r.Metrica)
-                    .FirstOrDefault(r => r.RegistroID == id);
-
-                if (registro != null)
-                {
-                    if (!UsuarioPuedeAccederDepartamento(usuarioId, registro.Metrica.DepartamentoID))
-                    {
-                        TempData["Mensaje"] = "No tienes permiso para archivar registros de este departamento.";
-                        TempData["Tipo"] = "danger";
-                        return RedirectToAction("Historial");
-                    }
-
-                    registro.Activo = false;
-                    _context.SaveChanges();
-    
-                    TempData["Mensaje"] = "Registro archivado correctamente (Borrado lógico).";
-                    TempData["Tipo"] = "success";
-                }
-            }
-            catch (Exception ex)
-            {
-                TempData["Mensaje"] = "Error al archivar: " + ex.Message;
-                TempData["Tipo"] = "danger";
-            }
-            return RedirectToAction("Historial");
-        }
-
-        [HttpPost("ActualizarKpi")]
-        public IActionResult ActualizarKpi(int registroId, int? anio, int? numeroPeriodo, DateTime? fechaDiaria, Dictionary<int, decimal> valores)
-        {
-            try
-            {
-                int usuarioId = ObtenerUsuarioIdActual();
-                if (usuarioId == 0)
-                {
-                    TempData["Mensaje"] = "Sesión expirada.";
-                    TempData["Tipo"] = "warning";
-                    return RedirectToAction("Historial");
-                }
-
-                var registro = _context.RegistroKpis
-                    .Include(r => r.Metrica)
-                    .Include(r => r.DetallesValores)
-                    .FirstOrDefault(r => r.RegistroID == registroId);
-
-                if (registro != null)
-                {
-                    if (!UsuarioPuedeAccederDepartamento(usuarioId, registro.Metrica.DepartamentoID))
-                    {
-                        TempData["Mensaje"] = "No tienes permiso para editar registros de este departamento.";
-                        TempData["Tipo"] = "danger";
-                        return RedirectToAction("Historial");
-                    }
-
-                    int periodoFinal = numeroPeriodo ?? registro.NumeroPeriodo;
-                    int anioFinal = anio ?? registro.Anio;
-
-                    if (fechaDiaria.HasValue)
-                    {
-                        periodoFinal = fechaDiaria.Value.DayOfYear;
-                        anioFinal = fechaDiaria.Value.Year;
-                    }
-
-                    registro.Anio = anioFinal;
-                    registro.NumeroPeriodo = periodoFinal;
-
-                    if (valores != null)
-                    {
-                        foreach (var item in valores)
+                    RegistroID = r.RegistroID,
+                    MetricaID = r.MetricaID,
+                    NombreMetrica = r.Metrica?.NombreMetrica ?? string.Empty,
+                    DepartamentoID = r.Metrica?.DepartamentoID ?? 0,
+                    Departamento = r.Metrica?.Departamento?.NombreDepartamento ?? string.Empty,
+                    Anio = r.Anio,
+                    NumeroPeriodo = r.NumeroPeriodo,
+                    Periodo = FormatearEtiquetaPeriodo(r.Metrica?.Frecuencia ?? "Mensual", r.NumeroPeriodo, r.Anio),
+                    FechaCaptura = r.FechaCaptura,
+                    Usuario = $"Usuario #{r.UsuarioID}",
+                    Activo = r.Activo,
+                    Valores = r.DetallesValores
+                        .OrderBy(v => v.VariableID)
+                        .Select(v => new OperacionesKpiVariablePeriodoVm
                         {
-                            var detalle = registro.DetallesValores.FirstOrDefault(d => d.VariableID == item.Key);
-                            if (detalle != null)
-                                detalle.Valor = item.Value;
-                        }
-                    }
-
-                    _context.SaveChanges();
-                    TempData["Mensaje"] = "Registro editado y actualizado correctamente.";
-                    TempData["Tipo"] = "success";
-                }
-            }
-            catch (Exception ex)
-            {
-                TempData["Mensaje"] = "Error al actualizar: " + ex.Message;
-                TempData["Tipo"] = "danger";
-            }
-            return RedirectToAction("Historial");
-        }
-
-        #endregion
-
-        #region 4. GESTIÓN Y CONFIGURACIÓN DE MÉTRICAS (CRUD)
-
-        [HttpGet("GestorMetricas")]
-        public IActionResult GestorMetricas()
-        {
-            int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0)
-                return RedirectToAction("Login", "Login");
-
-            var permisos = CargarPermisosSubMenuUsuario();
-            ViewBag.MisPermisos = permisos;
-            if (!TieneAccesoGestor())
-                return Forbid();
-
-            var datosAcceso = ObtenerDatosAccesoUsuario(usuarioId);
-            bool puedeGestionarTodos = UsuarioPuedeGestionarTodosLosDepartamentos(datosAcceso);
-
-            var metricasQuery = _context.CatMetricas
-                .Include(m => m.Departamento)
-                .Include(m => m.VariablesConfiguradas)
-                .AsQueryable();
-
-            var departamentosQuery = _context.Departamentos
-                .Where(d => d.Activo)
-                .AsQueryable();
-
-            if (!puedeGestionarTodos)
-            {
-                if (datosAcceso.Departamentos.Any())
-                {
-                    metricasQuery = metricasQuery.Where(m => datosAcceso.Departamentos.Contains(m.DepartamentoID));
-                    departamentosQuery = departamentosQuery.Where(d => datosAcceso.Departamentos.Contains(d.DepartamentoID));
-                }
-                else
-                {
-                    metricasQuery = metricasQuery.Where(m => false);
-                    departamentosQuery = departamentosQuery.Where(d => false);
-                }
-            }
-
-            ViewBag.Departamentos = departamentosQuery
-                .OrderBy(d => d.NombreDepartamento)
+                            VariableID = v.VariableID,
+                            Nombre = v.Variable?.NombreVariable ?? string.Empty,
+                            Valor = v.Valor,
+                            ValorFormateado = FormatearValor(
+                                v.Valor,
+                                ObtenerTipoValorVariable(r.Metrica, v.Variable),
+                                ObtenerUnidadVariable(r.Metrica, v.Variable)),
+                            EsLinea = v.Variable?.EsLinea ?? false,
+                            TipoCaptura = string.IsNullOrWhiteSpace(v.Variable?.TipoCaptura) ? "Manual" : v.Variable!.TipoCaptura,
+                            TipoValor = ObtenerTipoValorVariable(r.Metrica, v.Variable),
+                            UnidadMedida = ObtenerUnidadVariable(r.Metrica, v.Variable),
+                            TipoAgregacion = string.IsNullOrWhiteSpace(v.Variable?.TipoAgregacion) ? "Promedio" : v.Variable!.TipoAgregacion!
+                        })
+                        .ToList()
+                })
                 .ToList();
-            ViewBag.EsUsuarioLimitado = !puedeGestionarTodos;
-            ViewBag.PuedeGestionarTodosDepartamentos = puedeGestionarTodos;
 
-            return View(metricasQuery
-                .OrderBy(m => m.Departamento.NombreDepartamento)
-                .ThenBy(m => m.NombreMetrica)
-                .ToList());
-        }
-
-        [HttpGet("NuevaMetrica")]
-        public IActionResult NuevaMetrica()
-        {
-            int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0)
-                return RedirectToAction("Login", "Login");
-
-            var permisos = CargarPermisosSubMenuUsuario();
-            ViewBag.MisPermisos = permisos;
-            if (!permisos.Contains(PermisoConfigurar))
-                return Forbid();
-
-            var datosAcceso = ObtenerDatosAccesoUsuario(usuarioId);
-            bool puedeGestionarTodos = UsuarioPuedeGestionarTodosLosDepartamentos(datosAcceso);
-
-            var departamentosQuery = _context.Departamentos
-                .Where(d => d.Activo)
-                .AsQueryable();
-
-            if (!puedeGestionarTodos)
+            return new OperacionesHistorialIndexVm
             {
-                if (datosAcceso.Departamentos.Any())
-                    departamentosQuery = departamentosQuery.Where(d => datosAcceso.Departamentos.Contains(d.DepartamentoID));
-                else
-                    departamentosQuery = departamentosQuery.Where(d => false);
-            }
-
-            ViewBag.PuedeGestionarTodosDepartamentos = puedeGestionarTodos;
-            ViewBag.EsUsuarioLimitado = !puedeGestionarTodos;
-
-            return View(departamentosQuery.OrderBy(d => d.NombreDepartamento).ToList());
-        }
-
-        [HttpPost("GuardarMetrica")]
-        public IActionResult GuardarMetrica(
-            CatMetricas nuevaMetrica,
-            string? UnidadMedidaPersonalizada,
-            List<string> nombresVariables,
-            List<bool> variablesEsLinea,
-            List<string> tiposCaptura,
-            List<decimal?> valoresFijos,
-            List<string> formulas,
-            List<string>? tiposValorVariables,
-            List<string>? unidadesMedidaVariables,
-            List<string>? unidadesMedidaVariablesPersonalizadas)
-        {
-            try
-            {
-                int usuarioId = ObtenerUsuarioIdActual();
-                if (usuarioId == 0)
+                PuedeGestionarTodosDepartamentos = puedeGestionarTodos,
+                Departamentos = departamentos.Select(d => new SelectListItem
                 {
-                    TempData["Mensaje"] = "Sesión expirada.";
-                    TempData["Tipo"] = "warning";
-                    return RedirectToAction("NuevaMetrica");
-                }
-
-                if (!UsuarioPuedeAccederDepartamento(usuarioId, nuevaMetrica.DepartamentoID))
-                {
-                    TempData["Mensaje"] = "No tienes permiso para crear KPIs en este departamento.";
-                    TempData["Tipo"] = "danger";
-                    return RedirectToAction("NuevaMetrica");
-                }
-
-                nuevaMetrica.UnidadMedida = ResolverUnidadMedida(nuevaMetrica.TipoValor, nuevaMetrica.UnidadMedida, UnidadMedidaPersonalizada);
-
-                if (string.IsNullOrWhiteSpace(nuevaMetrica.TipoGraficaDefecto))
-                    nuevaMetrica.TipoGraficaDefecto = "ComboChart";
-
-                nuevaMetrica.Activo = true;
-
-                if (nombresVariables != null)
-                {
-                    for (int i = 0; i < nombresVariables.Count; i++)
-                    {
-                        if (!string.IsNullOrWhiteSpace(nombresVariables[i]))
-                        {
-                            string? tipoValorVariable = ObtenerValorLista(tiposValorVariables, i);
-                            string? unidadVariable = ObtenerValorLista(unidadesMedidaVariables, i);
-                            string? unidadPersonalizadaVariable = ObtenerValorLista(unidadesMedidaVariablesPersonalizadas, i);
-
-                            string? tipoValorFinalVariable = string.IsNullOrWhiteSpace(tipoValorVariable) || tipoValorVariable.Equals("Heredar", StringComparison.OrdinalIgnoreCase)
-                                ? null
-                                : tipoValorVariable.Trim();
-
-                            string? unidadFinalVariable = null;
-
-                            if (!string.IsNullOrWhiteSpace(tipoValorFinalVariable))
-                                unidadFinalVariable = ResolverUnidadMedida(tipoValorFinalVariable, unidadVariable, unidadPersonalizadaVariable);
-
-                            nuevaMetrica.VariablesConfiguradas.Add(new CatMetricas_Variables
-                            {
-                                NombreVariable = nombresVariables[i].Trim(),
-                                EsLinea = variablesEsLinea != null && variablesEsLinea.Count > i && variablesEsLinea[i],
-                                TipoCaptura = tiposCaptura != null && tiposCaptura.Count > i ? tiposCaptura[i] : "Manual",
-                                ValorFijo = valoresFijos != null && valoresFijos.Count > i ? valoresFijos[i] : null,
-                                Formula = formulas != null && formulas.Count > i ? formulas[i] ?? string.Empty : string.Empty,
-                                TipoValor = tipoValorFinalVariable,
-                                UnidadMedida = unidadFinalVariable
-                            });
-                        }
-                    }
-                }
-
-                _context.CatMetricas.Add(nuevaMetrica);
-                _context.SaveChanges();
-
-                TempData["MostrarModalExito"] = true;
-                TempData["Mensaje"] = "Métrica y reglas configuradas con éxito.";
-                TempData["Tipo"] = "success";
-
-                return RedirectToAction("NuevaMetrica");
-            }
-            catch (Exception ex)
-            {
-                var innerEx = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-                TempData["Mensaje"] = "Error al guardar: " + innerEx;
-                TempData["Tipo"] = "danger";
-                return RedirectToAction("NuevaMetrica");
-            }
-        }
-
-        [HttpPost("ActualizarMetricaCompleta")]
-        public IActionResult ActualizarMetricaCompleta(
-            int metricaId,
-            string nombreMetrica,
-            int departamentoId,
-            string frecuencia,
-            string tipoValor,
-            string? unidadMedida,
-            string? unidadMedidaPersonalizada,
-            string tipoGraficaDefecto,
-            decimal? metaEsperada,
-            string sentidoMeta,
-
-            int? variableTarjetaID,
-            string? modoTarjeta,
-
-            List<int> variablesIds,
-            List<string> nombresVariables,
-            List<bool> variablesEsLinea,
-            List<string> tiposCaptura,
-            List<decimal?> valoresFijos,
-            List<string> formulas,
-            List<string>? tiposValorVariables,
-            List<string>? unidadesMedidaVariables,
-            List<string>? unidadesMedidaVariablesPersonalizadas)
-        {
-            try
-            {
-                var metrica = _context.CatMetricas
-                    .Include(m => m.VariablesConfiguradas)
-                    .FirstOrDefault(m => m.MetricaID == metricaId);
-
-                int usuarioId = ObtenerUsuarioIdActual();
-
-                if (usuarioId == 0)
-                {
-                    TempData["Mensaje"] = "Sesión expirada.";
-                    TempData["Tipo"] = "warning";
-                    return RedirectToAction("GestorMetricas");
-                }
-
-                if (metrica == null)
-                {
-                    TempData["Mensaje"] = "No se encontró la métrica.";
-                    TempData["Tipo"] = "warning";
-                    return RedirectToAction("GestorMetricas");
-                }
-
-                if (!UsuarioPuedeAccederDepartamento(usuarioId, metrica.DepartamentoID) ||
-                    !UsuarioPuedeAccederDepartamento(usuarioId, departamentoId))
-                {
-                    TempData["Mensaje"] = "No tienes permiso para editar o mover KPIs de este departamento.";
-                    TempData["Tipo"] = "danger";
-                    return RedirectToAction("GestorMetricas");
-                }
-
-                metrica.NombreMetrica = nombreMetrica;
-                metrica.DepartamentoID = departamentoId;
-                metrica.Frecuencia = frecuencia;
-                metrica.TipoValor = tipoValor;
-                metrica.UnidadMedida = ResolverUnidadMedida(tipoValor, unidadMedida, unidadMedidaPersonalizada);
-                metrica.TipoGraficaDefecto = string.IsNullOrWhiteSpace(tipoGraficaDefecto)
-                    ? "ComboChart"
-                    : tipoGraficaDefecto;
-                metrica.MetaEsperada = metaEsperada;
-                metrica.SentidoMeta = sentidoMeta;
-
-                // NUEVO: tarjeta configurable del tablero
-                metrica.VariableTarjetaID = variableTarjetaID;
-                metrica.ModoTarjeta = string.IsNullOrWhiteSpace(modoTarjeta)
-                    ? "Automatico"
-                    : modoTarjeta;
-
-                if (nombresVariables != null)
-                {
-                    for (int i = 0; i < nombresVariables.Count; i++)
-                    {
-                        if (string.IsNullOrWhiteSpace(nombresVariables[i]))
-                            continue;
-
-                        int varId = variablesIds != null && variablesIds.Count > i
-                            ? variablesIds[i]
-                            : 0;
-
-                        bool esLinea = variablesEsLinea != null &&
-                                        variablesEsLinea.Count > i &&
-                                        variablesEsLinea[i];
-
-                        string tipoCaptura = tiposCaptura != null &&
-                                            tiposCaptura.Count > i &&
-                                            !string.IsNullOrWhiteSpace(tiposCaptura[i])
-                            ? tiposCaptura[i]
-                            : "Manual";
-
-                        decimal? valorFijo = valoresFijos != null && valoresFijos.Count > i
-                            ? valoresFijos[i]
-                            : null;
-
-                        string formula = formulas != null && formulas.Count > i
-                            ? formulas[i] ?? string.Empty
-                            : string.Empty;
-
-                        string? tipoValorVariableFormulario = tiposValorVariables != null && tiposValorVariables.Count > i
-                            ? tiposValorVariables[i]
-                            : null;
-
-                        string? unidadVariableFormulario = unidadesMedidaVariables != null && unidadesMedidaVariables.Count > i
-                            ? unidadesMedidaVariables[i]
-                            : null;
-
-                        string? unidadVariablePersonalizada = unidadesMedidaVariablesPersonalizadas != null &&
-                                                            unidadesMedidaVariablesPersonalizadas.Count > i
-                            ? unidadesMedidaVariablesPersonalizadas[i]
-                            : null;
-
-                        string? tipoValorVariable = ResolverTipoValorVariable(tipoValorVariableFormulario);
-
-                        string? unidadMedidaVariable = ResolverUnidadMedidaVariable(
-                            tipoValor,
-                            metrica.UnidadMedida,
-                            tipoValorVariable,
-                            unidadVariableFormulario,
-                            unidadVariablePersonalizada);
-
-                        if (varId > 0)
-                        {
-                            var variableExistente = metrica.VariablesConfiguradas
-                                .FirstOrDefault(v => v.VariableID == varId);
-
-                            if (variableExistente != null)
-                            {
-                                variableExistente.NombreVariable = nombresVariables[i].Trim();
-                                variableExistente.EsLinea = esLinea;
-                                variableExistente.TipoCaptura = tipoCaptura;
-                                variableExistente.ValorFijo = valorFijo;
-                                variableExistente.Formula = formula;
-                                variableExistente.TipoValor = tipoValorVariable;
-                                variableExistente.UnidadMedida = unidadMedidaVariable;
-                            }
-                        }
-                        else
-                        {
-                            metrica.VariablesConfiguradas.Add(new CatMetricas_Variables
-                            {
-                                NombreVariable = nombresVariables[i].Trim(),
-                                EsLinea = esLinea,
-                                TipoCaptura = tipoCaptura,
-                                ValorFijo = valorFijo,
-                                Formula = formula,
-                                TipoValor = tipoValorVariable,
-                                UnidadMedida = unidadMedidaVariable
-                            });
-                        }
-                    }
-                }
-
-                // Si el usuario dejó como tarjeta una variable que ya no existe, limpiamos la configuración.
-                if (metrica.VariableTarjetaID.HasValue &&
-                    !metrica.VariablesConfiguradas.Any(v => v.VariableID == metrica.VariableTarjetaID.Value))
-                {
-                    metrica.VariableTarjetaID = null;
-                    metrica.ModoTarjeta = "Automatico";
-                }
-
-                _context.SaveChanges();
-
-                TempData["Mensaje"] = "Métrica, variables, metas, unidades y tarjeta del tablero actualizadas correctamente.";
-                TempData["Tipo"] = "success";
-            }
-            catch (Exception ex)
-            {
-                var innerEx = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-                TempData["Mensaje"] = "Error al actualizar: " + innerEx;
-                TempData["Tipo"] = "danger";
-            }
-
-            return RedirectToAction("GestorMetricas");
-        }
-
-        private string? ResolverTipoValorVariable(string? tipoValorVariable)
-        {
-            if (string.IsNullOrWhiteSpace(tipoValorVariable))
-                return null;
-
-            tipoValorVariable = tipoValorVariable.Trim();
-
-            if (tipoValorVariable.Equals("Heredar", StringComparison.OrdinalIgnoreCase))
-                return null;
-
-            if (tipoValorVariable.Equals("Porcentaje", StringComparison.OrdinalIgnoreCase))
-                return "Porcentaje";
-
-            if (tipoValorVariable.Equals("Moneda", StringComparison.OrdinalIgnoreCase))
-                return "Moneda";
-
-            if (tipoValorVariable.Equals("Entero", StringComparison.OrdinalIgnoreCase))
-                return "Entero";
-
-            return null;
-        }
-
-        private string? ResolverUnidadMedidaVariable(
-            string tipoValorKpi,
-            string? unidadMedidaKpi,
-            string? tipoValorVariable,
-            string? unidadMedidaVariable,
-            string? unidadMedidaVariablePersonalizada)
-        {
-            if (string.IsNullOrWhiteSpace(unidadMedidaVariable))
-                return null;
-
-            unidadMedidaVariable = unidadMedidaVariable.Trim();
-
-            if (unidadMedidaVariable.Equals("Heredar", StringComparison.OrdinalIgnoreCase))
-                return null;
-
-            string tipoValorEfectivo = !string.IsNullOrWhiteSpace(tipoValorVariable) ? tipoValorVariable : tipoValorKpi;
-
-            string unidadResuelta = ResolverUnidadMedida(tipoValorEfectivo, unidadMedidaVariable, unidadMedidaVariablePersonalizada);
-
-            if (!string.IsNullOrWhiteSpace(unidadMedidaKpi) &&
-                unidadResuelta.Equals(unidadMedidaKpi, StringComparison.OrdinalIgnoreCase))
-                return null;
-
-            return unidadResuelta;
-        }
-
-        [HttpPost("EliminarMetrica")]
-        public IActionResult EliminarMetrica(int id)
-        {
-            try
-            {
-                int usuarioId = ObtenerUsuarioIdActual();
-                if (usuarioId == 0)
-                {
-                    TempData["Mensaje"] = "Sesión expirada.";
-                    TempData["Tipo"] = "warning";
-                    return RedirectToAction("GestorMetricas");
-                }
-
-                var metrica = _context.CatMetricas.Find(id);
-                if (metrica != null)
-                {
-                    if (!UsuarioPuedeAccederDepartamento(usuarioId, metrica.DepartamentoID))
-                    {
-                        TempData["Mensaje"] = "No tienes permiso para eliminar KPIs de este departamento.";
-                        TempData["Tipo"] = "danger";
-                        return RedirectToAction("GestorMetricas");
-                    }
-
-                    _context.CatMetricas.Remove(metrica);
-                    _context.SaveChanges();
-
-                    TempData["Mensaje"] = "Métrica eliminada permanentemente.";
-                    TempData["Tipo"] = "success";
-                }
-            }
-            catch (Exception)
-            {
-                TempData["Mensaje"] = "No se puede eliminar la métrica porque ya tiene historial capturado. Contacte a TI o elimine primero sus registros.";
-                TempData["Tipo"] = "warning";
-            }
-            return RedirectToAction("GestorMetricas");
+                    Value = d.DepartamentoID.ToString(),
+                    Text = d.NombreDepartamento,
+                    Selected = departamentoId.HasValue && departamentoId.Value == d.DepartamentoID
+                }).ToList(),
+                Registros = registros
+            };
         }
 
         #endregion
 
-        #region 5. MÉTODOS AUXILIARES (HELPERS)
 
-        private bool UsuarioTieneDepartamentoOperaciones((int RolID, List<int> Departamentos) datosAcceso)
+
+
+        #region CAPTURA / HISTORIAL HELPERS
+
+        private (int anio, int numeroPeriodo) ResolverPeriodoCaptura(
+            CatMetricas metrica,
+            int? anio,
+            int? numeroPeriodo,
+            DateTime? fechaDiaria)
         {
-            if (datosAcceso.Departamentos == null || !datosAcceso.Departamentos.Any())
-                return false;
+            int anioFinal = anio ?? DateTime.Now.Year;
+            int periodoFinal = numeroPeriodo ?? 0;
 
-            return _context.Departamentos.Any(d =>
-                d.Activo &&
-                datosAcceso.Departamentos.Contains(d.DepartamentoID) &&
-                d.NombreDepartamento != null &&
-                d.NombreDepartamento.ToUpper().Contains("OPERACIONES"));
-        }
+            if (EsFrecuencia(metrica.Frecuencia, "Diario"))
+            {
+                if (fechaDiaria.HasValue)
+                {
+                    anioFinal = fechaDiaria.Value.Year;
+                    periodoFinal = fechaDiaria.Value.DayOfYear;
+                }
+            }
+            else if (EsFrecuencia(metrica.Frecuencia, "Mensual"))
+            {
+                if (periodoFinal < 1 || periodoFinal > 12)
+                    periodoFinal = DateTime.Now.Month;
+            }
+            else if (EsFrecuencia(metrica.Frecuencia, "Semanal"))
+            {
+                if (periodoFinal < 1 || periodoFinal > 53)
+                    periodoFinal = ObtenerSemanaDelAno(DateTime.Now);
+            }
+            else
+            {
+                if (periodoFinal <= 0)
+                    periodoFinal = DateTime.Now.Month;
+            }
 
-        private bool UsuarioPuedeGestionarTodosLosDepartamentos((int RolID, List<int> Departamentos) datosAcceso)
-        {
-            if (datosAcceso.RolID == 1)
-                return true;
-
-            return UsuarioTieneDepartamentoOperaciones(datosAcceso);
-        }
-
-        private bool UsuarioPuedeAccederDepartamento(int usuarioId, int departamentoId)
-        {
-            var datosAcceso = ObtenerDatosAccesoUsuario(usuarioId);
-
-            if (UsuarioPuedeGestionarTodosLosDepartamentos(datosAcceso))
-                return true;
-
-            return datosAcceso.Departamentos.Contains(departamentoId);
+            return (anioFinal, periodoFinal);
         }
 
         private void UpsertValorRegistro(
@@ -2846,10 +3909,10 @@ namespace ProyectoMatrix.Controllers
             ref int valoresInsertados,
             ref int valoresActualizados)
         {
-            var valorExistente = registro.DetallesValores
+            var existente = registro.DetallesValores
                 .FirstOrDefault(v => v.VariableID == variableId);
 
-            if (valorExistente == null)
+            if (existente == null)
             {
                 registro.DetallesValores.Add(new RegistroKpis_Valores
                 {
@@ -2862,7 +3925,7 @@ namespace ProyectoMatrix.Controllers
             }
             else
             {
-                valorExistente.Valor = valor;
+                existente.Valor = valor;
                 valoresActualizados++;
             }
         }
@@ -2877,10 +3940,7 @@ namespace ProyectoMatrix.Controllers
                 .OrderBy(v => v.VariableID)
                 .ToList();
 
-            foreach (var variableFija in variables.Where(v =>
-                v.TipoCaptura != null &&
-                v.TipoCaptura.Equals("Fijo", StringComparison.OrdinalIgnoreCase) &&
-                v.ValorFijo.HasValue))
+            foreach (var variableFija in variables.Where(v => EsTipoCaptura(v.TipoCaptura, "Fijo") && v.ValorFijo.HasValue))
             {
                 UpsertValorRegistro(
                     registro,
@@ -2890,172 +3950,27 @@ namespace ProyectoMatrix.Controllers
                     ref valoresActualizados);
             }
 
-            foreach (var variableCalculada in variables.Where(v =>
-                v.TipoCaptura != null &&
-                v.TipoCaptura.Equals("Calculado", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(v.Formula)))
+            foreach (var variableCalculada in variables.Where(v => EsTipoCaptura(v.TipoCaptura, "Calculado") && !string.IsNullOrWhiteSpace(v.Formula)))
             {
-                var valorCalculado = EvaluarFormulaKpi(
-                    variableCalculada.Formula,
+                var calculado = EvaluarFormulaKpi(
+                    variableCalculada.Formula ?? string.Empty,
                     variables,
                     registro.DetallesValores.ToList());
 
-                if (valorCalculado.HasValue)
+                if (calculado.HasValue)
                 {
                     UpsertValorRegistro(
                         registro,
                         variableCalculada.VariableID,
-                        valorCalculado.Value,
+                        calculado.Value,
                         ref valoresInsertados,
                         ref valoresActualizados);
                 }
             }
         }
 
-        private decimal? EvaluarFormulaKpi(
-            string formula,
-            List<CatMetricas_Variables> variablesOrdenadas,
-            List<RegistroKpis_Valores> valoresRegistro)
-        {
-            if (string.IsNullOrWhiteSpace(formula))
-                return null;
+        #endregion
 
-            string expresion = formula;
-
-            for (int i = 0; i < variablesOrdenadas.Count; i++)
-            {
-                int indiceFormula = i + 1;
-                int variableId = variablesOrdenadas[i].VariableID;
-
-                var valor = valoresRegistro
-                    .FirstOrDefault(v => v.VariableID == variableId)
-                    ?.Valor;
-
-                if (!valor.HasValue)
-                    return null;
-
-                expresion = expresion.Replace(
-                    $"[{indiceFormula}]",
-                    valor.Value.ToString(CultureInfo.InvariantCulture));
-            }
-
-            try
-            {
-                var resultado = new DataTable().Compute(expresion, null);
-
-                if (resultado == null || resultado == DBNull.Value)
-                    return null;
-
-                return Convert.ToDecimal(resultado, CultureInfo.InvariantCulture);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        // Busca el RolID y todos los departamentos activos asignados al usuario en EmpleadoDepartamentos
-        private (int RolID, List<int> Departamentos) ObtenerDatosAccesoUsuario(int usuarioId)
-        {
-            int rolId = 0;
-            var deptos = new List<int>();
-
-            string cnnString = _configuration.GetConnectionString("DefaultConnection");
-            using var conn = new SqlConnection(cnnString);
-            conn.Open();
-            
-            // 1. Obtener Rol
-            string sqlRol = "SELECT TOP 1 RolID FROM Usuarios WHERE UsuarioID = @UsuarioID";
-            using (var cmdRol = new SqlCommand(sqlRol, conn))
-            {
-                cmdRol.Parameters.AddWithValue("@UsuarioID", usuarioId);
-                var res = cmdRol.ExecuteScalar();
-                if (res != null && res != DBNull.Value) rolId = Convert.ToInt32(res);
-            }
-
-            // 2. Obtener todos los departamentos activos asignados a ese usuario
-            string sqlDeptos = "SELECT DepartamentoID FROM EmpleadoDepartamentos WHERE UsuarioID = @UsuarioID AND Activo = 1";
-            using (var cmdDeptos = new SqlCommand(sqlDeptos, conn))
-            {
-                cmdDeptos.Parameters.AddWithValue("@UsuarioID", usuarioId);
-                using var rd = cmdDeptos.ExecuteReader();
-                while (rd.Read())
-                {
-                    if (rd["DepartamentoID"] != DBNull.Value)
-                        deptos.Add(Convert.ToInt32(rd["DepartamentoID"]));
-                }
-            }
-
-            return (rolId, deptos);
-        }
-
-        private int ObtenerUsuarioIdActual()
-        {
-            var claim = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!string.IsNullOrEmpty(claim) && int.TryParse(claim, out int usuarioId))
-                return usuarioId;
-
-            return HttpContext.Session.GetInt32("UsuarioID") ?? 0;
-        }
-
-        private int? ObtenerEmpresaIdActual()
-        {
-            var empresaSeleccionada = HttpContext.Session.GetInt32("EmpresaSeleccionada");
-            if (empresaSeleccionada.HasValue)
-                return empresaSeleccionada.Value;
-            var empresaId = HttpContext.Session.GetInt32("EmpresaID");
-            if (empresaId.HasValue)
-                return empresaId.Value;
-
-            var claim = User?.FindFirst("EmpresaID")?.Value;
-            if (!string.IsNullOrEmpty(claim) && int.TryParse(claim, out int empresaIdClaim))
-                return empresaIdClaim;
-
-            return null;
-        }
-
-        private List<int> ObtenerPermisosSubMenuUsuario()
-        {
-            int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0)
-                return new List<int>();
-
-            var empresaId = ObtenerEmpresaIdActual();
-            var permisos = new List<int>();
-
-            // Usar IConfiguration para evitar errores "sa"
-            string cnnString = _configuration.GetConnectionString("DefaultConnection");
-            using var conn = new SqlConnection(cnnString);
-            conn.Open();
-
-            var sql = @"
-                SELECT SubMenuID
-                FROM dbo.fn_PermisosEfectivosUsuario(@UsuarioID, @EmpresaID)
-                WHERE TienePermiso = 1;
-            ";
-
-            using var cmd = new SqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
-            var pEmpresa = cmd.Parameters.Add("@EmpresaID", SqlDbType.Int);
-            pEmpresa.Value = (object?)empresaId ?? DBNull.Value;
-
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                permisos.Add(reader.GetInt32(0));
-            }
-
-            return permisos;
-        }
-
-        private List<int> CargarPermisosSubMenuUsuario()
-        {
-            if (_misPermisosCache != null)
-                return _misPermisosCache;
-
-            _misPermisosCache = ObtenerPermisosSubMenuUsuario();
-            return _misPermisosCache;
-        }
 
         private bool TienePermisoSubMenu(int subMenuId)
         {
@@ -3080,80 +3995,6 @@ namespace ProyectoMatrix.Controllers
             ViewBag.MisPermisos = CargarPermisosSubMenuUsuario();
         }
 
-        private string FormatearEtiquetaPeriodo(string frecuencia, int numeroPeriodo, int anio)
-        {
-            if (frecuencia == "Mensual")
-            {
-                string[] meses = { "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic" };
-                return (numeroPeriodo >= 1 && numeroPeriodo <= 12) ? meses[numeroPeriodo - 1] : $"M-{numeroPeriodo}";
-            }
-            else if (frecuencia == "Semanal")
-            {
-                return $"Semana {numeroPeriodo}";
-            }
-            else if (frecuencia == "Diario")
-            {
-                try {
-                    DateTime fecha = new DateTime(anio, 1, 1).AddDays(numeroPeriodo - 1);
-                    return fecha.ToString("dd/MMM");
-                } catch {
-                    return $"Día {numeroPeriodo}";
-                }
-            }
-            return $"P-{numeroPeriodo}";
-        }
-
-        private int ObtenerSemanaDelAno(DateTime fecha)
-        {
-            return CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(fecha, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-        }
-
-        private (int inicio, int fin) ObtenerRangoDiasDelAnoPorSemana(int semana)
-        {
-            int inicio = (semana - 1) * 7 + 1;
-            int fin = semana * 7;
-            int diasMaximos = DateTime.IsLeapYear(DateTime.Now.Year) ? 366 : 365;
-            return (Math.Max(1, inicio), Math.Min(fin, diasMaximos));
-        }
-
-        private int ObtenerIndiceColumna(DataTable tabla, params string[] nombres)
-        {
-            foreach (DataColumn columna in tabla.Columns)
-            {
-                string nombreColumna = NormalizarTexto(columna.ColumnName);
-
-                foreach (var nombre in nombres)
-                {
-                    if (nombreColumna == NormalizarTexto(nombre))
-                        return columna.Ordinal;
-                }
-            }
-
-            return -1;
-        }
-
-        private string NormalizarTexto(string texto)
-        {
-            if (string.IsNullOrWhiteSpace(texto))
-                return string.Empty;
-
-            texto = texto.Trim().ToLowerInvariant();
-
-            texto = texto
-                .Replace("á", "a")
-                .Replace("é", "e")
-                .Replace("í", "i")
-                .Replace("ó", "o")
-                .Replace("ú", "u")
-                .Replace("ñ", "n")
-                .Replace(" ", "")
-                .Replace("_", "")
-                .Replace("-", "");
-
-            return texto;
-        }
-
-
         private bool EsFilaMarcadaParaImportar(string? valor)
         {
             if (string.IsNullOrWhiteSpace(valor))
@@ -3167,118 +4008,6 @@ namespace ProyectoMatrix.Controllers
                 || texto == "1"
                 || texto == "true"
                 || texto == "yes";
-        }
-
-        private int? ConvertirEntero(object valor)
-        {
-            if (valor == null || valor == DBNull.Value)
-                return null;
-
-            string texto = valor.ToString()?.Trim() ?? "";
-
-            if (string.IsNullOrWhiteSpace(texto))
-                return null;
-
-            if (int.TryParse(texto, NumberStyles.Any, CultureInfo.InvariantCulture, out int entero))
-                return entero;
-
-            if (decimal.TryParse(texto, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal decimalValor))
-                return Convert.ToInt32(decimalValor);
-
-            if (decimal.TryParse(texto, NumberStyles.Any, new CultureInfo("es-MX"), out decimal decimalMx))
-                return Convert.ToInt32(decimalMx);
-
-            return null;
-        }
-
-        private decimal? ConvertirDecimal(object valor)
-        {
-            if (valor == null || valor == DBNull.Value)
-                return null;
-
-            string texto = valor.ToString()?.Trim() ?? "";
-
-            if (string.IsNullOrWhiteSpace(texto))
-                return null;
-
-            texto = texto.Replace("%", "").Trim();
-
-            if (decimal.TryParse(texto, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal decimalValor))
-                return decimalValor;
-
-            if (decimal.TryParse(texto, NumberStyles.Any, new CultureInfo("es-MX"), out decimal decimalMx))
-                return decimalMx;
-
-            return null;
-        }
-
-        private DateTime? ConvertirFecha(object valor)
-        {
-            if (valor == null || valor == DBNull.Value)
-                return null;
-
-            if (valor is DateTime fechaDirecta)
-                return fechaDirecta;
-
-            string texto = valor.ToString()?.Trim() ?? "";
-
-            if (string.IsNullOrWhiteSpace(texto))
-                return null;
-
-            if (DateTime.TryParse(texto, new CultureInfo("es-MX"), DateTimeStyles.None, out DateTime fechaMx))
-                return fechaMx;
-
-            if (DateTime.TryParse(texto, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fechaInvariant))
-                return fechaInvariant;
-
-            if (double.TryParse(texto, NumberStyles.Any, CultureInfo.InvariantCulture, out double numeroExcel))
-            {
-                try
-                {
-                    return DateTime.FromOADate(numeroExcel);
-                }
-                catch
-                {
-                    return null;
-                }
-            }
-
-            return null;
-        }
-
-        private int ObtenerPeriodoImportacion(string frecuencia, int anio, int? periodo, DateTime? fecha)
-        {
-            frecuencia = frecuencia?.Trim() ?? "";
-
-            if (frecuencia.Equals("Diario", StringComparison.OrdinalIgnoreCase))
-            {
-                if (fecha.HasValue)
-                    return fecha.Value.DayOfYear;
-
-                return periodo ?? 0;
-            }
-
-            if (frecuencia.Equals("Mensual", StringComparison.OrdinalIgnoreCase))
-            {
-                int valor = periodo ?? 0;
-
-                if (valor >= 1 && valor <= 12)
-                    return valor;
-
-                return 0;
-            }
-
-            if (frecuencia.Equals("Semanal", StringComparison.OrdinalIgnoreCase))
-            {
-                int valor = periodo ?? 0;
-
-                if (valor >= 1 && valor <= 53)
-                    return valor;
-
-                return 0;
-            }
-
-            return periodo ?? 0;
         }
 
         private void RecalcularEstadosPorGrupoImportacion(List<ImportacionKpiDetalle> detalles)
@@ -3328,41 +4057,181 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
-        private string ResolverUnidadMedida(string? tipoValor, string? unidadMedida, string? unidadMedidaPersonalizada = null)
+        #region USUARIO, PERMISOS Y SESION
+
+        private int ObtenerUsuarioIdActual()
         {
-            tipoValor = tipoValor?.Trim() ?? "";
-            unidadMedida = unidadMedida?.Trim() ?? "";
-            unidadMedidaPersonalizada = unidadMedidaPersonalizada?.Trim() ?? "";
+            var claim = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            if (tipoValor.Equals("Porcentaje", StringComparison.OrdinalIgnoreCase))
-                return "%";
+            if (!string.IsNullOrEmpty(claim) && int.TryParse(claim, out int usuarioId))
+                return usuarioId;
 
-            if (tipoValor.Equals("Moneda", StringComparison.OrdinalIgnoreCase))
-                return "$";
-
-            if (tipoValor.Equals("Entero", StringComparison.OrdinalIgnoreCase))
-            {
-                if (unidadMedida.Equals("Otro", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(unidadMedidaPersonalizada))
-                    return unidadMedidaPersonalizada;
-
-                if (!string.IsNullOrWhiteSpace(unidadMedida) && !unidadMedida.Equals("Otro", StringComparison.OrdinalIgnoreCase))
-                    return unidadMedida;
-
-                return "Unidades";
-            }
-
-            return string.IsNullOrWhiteSpace(unidadMedida) ? "Unidades" : unidadMedida;
+            return HttpContext.Session.GetInt32("UsuarioID") ?? 0;
         }
 
-        private string? ObtenerValorLista(List<string>? lista, int index)
+        private int? ObtenerEmpresaIdActual()
         {
-            if (lista == null || lista.Count <= index)
-                return null;
+            var empresaSeleccionada = HttpContext.Session.GetInt32("EmpresaSeleccionada");
 
-            return string.IsNullOrWhiteSpace(lista[index]) ? null : lista[index].Trim();
+            if (empresaSeleccionada.HasValue)
+                return empresaSeleccionada.Value;
+
+            var empresaId = HttpContext.Session.GetInt32("EmpresaID");
+
+            if (empresaId.HasValue)
+                return empresaId.Value;
+
+            var claim = User?.FindFirst("EmpresaID")?.Value;
+
+            if (!string.IsNullOrEmpty(claim) && int.TryParse(claim, out int empresaIdClaim))
+                return empresaIdClaim;
+
+            return null;
+        }
+
+        private List<int> CargarPermisosSubMenuUsuario()
+        {
+            if (_misPermisosCache != null)
+                return _misPermisosCache;
+
+            _misPermisosCache = ObtenerPermisosSubMenuUsuario();
+            return _misPermisosCache;
+        }
+
+        private List<int> ObtenerPermisosSubMenuUsuario()
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+                return new List<int>();
+
+            var permisos = new List<int>();
+
+            try
+            {
+                var empresaId = ObtenerEmpresaIdActual();
+                string? cnnString = _configuration.GetConnectionString("DefaultConnection");
+
+                if (string.IsNullOrWhiteSpace(cnnString))
+                    return permisos;
+
+                using var conn = new SqlConnection(cnnString);
+                conn.Open();
+
+                const string sql = @"
+                    SELECT SubMenuID
+                    FROM dbo.fn_PermisosEfectivosUsuario(@UsuarioID, @EmpresaID)
+                    WHERE TienePermiso = 1;
+                ";
+
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+                var pEmpresa = cmd.Parameters.Add("@EmpresaID", SqlDbType.Int);
+                pEmpresa.Value = (object?)empresaId ?? DBNull.Value;
+
+                using var reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                    permisos.Add(reader.GetInt32(0));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "No se pudieron cargar permisos del usuario en OperacionesV2.");
+            }
+
+            return permisos;
+        }
+
+
+
+        private (int RolID, List<int> Departamentos) ObtenerDatosAccesoUsuario(int usuarioId)
+        {
+            int rolId = 0;
+            var departamentos = new List<int>();
+
+            try
+            {
+                string? cnnString = _configuration.GetConnectionString("DefaultConnection");
+
+                if (string.IsNullOrWhiteSpace(cnnString))
+                    return (rolId, departamentos);
+
+                using var conn = new SqlConnection(cnnString);
+                conn.Open();
+
+                const string sqlRol = @"
+                    SELECT TOP 1 RolID
+                    FROM Usuarios
+                    WHERE UsuarioID = @UsuarioID;
+                ";
+
+                using (var cmdRol = new SqlCommand(sqlRol, conn))
+                {
+                    cmdRol.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                    var result = cmdRol.ExecuteScalar();
+
+                    if (result != null && result != DBNull.Value)
+                        rolId = Convert.ToInt32(result);
+                }
+
+                const string sqlDepartamentos = @"
+                    SELECT DISTINCT DepartamentoID
+                    FROM EmpleadoDepartamentos
+                    WHERE UsuarioID = @UsuarioID
+                      AND Activo = 1;
+                ";
+
+                using (var cmdDeptos = new SqlCommand(sqlDepartamentos, conn))
+                {
+                    cmdDeptos.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+                    using var reader = cmdDeptos.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        if (reader["DepartamentoID"] != DBNull.Value)
+                            departamentos.Add(Convert.ToInt32(reader["DepartamentoID"]));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "No se pudieron obtener datos de acceso por departamento en OperacionesV2.");
+            }
+
+            return (rolId, departamentos);
+        }
+
+        private bool UsuarioTieneDepartamentoOperaciones((int RolID, List<int> Departamentos) datosAcceso)
+        {
+            if (datosAcceso.Departamentos == null || !datosAcceso.Departamentos.Any())
+                return false;
+
+            return _context.Departamentos.Any(d =>
+                d.Activo &&
+                datosAcceso.Departamentos.Contains(d.DepartamentoID) &&
+                d.NombreDepartamento != null &&
+                d.NombreDepartamento.ToUpper().Contains("OPERACIONES"));
+        }
+
+        private bool UsuarioPuedeGestionarTodosLosDepartamentos((int RolID, List<int> Departamentos) datosAcceso)
+        {
+            if (datosAcceso.RolID == 1)
+                return true;
+
+            return UsuarioTieneDepartamentoOperaciones(datosAcceso);
+        }
+
+        private bool UsuarioPuedeAccederDepartamento(int usuarioId, int departamentoId)
+        {
+            var datosAcceso = ObtenerDatosAccesoUsuario(usuarioId);
+
+            if (UsuarioPuedeGestionarTodosLosDepartamentos(datosAcceso))
+                return true;
+
+            return datosAcceso.Departamentos.Contains(departamentoId);
         }
 
         #endregion
     }
-
 }

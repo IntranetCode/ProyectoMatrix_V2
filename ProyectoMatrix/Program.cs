@@ -11,10 +11,11 @@ using ProyectoMatrix.Areas.AdminUsuarios.Interfaces;
 using ProyectoMatrix.Areas.AdminUsuarios.Services;
 using ProyectoMatrix.Controllers;
 using ProyectoMatrix.Helpers;
+using ProyectoMatrix.Hubs;
 using ProyectoMatrix.Models;
 using ProyectoMatrix.Models.Opciones;
+//using ProyectoMatrix.Services;
 using ProyectoMatrix.Servicios;
-using ProyectoMatrix.Hubs;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
@@ -116,6 +117,7 @@ builder.Services.AddScoped<ServicioNotificaciones>();
 //Registrar el servicio de denuncias
 builder.Services.AddScoped<ServiciosDenuncias>();
 
+builder.Services.AddSingleton<IVideoRepository, JsonVideoRepository>();
 
 //Vicular opciones de corrreo
 builder.Services.Configure<CorreoOpciones>(
@@ -464,7 +466,12 @@ app.MapHub<LogisticaHub>("/logisticaHub");
 app.MapControllerRoute(
     name: "universidad",
     pattern: "Universidad/{action=Index}/{id?}",
-    defaults: new { controller = "Universidad" });  
+    defaults: new { controller = "Universidad" });
+
+app.MapControllerRoute(
+    name: "streaming-admin",
+    pattern: "Streaming/Admin/{action=Index}/{id?}",
+    defaults: new { controller = "StreamingAdmin" });
 
 app.MapControllerRoute(
     name: "default",

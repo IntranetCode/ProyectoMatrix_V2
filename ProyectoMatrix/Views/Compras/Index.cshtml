@@ -28,11 +28,7 @@
     bool esAlmacen =
         departamentos.Contains("ALMACEN") ||
         departamentos.Contains("ALMACÉN");
-
-    bool esCxP =
-        departamentos.Contains("CUENTAS") ||
-        departamentos.Contains("PAGAR") ||
-        departamentos.Contains("CXP");
+  
 
 }
 
@@ -84,19 +80,13 @@
                 </a>
             }
 
-            @if (esCxP)
-            {
-                <a asp-action="BandejaCuentasPorPagar" class="btn btn-ns-dark">
-                    <i class="fas fa-file-invoice-dollar me-1"></i>
-                    Bandeja CxP
-                </a>
-            }
+            
 
         </div>
 
     </div>
 
-    @if (!esCompras && !esPresupuestos && !esDireccion && !esAlmacen && !esCxP)
+    @if (!esCompras && !esPresupuestos && !esDireccion && !esAlmacen )
     {
         <div class="alert ns-alert-info mb-4">
             <div class="d-flex align-items-start">
@@ -272,18 +262,18 @@
 
                 const cuellosElement = document.querySelector("#chartCuellosBotella");
                 const donaElement = document.querySelector("#chartDonaEstatus");
+                       const tiemposRaw = @Html.Raw(Json.Serialize(Model.Estadisticas.TiemposPromedio));
 
-                const tiemposRaw = @Html.Raw(Json.Serialize(Model.Estadisticas.TiemposPromedio));
-                const tiemposCuellos = [
-                    Number(tiemposRaw[0] || 0),
-                    Number(tiemposRaw[1] || 0)
-                ];
+            const tiemposCuellos = tiemposRaw.map(x => {
+                const horas = Number(x || 0);
+                return Number((horas / 24).toFixed(1));
+            });
 
                 if (cuellosElement) {
 
                     const optionsBar = {
                         series: [{
-                            name: 'Horas Promedio',
+                            name: 'Días promedio',
                             data: tiemposCuellos
                         }],
                         chart: {
@@ -302,18 +292,32 @@
                                 barHeight: '45%'
                             }
                         },
-                        colors: [
-                            '#2563EB',
-                            '#F59E0B'
-                        ],
+                colors: [
+                '#2563EB',
+                '#F59E0B',
+                '#16A34A',
+                '#7C3AED',
+                '#0891B2'
+            ],
                         xaxis: {
-                            categories: [
-                                "Compras",
-                                "Control Presupuestal"
-                            ],
+                                        categories: [
+                "Compras",
+                "Control Presupuestal",
+                "Orden de Compra",
+                "Proveedor",
+                "Almacén"
+               
+            ],
                             labels: {
                                 style: {
-                                    colors: '#475569',
+                                                colors: [
+                '#2563EB',
+                '#F59E0B',
+                '#16A34A',
+                '#7C3AED',
+                '#0891B2',
+               
+            ],
                                     fontSize: '12px'
                                 }
                             }
@@ -328,9 +332,9 @@
                         },
                         dataLabels: {
                             enabled: true,
-                            formatter: function (val) {
-                                return val + " h";
-                            },
+                                                               formatter: function (val) {
+                return Number(val).toFixed(1) + " días promedio";
+            },
                             style: {
                                 fontSize: '12px',
                                 fontWeight: '700',
@@ -339,9 +343,9 @@
                         },
                         tooltip: {
                             y: {
-                                formatter: function (val) {
-                                    return val + " horas";
-                                }
+                                            formatter: function (val) {
+                return val + " días promedio";
+            }
                             }
                         },
                         legend: {

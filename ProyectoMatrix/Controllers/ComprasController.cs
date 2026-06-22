@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using ClosedXML.Excel;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Models;
@@ -119,35 +120,140 @@ WHERE ED.UsuarioID = @UsuarioID
                 if (puesto == "DIRECCION COMPRAS")
                 {
                     string sqlStats = @"
-                SELECT 
-                    (SELECT COUNT(*) 
-                     FROM Compras_Solicitud 
-                     WHERE UrgenciaID = 4 
-                       AND EstatusID NOT IN (4, 6)
-                       AND DATEDIFF(HOUR, FechaCreacion, GETDATE()) > 24) AS Criticos,
+SELECT 
+    (SELECT COUNT(*) 
+     FROM Compras_Solicitud 
+     WHERE UrgenciaID = 4 
+       AND EstatusID NOT IN (10, 11, 12)
+       AND DATEDIFF(HOUR, FechaCreacion, GETDATE()) > 24) AS Criticos,
 
-                    (SELECT ISNULL(AVG(DATEDIFF(HOUR, Inicio.FechaInicio, Ultimo.FechaUltimoMovimiento)), 0)
-                     FROM
-                     (
-                         SELECT SolicitudID, MIN(FechaMovimiento) AS FechaInicio
-                         FROM Compras_Historico_Pasos
-                         WHERE EstatusID = 1
-                         GROUP BY SolicitudID
-                     ) Inicio
-                     INNER JOIN
-                     (
-                         SELECT SolicitudID, MAX(FechaMovimiento) AS FechaUltimoMovimiento
-                         FROM Compras_Historico_Pasos
-                         GROUP BY SolicitudID
-                     ) Ultimo
-                     ON Inicio.SolicitudID = Ultimo.SolicitudID
-                    ) AS PromedioGlobal,
+    (SELECT ISNULL(AVG(DATEDIFF(HOUR, Inicio.FechaInicio, Ultimo.FechaUltimoMovimiento)), 0)
+     FROM
+     (
+         SELECT SolicitudID, MIN(FechaMovimiento) AS FechaInicio
+         FROM Compras_Historico_Pasos
+         WHERE EstatusID = 1
+         GROUP BY SolicitudID
+     ) Inicio
+     INNER JOIN
+     (
+         SELECT SolicitudID, MAX(FechaMovimiento) AS FechaUltimoMovimiento
+         FROM Compras_Historico_Pasos
+         GROUP BY SolicitudID
+     ) Ultimo
+        ON Inicio.SolicitudID = Ultimo.SolicitudID
+    ) AS PromedioGlobal,
 
-                    ISNULL(AVG(DATEDIFF(HOUR, FechaCreacion, ISNULL(FechaCotizacion, GETDATE()))), 0) AS PromCompras,
-                    ISNULL(AVG(DATEDIFF(HOUR, FechaCotizacion, ISNULL(FechaDictamen, GETDATE()))), 0) AS PromFinanzas,
-                    ISNULL(AVG(DATEDIFF(HOUR, FechaDictamen, ISNULL(FechaAutorizacion, GETDATE()))), 0) AS PromDireccion
-                FROM Compras_Solicitud 
-                WHERE EstatusID != 4";
+    ISNULL(AVG(
+        CASE 
+            WHEN H3.FechaInicio IS NOT NULL 
+                THEN DATEDIFF(HOUR, S.FechaCreacion, H3.FechaInicio)
+            WHEN S.EstatusID IN (1, 2)
+                THEN DATEDIFF(HOUR, S.FechaCreacion, GETDATE())
+            ELSE NULL
+        END
+    ), 0) AS PromCompras,
+
+    ISNULL(AVG(
+        CASE 
+            WHEN S.FechaDictamen IS NOT NULL AND H4.FechaInicio IS NOT NULL
+                THEN DATEDIFF(HOUR, H4.FechaInicio, S.FechaDictamen)
+            WHEN S.EstatusID = 4 AND H4.FechaInicio IS NOT NULL
+                THEN DATEDIFF(HOUR, H4.FechaInicio, GETDATE())
+            ELSE NULL
+        END
+    ), 0) AS PromPresupuesto,
+
+    ISNULL(AVG(
+        CASE 
+            WHEN OC.FechaOC IS NOT NULL AND H5.FechaInicio IS NOT NULL
+                THEN DATEDIFF(HOUR, H5.FechaInicio, OC.FechaOC)
+            WHEN S.EstatusID = 5 AND H5.FechaInicio IS NOT NULL
+                THEN DATEDIFF(HOUR, H5.FechaInicio, GETDATE())
+            ELSE NULL
+        END
+    ), 0) AS PromOC,
+
+    ISNULL(AVG(
+        CASE 
+            WHEN UPPER(ISNULL(S.TipoGasto, '')) NOT IN ('REQUISICION', 'REQUISICIÓN')
+                 AND OC.FechaEnvioProveedor IS NOT NULL
+                 AND EU.FechaEntrega IS NOT NULL
+                THEN DATEDIFF(HOUR, OC.FechaEnvioProveedor, EU.FechaEntrega)
+
+            WHEN UPPER(ISNULL(S.TipoGasto, '')) NOT IN ('REQUISICION', 'REQUISICIÓN')
+                 AND S.EstatusID = 9
+                 AND OC.FechaEnvioProveedor IS NOT NULL
+                THEN DATEDIFF(HOUR, OC.FechaEnvioProveedor, GETDATE())
+
+            ELSE NULL
+        END
+    ), 0) AS PromProveedor,
+
+    ISNULL(AVG(
+        CASE 
+            WHEN UPPER(ISNULL(S.TipoGasto, '')) IN ('REQUISICION', 'REQUISICIÓN')
+                 AND OC.FechaEnvioProveedor IS NOT NULL
+                 AND R.FechaRecepcion IS NOT NULL
+                THEN DATEDIFF(HOUR, OC.FechaEnvioProveedor, R.FechaRecepcion)
+
+            WHEN UPPER(ISNULL(S.TipoGasto, '')) IN ('REQUISICION', 'REQUISICIÓN')
+                 AND S.EstatusID = 8
+                 AND OC.FechaEnvioProveedor IS NOT NULL
+                THEN DATEDIFF(HOUR, OC.FechaEnvioProveedor, GETDATE())
+
+            ELSE NULL
+        END
+    ), 0) AS PromAlmacen
+
+FROM Compras_Solicitud S
+
+OUTER APPLY (
+    SELECT MIN(FechaMovimiento) AS FechaInicio
+    FROM Compras_Historico_Pasos
+    WHERE SolicitudID = S.SolicitudID
+      AND EstatusID = 3
+) H3
+
+OUTER APPLY (
+    SELECT MIN(FechaMovimiento) AS FechaInicio
+    FROM Compras_Historico_Pasos
+    WHERE SolicitudID = S.SolicitudID
+      AND EstatusID = 4
+) H4
+
+OUTER APPLY (
+    SELECT MIN(FechaMovimiento) AS FechaInicio
+    FROM Compras_Historico_Pasos
+    WHERE SolicitudID = S.SolicitudID
+      AND EstatusID = 5
+) H5
+
+OUTER APPLY (
+    SELECT TOP 1 FechaOC, FechaEnvioProveedor
+    FROM Compras_OrdenCompra
+    WHERE SolicitudID = S.SolicitudID
+      AND Activo = 1
+    ORDER BY OrdenCompraID DESC
+) OC
+
+OUTER APPLY (
+    SELECT TOP 1 FechaRecepcion
+    FROM Compras_Recepciones
+    WHERE SolicitudID = S.SolicitudID
+      AND Activo = 1
+    ORDER BY RecepcionID DESC
+) R
+
+OUTER APPLY (
+    SELECT TOP 1 FechaEntrega
+    FROM Compras_EntregasUsuario
+    WHERE SolicitudID = S.SolicitudID
+      AND Activo = 1
+    ORDER BY EntregaID DESC
+) EU
+
+WHERE S.EstatusID NOT IN (11, 12)";
 
                     using (var cmd = new SqlCommand(sqlStats, conn))
                     using (var reader = await cmd.ExecuteReaderAsync())
@@ -157,8 +263,10 @@ WHERE ED.UsuarioID = @UsuarioID
                             stats.CriticosVencidos = Convert.ToInt32(reader["Criticos"]);
                             stats.PromedioTotal = Convert.ToDouble(reader["PromedioGlobal"]);
                             stats.TiemposPromedio.Add(Convert.ToDouble(reader["PromCompras"]));
-                            stats.TiemposPromedio.Add(Convert.ToDouble(reader["PromFinanzas"]));
-                            stats.TiemposPromedio.Add(Convert.ToDouble(reader["PromDireccion"]));
+                            stats.TiemposPromedio.Add(Convert.ToDouble(reader["PromPresupuesto"]));
+                            stats.TiemposPromedio.Add(Convert.ToDouble(reader["PromOC"]));
+                            stats.TiemposPromedio.Add(Convert.ToDouble(reader["PromProveedor"]));
+                            stats.TiemposPromedio.Add(Convert.ToDouble(reader["PromAlmacen"]));
                         }
                     }
 
@@ -260,9 +368,7 @@ WHERE ED.UsuarioID = @UsuarioID
 
         [HttpPost("NuevaSolicitud")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> NuevaSolicitud(
-    CompraViewModel model,
-    IFormFile? ArchivoReferencia)
+        public async Task<IActionResult> NuevaSolicitud(CompraViewModel model)
         {
             int usuarioId = ObtenerUsuarioIdActual();
             if (usuarioId == 0) return Unauthorized();
@@ -276,6 +382,16 @@ WHERE ED.UsuarioID = @UsuarioID
             {
                 ModelState.AddModelError("NombreProyecto", "Debes capturar el nombre del proyecto.");
             }
+
+            if (!model.MontoPresupuestoSolicitado.HasValue || model.MontoPresupuestoSolicitado.Value <= 0)
+            {
+                ModelState.AddModelError(
+                    "MontoPresupuestoSolicitado",
+                    "Debes capturar el presupuesto aproximado o solicitado para esta compra."
+                );
+            }
+
+           
 
             if (!ModelState.IsValid)
             {
@@ -311,15 +427,20 @@ WHERE ED.UsuarioID = @UsuarioID
                                 transaction.Rollback();
                                 return Forbid();
                             }
-
                             string sqlSolicitud = @"
-                        INSERT INTO Compras_Solicitud 
-                        (UsuarioID, EmpresaID, TipoCompra, EsProyecto, NombreProyecto, UrgenciaID, 
-                         TransporteID, ComentariosExtra, FechaCreacion, EstatusID, PuestoAsignado) 
-                        VALUES 
-                        (@uid, @eid, @tipo, @esp, @nom, @urg, @trans, @com, GETDATE(), 1, @puesto); 
+INSERT INTO Compras_Solicitud 
+(
+    UsuarioID,    EmpresaID,    TipoCompra,    EsProyecto,    NombreProyecto,   UrgenciaID,    TransporteID,    ComentariosExtra,
+    FechaCreacion,   EstatusID,    PuestoAsignado,    MontoPresupuestoSolicitado,    FueraPresupuestoUsuario
+) 
+VALUES 
+(   @uid,    @eid,
+    @tipo,    @esp,    @nom,    @urg,    @trans,    @com,    GETDATE(),    1,
+    @puesto,   @MontoPresupuestoSolicitado,
+    @FueraPresupuestoUsuario
+); 
 
-                        SELECT SCOPE_IDENTITY();";
+SELECT SCOPE_IDENTITY();";
 
                             int nuevaSolicitudId;
 
@@ -334,74 +455,115 @@ WHERE ED.UsuarioID = @UsuarioID
                                 cmd.Parameters.AddWithValue("@trans", (object)model.TransporteID ?? DBNull.Value);
                                 cmd.Parameters.AddWithValue("@com", (object)model.Comentarios ?? DBNull.Value);
                                 cmd.Parameters.AddWithValue("@puesto", puestoAsignado);
+                                cmd.Parameters.AddWithValue("@MontoPresupuestoSolicitado", model.MontoPresupuestoSolicitado.Value);
+                                cmd.Parameters.AddWithValue("@FueraPresupuestoUsuario", model.FueraPresupuestoUsuario);
 
                                 nuevaSolicitudId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
 
                             }
-                            if (ArchivoReferencia != null && ArchivoReferencia.Length > 0)
-                            {
-                                var extensionesPermitidas = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".webp" };
-                                string extension = Path.GetExtension(ArchivoReferencia.FileName)?.ToLowerInvariant() ?? "";
 
-                                if (!extensionesPermitidas.Contains(extension))
-                                {
-                                    transaction.Rollback();
-                                    ModelState.AddModelError("", "El archivo de referencia solo puede ser PDF o imagen JPG, PNG o WEBP.");
-                                    await CargarCatalogosAsync(usuarioId);
-                                    return View(model);
-                                }
 
-                                string rutaContenedor = _rutaNas.ObtenerRutaSolicitudesCompras();
-
-                                _sftp.AsegurarDirectorio(rutaContenedor);
-
-                                string folioStr = nuevaSolicitudId.ToString().PadLeft(5, '0');
-                                string nombreArchivo = $"COM-{folioStr}_Referencia_{Guid.NewGuid()}{extension}";
-                                string rutaArchivoSftp = $"{rutaContenedor}/{nombreArchivo}";
-
-                                using (var stream = ArchivoReferencia.OpenReadStream())
-                                {
-                                    _sftp.SubirStream(stream, rutaArchivoSftp);
-                                }
-
-                                string sqlArchivoReferencia = @"
-UPDATE Compras_Solicitud
-SET ArchivoReferenciaPath = @ArchivoReferenciaPath
-WHERE SolicitudID = @SolicitudID";
-
-                                using (var cmdArchivo = new SqlCommand(sqlArchivoReferencia, conn, transaction))
-                                {
-                                    cmdArchivo.Parameters.AddWithValue("@ArchivoReferenciaPath", rutaArchivoSftp);
-                                    cmdArchivo.Parameters.AddWithValue("@SolicitudID", nuevaSolicitudId);
-
-                                    await cmdArchivo.ExecuteNonQueryAsync();
-                                }
-                            }
 
                             if (model.Materiales != null && model.Materiales.Count > 0)
                             {
+                                int numeroMaterial = 0;
+
                                 foreach (var mat in model.Materiales)
                                 {
+                                    numeroMaterial++;
+
                                     string sqlMat = @"
-                                INSERT INTO Compras_Detalle_Materiales 
-                                (SolicitudID, NombreMaterial, Cantidad, UnidadMedida, Descripcion) 
-                                VALUES 
-                                (@sid, @n, @c, @u, @d)";
+INSERT INTO Compras_Detalle_Materiales 
+(
+    SolicitudID,
+    NombreMaterial,
+    Descripcion,
+    Cantidad,
+    UnidadMedida
+) 
+VALUES 
+(
+    @sid,
+    @nombre,
+    @descripcion,
+    @cantidad,
+    @unidad
+);
+
+SELECT SCOPE_IDENTITY();";
+
+                                    int detalleId;
 
                                     using (var cmdMat = new SqlCommand(sqlMat, conn, transaction))
                                     {
                                         cmdMat.Parameters.AddWithValue("@sid", nuevaSolicitudId);
-                                        cmdMat.Parameters.AddWithValue("@n", mat.Nombre);
-                                        cmdMat.Parameters.AddWithValue("@c", mat.Cantidad);
-                                        cmdMat.Parameters.AddWithValue("@u", mat.UnidadMedida);
-                                        cmdMat.Parameters.AddWithValue("@d", (object)mat.Descripcion ?? DBNull.Value);
+                                        cmdMat.Parameters.AddWithValue("@nombre", (object?)mat.Nombre ?? DBNull.Value);
+                                        cmdMat.Parameters.AddWithValue("@descripcion", (object?)mat.Descripcion ?? DBNull.Value);
+                                        cmdMat.Parameters.AddWithValue("@cantidad", mat.Cantidad);
+                                        cmdMat.Parameters.AddWithValue("@unidad", (object?)mat.UnidadMedida ?? DBNull.Value);
 
-                                        await cmdMat.ExecuteNonQueryAsync();
+                                        detalleId = Convert.ToInt32(await cmdMat.ExecuteScalarAsync());
+                                    }
+
+                                    if (mat.ArchivoReferencia != null && mat.ArchivoReferencia.Length > 0)
+                                    {
+                                        var extensionesPermitidas = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".webp" };
+                                        string extension = Path.GetExtension(mat.ArchivoReferencia.FileName)?.ToLowerInvariant() ?? "";
+
+                                        if (!extensionesPermitidas.Contains(extension))
+                                        {
+                                            transaction.Rollback();
+
+                                            ModelState.AddModelError(
+                                                "",
+                                                $"El archivo de referencia del producto {numeroMaterial} solo puede ser PDF o imagen JPG, PNG o WEBP."
+                                            );
+
+                                            await CargarCatalogosAsync(usuarioId);
+                                            return View(model);
+                                        }
+
+                                        string rutaContenedor = _rutaNas.ObtenerRutaSolicitudesCompras();
+
+                                        _sftp.AsegurarDirectorio(rutaContenedor);
+
+                                        string folioStr = nuevaSolicitudId.ToString().PadLeft(5, '0');
+                                        string nombreOriginal = Path.GetFileName(mat.ArchivoReferencia.FileName);
+
+                                        string nombreArchivo =
+                                            $"COM-{folioStr}_Producto_{numeroMaterial}_Referencia_{Guid.NewGuid()}{extension}";
+
+                                        string rutaArchivoSftp = $"{rutaContenedor}/{nombreArchivo}";
+
+                                        using (var stream = mat.ArchivoReferencia.OpenReadStream())
+                                        {
+                                            _sftp.SubirStream(stream, rutaArchivoSftp);
+                                        }
+
+                                        string sqlUpdateArchivo = @"
+UPDATE Compras_Detalle_Materiales
+SET ArchivoReferenciaPath = @ArchivoReferenciaPath,
+    NombreArchivoReferencia = @NombreArchivoReferencia,
+    ExtensionArchivoReferencia = @ExtensionArchivoReferencia,
+    ContentTypeArchivoReferencia = @ContentTypeArchivoReferencia,
+    TamanoArchivoReferencia = @TamanoArchivoReferencia
+WHERE DetalleID = @DetalleID";
+
+                                        using (var cmdArchivo = new SqlCommand(sqlUpdateArchivo, conn, transaction))
+                                        {
+                                            cmdArchivo.Parameters.AddWithValue("@ArchivoReferenciaPath", rutaArchivoSftp);
+                                            cmdArchivo.Parameters.AddWithValue("@NombreArchivoReferencia", nombreOriginal);
+                                            cmdArchivo.Parameters.AddWithValue("@ExtensionArchivoReferencia", extension);
+                                            cmdArchivo.Parameters.AddWithValue("@ContentTypeArchivoReferencia", mat.ArchivoReferencia.ContentType ?? "application/octet-stream");
+                                            cmdArchivo.Parameters.AddWithValue("@TamanoArchivoReferencia", mat.ArchivoReferencia.Length);
+                                            cmdArchivo.Parameters.AddWithValue("@DetalleID", detalleId);
+
+                                            await cmdArchivo.ExecuteNonQueryAsync();
+                                        }
                                     }
                                 }
                             }
-
 
 
                             int? compradorAsignadoId = await ObtenerCompradorConMenosCargaAsync(
@@ -588,12 +750,50 @@ SELECT
     S.CotizacionSeleccionadaID,
     S.FechaSeleccionCotizacion,
     S.ComentariosSeleccionUsuario,
-S.ArchivoReferenciaPath
+    S.MontoPresupuestoSolicitado,
+    S.FueraPresupuestoUsuario,
+
+    ADesv.RutaArchivo AS ArchivoDesviacionPath,
+    ADesv.NombreOriginal AS NombreArchivoDesviacion,
+    ADesv.Extension AS ExtensionArchivoDesviacion,
+AReq.RutaArchivo AS ArchivoFormatoRequisicionPath,
+AReq.NombreOriginal AS NombreArchivoFormatoRequisicion,
+AReq.Extension AS ExtensionArchivoFormatoRequisicion,
+
+    S.ArchivoReferenciaPath
 FROM Compras_Solicitud S
 INNER JOIN Usuarios U ON S.UsuarioID = U.UsuarioID
 INNER JOIN Persona P ON U.PersonaID = P.PersonaID
 INNER JOIN Empresas E ON S.EmpresaID = E.EmpresaID
 INNER JOIN Cat_EstatusCompra Est ON S.EstatusID = Est.EstatusID
+OUTER APPLY
+(
+    SELECT TOP 1
+        CA.RutaArchivo,
+        CA.NombreOriginal,
+        CA.Extension
+    FROM Compras_Archivos CA
+    WHERE CA.SolicitudID = S.SolicitudID
+      AND CA.CotizacionID = S.CotizacionSeleccionadaID
+      AND CA.TipoArchivo = 'DESVIACION'
+      AND CA.Vigente = 1
+      AND CA.Activo = 1
+    ORDER BY CA.FechaCarga DESC
+) ADesv
+OUTER APPLY
+(
+    SELECT TOP 1
+        CA.RutaArchivo,
+        CA.NombreOriginal,
+        CA.Extension
+    FROM Compras_Archivos CA
+    WHERE CA.SolicitudID = S.SolicitudID
+      AND CA.CotizacionID = S.CotizacionSeleccionadaID
+      AND CA.TipoArchivo = 'FORMATO_REQUISICION'
+      AND CA.Vigente = 1
+      AND CA.Activo = 1
+    ORDER BY CA.FechaCarga DESC
+) AReq
 WHERE S.SolicitudID = @id";
 
                 using (var cmd = new SqlCommand(sqlCabecera, conn))
@@ -620,26 +820,42 @@ WHERE S.SolicitudID = @id";
                         int usuarioSolicitanteId = (int)reader["UsuarioID"];
                         vm.EsSolicitante = usuarioSolicitanteId == usuarioId;
 
-                        vm.CotizacionSeleccionadaID =
-                            reader["CotizacionSeleccionadaID"] == DBNull.Value
-                                ? null
-                                : (int?)reader["CotizacionSeleccionadaID"];
+                        vm.CotizacionSeleccionadaID =  reader["CotizacionSeleccionadaID"] == DBNull.Value  ? null  : (int?)reader["CotizacionSeleccionadaID"];
 
-                        vm.FechaSeleccionCotizacion =
-                            reader["FechaSeleccionCotizacion"] == DBNull.Value
-                                ? null
-                                : (DateTime?)reader["FechaSeleccionCotizacion"];
+                        vm.FechaSeleccionCotizacion =   reader["FechaSeleccionCotizacion"] == DBNull.Value    ? null      : (DateTime?)reader["FechaSeleccionCotizacion"];
 
-                        vm.ComentariosSeleccionUsuario =
-                            reader["ComentariosSeleccionUsuario"] == DBNull.Value
-                                ? null
-                                : reader["ComentariosSeleccionUsuario"].ToString();
+                        vm.ComentariosSeleccionUsuario =    reader["ComentariosSeleccionUsuario"] == DBNull.Value  ? null  : reader["ComentariosSeleccionUsuario"].ToString();
 
-                        vm.ArchivoReferenciaPath =
-    reader["ArchivoReferenciaPath"] == DBNull.Value
-        ? null
-        : reader["ArchivoReferenciaPath"].ToString();
+                        vm.ArchivoReferenciaPath =  reader["ArchivoReferenciaPath"] == DBNull.Value  ? null   : reader["ArchivoReferenciaPath"].ToString();
+
+                        vm.MontoPresupuestoSolicitado =  reader["MontoPresupuestoSolicitado"] == DBNull.Value ? null  : (decimal?)Convert.ToDecimal(reader["MontoPresupuestoSolicitado"]);
+
+                        vm.FueraPresupuestoUsuario =  reader["FueraPresupuestoUsuario"] != DBNull.Value    && Convert.ToBoolean(reader["FueraPresupuestoUsuario"]);
+                        vm.ArchivoDesviacionPath =reader["ArchivoDesviacionPath"] == DBNull.Value  ? null  : reader["ArchivoDesviacionPath"].ToString();
+
+                        vm.NombreArchivoDesviacion =  reader["NombreArchivoDesviacion"] == DBNull.Value ? null : reader["NombreArchivoDesviacion"].ToString();
+
+                        vm.ExtensionArchivoDesviacion =  reader["ExtensionArchivoDesviacion"] == DBNull.Value? null : reader["ExtensionArchivoDesviacion"].ToString();
+
+                        vm.ArchivoFormatoRequisicionPath =  reader["ArchivoFormatoRequisicionPath"] == DBNull.Value ? null : reader["ArchivoFormatoRequisicionPath"].ToString();
+
+                        vm.NombreArchivoFormatoRequisicion = reader["NombreArchivoFormatoRequisicion"] == DBNull.Value  ? null  : reader["NombreArchivoFormatoRequisicion"].ToString();
+
+                        vm.ExtensionArchivoFormatoRequisicion =   reader["ExtensionArchivoFormatoRequisicion"] == DBNull.Value  ? null : reader["ExtensionArchivoFormatoRequisicion"].ToString();
                     }
+
+                    bool esControlPresupuestal =
+    await UsuarioPerteneceADepartamentoAsync(
+        conn,
+        usuarioId,
+        "CONTROL PRESUPUESTAL",
+        "PRESUPUESTOS",
+        "CIS"
+    );
+
+                    vm.PuedeVerArchivoDesviacion =
+                        vm.EsSolicitante || esControlPresupuestal;
+
                 }
 
                 string sqlCot = @"
@@ -686,7 +902,14 @@ ORDER BY NumeroCotizacion";
                 }
 
                 string sqlMateriales = @"
-SELECT NombreMaterial, Cantidad, UnidadMedida
+SELECT 
+    NombreMaterial,
+    Descripcion,
+    Cantidad,
+    UnidadMedida,
+    ArchivoReferenciaPath,
+    NombreArchivoReferencia,
+    ExtensionArchivoReferencia
 FROM Compras_Detalle_Materiales
 WHERE SolicitudID = @id";
 
@@ -701,8 +924,13 @@ WHERE SolicitudID = @id";
                             vm.Materiales.Add(new MaterialItem
                             {
                                 Nombre = reader["NombreMaterial"] == DBNull.Value ? "" : reader["NombreMaterial"].ToString(),
+                                Descripcion = reader["Descripcion"] == DBNull.Value ? "" : reader["Descripcion"].ToString(),
                                 Cantidad = reader["Cantidad"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["Cantidad"]),
-                                UnidadMedida = reader["UnidadMedida"] == DBNull.Value ? "" : reader["UnidadMedida"].ToString()
+                                UnidadMedida = reader["UnidadMedida"] == DBNull.Value ? "" : reader["UnidadMedida"].ToString(),
+
+                                ArchivoReferenciaPath = reader["ArchivoReferenciaPath"] == DBNull.Value ? null : reader["ArchivoReferenciaPath"].ToString(),
+                                NombreArchivoReferencia = reader["NombreArchivoReferencia"] == DBNull.Value ? null : reader["NombreArchivoReferencia"].ToString(),
+                                ExtensionArchivoReferencia = reader["ExtensionArchivoReferencia"] == DBNull.Value ? null : reader["ExtensionArchivoReferencia"].ToString()
                             });
                         }
                     }
@@ -744,7 +972,10 @@ ORDER BY OrdenCompraID DESC";
                 string sqlRecepcion = @"
 SELECT TOP 1
     FechaRecepcion,
-    Comentarios
+    Comentarios,
+    EvidenciaRecepcionPath,
+    NombreArchivoEvidencia,
+    ExtensionArchivoEvidencia
 FROM Compras_Recepciones
 WHERE SolicitudID = @id
   AND Activo = 1
@@ -759,8 +990,12 @@ ORDER BY RecepcionID DESC";
                         if (await reader.ReadAsync())
                         {
                             vm.RecibidaEnAlmacen = true;
-                            vm.FechaRecepcionAlmacen = reader["FechaRecepcion"] == DBNull.Value ? null : (DateTime?)reader["FechaRecepcion"];
-                            vm.ComentariosRecepcionAlmacen = reader["Comentarios"] == DBNull.Value ? null : reader["Comentarios"].ToString();
+
+                            vm.FechaRecepcionAlmacen = reader["FechaRecepcion"] == DBNull.Value ? null: (DateTime?)reader["FechaRecepcion"];
+                            vm.ComentariosRecepcionAlmacen =  reader["Comentarios"] == DBNull.Value? null: reader["Comentarios"].ToString();
+                            vm.EvidenciaRecepcionPath =    reader["EvidenciaRecepcionPath"] == DBNull.Value ? null : reader["EvidenciaRecepcionPath"].ToString();
+                            vm.NombreArchivoEvidencia =  reader["NombreArchivoEvidencia"] == DBNull.Value   ? null : reader["NombreArchivoEvidencia"].ToString();
+                            vm.ExtensionArchivoEvidencia =   reader["ExtensionArchivoEvidencia"] == DBNull.Value   ? null   : reader["ExtensionArchivoEvidencia"].ToString();
                         }
                     }
                 }
@@ -769,7 +1004,10 @@ ORDER BY RecepcionID DESC";
 SELECT TOP 1
     FechaEntrega,
     NombreRecibe,
-    Comentarios
+    Comentarios,
+    EvidenciaEntregaPath,
+    NombreArchivoEvidencia,
+    ExtensionArchivoEvidencia
 FROM Compras_EntregasUsuario
 WHERE SolicitudID = @id
   AND Activo = 1
@@ -787,6 +1025,20 @@ ORDER BY EntregaID DESC";
                             vm.FechaEntregaUsuario = reader["FechaEntrega"] == DBNull.Value ? null : (DateTime?)reader["FechaEntrega"];
                             vm.NombreRecibeUsuario = reader["NombreRecibe"] == DBNull.Value ? null : reader["NombreRecibe"].ToString();
                             vm.ComentariosEntregaUsuario = reader["Comentarios"] == DBNull.Value ? null : reader["Comentarios"].ToString();
+                            vm.EvidenciaEntregaPath =
+    reader["EvidenciaEntregaPath"] == DBNull.Value
+        ? null
+        : reader["EvidenciaEntregaPath"].ToString();
+
+                            vm.NombreArchivoEvidenciaEntrega =
+                                reader["NombreArchivoEvidencia"] == DBNull.Value
+                                    ? null
+                                    : reader["NombreArchivoEvidencia"].ToString();
+
+                            vm.ExtensionArchivoEvidenciaEntrega =
+                                reader["ExtensionArchivoEvidencia"] == DBNull.Value
+                                    ? null
+                                    : reader["ExtensionArchivoEvidencia"].ToString();
                         }
                     }
                 }
@@ -817,15 +1069,33 @@ WHERE U.UsuarioID = @UsuarioID";
 
 
         [HttpGet]
-        public IActionResult VerPdfNas(string ruta)
+        public IActionResult VerArchivoNas(string ruta)
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(ruta))
+                    return BadRequest("Ruta no válida.");
+
                 var bytes = _sftp.DescargarBytes(ruta);
-                return File(bytes, "application/pdf");
+
+                string extension = Path.GetExtension(ruta)?.ToLowerInvariant() ?? "";
+
+                string contentType = extension switch
+                {
+                    ".pdf" => "application/pdf",
+                    ".jpg" or ".jpeg" => "image/jpeg",
+                    ".png" => "image/png",
+                    ".webp" => "image/webp",
+                    ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    ".xls" => "application/vnd.ms-excel",
+                    _ => "application/octet-stream"
+                };
+
+                return File(bytes, contentType);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error al descargar archivo desde NAS. Ruta: {Ruta}", ruta);
                 return NotFound();
             }
         }
@@ -1179,7 +1449,6 @@ WHERE U.UsuarioID = @UsuarioID";
     [FromForm] List<IFormFile> ArchivosCotizacion,
     [FromForm] List<string> Proveedores,
     [FromForm] List<decimal?> Montos,
-    [FromForm] int CotizacionRecomendada,
     [FromForm] string? ComentariosCompras)
         {
             int usuarioId = ObtenerUsuarioIdActual();
@@ -1283,7 +1552,7 @@ WHERE SolicitudID = @SolicitudID
                                     _sftp.SubirStream(stream, rutaArchivoSftp);
                                 }
 
-                                bool esRecomendada = CotizacionRecomendada == numeroCotizacion;
+                              
 
                                 string sqlCot = @"
 INSERT INTO Compras_Cotizaciones
@@ -1331,7 +1600,7 @@ VALUES
                                     cmdCot.Parameters.Add(paramMonto);
                                     cmdCot.Parameters.AddWithValue("@Proveedor", proveedor);
                                     cmdCot.Parameters.AddWithValue("@ComentariosCompras", (object?)ComentariosCompras ?? DBNull.Value);
-                                    cmdCot.Parameters.AddWithValue("@EsRecomendada", esRecomendada);
+                                    cmdCot.Parameters.AddWithValue("@EsRecomendada", false);
                                     cmdCot.Parameters.AddWithValue("@NumeroCotizacion", numeroCotizacion);
                                     cmdCot.Parameters.AddWithValue("@NombreArchivoOriginal", nombreOriginal);
                                     cmdCot.Parameters.AddWithValue("@Extension", extension);
@@ -1381,7 +1650,7 @@ VALUES
 
                             await NotificarSolicitante_CotizacionesListasAsync(SolicitudID);
 
-                            TempData["Mensaje"] = "Cotizaciones guardadas correctamente.";
+                            TempData["Mensaje"] = "Cotizaciones guardadas correctamente. Ahora selecciona la cotización que procede.";
                             return RedirectToAction("Detalle", new { id = SolicitudID });
                         }
                         catch (Exception ex)
@@ -1488,6 +1757,17 @@ VALUES
 SELECT 
     S.SolicitudID,
     S.Folio,
+    S.MontoPresupuestoSolicitado,
+    S.FueraPresupuestoUsuario,
+
+    ADesv.RutaArchivo AS ArchivoDesviacionPath,
+    ADesv.NombreOriginal AS NombreArchivoDesviacion,
+    ADesv.Extension AS ExtensionArchivoDesviacion,
+
+AReq.RutaArchivo AS ArchivoFormatoRequisicionPath,
+AReq.NombreOriginal AS NombreArchivoFormatoRequisicion,
+AReq.Extension AS ExtensionArchivoFormatoRequisicion,
+
     C.CotizacionID,
     C.Proveedor,
     C.MontoTotal,
@@ -1497,8 +1777,36 @@ SELECT
 FROM Compras_Solicitud S
 INNER JOIN Compras_Cotizaciones C 
     ON S.CotizacionSeleccionadaID = C.CotizacionID
+OUTER APPLY
+(
+    SELECT TOP 1
+        CA.RutaArchivo,
+        CA.NombreOriginal,
+        CA.Extension
+    FROM Compras_Archivos CA
+    WHERE CA.SolicitudID = S.SolicitudID
+      AND CA.CotizacionID = S.CotizacionSeleccionadaID
+      AND CA.TipoArchivo = 'DESVIACION'
+      AND CA.Vigente = 1
+      AND CA.Activo = 1
+    ORDER BY CA.FechaCarga DESC
+) ADesv
+OUTER APPLY
+(
+    SELECT TOP 1
+        CA.RutaArchivo,
+        CA.NombreOriginal,
+        CA.Extension
+    FROM Compras_Archivos CA
+    WHERE CA.SolicitudID = S.SolicitudID
+      AND CA.CotizacionID = S.CotizacionSeleccionadaID
+      AND CA.TipoArchivo = 'FORMATO_REQUISICION'
+      AND CA.Vigente = 1
+      AND CA.Activo = 1
+    ORDER BY CA.FechaCarga DESC
+) AReq
 WHERE S.SolicitudID = @id
-  AND S.EstatusID = 3";
+  AND S.EstatusID = 4";
 
                 using (var cmd = new SqlCommand(sql, conn))
                 {
@@ -1520,6 +1828,14 @@ WHERE S.SolicitudID = @id
                         model.ArchivoPath = reader["ArchivoPath"] == DBNull.Value ? "" : reader["ArchivoPath"].ToString();
                         model.NombreArchivoOriginal = reader["NombreArchivoOriginal"] == DBNull.Value ? "" : reader["NombreArchivoOriginal"].ToString();
                         model.Extension = reader["Extension"] == DBNull.Value ? "" : reader["Extension"].ToString();
+                        model.MontoPresupuestoSolicitado = reader["MontoPresupuestoSolicitado"] == DBNull.Value ? null : (decimal?)Convert.ToDecimal(reader["MontoPresupuestoSolicitado"]);
+                        model.FueraPresupuestoUsuario =reader["FueraPresupuestoUsuario"] != DBNull.Value  && Convert.ToBoolean(reader["FueraPresupuestoUsuario"]);
+                        model.ArchivoDesviacionPath =   reader["ArchivoDesviacionPath"] == DBNull.Value   ? null : reader["ArchivoDesviacionPath"].ToString();
+                        model.NombreArchivoDesviacion =  reader["NombreArchivoDesviacion"] == DBNull.Value? null: reader["NombreArchivoDesviacion"].ToString();
+                        model.ExtensionArchivoDesviacion = reader["ExtensionArchivoDesviacion"] == DBNull.Value  ? null: reader["ExtensionArchivoDesviacion"].ToString();
+                        model.ArchivoFormatoRequisicionPath =    reader["ArchivoFormatoRequisicionPath"] == DBNull.Value  ? null: reader["ArchivoFormatoRequisicionPath"].ToString();
+                        model.NombreArchivoFormatoRequisicion = reader["NombreArchivoFormatoRequisicion"] == DBNull.Value ? null: reader["NombreArchivoFormatoRequisicion"].ToString();
+                        model.ExtensionArchivoFormatoRequisicion =  reader["ExtensionArchivoFormatoRequisicion"] == DBNull.Value   ? null  : reader["ExtensionArchivoFormatoRequisicion"].ToString();
                     }
                 }
             }
@@ -1684,7 +2000,13 @@ WHERE S.SolicitudID = @id
                 return RedirectToAction("Dictamen", new { id = vm.SolicitudID });
             }
 
-            if (vm.Pasa && vm.TipoGasto == "REQUISICION" && string.IsNullOrWhiteSpace(vm.NumeroRequisicion))
+            string tipoGastoNormalizado = (vm.TipoGasto ?? "")
+    .Trim()
+    .ToUpper()
+    .Replace("Ó", "O");
+
+
+            if (vm.Pasa && tipoGastoNormalizado == "REQUISICION" && string.IsNullOrWhiteSpace(vm.NumeroRequisicion))
             {
                 TempData["Error"] = "Debes capturar el número de requisición.";
                 return RedirectToAction("Dictamen", new { id = vm.SolicitudID });
@@ -1716,7 +2038,90 @@ WHERE S.SolicitudID = @id
                 {
                     try
                     {
-                        int nuevoEstatus = vm.Pasa ? 4 : 9;
+                        int nuevoEstatus = vm.Pasa ? 5 : 11;
+
+                        bool fueraPresupuestoUsuario = false;
+                        bool tieneArchivoDesviacion = false;
+                        bool tieneFormatoRequisicion = false;
+
+                        string sqlValidarPresupuestoInicial = @"
+SELECT 
+    S.FueraPresupuestoUsuario,
+    CASE 
+        WHEN EXISTS (
+            SELECT 1
+            FROM Compras_Archivos A
+            WHERE A.SolicitudID = S.SolicitudID
+              AND A.CotizacionID = S.CotizacionSeleccionadaID
+              AND A.TipoArchivo = 'DESVIACION'
+              AND A.Vigente = 1
+              AND A.Activo = 1
+        )
+        THEN 1 ELSE 0
+    END AS TieneArchivoDesviacion,
+    CASE 
+        WHEN EXISTS (
+            SELECT 1
+            FROM Compras_Archivos A
+            WHERE A.SolicitudID = S.SolicitudID
+              AND A.CotizacionID = S.CotizacionSeleccionadaID
+              AND A.TipoArchivo = 'FORMATO_REQUISICION'
+              AND A.Vigente = 1
+              AND A.Activo = 1
+        )
+        THEN 1 ELSE 0
+    END AS TieneFormatoRequisicion
+FROM Compras_Solicitud S
+WHERE S.SolicitudID = @SolicitudID
+  AND S.EstatusID = 4";
+
+                        using (var cmdValPres = new SqlCommand(sqlValidarPresupuestoInicial, conn, trans))
+                        {
+                            cmdValPres.Parameters.AddWithValue("@SolicitudID", vm.SolicitudID);
+
+                            using (var reader = await cmdValPres.ExecuteReaderAsync())
+                            {
+                                if (!await reader.ReadAsync())
+                                {
+                                    trans.Rollback();
+                                    TempData["Error"] = "La solicitud ya no está pendiente de dictamen.";
+                                    return RedirectToAction("BandejaPresupuestos");
+                                }
+
+                                fueraPresupuestoUsuario =
+                                    reader["FueraPresupuestoUsuario"] != DBNull.Value
+                                    && Convert.ToBoolean(reader["FueraPresupuestoUsuario"]);
+
+                                tieneArchivoDesviacion =
+    reader["TieneArchivoDesviacion"] != DBNull.Value
+    && Convert.ToInt32(reader["TieneArchivoDesviacion"]) == 1;
+
+                                tieneFormatoRequisicion =
+    reader["TieneFormatoRequisicion"] != DBNull.Value
+    && Convert.ToInt32(reader["TieneFormatoRequisicion"]) == 1;
+
+                            }
+                        }
+
+                        if (vm.Pasa && vm.DentroDePresupuesto == false && !tieneArchivoDesviacion)
+                        {
+                            trans.Rollback();
+                            TempData["Error"] = "No puedes aprobar como fuera de presupuesto porque no existe archivo de desviación cargado.";
+                            return RedirectToAction("Dictamen", new { id = vm.SolicitudID });
+                        }
+
+                        if (vm.Pasa && fueraPresupuestoUsuario && vm.DentroDePresupuesto == true)
+                        {
+                            trans.Rollback();
+                            TempData["Error"] = "El solicitante marcó esta compra como fuera de presupuesto. Revisa la desviación antes de dictaminarla como dentro de presupuesto.";
+                            return RedirectToAction("Dictamen", new { id = vm.SolicitudID });
+                        }
+                        if (vm.Pasa && tipoGastoNormalizado == "REQUISICION" && !tieneFormatoRequisicion)
+                        {
+                            trans.Rollback();
+                            TempData["Error"] = "No puedes aprobar como requisición porque no existe formato de requisición vigente cargado.";
+                            return RedirectToAction("Dictamen", new { id = vm.SolicitudID });
+                        }
 
                         string queryUpdate = @"
 UPDATE Compras_Solicitud 
@@ -1727,18 +2132,18 @@ SET EstatusID = @Est,
     NumeroRequisicion = @Requi,
     ObservacionesPresupuesto = @Obs
 WHERE SolicitudID = @Sid
-  AND EstatusID = 3";
+  AND EstatusID = 4";
 
                         using (var cmd = new SqlCommand(queryUpdate, conn, trans))
                         {
                             cmd.Parameters.AddWithValue("@Est", nuevoEstatus);
                             cmd.Parameters.AddWithValue("@Sid", vm.SolicitudID);
-                            cmd.Parameters.AddWithValue("@Tipo", vm.Pasa ? (object)(vm.TipoGasto ?? "") : DBNull.Value);
+                            cmd.Parameters.AddWithValue("@Tipo", vm.Pasa ? (object)tipoGastoNormalizado : DBNull.Value);
                             cmd.Parameters.AddWithValue("@Dentro", vm.Pasa ? (object)vm.DentroDePresupuesto : DBNull.Value);
                             cmd.Parameters.AddWithValue("@Requi",
-                                (vm.Pasa && vm.TipoGasto == "REQUISICION")
-                                    ? (object)(vm.NumeroRequisicion ?? "")
-                                    : DBNull.Value);
+    (vm.Pasa && tipoGastoNormalizado == "REQUISICION")
+        ? (object)(vm.NumeroRequisicion ?? "")
+        : DBNull.Value);
                             cmd.Parameters.AddWithValue("@Obs", (object?)vm.Observaciones ?? DBNull.Value);
 
                             int filas = await cmd.ExecuteNonQueryAsync();
@@ -1827,7 +2232,7 @@ FROM Compras_Solicitud S
 INNER JOIN Usuarios U ON S.UsuarioID = U.UsuarioID
 INNER JOIN Persona P ON U.PersonaID = P.PersonaID
 INNER JOIN Cat_EstatusCompra Est ON S.EstatusID = Est.EstatusID
-WHERE S.EstatusID = 3
+WHERE S.EstatusID = 4
 ORDER BY S.FechaCreacion ASC";
 
                 using (var cmd = new SqlCommand(sqlPendientes, conn))
@@ -1853,8 +2258,9 @@ SELECT S.SolicitudID, S.Folio,
        S.TipoCompra,
        ISNULL(C.MontoTotal, 0) AS MontoTotal,
        CASE 
-    WHEN S.EstatusID >= 4 AND S.EstatusID <> 9 THEN 'Aprobado'
-    WHEN S.EstatusID = 9 THEN 'Rechazado'
+    WHEN S.EstatusID >= 5 AND S.EstatusID NOT IN (11, 12) THEN 'Aprobado'
+    WHEN S.EstatusID = 11 THEN 'Rechazado'
+    WHEN S.EstatusID = 12 THEN 'Cancelado'
     ELSE 'Otro'
 END AS Resultado,
        S.DentroPresupuesto,
@@ -1867,7 +2273,7 @@ INNER JOIN Persona P ON U.PersonaID = P.PersonaID
 LEFT JOIN Compras_Cotizaciones C 
     ON S.CotizacionSeleccionadaID = C.CotizacionID
 WHERE S.FechaDictamen IS NOT NULL
-  AND S.EstatusID IN (4, 5, 6, 7, 8, 9, 10, 11)
+  AND S.EstatusID IN (5, 6, 7, 8, 9, 10, 11, 12)
 ORDER BY S.FechaDictamen DESC";
 
                 using (var cmd = new SqlCommand(sqlHistorico, conn))
@@ -2153,7 +2559,7 @@ ORDER BY S.FechaDictamen DESC";
         INNER JOIN Persona P
             ON U.PersonaID = P.PersonaID
         WHERE S.SolicitudID = @SolicitudID
-          AND S.EstatusID = 4";
+          AND S.EstatusID = 5";
 
                 using (var cmd = new SqlCommand(sql, conn))
                 {
@@ -2205,7 +2611,7 @@ ORDER BY S.FechaDictamen DESC";
 SELECT COUNT(*)
 FROM Compras_Solicitud
 WHERE SolicitudID = @SolicitudID
-  AND EstatusID = 4
+  AND EstatusID = 5
   AND CotizacionSeleccionadaID IS NOT NULL";
 
                         using (var cmdValSol = new SqlCommand(sqlValidarSolicitud, conn, trans))
@@ -2248,7 +2654,7 @@ FROM Compras_Solicitud S
 INNER JOIN Compras_Cotizaciones C
     ON S.CotizacionSeleccionadaID = C.CotizacionID
 WHERE S.SolicitudID = @SolicitudID
-  AND S.EstatusID = 4";
+  AND S.EstatusID = 5";
 
                         string proveedorCotizacion = "";
                         decimal montoCotizacion = 0;
@@ -2293,11 +2699,33 @@ VALUES
                             }
                         }
 
+                        string sqlUpdateSolicitud = @"
+UPDATE Compras_Solicitud
+SET EstatusID = 6
+WHERE SolicitudID = @SolicitudID
+  AND EstatusID = 5";
+
+                        using (var cmdUpdateSol = new SqlCommand(sqlUpdateSolicitud, conn, trans))
+                        {
+                            cmdUpdateSol.Parameters.AddWithValue("@SolicitudID", solicitudId);
+
+                            int filasUpdateSol = await cmdUpdateSol.ExecuteNonQueryAsync();
+
+                            if (filasUpdateSol == 0)
+                            {
+                                trans.Rollback();
+                                TempData["Error"] = "No se pudo actualizar el estatus de la solicitud.";
+                                return RedirectToAction("Detalle", new { id = solicitudId });
+                            }
+                        }
+
+
+
                         string sqlHistorico = @"
 INSERT INTO Compras_Historico_Pasos
 (SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
 VALUES
-(@SolicitudID, 4, GETDATE(), @Responsable)";
+(@SolicitudID, 6, GETDATE(), @Responsable)";
 
                         using (var cmd = new SqlCommand(sqlHistorico, conn, trans))
                         {
@@ -2364,7 +2792,7 @@ INNER JOIN Compras_OrdenCompra OC
     ON S.SolicitudID = OC.SolicitudID
    AND OC.Activo = 1
 WHERE S.SolicitudID = @SolicitudID
-  AND S.EstatusID = 4
+  AND S.EstatusID = 6
   AND OC.FechaEnvioProveedor IS NULL";
 
                         using (var cmdVal = new SqlCommand(sqlValidar, conn, trans))
@@ -2413,11 +2841,45 @@ WHERE SolicitudID = @SolicitudID
                             }
                         }
 
+                        string sqlHistOCEnviada = @"
+INSERT INTO Compras_Historico_Pasos
+(SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
+VALUES
+(@SolicitudID, 7, GETDATE(), @Responsable)";
+
+                        using (var cmdHist7 = new SqlCommand(sqlHistOCEnviada, conn, trans))
+                        {
+                            cmdHist7.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            cmdHist7.Parameters.AddWithValue("@Responsable", User.Identity?.Name ?? "Sistema");
+                            await cmdHist7.ExecuteNonQueryAsync();
+                        }
+
+
+
                         string sqlUpdateSolicitud = @"
 UPDATE Compras_Solicitud
-SET EstatusID = 5
+SET EstatusID =
+    CASE
+        WHEN UPPER(ISNULL(TipoGasto, '')) IN ('REQUISICION', 'REQUISICIÓN') THEN 8
+        ELSE 9
+    END
 WHERE SolicitudID = @SolicitudID
-  AND EstatusID = 4";
+  AND EstatusID = 6";
+
+                        int nuevoEstatusHistorico;
+
+                        using (var cmdTipo = new SqlCommand(@"
+SELECT 
+    CASE
+        WHEN UPPER(ISNULL(TipoGasto, '')) IN ('REQUISICION', 'REQUISICIÓN') THEN 8
+        ELSE 9
+    END
+FROM Compras_Solicitud
+WHERE SolicitudID = @SolicitudID", conn, trans))
+                        {
+                            cmdTipo.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            nuevoEstatusHistorico = Convert.ToInt32(await cmdTipo.ExecuteScalarAsync());
+                        }
 
                         using (var cmd = new SqlCommand(sqlUpdateSolicitud, conn, trans))
                         {
@@ -2437,11 +2899,12 @@ WHERE SolicitudID = @SolicitudID
 INSERT INTO Compras_Historico_Pasos
 (SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
 VALUES
-(@SolicitudID, 5, GETDATE(), @Responsable)";
+(@SolicitudID, @EstatusID, GETDATE(), @Responsable)";
 
                         using (var cmd = new SqlCommand(sqlHistorico, conn, trans))
                         {
                             cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            cmd.Parameters.AddWithValue("@EstatusID", nuevoEstatusHistorico);
                             cmd.Parameters.AddWithValue("@Responsable", User.Identity?.Name ?? "Sistema");
                             await cmd.ExecuteNonQueryAsync();
                         }
@@ -2467,14 +2930,29 @@ VALUES
 
         [HttpPost("RegistrarRecepcionAlmacen")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RegistrarRecepcionAlmacen(
-     int solicitudId,
-     string? comentarios)
+        public async Task<IActionResult> RegistrarRecepcionAlmacen(    int solicitudId,    string? comentarios,    IFormFile? evidenciaRecepcion)
         {
             int usuarioId = ObtenerUsuarioIdActual();
             if (usuarioId == 0) return Unauthorized();
 
             comentarios = comentarios?.Trim();
+
+            if (evidenciaRecepcion == null || evidenciaRecepcion.Length == 0)
+            {
+                TempData["Error"] = "Debes adjuntar evidencia de recepción del material.";
+                return RedirectToAction("BandejaAlmacen");
+            }
+
+            var extensionesPermitidas = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".webp" };
+
+            string extensionEvidencia =
+                Path.GetExtension(evidenciaRecepcion.FileName)?.ToLowerInvariant() ?? "";
+
+            if (!extensionesPermitidas.Contains(extensionEvidencia))
+            {
+                TempData["Error"] = "La evidencia solo puede ser PDF o imagen JPG, PNG o WEBP.";
+                return RedirectToAction("BandejaAlmacen");
+            }
 
             using (var conn = new SqlConnection(_connectionString))
             {
@@ -2505,7 +2983,7 @@ INNER JOIN Compras_OrdenCompra OC
    AND OC.Activo = 1
    AND OC.FechaEnvioProveedor IS NOT NULL
 WHERE S.SolicitudID = @SolicitudID
-  AND S.EstatusID = 5
+  AND S.EstatusID = 8
   AND NOT EXISTS (
       SELECT 1
       FROM Compras_Recepciones R
@@ -2533,20 +3011,31 @@ ORDER BY OC.OrdenCompraID DESC";
                         string sqlInsert = @"
 INSERT INTO Compras_Recepciones
 (
-    SolicitudID,
-    OrdenCompraID,
-    FechaRecepcion,
-    UsuarioRecibioID,
-    Comentarios
-)
+    SolicitudID,   OrdenCompraID,    FechaRecepcion,    UsuarioRecibioID,    Comentarios,    EvidenciaRecepcionPath,    NombreArchivoEvidencia,    ExtensionArchivoEvidencia,    ContentTypeEvidencia,
+    TamanoBytesEvidencia,    FechaCargaEvidencia)
 VALUES
 (
-    @SolicitudID,
-    @OrdenCompraID,
-    GETDATE(),
-    @UsuarioID,
-    @Comentarios
+    @SolicitudID,    @OrdenCompraID,    GETDATE(),    @UsuarioID,    @Comentarios,    @EvidenciaRecepcionPath,    @NombreArchivoEvidencia,    @ExtensionArchivoEvidencia,    @ContentTypeEvidencia,
+   @TamanoBytesEvidencia,   GETDATE()
 )";
+
+                        string rutaContenedor = _rutaNas.ObtenerRutaSolicitudesCompras();
+
+                        _sftp.AsegurarDirectorio(rutaContenedor);
+
+                        string folioStr = solicitudId.ToString().PadLeft(5, '0');
+                        string nombreOriginalEvidencia = Path.GetFileName(evidenciaRecepcion.FileName);
+
+                        string nombreArchivoEvidencia =
+                            $"COM-{folioStr}_RecepcionAlmacen_{Guid.NewGuid()}{extensionEvidencia}";
+
+                        string rutaArchivoEvidenciaSftp =
+                            $"{rutaContenedor}/{nombreArchivoEvidencia}";
+
+                        using (var stream = evidenciaRecepcion.OpenReadStream())
+                        {
+                            _sftp.SubirStream(stream, rutaArchivoEvidenciaSftp);
+                        }
 
                         using (var cmd = new SqlCommand(sqlInsert, conn, trans))
                         {
@@ -2554,6 +3043,11 @@ VALUES
                             cmd.Parameters.AddWithValue("@OrdenCompraID", ordenCompraId);
                             cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
                             cmd.Parameters.AddWithValue("@Comentarios", (object?)comentarios ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@EvidenciaRecepcionPath", rutaArchivoEvidenciaSftp);
+                            cmd.Parameters.AddWithValue("@NombreArchivoEvidencia", nombreOriginalEvidencia);
+                            cmd.Parameters.AddWithValue("@ExtensionArchivoEvidencia", extensionEvidencia);
+                            cmd.Parameters.AddWithValue("@ContentTypeEvidencia", evidenciaRecepcion.ContentType ?? "application/octet-stream");
+                            cmd.Parameters.AddWithValue("@TamanoBytesEvidencia", evidenciaRecepcion.Length);
 
                             int filasInsert = await cmd.ExecuteNonQueryAsync();
 
@@ -2567,9 +3061,9 @@ VALUES
 
                         string sqlUpdateSolicitud = @"
 UPDATE Compras_Solicitud
-SET EstatusID = 6
+SET EstatusID = 10
 WHERE SolicitudID = @SolicitudID
-  AND EstatusID = 5";
+  AND EstatusID = 8";
 
                         using (var cmd = new SqlCommand(sqlUpdateSolicitud, conn, trans))
                         {
@@ -2589,7 +3083,7 @@ WHERE SolicitudID = @SolicitudID
 INSERT INTO Compras_Historico_Pasos
 (SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
 VALUES
-(@SolicitudID, 6, GETDATE(), @Responsable)";
+(@SolicitudID, 10, GETDATE(), @Responsable)";
 
                         using (var cmd = new SqlCommand(sqlHistorico, conn, trans))
                         {
@@ -2619,10 +3113,7 @@ VALUES
 
         [HttpPost("RegistrarEntregaUsuario")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RegistrarEntregaUsuario(
-    int solicitudId,
-    string nombreRecibe,
-    string? comentarios)
+        public async Task<IActionResult> RegistrarEntregaUsuario(    int solicitudId, string nombreRecibe,  string? comentarios,  IFormFile? evidenciaEntrega)
         {
             int usuarioEntregaId = ObtenerUsuarioIdActual();
             if (usuarioEntregaId == 0) return Unauthorized();
@@ -2633,9 +3124,36 @@ VALUES
                 return RedirectToAction("Detalle", new { id = solicitudId });
             }
 
+            if (evidenciaEntrega == null || evidenciaEntrega.Length == 0)
+            {
+                TempData["Error"] = "Debes adjuntar evidencia de entrega al usuario.";
+                return RedirectToAction("Detalle", new { id = solicitudId });
+            }
+
+            var extensionesPermitidas = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".webp" };
+
+            string extensionEvidencia =
+                Path.GetExtension(evidenciaEntrega.FileName)?.ToLowerInvariant() ?? "";
+
+            if (!extensionesPermitidas.Contains(extensionEvidencia))
+            {
+                TempData["Error"] = "La evidencia de entrega solo puede ser PDF o imagen JPG, PNG o WEBP.";
+                return RedirectToAction("Detalle", new { id = solicitudId });
+            }
+
             using (var conn = new SqlConnection(_connectionString))
             {
                 await conn.OpenAsync();
+
+                bool perteneceCompras =
+    await UsuarioPerteneceADepartamentoAsync(
+        conn,
+        usuarioEntregaId,
+        "COMPRAS"
+    );
+
+                if (!perteneceCompras)
+                    return Forbid();
 
                 using (var trans = conn.BeginTransaction())
                 {
@@ -2647,7 +3165,7 @@ VALUES
                     SELECT UsuarioID
                     FROM Compras_Solicitud
                     WHERE SolicitudID = @SolicitudID
-                      AND EstatusID = 6";
+                      AND EstatusID = 9";
 
                         using (var cmdSol = new SqlCommand(sqlSolicitud, conn, trans))
                         {
@@ -2658,13 +3176,30 @@ VALUES
                             if (result == null || result == DBNull.Value)
                             {
                                 trans.Rollback();
-                                TempData["Error"] = "Solo puedes entregar al usuario cuando la mercancía ya fue recibida en almacén.";
+                                TempData["Error"] = "Solo puedes registrar entrega al usuario cuando la solicitud está pendiente de entrega directa.";
                                 return RedirectToAction("Detalle", new { id = solicitudId });
                             }
 
                             usuarioSolicitanteId = Convert.ToInt32(result);
                         }
 
+                        string rutaContenedor = _rutaNas.ObtenerRutaSolicitudesCompras();
+
+                        _sftp.AsegurarDirectorio(rutaContenedor);
+
+                        string folioStr = solicitudId.ToString().PadLeft(5, '0');
+                        string nombreOriginalEvidencia = Path.GetFileName(evidenciaEntrega.FileName);
+
+                        string nombreArchivoEvidencia =
+                            $"COM-{folioStr}_EntregaUsuario_{Guid.NewGuid()}{extensionEvidencia}";
+
+                        string rutaArchivoEvidenciaSftp =
+                            $"{rutaContenedor}/{nombreArchivoEvidencia}";
+
+                        using (var stream = evidenciaEntrega.OpenReadStream())
+                        {
+                            _sftp.SubirStream(stream, rutaArchivoEvidenciaSftp);
+                        }
                         string sqlInsert = @"
 INSERT INTO Compras_EntregasUsuario
 (
@@ -2674,6 +3209,12 @@ INSERT INTO Compras_EntregasUsuario
     UsuarioRecibeID,
     NombreRecibe,
     Comentarios,
+    EvidenciaEntregaPath,
+    NombreArchivoEvidencia,
+    ExtensionArchivoEvidencia,
+    ContentTypeEvidencia,
+    TamanoBytesEvidencia,
+    FechaCargaEvidencia,
     Activo
 )
 VALUES
@@ -2684,9 +3225,14 @@ VALUES
     @UsuarioRecibeID,
     @NombreRecibe,
     @Comentarios,
+    @EvidenciaEntregaPath,
+    @NombreArchivoEvidencia,
+    @ExtensionArchivoEvidencia,
+    @ContentTypeEvidencia,
+    @TamanoBytesEvidencia,
+    GETDATE(),
     1
 )";
-
                         using (var cmd = new SqlCommand(sqlInsert, conn, trans))
                         {
                             cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
@@ -2694,6 +3240,12 @@ VALUES
                             cmd.Parameters.AddWithValue("@UsuarioRecibeID", usuarioSolicitanteId);
                             cmd.Parameters.AddWithValue("@NombreRecibe", nombreRecibe);
                             cmd.Parameters.AddWithValue("@Comentarios", (object?)comentarios ?? DBNull.Value);
+
+                            cmd.Parameters.AddWithValue("@EvidenciaEntregaPath", rutaArchivoEvidenciaSftp);
+                            cmd.Parameters.AddWithValue("@NombreArchivoEvidencia", nombreOriginalEvidencia);
+                            cmd.Parameters.AddWithValue("@ExtensionArchivoEvidencia", extensionEvidencia);
+                            cmd.Parameters.AddWithValue("@ContentTypeEvidencia", evidenciaEntrega.ContentType ?? "application/octet-stream");
+                            cmd.Parameters.AddWithValue("@TamanoBytesEvidencia", evidenciaEntrega.Length);
 
                             int filasSolicitud = await cmd.ExecuteNonQueryAsync();
 
@@ -2707,47 +3259,44 @@ VALUES
 
                         string sqlUpdate = @"
                     UPDATE Compras_Solicitud
-                    SET EstatusID = 8
+                    SET EstatusID = 10
                     WHERE SolicitudID = @SolicitudID
-                      AND EstatusID = 6";
+                      AND EstatusID = 9";
 
                         using (var cmd = new SqlCommand(sqlUpdate, conn, trans))
                         {
                             cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
-                            await cmd.ExecuteNonQueryAsync();
-                        }
 
-                        string sqlHistoricoEntrega = @"
-                    INSERT INTO Compras_Historico_Pasos
-                    (SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
-                    VALUES
-                    (@SolicitudID, 7, GETDATE(), @Responsable)";
+                            int filasUpdate = await cmd.ExecuteNonQueryAsync();
 
-                        using (var cmd = new SqlCommand(sqlHistoricoEntrega, conn, trans))
-                        {
-                            cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
-                            cmd.Parameters.AddWithValue("@Responsable", User.Identity?.Name ?? "Sistema");
-                            await cmd.ExecuteNonQueryAsync();
+                            if (filasUpdate == 0)
+                            {
+                                trans.Rollback();
+                                TempData["Error"] = "La solicitud ya no está disponible para entrega al usuario.";
+                                return RedirectToAction("Detalle", new { id = solicitudId });
+                            }
                         }
 
                         string sqlHistoricoCierre = @"
-                    INSERT INTO Compras_Historico_Pasos
-                    (SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
-                    VALUES
-                    (@SolicitudID, 8, GETDATE(), @Responsable)";
+INSERT INTO Compras_Historico_Pasos
+(SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
+VALUES
+(@SolicitudID, 10, GETDATE(), @Responsable)";
 
-                        using (var cmd = new SqlCommand(sqlHistoricoCierre, conn, trans))
+                        using (var cmdHistCierre = new SqlCommand(sqlHistoricoCierre, conn, trans))
                         {
-                            cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
-                            cmd.Parameters.AddWithValue("@Responsable", User.Identity?.Name ?? "Sistema");
-                            await cmd.ExecuteNonQueryAsync();
+                            cmdHistCierre.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            cmdHistCierre.Parameters.AddWithValue("@Responsable", User.Identity?.Name ?? "Sistema");
+
+                            await cmdHistCierre.ExecuteNonQueryAsync();
                         }
 
                         trans.Commit();
 
-                        await NotificarCuentasPorPagar_MaterialEntregadoAsync(solicitudId);
+                     //   await NotificarCuentasPorPagar_MaterialEntregadoAsync(solicitudId);
 
-                        TempData["Mensaje"] = "Mercancía entregada al usuario. Solicitud enviada a Cuentas por Pagar.";
+
+                        TempData["Mensaje"] = "Mercancía entregada al usuario.";
                         return RedirectToAction("Detalle", new { id = solicitudId });
 
 
@@ -2876,7 +3425,7 @@ VALUES
 
                                 DiasAlmacen = reader["DiasAlmacen"] == DBNull.Value   ? 0    : Convert.ToInt32(reader["DiasAlmacen"]),
 
-                                DiasCxP = reader["DiasCxP"] == DBNull.Value    ? 0    : Convert.ToInt32(reader["DiasCxP"]),
+                               
                             });
                         }
                     }
@@ -2981,7 +3530,7 @@ VALUES
            AND ED.Activo = 1
         LEFT JOIN Departamentos D 
             ON ED.DepartamentoID = D.DepartamentoID
-       WHERE S.EstatusID = 5
+       WHERE S.EstatusID = 8
   AND NOT EXISTS (
       SELECT 1
       FROM Compras_Recepciones R
@@ -3066,55 +3615,122 @@ WHERE ED.UsuarioID = @UsuarioID
         [HttpPost("SeleccionarCotizacion")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SeleccionarCotizacion(
-    int solicitudId,
-    int cotizacionId,
-    string? comentarios)
+     int solicitudId,
+     int cotizacionId,
+     string? comentarios,
+     string? motivoCambio)
         {
             int usuarioId = ObtenerUsuarioIdActual();
             if (usuarioId == 0) return Unauthorized();
+
+            comentarios = comentarios?.Trim();
+            motivoCambio = motivoCambio?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(comentarios) && comentarios.Length > 500)
+            {
+                TempData["Error"] = "El comentario no puede superar los 500 caracteres.";
+                return RedirectToAction("Detalle", new { id = solicitudId });
+            }
+
+            if (!string.IsNullOrWhiteSpace(motivoCambio) && motivoCambio.Length > 500)
+            {
+                TempData["Error"] = "El motivo del cambio no puede superar los 500 caracteres.";
+                return RedirectToAction("Detalle", new { id = solicitudId });
+            }
 
             using (var conn = new SqlConnection(_connectionString))
             {
                 await conn.OpenAsync();
 
+                bool perteneceCompras =
+                    await UsuarioPerteneceADepartamentoAsync(conn, usuarioId, "COMPRAS");
+
+                if (!perteneceCompras)
+                    return Forbid();
+
                 using (var trans = conn.BeginTransaction())
                 {
                     try
                     {
-                        string sqlValidar = @"
-SELECT COUNT(*)
-FROM Compras_Solicitud S
-INNER JOIN Compras_Cotizaciones C
-    ON S.SolicitudID = C.SolicitudID
-WHERE S.SolicitudID = @SolicitudID
-  AND C.CotizacionID = @CotizacionID
-  AND S.UsuarioID = @UsuarioID
-  AND S.EstatusID = 2
-  AND S.CotizacionSeleccionadaID IS NULL";
+                        int estatusActual;
+                        int? cotizacionAnteriorId = null;
 
-                        using (var cmdVal = new SqlCommand(sqlValidar, conn, trans))
+                        string sqlDatosSolicitud = @"
+SELECT 
+    S.EstatusID,
+    S.CotizacionSeleccionadaID
+FROM Compras_Solicitud S
+WHERE S.SolicitudID = @SolicitudID";
+
+                        using (var cmdDatos = new SqlCommand(sqlDatosSolicitud, conn, trans))
+                        {
+                            cmdDatos.Parameters.AddWithValue("@SolicitudID", solicitudId);
+
+                            using (var reader = await cmdDatos.ExecuteReaderAsync())
+                            {
+                                if (!await reader.ReadAsync())
+                                {
+                                    trans.Rollback();
+                                    TempData["Error"] = "No se encontró la solicitud.";
+                                    return RedirectToAction("Detalle", new { id = solicitudId });
+                                }
+
+                                estatusActual = Convert.ToInt32(reader["EstatusID"]);
+
+                                cotizacionAnteriorId =
+                                    reader["CotizacionSeleccionadaID"] == DBNull.Value
+                                        ? null
+                                        : Convert.ToInt32(reader["CotizacionSeleccionadaID"]);
+                            }
+                        }
+
+                        if (estatusActual != 2 && estatusActual != 3)
+                        {
+                            trans.Rollback();
+                            TempData["Error"] = "Solo se puede seleccionar o cambiar la cotización cuando la solicitud está cotizada o pendiente de documentación del usuario.";
+                            return RedirectToAction("Detalle", new { id = solicitudId });
+                        }
+
+                        bool esPrimeraDictaminacion = !cotizacionAnteriorId.HasValue;
+
+                        bool esCambio =
+                            cotizacionAnteriorId.HasValue &&
+                            cotizacionAnteriorId.Value != cotizacionId;
+
+                        if (cotizacionAnteriorId.HasValue &&
+                            cotizacionAnteriorId.Value == cotizacionId)
+                        {
+                            trans.Rollback();
+                            TempData["Error"] = "La cotización seleccionada ya es la cotización dictaminada.";
+                            return RedirectToAction("Detalle", new { id = solicitudId });
+                        }
+
+                        if (esCambio && string.IsNullOrWhiteSpace(motivoCambio))
+                        {
+                            trans.Rollback();
+                            TempData["Error"] = "Debes capturar el motivo del cambio de cotización.";
+                            return RedirectToAction("Detalle", new { id = solicitudId });
+                        }
+
+                        string sqlValidarCotizacion = @"
+SELECT COUNT(*)
+FROM Compras_Cotizaciones
+WHERE SolicitudID = @SolicitudID
+  AND CotizacionID = @CotizacionID";
+
+                        using (var cmdVal = new SqlCommand(sqlValidarCotizacion, conn, trans))
                         {
                             cmdVal.Parameters.AddWithValue("@SolicitudID", solicitudId);
                             cmdVal.Parameters.AddWithValue("@CotizacionID", cotizacionId);
-                            cmdVal.Parameters.AddWithValue("@UsuarioID", usuarioId);
 
                             int valido = Convert.ToInt32(await cmdVal.ExecuteScalarAsync());
 
                             if (valido == 0)
                             {
                                 trans.Rollback();
-                                TempData["Error"] = "No puedes seleccionar esta cotización.";
+                                TempData["Error"] = "La cotización seleccionada no pertenece a esta solicitud.";
                                 return RedirectToAction("Detalle", new { id = solicitudId });
                             }
-                        }
-
-
-                        comentarios = comentarios?.Trim();
-                        if (!string.IsNullOrWhiteSpace(comentarios) && comentarios.Length > 500)
-                        {
-                            trans.Rollback();
-                            TempData["Error"] = "El comentario no puede superar los 500 caracteres.";
-                            return RedirectToAction("Detalle", new { id = solicitudId });
                         }
 
                         string sqlUpdate = @"
@@ -3123,10 +3739,18 @@ SET CotizacionSeleccionadaID = @CotizacionID,
     FechaSeleccionCotizacion = GETDATE(),
     UsuarioSeleccionCotizacionID = @UsuarioID,
     ComentariosSeleccionUsuario = @Comentarios,
-    EstatusID = 3
+    EstatusID = 3,
+    FechaDictamen = NULL,
+    TipoGasto = NULL,
+    DentroPresupuesto = NULL,
+    NumeroRequisicion = NULL,
+    ObservacionesPresupuesto = NULL
 WHERE SolicitudID = @SolicitudID
-  AND EstatusID = 2
-  AND CotizacionSeleccionadaID IS NULL";
+  AND EstatusID IN (2, 3)
+  AND (
+        (@CotizacionAnteriorID IS NULL AND CotizacionSeleccionadaID IS NULL)
+        OR CotizacionSeleccionadaID = @CotizacionAnteriorID
+      )";
 
                         using (var cmd = new SqlCommand(sqlUpdate, conn, trans))
                         {
@@ -3135,15 +3759,82 @@ WHERE SolicitudID = @SolicitudID
                             cmd.Parameters.AddWithValue("@Comentarios", (object?)comentarios ?? DBNull.Value);
                             cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
 
+                            var paramCotAnterior = new SqlParameter("@CotizacionAnteriorID", SqlDbType.Int);
+                            paramCotAnterior.Value = cotizacionAnteriorId.HasValue
+                                ? cotizacionAnteriorId.Value
+                                : DBNull.Value;
+
+                            cmd.Parameters.Add(paramCotAnterior);
+
                             int filas = await cmd.ExecuteNonQueryAsync();
 
                             if (filas == 0)
                             {
                                 trans.Rollback();
-                                TempData["Error"] = "La cotización ya fue seleccionada o la solicitud cambió de estatus.";
+                                TempData["Error"] = "La solicitud ya no está disponible para dictaminar cotización o la cotización fue modificada por otro usuario.";
                                 return RedirectToAction("Detalle", new { id = solicitudId });
                             }
                         }
+
+                        if (esCambio)
+                        {
+                            string sqlHistCambio = @"
+INSERT INTO Compras_CotizacionCambios_Historico
+(
+    SolicitudID,
+    CotizacionAnteriorID,
+    CotizacionNuevaID,
+    UsuarioCambioID,
+    FechaCambio,
+    MotivoCambio,
+    EstatusAnteriorID,
+    EstatusNuevoID
+)
+VALUES
+(
+    @SolicitudID,
+    @CotizacionAnteriorID,
+    @CotizacionNuevaID,
+    @UsuarioCambioID,
+    GETDATE(),
+    @MotivoCambio,
+    @EstatusAnteriorID,
+    3
+)";
+
+                            using (var cmdHistCambio = new SqlCommand(sqlHistCambio, conn, trans))
+                            {
+                                cmdHistCambio.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                                cmdHistCambio.Parameters.AddWithValue("@CotizacionAnteriorID", cotizacionAnteriorId.Value);
+                                cmdHistCambio.Parameters.AddWithValue("@CotizacionNuevaID", cotizacionId);
+                                cmdHistCambio.Parameters.AddWithValue("@UsuarioCambioID", usuarioId);
+                                cmdHistCambio.Parameters.AddWithValue("@MotivoCambio", motivoCambio);
+                                cmdHistCambio.Parameters.AddWithValue("@EstatusAnteriorID", estatusActual);
+
+                                await cmdHistCambio.ExecuteNonQueryAsync();
+                            }
+
+                            string sqlInvalidarDocs = @"
+UPDATE Compras_Archivos
+SET Vigente = 0
+WHERE SolicitudID = @SolicitudID
+  AND TipoArchivo IN ('DESVIACION', 'FORMATO_REQUISICION')
+  AND Vigente = 1
+  AND Activo = 1";
+
+                            using (var cmdInvalidarDocs = new SqlCommand(sqlInvalidarDocs, conn, trans))
+                            {
+                                cmdInvalidarDocs.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                                await cmdInvalidarDocs.ExecuteNonQueryAsync();
+                            }
+
+
+
+                        }
+
+                        string comentarioHistorico = esCambio
+                            ? "Cambio de cotización dictaminada por Compras"
+                            : "Cotización dictaminada por Compras";
 
                         string sqlHist = @"
 INSERT INTO Compras_Historico_Pasos
@@ -3160,298 +3851,197 @@ VALUES
 
                         trans.Commit();
 
-                        await NotificarControlPresupuestal_CotizacionSeleccionadaAsync(solicitudId);
+                       
+                        await NotificarSolicitante_CotizacionDictaminadaAsync(solicitudId, esCambio);
 
-                        TempData["Mensaje"] = "Cotización seleccionada correctamente. La solicitud pasó a Control Presupuestal.";
+                        TempData["Mensaje"] = esCambio
+    ? "Cotización cambiada correctamente. El usuario deberá revisar nuevamente la documentación presupuestal."
+    : "Cotización seleccionada correctamente. La solicitud quedó pendiente de documentación del usuario.";
+
                         return RedirectToAction("Detalle", new { id = solicitudId });
                     }
                     catch (Exception ex)
                     {
                         trans.Rollback();
-                        _logger.LogError(ex, "Error al seleccionar cotización");
+                        _logger.LogError(ex, "Error al dictaminar o cambiar cotización");
 
-                        TempData["Error"] = "No se pudo seleccionar la cotización.";
+                        TempData["Error"] = "Solo se puede seleccionar o cambiar la cotización cuando la solicitud está cotizada o pendiente de documentación del usuario.";
+                        return RedirectToAction("Detalle", new { id = solicitudId });
+                    }
+                }
+            }     
+        }
+
+        //METODOS PARA LA CONFIRMACION  DE DOCUMENTOS
+
+        [HttpPost("ConfirmarDocumentacionPresupuestal")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfirmarDocumentacionPresupuestal(
+    int solicitudId,
+    IFormFile? archivoDesviacion,
+    IFormFile? archivoFormatoRequisicion)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+            if (usuarioId == 0) return Unauthorized();
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+
+                using (var trans = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        int cotizacionSeleccionadaId;
+                        bool fueraPresupuestoUsuario;
+
+                        string sqlValidar = @"
+SELECT 
+    CotizacionSeleccionadaID,
+    FueraPresupuestoUsuario
+FROM Compras_Solicitud
+WHERE SolicitudID = @SolicitudID
+  AND UsuarioID = @UsuarioID
+  AND EstatusID = 3
+  AND CotizacionSeleccionadaID IS NOT NULL";
+
+                        using (var cmdVal = new SqlCommand(sqlValidar, conn, trans))
+                        {
+                            cmdVal.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            cmdVal.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+                            using (var reader = await cmdVal.ExecuteReaderAsync())
+                            {
+                                if (!await reader.ReadAsync())
+                                {
+                                    trans.Rollback();
+                                    TempData["Error"] = "La solicitud no está disponible para enviar a Control Presupuestal.";
+                                    return RedirectToAction("Detalle", new { id = solicitudId });
+                                }
+
+                                cotizacionSeleccionadaId = Convert.ToInt32(reader["CotizacionSeleccionadaID"]);
+
+                                fueraPresupuestoUsuario =
+                                    reader["FueraPresupuestoUsuario"] != DBNull.Value
+                                    && Convert.ToBoolean(reader["FueraPresupuestoUsuario"]);
+
+                               
+                            }
+                        }
+
+                        if (fueraPresupuestoUsuario && (archivoDesviacion == null || archivoDesviacion.Length == 0))
+                        {
+                            trans.Rollback();
+                            TempData["Error"] = "Debes adjuntar la desviación presupuestal antes de enviar a Control Presupuestal.";
+                            return RedirectToAction("Detalle", new { id = solicitudId });
+                        }
+
+
+                        if (archivoDesviacion != null && archivoDesviacion.Length > 0)
+                        {
+                            string extensionDesviacion =
+                                Path.GetExtension(archivoDesviacion.FileName)?.ToLowerInvariant() ?? "";
+
+                            if (!ExtensionPermitida(extensionDesviacion, ".pdf", ".jpg", ".jpeg", ".png", ".webp"))
+                            {
+                                trans.Rollback();
+                                TempData["Error"] = "La desviación solo puede ser PDF o imagen JPG, PNG o WEBP.";
+                                return RedirectToAction("Detalle", new { id = solicitudId });
+                            }
+
+                            await GuardarArchivoCompraAsync(
+                                conn,
+                                trans,
+                                solicitudId,
+                                cotizacionSeleccionadaId,
+                                "DESVIACION",
+                                archivoDesviacion,
+                                usuarioId,
+                                _rutaNas.ObtenerRutaComprasDesviaciones(),
+                                "Desviacion"
+                            );
+                        }
+
+                        if (archivoFormatoRequisicion != null && archivoFormatoRequisicion.Length > 0)
+                        {
+                            string extensionRequisicion =
+                                Path.GetExtension(archivoFormatoRequisicion.FileName)?.ToLowerInvariant() ?? "";
+
+                            if (!ExtensionPermitida(extensionRequisicion, ".xlsx", ".xls", ".pdf"))
+                            {
+                                trans.Rollback();
+                                TempData["Error"] = "El formato de requisición solo puede ser Excel o PDF.";
+                                return RedirectToAction("Detalle", new { id = solicitudId });
+                            }
+
+                            await GuardarArchivoCompraAsync(
+                                conn,
+                                trans,
+                                solicitudId,
+                                cotizacionSeleccionadaId,
+                                "FORMATO_REQUISICION",
+                                archivoFormatoRequisicion,
+                                usuarioId,
+                                _rutaNas.ObtenerRutaComprasRequisiciones(),
+                                "FormatoRequisicion"
+                            );
+                        }
+
+                        string sqlUpdate = @"
+UPDATE Compras_Solicitud
+SET EstatusID = 4
+WHERE SolicitudID = @SolicitudID
+  AND UsuarioID = @UsuarioID
+  AND EstatusID = 3";
+
+                        using (var cmd = new SqlCommand(sqlUpdate, conn, trans))
+                        {
+                            cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+                            int filas = await cmd.ExecuteNonQueryAsync();
+
+                            if (filas == 0)
+                            {
+                                trans.Rollback();
+                                TempData["Error"] = "No se pudo actualizar la solicitud.";
+                                return RedirectToAction("Detalle", new { id = solicitudId });
+                            }
+                        }
+
+                        string sqlHist = @"
+INSERT INTO Compras_Historico_Pasos
+(SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
+VALUES
+(@SolicitudID, 4, GETDATE(), @Responsable)";
+
+                        using (var cmdHist = new SqlCommand(sqlHist, conn, trans))
+                        {
+                            cmdHist.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            cmdHist.Parameters.AddWithValue("@Responsable", User.Identity?.Name ?? "Sistema");
+
+                            await cmdHist.ExecuteNonQueryAsync();
+                        }
+
+                        trans.Commit();
+
+                        await NotificarControlPresupuestal_CotizacionSeleccionadaAsync(solicitudId);
+
+                        TempData["Mensaje"] = "Documentación confirmada. La solicitud pasó a Control Presupuestal.";
+                        return RedirectToAction("Detalle", new { id = solicitudId });
+                    }
+                    catch (Exception ex)
+                    {
+                        trans.Rollback();
+
+                        _logger.LogError(ex, "Error al confirmar documentación presupuestal");
+
+                        TempData["Error"] = "No se pudo enviar la solicitud a Control Presupuestal.";
                         return RedirectToAction("Detalle", new { id = solicitudId });
                     }
                 }
             }
         }
-
-        //METODOS PARA CUANETAS POR PAGAR
-
-        [HttpGet("BandejaCuentasPorPagar")]
-        public async Task<IActionResult> BandejaCuentasPorPagar()
-        {
-            int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0) return Unauthorized();
-
-            using var conn = new SqlConnection(_connectionString);
-            await conn.OpenAsync();
-
-            bool perteneceCxP = await UsuarioPerteneceADepartamentoAsync(
-                conn,
-                usuarioId,
-                "CUENTAS POR PAGAR",
-                "CXP"
-            );
-
-            if (!perteneceCxP)
-                return Forbid();
-
-            var vm = new CuentasPorPagarVm();
-
-            string sqlPendientes = @"
-SELECT
-    S.SolicitudID,
-    S.Folio,
-    S.EstatusID,
-    EC.Nombre AS Estatus,
-    P.Nombre + ' ' + P.ApellidoPaterno AS Solicitante,
-    E.Nombre AS Empresa,
-    ISNULL(D.NombreDepartamento, 'Sin departamento') AS Departamento,
-    C.Proveedor,
-    C.MontoTotal,
-    OC.NumeroOC,
-    EU.FechaEntrega,
-    EU.NombreRecibe,
-    S.TipoGasto,
-    S.NumeroRequisicion,
-    S.FechaDictamen,
-    NULL AS FechaCierreCxP,
-    NULL AS ComentariosCxP
-FROM Compras_Solicitud S
-INNER JOIN Usuarios U ON S.UsuarioID = U.UsuarioID
-INNER JOIN Persona P ON U.PersonaID = P.PersonaID
-INNER JOIN Empresas E ON S.EmpresaID = E.EmpresaID
-INNER JOIN Cat_EstatusCompra EC ON S.EstatusID = EC.EstatusID
-LEFT JOIN EmpleadoDepartamentos ED ON U.UsuarioID = ED.UsuarioID AND ED.Activo = 1
-LEFT JOIN Departamentos D ON ED.DepartamentoID = D.DepartamentoID
-LEFT JOIN Compras_Cotizaciones C ON S.CotizacionSeleccionadaID = C.CotizacionID
-OUTER APPLY (
-    SELECT TOP 1
-        NumeroOC,
-        Proveedor
-    FROM Compras_OrdenCompra
-    WHERE SolicitudID = S.SolicitudID
-      AND Activo = 1
-    ORDER BY OrdenCompraID DESC
-) OC
-OUTER APPLY (
-    SELECT TOP 1
-        FechaEntrega,
-        NombreRecibe
-    FROM Compras_EntregasUsuario
-    WHERE SolicitudID = S.SolicitudID
-      AND Activo = 1
-    ORDER BY EntregaID DESC
-) EU
-WHERE S.EstatusID = 8
-ORDER BY EU.FechaEntrega ASC";
-
-            using (var cmd = new SqlCommand(sqlPendientes, conn))
-            using (var reader = await cmd.ExecuteReaderAsync())
-            {
-                while (await reader.ReadAsync())
-                {
-                    vm.Pendientes.Add(new CuentasPorPagarItemVm
-                    {
-                        SolicitudID = (int)reader["SolicitudID"],
-                        Folio = reader["Folio"] == DBNull.Value ? "" : reader["Folio"].ToString(),
-                        EstatusID = reader["EstatusID"] == DBNull.Value ? 0 : Convert.ToInt32(reader["EstatusID"]),
-                        Estatus = reader["Estatus"] == DBNull.Value ? "" : reader["Estatus"].ToString(),
-                        Solicitante = reader["Solicitante"] == DBNull.Value ? "" : reader["Solicitante"].ToString(),
-                        Empresa = reader["Empresa"] == DBNull.Value ? "" : reader["Empresa"].ToString(),
-                        Departamento = reader["Departamento"] == DBNull.Value ? "" : reader["Departamento"].ToString(),
-                        Proveedor = reader["Proveedor"] == DBNull.Value ? "" : reader["Proveedor"].ToString(),
-                        MontoTotal = reader["MontoTotal"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["MontoTotal"]),
-                        NumeroOC = reader["NumeroOC"] == DBNull.Value ? "" : reader["NumeroOC"].ToString(),
-                        FechaEntregaUsuario = reader["FechaEntrega"] == DBNull.Value ? null : (DateTime?)reader["FechaEntrega"],
-                        NombreRecibeUsuario = reader["NombreRecibe"] == DBNull.Value ? "" : reader["NombreRecibe"].ToString(),
-                        TipoGasto = reader["TipoGasto"] == DBNull.Value ? "" : reader["TipoGasto"].ToString(),
-                        NumeroRequisicion = reader["NumeroRequisicion"] == DBNull.Value ? "" : reader["NumeroRequisicion"].ToString(),
-                        FechaDictamen = reader["FechaDictamen"] == DBNull.Value ? null : (DateTime?)reader["FechaDictamen"],
-                        FechaCierreCxP = null,
-                        ComentariosCxP = null
-                    });
-                }
-            }
-
-            string sqlHistorico = @"
-SELECT
-    S.SolicitudID,
-    S.Folio,
-    S.EstatusID,
-    EC.Nombre AS Estatus,
-    P.Nombre + ' ' + P.ApellidoPaterno AS Solicitante,
-    E.Nombre AS Empresa,
-    ISNULL(D.NombreDepartamento, 'Sin departamento') AS Departamento,
-    C.Proveedor,
-    C.MontoTotal,
-    OC.NumeroOC,
-    EU.FechaEntrega,
-    EU.NombreRecibe,
-    S.TipoGasto,
-    S.NumeroRequisicion,
-    S.FechaDictamen,
-    HCXP.FechaMovimiento AS FechaCierreCxP,
-    S.ObservacionesPresupuesto AS ComentariosCxP
-FROM Compras_Solicitud S
-INNER JOIN Usuarios U ON S.UsuarioID = U.UsuarioID
-INNER JOIN Persona P ON U.PersonaID = P.PersonaID
-INNER JOIN Empresas E ON S.EmpresaID = E.EmpresaID
-INNER JOIN Cat_EstatusCompra EC ON S.EstatusID = EC.EstatusID
-LEFT JOIN EmpleadoDepartamentos ED ON U.UsuarioID = ED.UsuarioID AND ED.Activo = 1
-LEFT JOIN Departamentos D ON ED.DepartamentoID = D.DepartamentoID
-LEFT JOIN Compras_Cotizaciones C ON S.CotizacionSeleccionadaID = C.CotizacionID
-OUTER APPLY (
-    SELECT TOP 1
-        NumeroOC,
-        Proveedor
-    FROM Compras_OrdenCompra
-    WHERE SolicitudID = S.SolicitudID
-      AND Activo = 1
-    ORDER BY OrdenCompraID DESC
-) OC
-OUTER APPLY (
-    SELECT TOP 1
-        FechaEntrega,
-        NombreRecibe
-    FROM Compras_EntregasUsuario
-    WHERE SolicitudID = S.SolicitudID
-      AND Activo = 1
-    ORDER BY EntregaID DESC
-) EU
-OUTER APPLY (
-    SELECT TOP 1 FechaMovimiento
-    FROM Compras_Historico_Pasos
-    WHERE SolicitudID = S.SolicitudID
-      AND EstatusID IN (10, 11)
-    ORDER BY FechaMovimiento DESC
-) HCXP
-WHERE S.EstatusID IN (10, 11)
-ORDER BY HCXP.FechaMovimiento DESC, S.FechaCreacion DESC";
-
-            using (var cmd = new SqlCommand(sqlHistorico, conn))
-            using (var reader = await cmd.ExecuteReaderAsync())
-            {
-                while (await reader.ReadAsync())
-                {
-                    vm.Historico.Add(new CuentasPorPagarItemVm
-                    {
-                        SolicitudID = (int)reader["SolicitudID"],
-                        Folio = reader["Folio"] == DBNull.Value ? "" : reader["Folio"].ToString(),
-                        EstatusID = reader["EstatusID"] == DBNull.Value ? 0 : Convert.ToInt32(reader["EstatusID"]),
-                        Estatus = reader["Estatus"] == DBNull.Value ? "" : reader["Estatus"].ToString(),
-                        Solicitante = reader["Solicitante"] == DBNull.Value ? "" : reader["Solicitante"].ToString(),
-                        Empresa = reader["Empresa"] == DBNull.Value ? "" : reader["Empresa"].ToString(),
-                        Departamento = reader["Departamento"] == DBNull.Value ? "" : reader["Departamento"].ToString(),
-                        Proveedor = reader["Proveedor"] == DBNull.Value ? "" : reader["Proveedor"].ToString(),
-                        MontoTotal = reader["MontoTotal"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["MontoTotal"]),
-                        NumeroOC = reader["NumeroOC"] == DBNull.Value ? "" : reader["NumeroOC"].ToString(),
-                        FechaEntregaUsuario = reader["FechaEntrega"] == DBNull.Value ? null : (DateTime?)reader["FechaEntrega"],
-                        NombreRecibeUsuario = reader["NombreRecibe"] == DBNull.Value ? "" : reader["NombreRecibe"].ToString(),
-                        TipoGasto = reader["TipoGasto"] == DBNull.Value ? "" : reader["TipoGasto"].ToString(),
-                        NumeroRequisicion = reader["NumeroRequisicion"] == DBNull.Value ? "" : reader["NumeroRequisicion"].ToString(),
-                        FechaDictamen = reader["FechaDictamen"] == DBNull.Value ? null : (DateTime?)reader["FechaDictamen"],
-                        FechaCierreCxP = reader["FechaCierreCxP"] == DBNull.Value ? null : (DateTime?)reader["FechaCierreCxP"],
-                        ComentariosCxP = reader["ComentariosCxP"] == DBNull.Value ? "" : reader["ComentariosCxP"].ToString()
-                    });
-                }
-            }
-
-            return View(vm);
-        }
-
-
-        [HttpPost("ValidarCuentasPorPagar")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ValidarCuentasPorPagar(
-    int solicitudId,
-    bool aceptado,
-    string? comentarios)
-        {
-            int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0) return Unauthorized();
-
-            using var conn = new SqlConnection(_connectionString);
-            await conn.OpenAsync();
-
-            bool perteneceCxP = await UsuarioPerteneceADepartamentoAsync(
-                conn,
-                usuarioId,
-                "CUENTAS POR PAGAR",
-                "CXP"
-            );
-
-            if (!perteneceCxP)
-                return Forbid();
-
-            using var trans = conn.BeginTransaction();
-
-            try
-            {
-                int nuevoEstatus = aceptado ? 10 : 11;
-
-                string sqlUpdate = @"
-UPDATE Compras_Solicitud
-SET EstatusID = @EstatusID,
-    ObservacionesPresupuesto = 
-        CASE 
-            WHEN @Comentarios IS NULL OR @Comentarios = '' 
-            THEN ObservacionesPresupuesto
-            ELSE @Comentarios
-        END
-WHERE SolicitudID = @SolicitudID
-  AND EstatusID = 8";
-
-                using var cmd = new SqlCommand(sqlUpdate, conn, trans);
-                cmd.Parameters.AddWithValue("@EstatusID", nuevoEstatus);
-                cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
-                cmd.Parameters.AddWithValue("@Comentarios", (object?)comentarios ?? DBNull.Value);
-
-                int filas = await cmd.ExecuteNonQueryAsync();
-
-                if (filas == 0)
-                {
-                    trans.Rollback();
-                    TempData["Error"] = "La solicitud ya no está pendiente de Cuentas por Pagar.";
-                    return RedirectToAction("BandejaCuentasPorPagar");
-                }
-
-                string sqlHist = @"
-INSERT INTO Compras_Historico_Pasos
-(SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
-VALUES
-(@SolicitudID, @EstatusID, GETDATE(), @Responsable)";
-
-                using var cmdHist = new SqlCommand(sqlHist, conn, trans);
-                cmdHist.Parameters.AddWithValue("@SolicitudID", solicitudId);
-                cmdHist.Parameters.AddWithValue("@EstatusID", nuevoEstatus);
-                cmdHist.Parameters.AddWithValue("@Responsable", User.Identity?.Name ?? "Sistema");
-
-                await cmdHist.ExecuteNonQueryAsync();
-
-                trans.Commit();
-
-                await NotificarSolicitanteYCompras_CxPAsync(
-                    solicitudId,
-                    aceptado,
-                    comentarios
-                );
-
-                TempData["Mensaje"] = aceptado
-                    ? "Solicitud cerrada correctamente por Cuentas por Pagar."
-                    : "Solicitud rechazada por Cuentas por Pagar.";
-                return RedirectToAction("BandejaCuentasPorPagar");
-            }
-            catch
-            {
-                trans.Rollback();
-                TempData["Error"] = "No se pudo validar la solicitud.";
-                return RedirectToAction("BandejaCuentasPorPagar");
-            }
-        }
-
 
         //METODOS PARA LOS CORREOS
         private async Task NotificarComprador_NuevaSolicitudAsync(int solicitudId)
@@ -3589,7 +4179,7 @@ WHERE S.SolicitudID = @SolicitudID";
                 string folio = rd["Folio"]?.ToString() ?? $"COM-{solicitudId.ToString().PadLeft(5, '0')}";
                 string solicitante = rd["Solicitante"]?.ToString() ?? "Solicitante";
 
-                string asunto = $"Cotizaciones listas para revisión - {folio}";
+                string asunto = $"Cotizaciones cargadas por Compras - {folio}";
 
                 string html = $@"
 <!DOCTYPE html>
@@ -3598,19 +4188,20 @@ WHERE S.SolicitudID = @SolicitudID";
 <body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
   <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
     <div style='padding:20px; background:#f97316; color:#fff; text-align:center;'>
-      <h2 style='margin:0;'>Cotizaciones listas</h2>
+      <h2 style='margin:0;'>Cotizaciones cargadas</h2>
     </div>
 
     <div style='padding:20px; color:#333;'>
       <p>Hola <strong>{System.Net.WebUtility.HtmlEncode(solicitante)}</strong>,</p>
 
-      <p>Compras ha cargado cotizaciones para tu solicitud.</p>
+     <p>Compras ha cargado cotizaciones para tu solicitud.</p>
+<p>Estas cotizaciones serán revisadas por Compras para dictaminar cuál procede.</p>
 
       <div style='background:#fff7ed; border-left:4px solid #f97316; padding:12px 14px; border-radius:6px; margin:14px 0;'>
         <p style='margin:0;'><strong>Folio:</strong> {System.Net.WebUtility.HtmlEncode(folio)}</p>
       </div>
 
-      <p>Ingresa a la Intranet, módulo <strong>Compras</strong>, para revisar y seleccionar la cotización correspondiente.</p>
+      <p>Ingresa a la Intranet, módulo <strong>Compras</strong>, si deseas consultar las cotizaciones cargadas.</p>
       <p>https://intranet.nsgroup.com.mx/</p>
 
       <p style='color:#666; font-size:12px; margin-top:18px;'>
@@ -3632,6 +4223,120 @@ WHERE S.SolicitudID = @SolicitudID";
                 _logger.LogError(ex, "Error enviando correo de cotizaciones listas. SolicitudID={SolicitudID}", solicitudId);
             }
         }
+
+
+        private async Task NotificarSolicitante_CotizacionDictaminadaAsync(
+    int solicitudId,
+    bool esCambio)
+        {
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                string sql = @"
+SELECT 
+    ISNULL(S.Folio, 'COM-' + RIGHT('00000' + CAST(S.SolicitudID AS VARCHAR(10)), 5)) AS Folio,
+    P.PersonaID,
+    P.Nombre + ' ' + P.ApellidoPaterno AS Solicitante,
+    C.Proveedor,
+    C.MontoTotal
+FROM Compras_Solicitud S
+INNER JOIN Usuarios U 
+    ON S.UsuarioID = U.UsuarioID
+INNER JOIN Persona P 
+    ON U.PersonaID = P.PersonaID
+LEFT JOIN Compras_Cotizaciones C 
+    ON S.CotizacionSeleccionadaID = C.CotizacionID
+WHERE S.SolicitudID = @SolicitudID";
+
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+
+                if (!await rd.ReadAsync())
+                    return;
+
+                int personaId = Convert.ToInt32(rd["PersonaID"]);
+
+                string folio = rd["Folio"]?.ToString()
+                    ?? $"COM-{solicitudId.ToString().PadLeft(5, '0')}";
+
+                string solicitante = rd["Solicitante"]?.ToString()
+                    ?? "Solicitante";
+
+                string proveedor = rd["Proveedor"] == DBNull.Value
+                    ? "N/A"
+                    : rd["Proveedor"].ToString();
+
+                decimal monto = rd["MontoTotal"] == DBNull.Value
+                    ? 0
+                    : Convert.ToDecimal(rd["MontoTotal"]);
+
+                string asunto = esCambio
+                    ? $"Cambio de cotización dictaminada por Compras - {folio}"
+                    : $"Cotización dictaminada por Compras - {folio}";
+
+                string titulo = esCambio
+                    ? "Cotización actualizada por Compras"
+                    : "Cotización dictaminada por Compras";
+
+                string mensaje = esCambio
+                    ? "Compras ha cambiado la cotización dictaminada para tu solicitud."
+                    : "Compras ha dictaminado la cotización que procede para tu solicitud.";
+
+                string html = $@"
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+  <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+    <div style='padding:20px; background:#2563eb; color:#fff; text-align:center;'>
+      <h2 style='margin:0;'>{titulo}</h2>
+    </div>
+
+    <div style='padding:20px; color:#333;'>
+      <p>Hola <strong>{System.Net.WebUtility.HtmlEncode(solicitante)}</strong>,</p>
+
+      <p>{System.Net.WebUtility.HtmlEncode(mensaje)}</p>
+
+      <div style='background:#eff6ff; border-left:4px solid #2563eb; padding:12px 14px; border-radius:6px; margin:14px 0;'>
+        <p style='margin:0 0 6px;'><strong>Folio:</strong> {System.Net.WebUtility.HtmlEncode(folio)}</p>
+        <p style='margin:0 0 6px;'><strong>Proveedor:</strong> {System.Net.WebUtility.HtmlEncode(proveedor)}</p>
+        <p style='margin:0;'><strong>Monto:</strong> {monto:C}</p>
+      </div>
+
+      <p>Ahora debes revisar la cotización seleccionada y confirmar la documentación presupuestal.</p>
+<p>Si aplica, carga la desviación o el formato de requisición antes de enviarla a Control Presupuestal.</p>
+
+      <p>Puedes consultar el detalle en la Intranet, módulo <strong>Compras</strong>.</p>
+      <p>https://intranet.nsgroup.com.mx/</p>
+
+      <p style='color:#666; font-size:12px; margin-top:18px;'>
+        Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.
+      </p>
+    </div>
+  </div>
+</body>
+</html>";
+
+                await _notif.EnviarABccPersonasAsync(
+                    new List<int> { personaId },
+                    asunto,
+                    html
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error enviando correo de cotización dictaminada al solicitante. SolicitudID={SolicitudID}",
+                    solicitudId
+                );
+            }
+        }
+
 
 
 
@@ -3722,7 +4427,7 @@ WHERE S.SolicitudID = @SolicitudID";
     </div>
 
     <div style='padding:20px; color:#333;'>
-      <p>El solicitante ha seleccionado una cotización. La solicitud está lista para revisión de Control Presupuestal.</p>
+      <p>Compras ha dictaminado la cotización que procede. La solicitud está lista para revisión de Control Presupuestal.</p>
 
       <div style='background:#f0f9ff; border-left:4px solid #0891b2; padding:12px 14px; border-radius:6px; margin:14px 0;'>
         <p style='margin:0 0 6px;'><strong>Folio:</strong> {System.Net.WebUtility.HtmlEncode(folio)}</p>
@@ -3751,6 +4456,8 @@ WHERE S.SolicitudID = @SolicitudID";
                 _logger.LogError(ex, "Error enviando correo a Control Presupuestal. SolicitudID={SolicitudID}", solicitudId);
             }
         }
+
+
 
         private async Task NotificarSolicitante_DictamenPresupuestalAsync(
     int solicitudId,
@@ -4237,260 +4944,552 @@ WHERE S.SolicitudID = @SolicitudID";
         }
 
 
-        private async Task NotificarCuentasPorPagar_MaterialEntregadoAsync(int solicitudId)
+
+        //METODO PARA EXPORTAR A EXEL+
+        [HttpGet("ExportarSeguimientoExcel")]
+        public async Task<IActionResult> ExportarSeguimientoExcel(
+    int? estatus,
+    string? departamento,
+    string? comprador,
+    bool? soloRetrasadas)
         {
-            try
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+                return Unauthorized();
+
+            var solicitudes = new List<SeguimientoCompraItemVm>();
+
+            using (var conn = new SqlConnection(_connectionString))
             {
-                using var conn = new SqlConnection(_connectionString);
                 await conn.OpenAsync();
 
-                var personaIds = new List<int>();
+                string puesto = "";
 
-                string sqlPersonas = @"
-SELECT DISTINCT P.PersonaID
+                string sqlPuesto = @"
+SELECT P.Puesto
 FROM Usuarios U
 INNER JOIN Persona P ON U.PersonaID = P.PersonaID
-INNER JOIN EmpleadoDepartamentos ED ON U.UsuarioID = ED.UsuarioID AND ED.Activo = 1
-INNER JOIN Departamentos D ON ED.DepartamentoID = D.DepartamentoID AND D.Activo = 1
-WHERE P.Correo IS NOT NULL
-  AND LTRIM(RTRIM(P.Correo)) <> ''
-  AND (
-        UPPER(D.NombreDepartamento) LIKE '%CUENTAS POR PAGAR%'
-        OR UPPER(D.NombreDepartamento) LIKE '%CXP%'
-      )";
+WHERE U.UsuarioID = @UsuarioID";
 
-                using (var cmdPersonas = new SqlCommand(sqlPersonas, conn))
-                using (var rdPersonas = await cmdPersonas.ExecuteReaderAsync())
+                using (var cmdPuesto = new SqlCommand(sqlPuesto, conn))
                 {
-                    while (await rdPersonas.ReadAsync())
-                    {
-                        personaIds.Add(Convert.ToInt32(rdPersonas["PersonaID"]));
-                    }
+                    cmdPuesto.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                    puesto = (await cmdPuesto.ExecuteScalarAsync())?.ToString() ?? "";
                 }
 
-                if (!personaIds.Any())
-                    return;
+                puesto = puesto.ToUpper().Trim();
 
-                string sqlSolicitud = @"
-SELECT 
-    ISNULL(S.Folio, 'COM-' + RIGHT('00000' + CAST(S.SolicitudID AS VARCHAR(10)), 5)) AS Folio,
-    PS.Nombre + ' ' + PS.ApellidoPaterno AS Solicitante,
-    E.Nombre AS Empresa,
-    C.Proveedor,
-    C.MontoTotal,
-    OC.NumeroOC,
-    EU.FechaEntrega,
-    EU.NombreRecibe,
-    S.TipoGasto,
-    S.NumeroRequisicion
-FROM Compras_Solicitud S
-INNER JOIN Usuarios U ON S.UsuarioID = U.UsuarioID
-INNER JOIN Persona PS ON U.PersonaID = PS.PersonaID
-INNER JOIN Empresas E ON S.EmpresaID = E.EmpresaID
-LEFT JOIN Compras_Cotizaciones C ON S.CotizacionSeleccionadaID = C.CotizacionID
-LEFT JOIN Compras_OrdenCompra OC 
-    ON S.SolicitudID = OC.SolicitudID
-   AND OC.Activo = 1
-LEFT JOIN Compras_EntregasUsuario EU 
-    ON S.SolicitudID = EU.SolicitudID
-   AND EU.Activo = 1
-WHERE S.SolicitudID = @SolicitudID";
+                bool esDireccion =
+                    puesto.Contains("DIRECCION") ||
+                    puesto.Contains("DIRECCIÓN") ||
+                    puesto.Contains("DIRECTOR") ||
+                    puesto.Contains("DIRECTORA") ||
+                    puesto.StartsWith("DIR.");
 
-                string folio = $"COM-{solicitudId.ToString().PadLeft(5, '0')}";
-                string solicitante = "";
-                string empresa = "";
-                string proveedor = "";
-                decimal monto = 0;
-                string numeroOC = "";
-                DateTime? fechaEntrega = null;
-                string nombreRecibe = "";
-                string tipoGasto = "";
-                string numeroRequisicion = "";
+                if (!esDireccion)
+                    return Forbid();
 
-                using (var cmd = new SqlCommand(sqlSolicitud, conn))
+                using (var cmd = new SqlCommand("sp_Compras_SeguimientoDireccion", conn))
                 {
-                    cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                    cmd.CommandType = CommandType.StoredProcedure;
 
-                    using var rd = await cmd.ExecuteReaderAsync();
-
-                    if (await rd.ReadAsync())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        folio = rd["Folio"]?.ToString() ?? folio;
-                        solicitante = rd["Solicitante"]?.ToString() ?? "";
-                        empresa = rd["Empresa"]?.ToString() ?? "";
-                        proveedor = rd["Proveedor"]?.ToString() ?? "";
-                        monto = rd["MontoTotal"] == DBNull.Value ? 0 : Convert.ToDecimal(rd["MontoTotal"]);
-                        numeroOC = rd["NumeroOC"]?.ToString() ?? "";
-                        fechaEntrega = rd["FechaEntrega"] == DBNull.Value ? null : (DateTime?)rd["FechaEntrega"];
-                        nombreRecibe = rd["NombreRecibe"]?.ToString() ?? "";
-                        tipoGasto = rd["TipoGasto"]?.ToString() ?? "";
-                        numeroRequisicion = rd["NumeroRequisicion"]?.ToString() ?? "";
+                        while (await reader.ReadAsync())
+                        {
+                            solicitudes.Add(new SeguimientoCompraItemVm
+                            {
+                                SolicitudID = (int)reader["SolicitudID"],
+                                Folio = reader["Folio"].ToString(),
+                                FechaCreacion = (DateTime)reader["FechaCreacion"],
+
+                                Solicitante = reader["Solicitante"].ToString(),
+                                Departamento = reader["Departamento"].ToString(),
+                                Empresa = reader["Empresa"].ToString(),
+
+                                TipoCompra = reader["TipoCompra"].ToString(),
+                                Urgencia = reader["Urgencia"].ToString(),
+
+                                EstatusID = (int)reader["EstatusID"],
+                                Estatus = reader["Estatus"].ToString(),
+
+                                CompradorAsignado = reader["CompradorAsignado"].ToString(),
+
+                                FechaAsignacionComprador =
+                                    reader["FechaAsignacionComprador"] == DBNull.Value
+                                        ? null
+                                        : (DateTime?)reader["FechaAsignacionComprador"],
+
+                                FechaUltimoMovimiento =
+                                    reader["FechaUltimoMovimiento"] == DBNull.Value
+                                        ? null
+                                        : (DateTime?)reader["FechaUltimoMovimiento"],
+
+                                DiasEnEstatus = Convert.ToInt32(reader["DiasEnEstatus"]),
+                                DiasCotizando = Convert.ToInt32(reader["DiasCotizando"]),
+                                MontoCotizado = Convert.ToDecimal(reader["MontoCotizado"]),
+                                DiasPermitidos = Convert.ToInt32(reader["DiasPermitidos"]),
+                                DiasHabilesTranscurridos = Convert.ToInt32(reader["DiasHabilesTranscurridos"]),
+                                SemaforoTexto = reader["SemaforoTexto"].ToString(),
+
+                                DiasCompras = reader["DiasCompras"] == DBNull.Value ? 0 : Convert.ToInt32(reader["DiasCompras"]),
+                                DiasPresupuesto = reader["DiasPresupuesto"] == DBNull.Value ? 0 : Convert.ToInt32(reader["DiasPresupuesto"]),
+                                DiasOC = reader["DiasOC"] == DBNull.Value ? 0 : Convert.ToInt32(reader["DiasOC"]),
+                                DiasProveedor = reader["DiasProveedor"] == DBNull.Value ? 0 : Convert.ToInt32(reader["DiasProveedor"]),
+                                DiasAlmacen = reader["DiasAlmacen"] == DBNull.Value ? 0 : Convert.ToInt32(reader["DiasAlmacen"])
+                                
+                            });
+                        }
                     }
                 }
-
-                string asunto = $"Solicitud pendiente de CxP - {folio}";
-
-                string html = $@"
-<!DOCTYPE html>
-<html>
-<head><meta charset='UTF-8'></head>
-<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
-  <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
-    <div style='padding:20px; background:#64748b; color:#fff; text-align:center;'>
-      <h2 style='margin:0;'>Solicitud pendiente de Cuentas por Pagar</h2>
-    </div>
-
-    <div style='padding:20px; color:#333;'>
-      <p>La mercancía fue entregada al usuario. La solicitud ya está disponible para validación de Cuentas por Pagar.</p>
-
-      <div style='background:#f8fafc; border-left:4px solid #64748b; padding:12px 14px; border-radius:6px; margin:14px 0;'>
-        <p style='margin:0 0 6px;'><strong>Folio:</strong> {System.Net.WebUtility.HtmlEncode(folio)}</p>
-        <p style='margin:0 0 6px;'><strong>Solicitante:</strong> {System.Net.WebUtility.HtmlEncode(solicitante)}</p>
-        <p style='margin:0 0 6px;'><strong>Empresa:</strong> {System.Net.WebUtility.HtmlEncode(empresa)}</p>
-        <p style='margin:0 0 6px;'><strong>Proveedor:</strong> {System.Net.WebUtility.HtmlEncode(proveedor)}</p>
-        <p style='margin:0 0 6px;'><strong>Monto:</strong> {monto:C}</p>
-        <p style='margin:0 0 6px;'><strong>O.C.:</strong> {System.Net.WebUtility.HtmlEncode(numeroOC)}</p>
-        <p style='margin:0 0 6px;'><strong>Tipo de gasto:</strong> {System.Net.WebUtility.HtmlEncode(tipoGasto)}</p>
-        <p style='margin:0 0 6px;'><strong>Requisición:</strong> {System.Net.WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(numeroRequisicion) ? "N/A" : numeroRequisicion)}</p>
-        <p style='margin:0 0 6px;'><strong>Fecha entrega:</strong> {(fechaEntrega.HasValue ? fechaEntrega.Value.ToString("dd/MM/yyyy HH:mm") : "N/A")}</p>
-        <p style='margin:0;'><strong>Recibió:</strong> {System.Net.WebUtility.HtmlEncode(nombreRecibe)}</p>
-      </div>
-
-      <p>Ingresa a la Intranet, módulo <strong>Compras</strong>, bandeja de <strong>Cuentas por Pagar</strong>.</p>
-      <p>https://intranet.nsgroup.com.mx/</p>
-
-      <p style='color:#666; font-size:12px; margin-top:18px;'>
-        Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.
-      </p>
-    </div>
-  </div>
-</body>
-</html>";
-
-                await _notif.EnviarABccPersonasAsync(personaIds, asunto, html);
             }
-            catch (Exception ex)
+
+            if (estatus.HasValue)
             {
-                _logger.LogError(ex, "Error enviando correo a CxP por entrega al usuario. SolicitudID={SolicitudID}", solicitudId);
+                solicitudes = solicitudes
+                    .Where(x => x.EstatusID == estatus.Value)
+                    .ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(departamento))
+            {
+                solicitudes = solicitudes
+                    .Where(x =>
+                        x.Departamento != null &&
+                        x.Departamento.Contains(departamento, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(comprador))
+            {
+                solicitudes = solicitudes
+                    .Where(x =>
+                        x.CompradorAsignado != null &&
+                        x.CompradorAsignado.Contains(comprador, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            if (soloRetrasadas == true)
+            {
+                solicitudes = solicitudes
+                    .Where(x => x.SemaforoTexto == "Retrasada")
+                    .ToList();
+            }
+
+            using (var workbook = new XLWorkbook())
+            {
+                var ws = workbook.Worksheets.Add("Seguimiento");
+
+                string[] headers =
+                {
+            "Folio",
+            "Fecha creación",
+            "Solicitante",
+            "Departamento",
+            "Empresa",
+            "Tipo compra",
+            "Comprador asignado",
+            "Estatus",
+            "Urgencia",
+            "Días transcurridos",
+            "Días permitidos",
+            "Semáforo",
+            "Monto cotizado",
+            "Días Compras",
+            "Días Presupuesto",
+            "Días O.C.",
+            "Días Proveedor",
+            "Días Almacén"
+        };
+
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    ws.Cell(1, i + 1).Value = headers[i];
+                }
+
+                int row = 2;
+
+                foreach (var item in solicitudes)
+                {
+                    ws.Cell(row, 1).Value = item.Folio;
+                    ws.Cell(row, 2).Value = item.FechaCreacion;
+                    ws.Cell(row, 3).Value = item.Solicitante;
+                    ws.Cell(row, 4).Value = item.Departamento;
+                    ws.Cell(row, 5).Value = item.Empresa;
+                    ws.Cell(row, 6).Value = item.TipoCompra;
+                    ws.Cell(row, 7).Value = item.CompradorAsignado;
+                    ws.Cell(row, 8).Value = item.Estatus;
+                    ws.Cell(row, 9).Value = item.Urgencia;
+                    ws.Cell(row, 10).Value = item.DiasHabilesTranscurridos;
+                    ws.Cell(row, 11).Value = item.DiasPermitidos;
+                    ws.Cell(row, 12).Value = item.SemaforoTexto;
+                    ws.Cell(row, 13).Value = item.MontoCotizado;
+                    ws.Cell(row, 14).Value = item.DiasCompras;
+                    ws.Cell(row, 15).Value = item.DiasPresupuesto;
+                    ws.Cell(row, 16).Value = item.DiasOC;
+                    ws.Cell(row, 17).Value = item.DiasProveedor;
+                    ws.Cell(row, 18).Value = item.DiasAlmacen;
+                  
+
+                    row++;
+                }
+
+                var rango = ws.Range(1, 1, Math.Max(row - 1, 1), headers.Length);
+                rango.CreateTable();
+
+                ws.Row(1).Style.Font.Bold = true;
+                ws.Row(1).Style.Fill.BackgroundColor = XLColor.FromHtml("#0f172a");
+                ws.Row(1).Style.Font.FontColor = XLColor.White;
+
+                ws.Column(2).Style.DateFormat.Format = "dd/MM/yyyy";
+                ws.Column(13).Style.NumberFormat.Format = "$#,##0.00";
+
+                ws.SheetView.FreezeRows(1);
+                ws.Columns().AdjustToContents();
+
+                using (var stream = new MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var contenido = stream.ToArray();
+
+                    string nombreArchivo = $"Seguimiento_Compras_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+
+                    return File(
+                        contenido,
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        nombreArchivo
+                    );
+                }
             }
         }
 
-        private async Task NotificarSolicitanteYCompras_CxPAsync(
-    int solicitudId,
-    bool aceptado,
-    string? comentarios)
+
+        //ENDPOINT JASON PARA OBTENER LA CARGA POR COMPRADOR
+        [HttpGet("CargaCompradoresSeguimiento")]
+        public async Task<IActionResult> CargaCompradoresSeguimiento(int anio, int mes)
         {
-            try
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+                return Unauthorized();
+
+            if (anio < 2020 || mes < 1 || mes > 12)
+                return BadRequest("Mes o año inválido.");
+
+            var inicioMes = new DateTime(anio, mes, 1);
+            var inicioMesSiguiente = inicioMes.AddMonths(1);
+
+            var data = new List<object>();
+
+            using (var conn = new SqlConnection(_connectionString))
             {
-                using var conn = new SqlConnection(_connectionString);
                 await conn.OpenAsync();
 
+                string puesto = "";
+
+                string sqlPuesto = @"
+SELECT P.Puesto
+FROM Usuarios U
+INNER JOIN Persona P ON U.PersonaID = P.PersonaID
+WHERE U.UsuarioID = @UsuarioID";
+
+                using (var cmdPuesto = new SqlCommand(sqlPuesto, conn))
+                {
+                    cmdPuesto.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                    puesto = (await cmdPuesto.ExecuteScalarAsync())?.ToString() ?? "";
+                }
+
+                puesto = puesto.ToUpper().Trim();
+
+                bool esDireccion =
+                    puesto.Contains("DIRECCION") ||
+                    puesto.Contains("DIRECCIÓN") ||
+                    puesto.Contains("DIRECTOR") ||
+                    puesto.Contains("DIRECTORA") ||
+                    puesto.StartsWith("DIR.");
+
+                if (!esDireccion)
+                    return Forbid();
+
                 string sql = @"
-SELECT 
-    ISNULL(S.Folio, 'COM-' + RIGHT('00000' + CAST(S.SolicitudID AS VARCHAR(10)), 5)) AS Folio,
-    PS.PersonaID AS PersonaSolicitanteID,
-    PS.Nombre + ' ' + PS.ApellidoPaterno AS Solicitante,
-    PC.PersonaID AS PersonaCompradorID,
-    E.Nombre AS Empresa,
-    C.Proveedor,
-    C.MontoTotal,
-    OC.NumeroOC,
-    S.NumeroRequisicion
+SELECT
+    ISNULL(P.Nombre + ' ' + P.ApellidoPaterno, 'Sin asignar') AS Comprador,
+    SUM(CASE WHEN S.FechaCotizacion IS NOT NULL THEN 1 ELSE 0 END) AS Atendidas,
+    SUM(CASE WHEN S.EstatusID = 1 THEN 1 ELSE 0 END) AS Pendientes,
+    COUNT(S.SolicitudID) AS Total
 FROM Compras_Solicitud S
-INNER JOIN Usuarios US ON S.UsuarioID = US.UsuarioID
-INNER JOIN Persona PS ON US.PersonaID = PS.PersonaID
-LEFT JOIN Usuarios UC ON S.CompradorAsignadoUsuarioID = UC.UsuarioID
-LEFT JOIN Persona PC ON UC.PersonaID = PC.PersonaID
-INNER JOIN Empresas E ON S.EmpresaID = E.EmpresaID
-LEFT JOIN Compras_Cotizaciones C ON S.CotizacionSeleccionadaID = C.CotizacionID
-LEFT JOIN Compras_OrdenCompra OC 
-    ON S.SolicitudID = OC.SolicitudID
-   AND OC.Activo = 1
-WHERE S.SolicitudID = @SolicitudID";
+LEFT JOIN Usuarios U
+    ON S.CompradorAsignadoUsuarioID = U.UsuarioID
+LEFT JOIN Persona P
+    ON U.PersonaID = P.PersonaID
+WHERE S.FechaCotizacion >= @InicioMes
+  AND S.FechaCotizacion < @InicioMesSiguiente
+GROUP BY
+    ISNULL(P.Nombre + ' ' + P.ApellidoPaterno, 'Sin asignar')
+ORDER BY Atendidas DESC";
 
-                using var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@InicioMes", inicioMes);
+                    cmd.Parameters.AddWithValue("@InicioMesSiguiente", inicioMesSiguiente);
 
-                using var rd = await cmd.ExecuteReaderAsync();
-
-                if (!await rd.ReadAsync())
-                    return;
-
-                var personaIds = new List<int>();
-
-                int personaSolicitanteId = Convert.ToInt32(rd["PersonaSolicitanteID"]);
-                personaIds.Add(personaSolicitanteId);
-
-                if (rd["PersonaCompradorID"] != DBNull.Value)
-                    personaIds.Add(Convert.ToInt32(rd["PersonaCompradorID"]));
-
-                string folio = rd["Folio"]?.ToString() ?? $"COM-{solicitudId.ToString().PadLeft(5, '0')}";
-                string solicitante = rd["Solicitante"]?.ToString() ?? "";
-                string empresa = rd["Empresa"]?.ToString() ?? "";
-                string proveedor = rd["Proveedor"]?.ToString() ?? "";
-                decimal monto = rd["MontoTotal"] == DBNull.Value ? 0 : Convert.ToDecimal(rd["MontoTotal"]);
-                string numeroOC = rd["NumeroOC"]?.ToString() ?? "";
-                string requisicion = rd["NumeroRequisicion"]?.ToString() ?? "";
-
-                string estado = aceptado ? "CERRADA" : "RECHAZADA POR CXP";
-                string color = aceptado ? "#16a34a" : "#dc2626";
-                string fondo = aceptado ? "#f0fdf4" : "#fef2f2";
-
-                string comentariosHtml = string.IsNullOrWhiteSpace(comentarios)
-                    ? ""
-                    : $"<p><strong>Comentarios de CxP:</strong> {System.Net.WebUtility.HtmlEncode(comentarios)}</p>";
-
-                string asunto = aceptado
-                    ? $"Solicitud cerrada por CxP - {folio}"
-                    : $"Solicitud rechazada por CxP - {folio}";
-
-                string html = $@"
-<!DOCTYPE html>
-<html>
-<head><meta charset='UTF-8'></head>
-<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
-  <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
-    <div style='padding:20px; background:{color}; color:#fff; text-align:center;'>
-      <h2 style='margin:0;'>Solicitud {estado}</h2>
-    </div>
-
-    <div style='padding:20px; color:#333;'>
-      <p>Cuentas por Pagar ha procesado la solicitud de compra.</p>
-
-      <div style='background:{fondo}; border-left:4px solid {color}; padding:12px 14px; border-radius:6px; margin:14px 0;'>
-        <p style='margin:0 0 6px;'><strong>Folio:</strong> {System.Net.WebUtility.HtmlEncode(folio)}</p>
-        <p style='margin:0 0 6px;'><strong>Solicitante:</strong> {System.Net.WebUtility.HtmlEncode(solicitante)}</p>
-        <p style='margin:0 0 6px;'><strong>Empresa:</strong> {System.Net.WebUtility.HtmlEncode(empresa)}</p>
-        <p style='margin:0 0 6px;'><strong>Proveedor:</strong> {System.Net.WebUtility.HtmlEncode(proveedor)}</p>
-        <p style='margin:0 0 6px;'><strong>Monto:</strong> {monto:C}</p>
-        <p style='margin:0 0 6px;'><strong>O.C.:</strong> {System.Net.WebUtility.HtmlEncode(numeroOC)}</p>
-        <p style='margin:0;'><strong>Requisición:</strong> {System.Net.WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(requisicion) ? "N/A" : requisicion)}</p>
-      </div>
-
-      {comentariosHtml}
-
-      <p>Puedes revisar el detalle en la Intranet, módulo <strong>Compras</strong>.</p>
-      <p>https://intranet.nsgroup.com.mx/</p>
-
-      <p style='color:#666; font-size:12px; margin-top:18px;'>
-        Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.
-      </p>
-    </div>
-  </div>
-</body>
-</html>";
-
-                await _notif.EnviarABccPersonasAsync(
-                    personaIds.Distinct().ToList(),
-                    asunto,
-                    html
-                );
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            data.Add(new
+                            {
+                                comprador = reader["Comprador"].ToString(),
+                                atendidas = Convert.ToInt32(reader["Atendidas"]),
+                                pendientes = Convert.ToInt32(reader["Pendientes"]),
+                                total = Convert.ToInt32(reader["Total"])
+                            });
+                        }
+                    }
+                }
             }
-            catch (Exception ex)
+
+            return Json(data);
+        }
+
+        private async Task<int> GuardarArchivoCompraAsync(
+            SqlConnection conn,
+            SqlTransaction trans,
+            int solicitudId,
+            int? cotizacionId,
+            string tipoArchivo,
+            IFormFile archivo,
+            int usuarioSubioId,
+            string rutaContenedor,
+            string prefijoNombre)
+        {
+            if (archivo == null || archivo.Length == 0)
+                throw new Exception("No se recibió archivo para guardar.");
+
+            string extension = Path.GetExtension(archivo.FileName)?.ToLowerInvariant() ?? "";
+
+            string nombreOriginal = Path.GetFileName(archivo.FileName);
+
+            string folioStr = solicitudId.ToString().PadLeft(5, '0');
+
+            string nombreSistema =
+                $"COM-{folioStr}_{prefijoNombre}_{Guid.NewGuid()}{extension}";
+
+            _sftp.AsegurarDirectorio(rutaContenedor);
+
+            string rutaArchivoSftp = $"{rutaContenedor}/{nombreSistema}";
+
+            using (var stream = archivo.OpenReadStream())
             {
-                _logger.LogError(ex, "Error enviando correo de resultado CxP. SolicitudID={SolicitudID}", solicitudId);
+                _sftp.SubirStream(stream, rutaArchivoSftp);
+            }
+
+            string sqlVersion = @"
+SELECT ISNULL(MAX(VersionArchivo), 0) + 1
+FROM Compras_Archivos
+WHERE SolicitudID = @SolicitudID
+  AND TipoArchivo = @TipoArchivo";
+
+            int versionArchivo;
+
+            using (var cmdVersion = new SqlCommand(sqlVersion, conn, trans))
+            {
+                cmdVersion.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                cmdVersion.Parameters.AddWithValue("@TipoArchivo", tipoArchivo);
+
+                versionArchivo = Convert.ToInt32(await cmdVersion.ExecuteScalarAsync());
+            }
+
+            string sqlDesactivarAnteriores = @"
+UPDATE Compras_Archivos
+SET Vigente = 0
+WHERE SolicitudID = @SolicitudID
+  AND TipoArchivo = @TipoArchivo
+  AND Vigente = 1
+  AND Activo = 1";
+
+            using (var cmdDesactivar = new SqlCommand(sqlDesactivarAnteriores, conn, trans))
+            {
+                cmdDesactivar.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                cmdDesactivar.Parameters.AddWithValue("@TipoArchivo", tipoArchivo);
+
+                await cmdDesactivar.ExecuteNonQueryAsync();
+            }
+
+            string sqlInsert = @"
+INSERT INTO Compras_Archivos
+(
+    SolicitudID,
+    CotizacionID,
+    TipoArchivo,
+    RutaArchivo,
+    NombreOriginal,
+    NombreSistema,
+    Extension,
+    ContentType,
+    TamanoBytes,
+    VersionArchivo,
+    Vigente,
+    Activo,
+    UsuarioSubioID,
+    FechaCarga
+)
+VALUES
+(
+    @SolicitudID,
+    @CotizacionID,
+    @TipoArchivo,
+    @RutaArchivo,
+    @NombreOriginal,
+    @NombreSistema,
+    @Extension,
+    @ContentType,
+    @TamanoBytes,
+    @VersionArchivo,
+    1,
+    1,
+    @UsuarioSubioID,
+    GETDATE()
+);
+
+SELECT SCOPE_IDENTITY();";
+
+            using (var cmdInsert = new SqlCommand(sqlInsert, conn, trans))
+            {
+                cmdInsert.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                cmdInsert.Parameters.AddWithValue("@CotizacionID", (object?)cotizacionId ?? DBNull.Value);
+                cmdInsert.Parameters.AddWithValue("@TipoArchivo", tipoArchivo);
+                cmdInsert.Parameters.AddWithValue("@RutaArchivo", rutaArchivoSftp);
+                cmdInsert.Parameters.AddWithValue("@NombreOriginal", nombreOriginal);
+                cmdInsert.Parameters.AddWithValue("@NombreSistema", nombreSistema);
+                cmdInsert.Parameters.AddWithValue("@Extension", extension);
+                cmdInsert.Parameters.AddWithValue("@ContentType", archivo.ContentType ?? "application/octet-stream");
+                cmdInsert.Parameters.AddWithValue("@TamanoBytes", archivo.Length);
+                cmdInsert.Parameters.AddWithValue("@VersionArchivo", versionArchivo);
+                cmdInsert.Parameters.AddWithValue("@UsuarioSubioID", usuarioSubioId);
+
+                return Convert.ToInt32(await cmdInsert.ExecuteScalarAsync());
             }
         }
+
+        private bool ExtensionPermitida(string extension, params string[] permitidas)
+        {
+            if (string.IsNullOrWhiteSpace(extension))
+                return false;
+
+            return permitidas.Contains(extension.ToLowerInvariant());
+        }
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SolicitarDocumentosPresupuesto(int solicitudId, string observaciones)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+                return Unauthorized();
+
+            if (solicitudId <= 0)
+            {
+                TempData["Error"] = "No se recibió la solicitud.";
+                return RedirectToAction("BandejaPresupuestos");
+            }
+
+            if (string.IsNullOrWhiteSpace(observaciones))
+            {
+                TempData["Error"] = "Debes indicar qué documentación falta o debe corregirse.";
+                return RedirectToAction("Dictamen", new { id = solicitudId });
+            }
+
+            string responsable = User.Identity?.Name ?? "Control Presupuestal";
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+
+                bool esControlPresupuestal =
+                    await UsuarioPerteneceADepartamentoAsync(
+                        conn,
+                        usuarioId,
+                        "CONTROL PRESUPUESTAL",
+                        "PRESUPUESTOS",
+                        "CIS"
+                    );
+
+                if (!esControlPresupuestal)
+                    return Forbid();
+
+                using (var trans = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        string sqlUpdate = @"
+UPDATE Compras_Solicitud
+SET EstatusID = 3,
+    ObservacionesPresupuesto = @Observaciones
+WHERE SolicitudID = @SolicitudID
+  AND EstatusID = 4";
+
+                        using (var cmd = new SqlCommand(sqlUpdate, conn, trans))
+                        {
+                            cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            cmd.Parameters.AddWithValue("@Observaciones", observaciones.Trim());
+
+                            int filas = await cmd.ExecuteNonQueryAsync();
+
+                            if (filas == 0)
+                            {
+                                trans.Rollback();
+                                TempData["Error"] = "La solicitud ya no está en Control Presupuestal.";
+                                return RedirectToAction("BandejaPresupuestos");
+                            }
+                        }
+
+                        string sqlHistorico = @"
+INSERT INTO Compras_Historico_Pasos
+(
+    SolicitudID,
+    EstatusID,
+    FechaMovimiento,
+    UsuarioResponsable
+)
+VALUES
+(
+    @SolicitudID,
+    3,
+    GETDATE(),
+    @Responsable
+)";
+
+                        using (var cmdHist = new SqlCommand(sqlHistorico, conn, trans))
+                        {
+                            cmdHist.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            cmdHist.Parameters.AddWithValue("@Responsable", responsable);
+
+                            await cmdHist.ExecuteNonQueryAsync();
+                        }
+
+                        trans.Commit();
+
+                        TempData["Mensaje"] = "Se solicitó documentación adicional al usuario.";
+
+                        return RedirectToAction("BandejaPresupuestos");
+                    }
+                    catch (Exception ex)
+                    {
+                        trans.Rollback();
+
+                        _logger.LogError(ex, "Error al solicitar documentos para la solicitud {SolicitudID}", solicitudId);
+
+                        TempData["Error"] = "Ocurrió un error al solicitar documentos.";
+                        return RedirectToAction("Dictamen", new { id = solicitudId });
+                    }
+                }
+            }
+        }
+
 
     }
 }

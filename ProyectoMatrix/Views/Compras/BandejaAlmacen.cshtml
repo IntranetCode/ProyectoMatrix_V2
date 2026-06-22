@@ -94,7 +94,8 @@
                                         <div class="modal-content">
 
                                             <form asp-action="RegistrarRecepcionAlmacen"
-                                                  method="post">
+                                                  method="post"
+                                                  enctype="multipart/form-data">
 
                                                 @Html.AntiForgeryToken()
 
@@ -129,6 +130,22 @@
                                                       class="form-control"
                                                       rows="4"
                                                       placeholder="Ej. Mercancía recibida completa, pendiente revisión, etc."></textarea>
+
+                                                    <div class="mt-3">
+                                                        <label class="form-label fw-bold">
+                                                            Evidencia de recepción
+                                                        </label>
+
+                                                        <input type="file"
+                                                               name="evidenciaRecepcion"
+                                                               class="form-control"
+                                                               accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                                               required />
+
+                                                        <small class="text-muted">
+                                                            Adjunta evidencia de la recepción: foto, PDF, remisión o documento firmado.
+                                                        </small>
+                                                    </div>
 
                                                 </div>
 

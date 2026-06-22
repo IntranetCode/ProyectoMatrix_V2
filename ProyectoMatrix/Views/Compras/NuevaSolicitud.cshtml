@@ -58,8 +58,9 @@
                         <select asp-for="TransporteID" class="form-control border-warning">
                             <option value="">-- Selecciona Transporte --</option>
                             <option value="1">Marítimo</option>
-                            <option value="2">Aéreo</option>
+                            <option value="2">Avión</option>
                             <option value="3">Terrestre</option>
+                            <option value="4">Sin transporte</option>
                         </select>
                     </div>
 
@@ -77,49 +78,177 @@
                     <div class="col-md-12">
                         <label class="font-weight-bold">Comentarios adicionales</label>
                         <textarea asp-for="Comentarios" class="form-control" rows="2" placeholder="Detalles extras de la compra..."></textarea>
-                        <div class="row mt-3">
-                            <div class="col-md-12">
-                                <label class="font-weight-bold">
-                                    Archivo de referencia (Opcional)
-                                </label>
-
-                                <input type="file"
-                                       name="ArchivoReferencia"
-                                       class="form-control"
-                                       accept=".pdf,.jpg,.jpeg,.png" />
-
-                                <small class="text-muted">
-                                    Adjunta una imagen o PDF con información adicional para Compras.
-                                </small>
-                            </div>
-                        </div>
+                       
                     </div>
                 </div>
             </div>
         </div>
+
+
+        @*Seccion de datos para presupuesto*@
+
+        <div class="card shadow mb-4 border-left-warning">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-warning">
+                    <i class="fas fa-coins mr-2"></i>
+                    Presupuesto de la compra
+                </h6>
+            </div>
+
+            <div class="card-body">
+
+                <div class="form-group">
+                    <label asp-for="MontoPresupuestoSolicitado" class="small font-weight-bold">
+                        Presupuesto aproximado o solicitado
+                    </label>
+
+                    <input asp-for="MontoPresupuestoSolicitado"
+                           type="number"
+                           step="0.01"
+                           min="0.01"
+                           class="form-control"
+                           placeholder="Ej. 15000.00"
+                           required />
+
+                    <span asp-validation-for="MontoPresupuestoSolicitado"
+                          class="text-danger small"></span>
+
+                    <small class="form-text text-muted">
+                        Captura el monto previamente consultado o estimado para esta compra.
+                    </small>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input asp-for="FueraPresupuestoUsuario"
+                           class="form-check-input"
+                           type="checkbox"
+                           id="chkFueraPresupuesto" />
+
+                    <label class="form-check-label font-weight-bold" for="chkFueraPresupuesto">
+                        Esta compra está fuera de presupuesto
+                    </label>
+                </div>
+
+                <div id="bloqueDesviacion" style="display:none;">
+                    <div class="alert alert-warning small">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        Esta compra está fuera de presupuesto. Debes adjuntar el formato de desviación firmado y llenado correctamente.
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="ArchivoDesviacion" class="small font-weight-bold">
+                            Archivo de desviación firmado
+                        </label>
+
+                        <input asp-for="ArchivoDesviacion"
+                               type="file"
+                               class="form-control-file"
+                               accept=".pdf,.jpg,.jpeg,.png,.webp" />
+
+                        <span asp-validation-for="ArchivoDesviacion"
+                              class="text-danger small"></span>
+
+                        <small class="form-text text-muted">
+                            Se permiten PDF o imágenes JPG, PNG o WEBP.
+                        </small>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
 
         @* --- SECCIÓN DE MATERIALES --- *@
         <div class="card shadow mb-4">
             <div class="card-header py-3 bg-light">
                 <h6 class="m-0 font-weight-bold text-secondary text-uppercase">Materiales o Servicios</h6>
             </div>
+
+            <div class="card shadow mb-4 border-left-info">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="fas fa-file-excel mr-2"></i>
+                        Carga masiva de productos
+                    </h6>
+                </div>
+
+                <div class="card-body">
+                    <div class="row align-items-end">
+                        <div class="col-md-8">
+                            <label class="font-weight-bold">
+                                Archivo Excel o CSV
+                            </label>
+
+                            <input type="file"
+                                   id="archivoCargaMasiva"
+                                   class="form-control"
+                                   accept=".xlsx,.xls,.csv" />
+
+                            <small class="text-muted">
+                                El archivo debe contener las columnas:
+                                Nombre, Descripción, Cantidad y Unidad.
+                            </small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <button type="button"
+                                    id="btnCargarProductosArchivo"
+                                    class="btn btn-info btn-block">
+                                <i class="fas fa-upload mr-1"></i>
+                                Cargar productos
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <strong>Formato esperado:</strong>
+                        Nombre | Descripción | Cantidad | Unidad
+                    </div>
+                </div>
+            </div>
+
+
             <div class="card-body">
                 <div class="row mb-3 bg-light p-3 rounded border">
-                    <div class="col-md-4">
-                        <label class="small font-weight-bold">Descripción del Producto</label>
-                        <input type="text" id="txtMatNombre" class="form-control" placeholder="  ">
+                    <div class="col-md-3">
+                        <label class="small font-weight-bold">Producto</label>
+                        <input type="text"
+                               id="txtMatNombre"
+                               class="form-control"
+                               placeholder="Ej. Laptop, monitor, cable, servicio">
                     </div>
+
+                    <div class="col-md-4">
+                        <label class="small font-weight-bold">Descripción</label>
+                        <input type="text"
+                               id="txtMatDescripcion"
+                               class="form-control"
+                               placeholder="Marca, modelo, medidas, características, etc.">
+                    </div>
+
                     <div class="col-md-2">
                         <label class="small font-weight-bold">Cant.</label>
-                        <input type="number" id="txtMatCant" class="form-control" value="1">
+                        <input type="number"
+                               id="txtMatCant"
+                               class="form-control"
+                               value="1"
+                               min="1">
                     </div>
+
                     <div class="col-md-2">
                         <label class="small font-weight-bold">U. Medida</label>
-                        <input type="text" id="txtMatUnidad" class="form-control" placeholder="Pza, Kg, etc.">
+                        <input type="text"
+                               id="txtMatUnidad"
+                               class="form-control"
+                               placeholder="Pza, Kg, m, caja">
                     </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <button type="button" class="btn btn-success btn-block" onclick="agregarMaterial()">
-                            <i class="fas fa-plus mr-1"></i> Agregar a la lista
+
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="button"
+                                class="btn btn-success btn-block"
+                                onclick="agregarMaterial()">
+                            <i class="fas fa-plus"></i>
                         </button>
                     </div>
                 </div>
@@ -127,9 +256,11 @@
                 <table class="table table-bordered table-striped" id="tablaMateriales">
                     <thead class="text-center">
                         <tr>
-                            <th>Producto / Servicio</th>
-                            <th style="width: 15%">Cantidad</th>
-                            <th style="width: 15%">U. Medida</th>
+                            <th>Producto</th>
+                            <th>Descripción</th>
+                            <th style="width: 12%">Cantidad</th>
+                            <th style="width: 12%">U. Medida</th>
+                            <th style="width: 22%">Archivo referencia</th>
                             <th style="width: 10%">Acción</th>
                         </tr>
                     </thead>
@@ -151,6 +282,9 @@
 </div>
 
 @section Scripts {
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
     <script>
         let matIndex = 0;
 
@@ -168,68 +302,328 @@
             $('#divProyecto').show();
             $('#txtNombreProyecto').attr('required', true);
         }
-        
 
-        function agregarMaterial() {
-            const nom = $('#txtMatNombre').val();
-            const cant = $('#txtMatCant').val();
-            const uni = $('#txtMatUnidad').val();
+                function agregarMaterial(nombreArchivo = null, descripcionArchivo = null, cantidadArchivo = null, unidadArchivo = null) {
+            const nom = nombreArchivo !== null ? nombreArchivo : $('#txtMatNombre').val();
+            const descripcion = descripcionArchivo !== null ? descripcionArchivo : $('#txtMatDescripcion').val();
+            const cant = cantidadArchivo !== null ? cantidadArchivo : $('#txtMatCant').val();
+            const uni = unidadArchivo !== null ? unidadArchivo : $('#txtMatUnidad').val();
 
-            if (!nom || cant <= 0) {
-                Swal.fire('Atención', 'Ingresa una descripción y cantidad válida', 'warning');
-                return;
+            const nomTexto = (nom || '').toString().trim();
+            const descripcionTexto = (descripcion || '').toString().trim();
+            const unidadTexto = (uni || '').toString().trim();
+
+            const cantidadNumero = parseFloat(
+                (cant || '').toString().replace(',', '.')
+            );
+
+            if (!nomTexto) {
+                Swal.fire('Atención', 'Ingresa el producto.', 'warning');
+                return false;
             }
 
+            if (!descripcionTexto) {
+                Swal.fire('Atención', 'Ingresa la descripción del producto.', 'warning');
+                return false;
+            }
+
+            if (isNaN(cantidadNumero) || cantidadNumero <= 0) {
+                Swal.fire('Atención', 'Ingresa una cantidad válida.', 'warning');
+                return false;
+            }
+
+            const nomSeguro = escapeHtml(nomTexto);
+            const descripcionSeguro = escapeHtml(descripcionTexto);
+            const uniSeguro = escapeHtml(unidadTexto);
+            const cantidadSeguro = cantidadNumero.toString();
+
             const fila = `<tr>
-                <td><input type="hidden" name="Materiales[${matIndex}].Nombre" value="${nom}" />${nom}</td>
-                <td class="text-center"><input type="hidden" name="Materiales[${matIndex}].Cantidad" value="${cant}" />${cant}</td>
-                <td class="text-center"><input type="hidden" name="Materiales[${matIndex}].UnidadMedida" value="${uni}" />${uni}</td>
+                <td>
+                    <input type="hidden" name="Materiales[${matIndex}].Nombre" value="${nomSeguro}" />
+                    ${nomSeguro}
+                </td>
+
+                <td>
+                    <input type="hidden" name="Materiales[${matIndex}].Descripcion" value="${descripcionSeguro}" />
+                    ${descripcionSeguro}
+                </td>
+
                 <td class="text-center">
-                           <button type="button" class="btn btn-danger btn-sm" onclick="eliminarMaterial(this)">
-            <i class="fas fa-trash"></i>
-        </button>
+                    <input type="hidden" name="Materiales[${matIndex}].Cantidad" value="${cantidadSeguro}" />
+                    ${cantidadSeguro}
+                </td>
+
+                <td class="text-center">
+                    <input type="hidden" name="Materiales[${matIndex}].UnidadMedida" value="${uniSeguro}" />
+                    ${uniSeguro}
+                </td>
+
+                <td>
+                    <label class="btn btn-outline-primary btn-sm btn-block mb-1">
+                        <i class="fas fa-paperclip mr-1"></i>
+                        Adjuntar archivo
+
+                        <input type="file"
+                               name="Materiales[${matIndex}].ArchivoReferencia"
+                               class="d-none input-archivo-ref"
+                               accept=".pdf,.jpg,.jpeg,.png,.webp"
+                               onchange="mostrarNombreArchivo(this)" />
+                    </label>
+
+                    <small class="text-muted nombre-archivo-ref d-block">
+                        Sin archivo seleccionado
+                    </small>
+                </td>
+
+                <td class="text-center">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="eliminarMaterial(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </td>
             </tr>`;
 
             $('#tablaMateriales tbody').append(fila);
             matIndex++;
 
-            // Limpiar campos
-            $('#txtMatNombre').val('');
-            $('#txtMatCant').val('1');
-            $('#txtMatUnidad').val('');
-            $('#txtMatNombre').focus();
+            if (nombreArchivo === null) {
+                $('#txtMatNombre').val('');
+                $('#txtMatDescripcion').val('');
+                $('#txtMatCant').val('1');
+                $('#txtMatUnidad').val('');
+                $('#txtMatNombre').focus();
+            }
+
+            return true;
         }
 
-        // Prevenir envío si no hay materiales
-        $('#formCompra').submit(function(e) {
-            if ($('#tablaMateriales tbody tr').length === 0) {
-                e.preventDefault();
-                Swal.fire('Error', 'Debes agregar al menos un material a la lista.', 'error');
-            }
-        });
+                function agregarMaterialDesdeArchivo(nombre, descripcion, cantidad, unidad) {
+            nombre = (nombre || '').toString().trim();
+            descripcion = (descripcion || '').toString().trim();
+            unidad = (unidad || '').toString().trim();
 
+            cantidad = (cantidad || '').toString().trim();
+
+            if (!nombre || !descripcion || !cantidad) {
+                return false;
+            }
+
+            return agregarMaterial(nombre, descripcion, cantidad, unidad);
+        }
 
         function eliminarMaterial(boton) {
             $(boton).closest('tr').remove();
             reindexarMateriales();
         }
 
-                function reindexarMateriales() {
-            let contador = 0; //  variable local para el bucle
-            $('#tablaMateriales tbody tr').each(function() {
-                $(this).find('input[type="hidden"]').each(function() {
+                            function reindexarMateriales() {
+            let contador = 0;
+
+            $('#tablaMateriales tbody tr').each(function () {
+                $(this).find('input').each(function () {
                     let name = $(this).attr('name');
-                    if (name.includes("Nombre")) $(this).attr('name', `Materiales[${contador}].Nombre`);
-                    if (name.includes("Cantidad")) $(this).attr('name', `Materiales[${contador}].Cantidad`);
-                    if (name.includes("UnidadMedida")) $(this).attr('name', `Materiales[${contador}].UnidadMedida`);
+
+                    if (!name) return;
+
+                    if (name.includes("Nombre"))
+                        $(this).attr('name', `Materiales[${contador}].Nombre`);
+
+                    if (name.includes("Descripcion"))
+                        $(this).attr('name', `Materiales[${contador}].Descripcion`);
+
+                    if (name.includes("Cantidad"))
+                        $(this).attr('name', `Materiales[${contador}].Cantidad`);
+
+                    if (name.includes("UnidadMedida"))
+                        $(this).attr('name', `Materiales[${contador}].UnidadMedida`);
+
+                    if (name.includes("ArchivoReferencia"))
+                        $(this).attr('name', `Materiales[${contador}].ArchivoReferencia`);
                 });
+
                 contador++;
             });
-            matIndex = contador; 
+
+            matIndex = contador;
         }
 
+                function escapeHtml(valor) {
+            return String(valor ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+                function mostrarNombreArchivo(input) {
+            const contenedor = $(input).closest('td');
+            const nombre = input.files && input.files.length > 0
+                ? input.files[0].name
+                : 'Sin archivo seleccionado';
+
+            contenedor.find('.nombre-archivo-ref').text(nombre);
+        }
+
+
     </script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const chkFueraPresupuesto = document.getElementById("chkFueraPresupuesto");
+            const bloqueDesviacion = document.getElementById("bloqueDesviacion");
+            const inputArchivoDesviacion = document.getElementById("ArchivoDesviacion");
+
+            function toggleDesviacion() {
+                const fuera = chkFueraPresupuesto.checked;
+
+                bloqueDesviacion.style.display = fuera ? "block" : "none";
+
+                if (inputArchivoDesviacion) {
+                    inputArchivoDesviacion.required = fuera;
+
+                    if (!fuera) {
+                        inputArchivoDesviacion.value = "";
+                    }
+                }
+            }
+
+            chkFueraPresupuesto.addEventListener("change", toggleDesviacion);
+            toggleDesviacion();
+        });
+    </script>
+
+    <script>
+                function normalizarTexto(valor) {
+            return (valor || "")
+                .toString()
+                .trim()
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "");
+        }
+
+        function obtenerValorFila(fila, posiblesNombres) {
+            const llaves = Object.keys(fila);
+
+            for (const nombre of posiblesNombres) {
+                const nombreNormalizado = normalizarTexto(nombre);
+
+                const llaveEncontrada = llaves.find(k =>
+                    normalizarTexto(k) === nombreNormalizado
+                );
+
+                if (llaveEncontrada) {
+                    return fila[llaveEncontrada];
+                }
+            }
+
+            return "";
+        }
+    </script>
+
+    <script>
+                document.addEventListener("DOMContentLoaded", function () {
+            const inputArchivo = document.getElementById("archivoCargaMasiva");
+            const btnCargar = document.getElementById("btnCargarProductosArchivo");
+
+            if (!inputArchivo || !btnCargar) return;
+
+            btnCargar.addEventListener("click", function () {
+                const archivo = inputArchivo.files[0];
+
+                if (!archivo) {
+                    Swal.fire('Atención', 'Selecciona un archivo Excel o CSV.', 'warning');
+                    return;
+                }
+
+                const extension = archivo.name.split(".").pop().toLowerCase();
+
+                if (!["xlsx", "xls", "csv"].includes(extension)) {
+                    Swal.fire('Atención', 'Solo se permiten archivos Excel o CSV.', 'warning');
+                    return;
+                }
+
+                const lector = new FileReader();
+
+                lector.onload = function (e) {
+                            let workbook;
+        if (extension === "csv") {
+            workbook = XLSX.read(e.target.result, { type: "string" });
+        } else {
+            const datos = new Uint8Array(e.target.result);
+            workbook = XLSX.read(datos, { type: "array" });
+        }
+
+                    const primeraHoja = workbook.SheetNames[0];
+                    const hoja = workbook.Sheets[primeraHoja];
+
+                    const filas = XLSX.utils.sheet_to_json(hoja, {
+                        defval: ""
+                    });
+
+                    if (!filas || filas.length === 0) {
+                        Swal.fire('Atención', 'El archivo no contiene productos.', 'warning');
+                        return;
+                    }
+
+                    let agregados = 0;
+                    let omitidos = 0;
+
+                    filas.forEach(function (fila) {
+                        const nombre = obtenerValorFila(fila, [
+                            "Nombre",
+                            "NombreMaterial",
+                            "Material",
+                            "Producto"
+                        ]);
+
+                        const descripcion = obtenerValorFila(fila, [
+                            "Descripción",
+                            "Descripcion",
+                            "DescripcionMaterial",
+                            "Detalle"
+                        ]);
+
+                        const cantidad = obtenerValorFila(fila, [
+                            "Cantidad",
+                            "Qty"
+                        ]);
+
+                        const unidad = obtenerValorFila(fila, [
+                            "Unidad",
+                            "UnidadMedida",
+                            "Unidad de Medida",
+                            "UM"
+                        ]);
+
+                        const ok = agregarMaterialDesdeArchivo(
+                            nombre,
+                            descripcion,
+                            cantidad,
+                            unidad
+                        );
+
+                        if (ok) {
+                            agregados++;
+                        } else {
+                            omitidos++;
+                        }
+                    });
+
+                            Swal.fire( 'Carga completada',  `Productos cargados: ${agregados}. Omitidos: ${omitidos}.`,    agregados > 0 ? 'success' : 'warning' );
+
+                    inputArchivo.value = "";
+                };
+
+                       if (extension === "csv") {
+                           lector.readAsText(archivo, "UTF-8");
+        } else {
+            lector.readAsArrayBuffer(archivo);
+        }
+            });
+        });
+    </script>
+
 }
 
 <style>
@@ -410,6 +804,7 @@
     }
 
     #txtMatNombre,
+    #txtMatDescripcion,
     #txtMatCant,
     #txtMatUnidad {
         background: #ffffff;

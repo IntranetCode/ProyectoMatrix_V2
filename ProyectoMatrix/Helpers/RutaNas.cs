@@ -123,5 +123,45 @@ namespace ProyectoMatrix.Helpers
 
             return rutaFisica;
         }
+
+        public string ObtenerRutaComprasBase()
+        {
+            return ObtenerRutaSolicitudesCompras();
+        }
+
+        public string ObtenerRutaComprasReferencias()
+        {
+            return $"{ObtenerRutaComprasBase()}/Referencias";
+        }
+
+        public string ObtenerRutaComprasCotizaciones()
+        {
+            return $"{ObtenerRutaComprasBase()}/Cotizaciones";
+        }
+
+        public string ObtenerRutaComprasDesviaciones()
+        {
+            return $"{ObtenerRutaComprasBase()}/Desviaciones";
+        }
+
+        public string ObtenerRutaComprasRequisiciones()
+        {
+            return $"{ObtenerRutaComprasBase()}/Requisiciones";
+        }
+
+        public string ObtenerRutaComprasOC()
+        {
+            return $"{ObtenerRutaComprasBase()}/OC";
+        }
+
+        public string ObtenerRutaComprasEvidenciaAlmacen()
+        {
+            return $"{ObtenerRutaComprasBase()}/EvidenciaAlmacen";
+        }
+
+        public string ObtenerRutaComprasEntregaUsuario()
+        {
+            return $"{ObtenerRutaComprasBase()}/EntregaUsuario";
+        }
     }
 }
