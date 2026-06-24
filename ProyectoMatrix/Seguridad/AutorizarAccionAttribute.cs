@@ -5,7 +5,7 @@ using System.Security.Claims;
 
 namespace ProyectoMatrix.Seguridad
 {
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
     public class AutorizarAccionAttribute : Attribute, IAsyncAuthorizationFilter
     {
         private readonly string _subMenu;
@@ -21,18 +21,56 @@ namespace ProyectoMatrix.Seguridad
         {
             var http = context.HttpContext;
             var user = http.User;
-            if (!(user?.Identity?.IsAuthenticated ?? false))
-            { context.Result = new ChallengeResult(); return; }
 
-            if (!int.TryParse(user.FindFirstValue("UsuarioID"), out var usuarioId))
-            { context.Result = new ChallengeResult(); return; }
+            if (!(user?.Identity?.IsAuthenticated ?? false))
+            {
+                context.Result = new ChallengeResult();
+                return;
+            }
+
+            var usuarioId = ObtenerUsuarioId(http);
+
+            if (usuarioId <= 0)
+            {
+                context.Result = new ChallengeResult();
+                return;
+            }
 
             var acceso = http.RequestServices.GetRequiredService<IServicioAcceso>();
-            var ok = await acceso.TienePermisoAsync(usuarioId, _subMenu, _accion);
-            if (ok) { return; }
+            var tienePermiso = await acceso.TienePermisoAsync(usuarioId, _subMenu, _accion);
 
-            // 403 estándar
-            context.Result = new StatusCodeResult(StatusCodes.Status403Forbidden);
+            if (tienePermiso)
+            {
+                return;
+            }
+
+            // Usuario autenticado, pero sin permiso.
+            // Esto activa options.AccessDeniedPath = "/Login/AccesoDenegado".
+            context.Result = new ForbidResult();
+        }
+
+        private static int ObtenerUsuarioId(HttpContext http)
+        {
+            var user = http.User;
+
+            var usuarioIdClaim =
+                user.FindFirstValue("UsuarioID")
+                ?? user.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? user.FindFirstValue("NameIdentifier");
+
+            if (int.TryParse(usuarioIdClaim, out var usuarioId) && usuarioId > 0)
+            {
+                return usuarioId;
+            }
+
+            var usuarioIdSession = http.Session.GetInt32("UsuarioID");
+
+            if (usuarioIdSession.HasValue && usuarioIdSession.Value > 0)
+            {
+                return usuarioIdSession.Value;
+            }
+
+            return 0;
         }
     }
 }

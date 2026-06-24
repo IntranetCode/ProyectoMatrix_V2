@@ -818,30 +818,30 @@ body:has(.kpis-shell) .container-xxl {
    Modales
    ---------------------------------------------------------- */
 
-.modal-content {
+.modal-kpis-content {
     border: 0 !important;
-    border-radius: 24px !important;
+    border-radius: 22px !important;
     overflow: hidden !important;
-    box-shadow: var(--ops-shadow-lg) !important;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.35) !important;
 }
 
-.modal-header {
-    background: linear-gradient(135deg, var(--ops-navy), var(--ops-navy-2)) !important;
-    color: white !important;
+.modal-kpis-header {
+    background: linear-gradient(135deg, #0f172a, #0c4a6e) !important;
+    color: #ffffff !important;
     border-bottom: 0 !important;
 }
 
-.modal-title {
+.modal-kpis-header .modal-title {
     font-weight: 950 !important;
 }
 
-.modal-body {
-    background: #f8fbff !important;
+.modal-kpis-body {
+    background: #111827 !important;
 }
 
-.modal-footer {
+.modal-kpis-footer {
     background: #ffffff !important;
-    border-top: 1px solid #e2e8f0 !important;
+    border-top: 1px solid #e5e7eb !important;
 }
 
 /* ----------------------------------------------------------
@@ -1470,7 +1470,7 @@ body:has(.kpis-shell) .container-xxl {
         z-index: 20050 !important;
     }
 
-    .modal-backdrop {
+    body.kpis-pdf-open .modal-backdrop {
         z-index: 20040 !important;
     }
 
@@ -1807,12 +1807,6 @@ body:has(.kpis-shell) .container-xxl {
                 </span>
 
                 <div class="d-flex gap-2">
-                    <a class="btn btn-outline-danger fw-bold rounded-pill px-3"
-                       href="@Url.Content("~/contenidos/pdfs/KPIS-25.5.26.pdf")"
-                       target="_blank">
-                        <i class="fas fa-up-right-from-square me-1"></i>
-                        Abrir en otra pestaña
-                    </a>
 
                     <button type="button"
                             class="btn btn-secondary fw-bold rounded-pill px-3"
