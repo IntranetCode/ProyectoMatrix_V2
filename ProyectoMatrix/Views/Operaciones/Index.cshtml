@@ -14,6 +14,14 @@
 }
 
 <style>
+/* ==========================================================
+   OPERACIONES KPIs V2 - ESTILOS EMBEBIDOS EN LA VISTA
+   ========================================================== */
+/* ==========================================================
+   OPERACIONES KPIs V2 - TEMA GLOBAL
+   Objetivo: unificar Index, Gestor, Captura, Historial,
+             NuevaMetrica y PrevisualizarImportacion.
+   ========================================================== */
 
 :root {
     --ops-bg-1: #eef6fc;
@@ -810,30 +818,30 @@ body:has(.kpis-shell) .container-xxl {
    Modales
    ---------------------------------------------------------- */
 
-.modal-content {
+.modal-kpis-content {
     border: 0 !important;
-    border-radius: 24px !important;
+    border-radius: 22px !important;
     overflow: hidden !important;
-    box-shadow: var(--ops-shadow-lg) !important;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.35) !important;
 }
 
-.modal-header {
-    background: linear-gradient(135deg, var(--ops-navy), var(--ops-navy-2)) !important;
-    color: white !important;
+.modal-kpis-header {
+    background: linear-gradient(135deg, #0f172a, #0c4a6e) !important;
+    color: #ffffff !important;
     border-bottom: 0 !important;
 }
 
-.modal-title {
+.modal-kpis-header .modal-title {
     font-weight: 950 !important;
 }
 
-.modal-body {
-    background: #f8fbff !important;
+.modal-kpis-body {
+    background: #111827 !important;
 }
 
-.modal-footer {
+.modal-kpis-footer {
     background: #ffffff !important;
-    border-top: 1px solid #e2e8f0 !important;
+    border-top: 1px solid #e5e7eb !important;
 }
 
 /* ----------------------------------------------------------
@@ -1462,7 +1470,7 @@ body:has(.kpis-shell) .container-xxl {
         z-index: 20050 !important;
     }
 
-    .modal-backdrop {
+    body.kpis-pdf-open .modal-backdrop {
         z-index: 20040 !important;
     }
 
@@ -1577,6 +1585,7 @@ body:has(.kpis-shell) .container-xxl {
         border: 1px solid #dbeafe;
     }
 
+<<<<<<< HEAD
 
 
     /* ==========================================================
@@ -1642,6 +1651,8 @@ body:has(.kpis-shell) .container-xxl {
         min-height: 340px !important;
     }
 
+=======
+>>>>>>> origin/Rama_Luis
     @@media (max-width: 768px) {
         .ops-global-actions {
             justify-content: flex-start;
@@ -1887,7 +1898,11 @@ body:has(.kpis-shell) .container-xxl {
                 </span>
 
                 <div class="d-flex gap-2">
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> origin/Rama_Luis
                     <button type="button"
                             class="btn btn-secondary fw-bold rounded-pill px-3"
                             data-bs-dismiss="modal">
@@ -1924,8 +1939,12 @@ body:has(.kpis-shell) .container-xxl {
         mes: document.getElementById('filtroMes').value || '',
         semana: document.getElementById('filtroSemana').value || '',
         dia: document.getElementById('filtroDia').value || '',
+<<<<<<< HEAD
         globalChartMode: 'resumen',
         viewMode: 'kpis'
+=======
+        globalChartMode: 'resumen'
+>>>>>>> origin/Rama_Luis
     };
 
     let dashboardActual = initialDashboard;
@@ -3124,12 +3143,15 @@ body:has(.kpis-shell) .container-xxl {
             btn.addEventListener('click', () => {
                 dashboardState.globalChartMode = btn.dataset.globalChartMode || 'resumen';
                 actualizarBotonesModoGlobal();
+<<<<<<< HEAD
 
                 if (dashboardState.viewMode === 'compras' && comprasActual) {
                     renderGlobalChartCompras(comprasActual);
                     return;
                 }
 
+=======
+>>>>>>> origin/Rama_Luis
                 renderGlobalChart(dashboardActual);
             });
         });

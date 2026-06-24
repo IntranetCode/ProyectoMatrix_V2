@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -28,7 +29,7 @@ public class LoginController : Controller
 
     // ---------- LOGIN GET ----------
     [HttpGet]
-
+    [AllowAnonymous]
     public IActionResult Login()
     {
         if (HttpContext.Session.GetInt32("UsuarioID") != null)
@@ -43,6 +44,7 @@ public class LoginController : Controller
 
     // ---------- LOGIN POST ----------
     [HttpPost]
+    [AllowAnonymous]
     [AuditarAccion(Modulo = "SEGURIDAD", Entidad = "Login", Operacion = "LOGIN", OmitirListas = false)]
     public async Task<IActionResult> Login(UsuarioModel model, EmpresaModel empresa)
     {
@@ -66,7 +68,7 @@ public class LoginController : Controller
                     idEmpresa: null,
                     accion: "LOGIN_FALLIDO",
                     mensaje: $"Intento fallido con usuario {model.Username}",
-                    modulo: "SEGURIDA",
+                    modulo: "SEGURIDAD",
                     entidad: "Login",
                     entidadId: null,
                     resultado: "ERROR",
@@ -159,6 +161,7 @@ public class LoginController : Controller
 
     // ---------- SELECCIÓN DE EMPRESA ----------
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> SeleccionarEmpresa(int usuarioId, int empresaId)
     {
         var usuario = await ObtenerUsuarioActivoPorIdAsync(usuarioId);
@@ -191,31 +194,53 @@ public class LoginController : Controller
 
         // ✅ OBTENER EL RolID desde la base de datos
         int rolId = await ObtenerRolIdPorUsuarioAsync(usuario.UsuarioID);
+
+        // ✅ Obtener perfil completo desde Usuarios + Persona + Roles
+        var perfilSesion = await ObtenerPerfilSesionUsuarioAsync(usuario.UsuarioID);
+
+        var nombreMostrar = !string.IsNullOrWhiteSpace(perfilSesion?.NombreCompleto)
+            ? perfilSesion.NombreCompleto
+            : await ObtenerNombreMostrarPorUsuarioAsync(usuario.UsuarioID);
+
+        if (string.IsNullOrWhiteSpace(nombreMostrar))
+        {
+            nombreMostrar = usuario.Username;
+        }
+
+        var rolSesion = !string.IsNullOrWhiteSpace(perfilSesion?.Rol)
+            ? perfilSesion.Rol
+            : usuario.Rol;
+
         // Guardar en sesión
         HttpContext.Session.SetInt32("UsuarioID", usuario.UsuarioID);
-        HttpContext.Session.SetString("Username", usuario.Username);
+        HttpContext.Session.SetString("Username", usuario.Username ?? "");
+
+        // Se guardan ambos nombres porque algunas vistas usan EmpresaID y otras EmpresaId.
         HttpContext.Session.SetInt32("EmpresaID", empresa.EmpresaID);
-        HttpContext.Session.SetString("EmpresaNombre", empresa.Nombre);
+        HttpContext.Session.SetString("EmpresaId", empresa.EmpresaID.ToString());
+        HttpContext.Session.SetInt32("EmpresaSeleccionada", empresa.EmpresaID);
+
+        HttpContext.Session.SetString("EmpresaNombre", empresa.Nombre ?? "");
         HttpContext.Session.SetString("EmpresaLogo", string.IsNullOrEmpty(empresa.Logo) ? "default.jpg" : empresa.Logo);
         HttpContext.Session.SetString("ColorPrimario", string.IsNullOrEmpty(empresa.ColorPrimario) ? "#007bff" : empresa.ColorPrimario);
-        HttpContext.Session.SetString("Rol", usuario.Rol);
-        //Obtener nombre completo nde  un usuario y guardalo en la sesion
-        var nombreMostrar = await ObtenerNombreMostrarPorUsuarioAsync(usuario.UsuarioID);
 
-        if (!string.IsNullOrWhiteSpace(nombreMostrar))
-        {
-            HttpContext.Session.SetString("NombreMostrar", nombreMostrar);
-        }
-        else
-        {
-            // Respaldo: si no hay Persona, se usa el Username
-            HttpContext.Session.SetString("NombreMostrar", usuario.Username);
-        }
+        HttpContext.Session.SetString("Rol", rolSesion ?? "");
+        HttpContext.Session.SetString("NombreRol", rolSesion ?? "");
+        HttpContext.Session.SetInt32("RolID", rolId);
 
+        HttpContext.Session.SetString("NombreMostrar", nombreMostrar ?? usuario.Username ?? "");
+        HttpContext.Session.SetString("NombreCompleto", nombreMostrar ?? usuario.Username ?? "");
 
-        // ✅ AGREGAR ESTAS LÍNEAS - Variables que necesita Universidad NS
-        HttpContext.Session.SetInt32("RolID", rolId);                    // ← NUEVO
-        HttpContext.Session.SetInt32("EmpresaSeleccionada", empresa.EmpresaID); // ← NUEVO
+        HttpContext.Session.SetString("Correo", perfilSesion?.Correo ?? "");
+        HttpContext.Session.SetString("Email", perfilSesion?.Correo ?? "");
+        HttpContext.Session.SetString("CorreoUsuario", perfilSesion?.Correo ?? "");
+
+        HttpContext.Session.SetString("Telefono", perfilSesion?.Telefono ?? "");
+        HttpContext.Session.SetString("TelefonoUsuario", perfilSesion?.Telefono ?? "");
+
+        HttpContext.Session.SetString("DescripcionRol", perfilSesion?.DescripcionRol ?? "");
+        HttpContext.Session.SetString("DescripcionDelRol", perfilSesion?.DescripcionRol ?? "");
+        HttpContext.Session.SetString("RolDescripcion", perfilSesion?.DescripcionRol ?? "");
         // Cargar menú
         var menuUsuario = await ObtenerMenuEfectivoPorUsuarioAsync(usuario.UsuarioID, empresa.EmpresaID);
         HttpContext.Session.SetString("MenuUsuario", JsonConvert.SerializeObject(menuUsuario));
@@ -224,7 +249,7 @@ public class LoginController : Controller
         var claims = new List<Claim>
     {
         // Identidad humana
-        new Claim(ClaimTypes.Name, usuario.Username ?? $"user:{usuario.UsuarioID}"),
+        new Claim(ClaimTypes.Name, nombreMostrar ?? usuario.Username ?? $"user:{usuario.UsuarioID}"),
 
         // 👇 MUY IMPORTANTE: estos dos como numéricos
         new Claim("UsuarioID", usuario.UsuarioID.ToString()),
@@ -232,10 +257,19 @@ public class LoginController : Controller
 
         // Contexto empresa actual
         new Claim("EmpresaID", empresa.EmpresaID.ToString()),
+        new Claim("EmpresaId", empresa.EmpresaID.ToString()),
+
+        // Datos visibles del usuario
+        new Claim("Username", usuario.Username ?? ""),
+        new Claim("NombreMostrar", nombreMostrar ?? usuario.Username ?? ""),
+        new Claim("Correo", perfilSesion?.Correo ?? ""),
+        new Claim("Telefono", perfilSesion?.Telefono ?? ""),
 
         // Rol
-        new Claim(ClaimTypes.Role, usuario.Rol ?? "Usuario"),
-        new Claim("RolID", rolId.ToString())
+        new Claim(ClaimTypes.Role, rolSesion ?? "Usuario"),
+        new Claim("Rol", rolSesion ?? "Usuario"),
+        new Claim("RolID", rolId.ToString()),
+        new Claim("DescripcionRol", perfilSesion?.DescripcionRol ?? "")
     };
 
 
@@ -460,6 +494,106 @@ public class LoginController : Controller
     }
 
 
+    private sealed class PerfilSesionUsuario
+    {
+        public string NombreCompleto { get; set; } = "";
+        public string Correo { get; set; } = "";
+        public string Telefono { get; set; } = "";
+        public string Rol { get; set; } = "";
+        public string DescripcionRol { get; set; } = "";
+    }
+
+    private async Task<PerfilSesionUsuario?> ObtenerPerfilSesionUsuarioAsync(int usuarioId)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var columnaDescripcionRol = await ObtenerColumnaDescripcionRolAsync(connection);
+        var expresionDescripcionRol = string.IsNullOrWhiteSpace(columnaDescripcionRol)
+            ? "CAST('' AS nvarchar(500))"
+            : $"ISNULL(r.[{columnaDescripcionRol}], '')";
+
+        string query = $@"
+            SELECT TOP 1
+                LTRIM(RTRIM(
+                    ISNULL(p.Nombre, '') + ' ' +
+                    ISNULL(p.ApellidoPaterno, '') + ' ' +
+                    ISNULL(p.ApellidoMaterno, '')
+                )) AS NombreCompleto,
+                ISNULL(p.Correo, '') AS Correo,
+                ISNULL(p.Telefono, '') AS Telefono,
+                ISNULL(r.NombreRol, '') AS Rol,
+                {expresionDescripcionRol} AS DescripcionRol
+            FROM Usuarios u
+            INNER JOIN Persona p ON p.PersonaID = u.PersonaID
+            INNER JOIN Roles r ON r.RolID = u.RolID
+            WHERE u.UsuarioID = @UsuarioID
+              AND u.Activo = 1;";
+
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+        using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            return null;
+        }
+
+        var rol = reader["Rol"]?.ToString() ?? "";
+        var descripcionRol = reader["DescripcionRol"]?.ToString() ?? "";
+
+        if (string.IsNullOrWhiteSpace(descripcionRol))
+        {
+            descripcionRol = ObtenerDescripcionRolDefault(rol);
+        }
+
+        return new PerfilSesionUsuario
+        {
+            NombreCompleto = reader["NombreCompleto"]?.ToString() ?? "",
+            Correo = reader["Correo"]?.ToString() ?? "",
+            Telefono = reader["Telefono"]?.ToString() ?? "",
+            Rol = rol,
+            DescripcionRol = descripcionRol
+        };
+    }
+
+    private static async Task<string?> ObtenerColumnaDescripcionRolAsync(SqlConnection connection)
+    {
+        const string query = @"
+            SELECT TOP 1 c.name
+            FROM sys.columns c
+            INNER JOIN sys.objects o ON o.object_id = c.object_id
+            WHERE o.object_id = OBJECT_ID('dbo.Roles')
+              AND c.name IN ('DescripcionRol', 'Descripcion', 'DescripcionDelRol', 'RolDescripcion')
+            ORDER BY CASE c.name
+                WHEN 'DescripcionRol' THEN 1
+                WHEN 'Descripcion' THEN 2
+                WHEN 'DescripcionDelRol' THEN 3
+                WHEN 'RolDescripcion' THEN 4
+                ELSE 5
+            END;";
+
+        using var command = new SqlCommand(query, connection);
+        var result = await command.ExecuteScalarAsync();
+        return result?.ToString();
+    }
+
+    private static string ObtenerDescripcionRolDefault(string? rol)
+    {
+        if (string.IsNullOrWhiteSpace(rol))
+            return "";
+
+        return rol.Trim().ToUpperInvariant() switch
+        {
+            "USUARIO FINAL" => "Colaborador que accede y consulta contenidos del portal",
+            "COLABORADOR" => "Colaborador que accede y consulta contenidos del portal",
+            "ADMIN" => "Administrador del sistema con acceso a funciones de gestión",
+            "ADMINISTRADOR" => "Administrador del sistema con acceso a funciones de gestión",
+            _ => ""
+        };
+    }
+
     // ✅ AGREGAR ESTE MÉTODO NUEVO al final de tu LoginController
     private async Task<int> ObtenerRolIdPorUsuarioAsync(int usuarioId)
     {
@@ -516,6 +650,7 @@ public class LoginController : Controller
     //WHERE u.UsuarioID = @UsuarioID;
 
     [HttpGet]
+    [AllowAnonymous]
     public IActionResult VerificarSesion()
     {
         int? usuarioID = HttpContext.Session.GetInt32("UsuarioID");
@@ -525,6 +660,15 @@ public class LoginController : Controller
         return Json(new { sesionActiva = true });
     }
 
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult AccesoDenegado(string? returnUrl = null)
+    {
+        ViewBag.ReturnUrl = returnUrl;
+        return View();
+    }
+
+    [AllowAnonymous]
     public IActionResult Index()
     {
 
