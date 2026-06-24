@@ -2001,12 +2001,13 @@ WHERE S.SolicitudID = @id
             }
 
             string tipoGastoNormalizado = (vm.TipoGasto ?? "")
-    .Trim()
-    .ToUpper()
-    .Replace("Ó", "O");
+                .Trim()
+                .ToUpper()
+                .Replace("Ó", "O");
 
-
-            if (vm.Pasa && tipoGastoNormalizado == "REQUISICION" && string.IsNullOrWhiteSpace(vm.NumeroRequisicion))
+            if (vm.Pasa &&
+                tipoGastoNormalizado == "REQUISICION" &&
+                string.IsNullOrWhiteSpace(vm.NumeroRequisicion))
             {
                 TempData["Error"] = "Debes capturar el número de requisición.";
                 return RedirectToAction("Dictamen", new { id = vm.SolicitudID });
@@ -2044,34 +2045,51 @@ WHERE S.SolicitudID = @id
                         bool tieneArchivoDesviacion = false;
                         bool tieneFormatoRequisicion = false;
 
+                        decimal? montoPresupuestoSolicitado = null;
+                        decimal montoCotizado = 0;
+                        bool requiereDesviacionPorMonto = false;
+
                         string sqlValidarPresupuestoInicial = @"
 SELECT 
     S.FueraPresupuestoUsuario,
+    S.MontoPresupuestoSolicitado,
+    C.MontoTotal AS MontoCotizado,
+
     CASE 
         WHEN EXISTS (
             SELECT 1
             FROM Compras_Archivos A
             WHERE A.SolicitudID = S.SolicitudID
-              AND A.CotizacionID = S.CotizacionSeleccionadaID
               AND A.TipoArchivo = 'DESVIACION'
               AND A.Vigente = 1
               AND A.Activo = 1
+              AND (
+                    A.CotizacionID = S.CotizacionSeleccionadaID
+                    OR A.CotizacionID IS NULL
+                  )
         )
         THEN 1 ELSE 0
     END AS TieneArchivoDesviacion,
+
     CASE 
         WHEN EXISTS (
             SELECT 1
             FROM Compras_Archivos A
             WHERE A.SolicitudID = S.SolicitudID
-              AND A.CotizacionID = S.CotizacionSeleccionadaID
               AND A.TipoArchivo = 'FORMATO_REQUISICION'
               AND A.Vigente = 1
               AND A.Activo = 1
+              AND (
+                    A.CotizacionID = S.CotizacionSeleccionadaID
+                    OR A.CotizacionID IS NULL
+                  )
         )
         THEN 1 ELSE 0
     END AS TieneFormatoRequisicion
+
 FROM Compras_Solicitud S
+INNER JOIN Compras_Cotizaciones C
+    ON S.CotizacionSeleccionadaID = C.CotizacionID
 WHERE S.SolicitudID = @SolicitudID
   AND S.EstatusID = 4";
 
@@ -2092,34 +2110,64 @@ WHERE S.SolicitudID = @SolicitudID
                                     reader["FueraPresupuestoUsuario"] != DBNull.Value
                                     && Convert.ToBoolean(reader["FueraPresupuestoUsuario"]);
 
+                                montoPresupuestoSolicitado =
+                                    reader["MontoPresupuestoSolicitado"] == DBNull.Value
+                                        ? null
+                                        : Convert.ToDecimal(reader["MontoPresupuestoSolicitado"]);
+
+                                montoCotizado =
+                                    reader["MontoCotizado"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToDecimal(reader["MontoCotizado"]);
+
+                                requiereDesviacionPorMonto =
+                                    montoPresupuestoSolicitado.HasValue
+                                    && montoCotizado > montoPresupuestoSolicitado.Value;
+
                                 tieneArchivoDesviacion =
-    reader["TieneArchivoDesviacion"] != DBNull.Value
-    && Convert.ToInt32(reader["TieneArchivoDesviacion"]) == 1;
+                                    reader["TieneArchivoDesviacion"] != DBNull.Value
+                                    && Convert.ToInt32(reader["TieneArchivoDesviacion"]) == 1;
 
                                 tieneFormatoRequisicion =
-    reader["TieneFormatoRequisicion"] != DBNull.Value
-    && Convert.ToInt32(reader["TieneFormatoRequisicion"]) == 1;
-
+                                    reader["TieneFormatoRequisicion"] != DBNull.Value
+                                    && Convert.ToInt32(reader["TieneFormatoRequisicion"]) == 1;
                             }
                         }
 
-                        if (vm.Pasa && vm.DentroDePresupuesto == false && !tieneArchivoDesviacion)
+                        bool requiereDesviacion =
+                            fueraPresupuestoUsuario ||
+                            requiereDesviacionPorMonto ||
+                            vm.DentroDePresupuesto == false;
+
+                        if (vm.Pasa && requiereDesviacion && !tieneArchivoDesviacion)
                         {
                             trans.Rollback();
-                            TempData["Error"] = "No puedes aprobar como fuera de presupuesto porque no existe archivo de desviación cargado.";
+
+                            TempData["Error"] =
+                                "No puedes aprobar esta solicitud porque requiere desviación y no existe archivo de desviación vigente.";
+
                             return RedirectToAction("Dictamen", new { id = vm.SolicitudID });
                         }
 
-                        if (vm.Pasa && fueraPresupuestoUsuario && vm.DentroDePresupuesto == true)
+                        if (vm.Pasa && requiereDesviacion && vm.DentroDePresupuesto == true)
                         {
                             trans.Rollback();
-                            TempData["Error"] = "El solicitante marcó esta compra como fuera de presupuesto. Revisa la desviación antes de dictaminarla como dentro de presupuesto.";
+
+                            TempData["Error"] =
+                                "La solicitud requiere desviación. No puede dictaminarse como dentro de presupuesto.";
+
                             return RedirectToAction("Dictamen", new { id = vm.SolicitudID });
                         }
-                        if (vm.Pasa && tipoGastoNormalizado == "REQUISICION" && !tieneFormatoRequisicion)
+
+                        if (vm.Pasa &&
+                            tipoGastoNormalizado == "REQUISICION" &&
+                            !tieneFormatoRequisicion)
                         {
                             trans.Rollback();
-                            TempData["Error"] = "No puedes aprobar como requisición porque no existe formato de requisición vigente cargado.";
+
+                            TempData["Error"] =
+                                "No puedes aprobar como requisición porque no existe formato de requisición vigente cargado.";
+
                             return RedirectToAction("Dictamen", new { id = vm.SolicitudID });
                         }
 
@@ -2138,13 +2186,28 @@ WHERE SolicitudID = @Sid
                         {
                             cmd.Parameters.AddWithValue("@Est", nuevoEstatus);
                             cmd.Parameters.AddWithValue("@Sid", vm.SolicitudID);
-                            cmd.Parameters.AddWithValue("@Tipo", vm.Pasa ? (object)tipoGastoNormalizado : DBNull.Value);
-                            cmd.Parameters.AddWithValue("@Dentro", vm.Pasa ? (object)vm.DentroDePresupuesto : DBNull.Value);
-                            cmd.Parameters.AddWithValue("@Requi",
-    (vm.Pasa && tipoGastoNormalizado == "REQUISICION")
-        ? (object)(vm.NumeroRequisicion ?? "")
-        : DBNull.Value);
-                            cmd.Parameters.AddWithValue("@Obs", (object?)vm.Observaciones ?? DBNull.Value);
+
+                            cmd.Parameters.AddWithValue(
+                                "@Tipo",
+                                vm.Pasa ? (object)tipoGastoNormalizado : DBNull.Value
+                            );
+
+                            cmd.Parameters.AddWithValue(
+                                "@Dentro",
+                                vm.Pasa ? (object)vm.DentroDePresupuesto : DBNull.Value
+                            );
+
+                            cmd.Parameters.AddWithValue(
+                                "@Requi",
+                                (vm.Pasa && tipoGastoNormalizado == "REQUISICION")
+                                    ? (object)(vm.NumeroRequisicion ?? "")
+                                    : DBNull.Value
+                            );
+
+                            cmd.Parameters.AddWithValue(
+                                "@Obs",
+                                (object?)vm.Observaciones ?? DBNull.Value
+                            );
 
                             int filas = await cmd.ExecuteNonQueryAsync();
 
@@ -2170,6 +2233,7 @@ VALUES
 
                             await cmdHist.ExecuteNonQueryAsync();
                         }
+
                         trans.Commit();
 
                         await NotificarSolicitante_DictamenPresupuestalAsync(
@@ -2191,12 +2255,12 @@ VALUES
 
                         _logger.LogError(ex, "Error al actualizar Compras_Solicitud");
 
-                        return View("Dictamen", vm);
+                        TempData["Error"] = "Ocurrió un error al procesar el dictamen.";
+                        return RedirectToAction("Dictamen", new { id = vm.SolicitudID });
                     }
                 }
             }
         }
-
 
 
         [HttpGet("BandejaPresupuestos")]
@@ -5473,6 +5537,11 @@ VALUES
 
                         trans.Commit();
 
+                        await NotificarSolicitante_DocumentosSolicitadosAsync(
+                            solicitudId,
+                            observaciones.Trim()
+                        );
+
                         TempData["Mensaje"] = "Se solicitó documentación adicional al usuario.";
 
                         return RedirectToAction("BandejaPresupuestos");
@@ -5490,6 +5559,93 @@ VALUES
             }
         }
 
+        //METODO PARA SOLICITAR DOCUMENTOS
+
+        private async Task NotificarSolicitante_DocumentosSolicitadosAsync(
+    int solicitudId,
+    string observaciones)
+        {
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                string sql = @"
+SELECT 
+    ISNULL(S.Folio, 'COM-' + RIGHT('00000' + CAST(S.SolicitudID AS VARCHAR(10)), 5)) AS Folio,
+    P.PersonaID,
+    P.Nombre + ' ' + P.ApellidoPaterno AS Solicitante
+FROM Compras_Solicitud S
+INNER JOIN Usuarios U 
+    ON S.UsuarioID = U.UsuarioID
+INNER JOIN Persona P 
+    ON U.PersonaID = P.PersonaID
+WHERE S.SolicitudID = @SolicitudID";
+
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+
+                if (!await rd.ReadAsync())
+                    return;
+
+                int personaId = Convert.ToInt32(rd["PersonaID"]);
+
+                string folio = rd["Folio"]?.ToString()
+                    ?? $"COM-{solicitudId.ToString().PadLeft(5, '0')}";
+
+                string solicitante = rd["Solicitante"]?.ToString()
+                    ?? "Solicitante";
+
+                string asunto = $"Documentación requerida para tu solicitud - {folio}";
+
+                string html = $@"
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+  <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+    <div style='padding:20px; background:#f97316; color:#fff; text-align:center;'>
+      <h2 style='margin:0;'>Documentación requerida</h2>
+    </div>
+
+    <div style='padding:20px; color:#333;'>
+      <p>Hola <strong>{System.Net.WebUtility.HtmlEncode(solicitante)}</strong>,</p>
+
+      <p>Control Presupuestal revisó tu solicitud y requiere documentación adicional o corrección de documentos antes de emitir dictamen.</p>
+
+      <div style='background:#fff7ed; border-left:4px solid #f97316; padding:12px 14px; border-radius:6px; margin:14px 0;'>
+        <p style='margin:0 0 6px;'><strong>Folio:</strong> {System.Net.WebUtility.HtmlEncode(folio)}</p>
+        <p style='margin:0;'><strong>Observaciones:</strong> {System.Net.WebUtility.HtmlEncode(observaciones)}</p>
+      </div>
+
+      <p>Ingresa a la Intranet, módulo <strong>Compras</strong>, revisa el detalle de la solicitud y vuelve a confirmar la documentación presupuestal.</p>
+      <p>https://intranet.nsgroup.com.mx/</p>
+
+      <p style='color:#666; font-size:12px; margin-top:18px;'>
+        Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.
+      </p>
+    </div>
+  </div>
+</body>
+</html>";
+
+                await _notif.EnviarABccPersonasAsync(
+                    new List<int> { personaId },
+                    asunto,
+                    html
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error enviando correo de solicitud de documentos. SolicitudID={SolicitudID}",
+                    solicitudId
+                );
+            }
+        }
 
     }
 }

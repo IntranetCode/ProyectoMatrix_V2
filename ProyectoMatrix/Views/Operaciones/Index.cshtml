@@ -3,7 +3,7 @@
 @using System.Text.Json.Serialization
 
 @{
-    ViewData["Title"] = "Dashboard KPIs";
+    ViewData["Title"] = "Dashboard KPIs V2";
     Layout = "_LayoutComunicados";
 
     var jsonOptions = new JsonSerializerOptions
@@ -1514,6 +1514,146 @@ body:has(.kpis-shell) .container-xxl {
         overflow: hidden !important;
     }
 
+
+
+    /* ==========================================================
+       RENDIMIENTO GENERAL: SELECTOR Y TERMOMETRO
+       ========================================================== */
+    .ops-global-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .ops-chart-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px;
+        border-radius: 999px;
+        background: rgba(226, 232, 240, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.34);
+    }
+
+    .ops-chart-mode-btn {
+        border: 0;
+        min-height: 32px;
+        padding: 0 11px;
+        border-radius: 999px;
+        background: transparent;
+        color: #475569;
+        font-size: .72rem;
+        font-weight: 950;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all .16s ease;
+        white-space: nowrap;
+    }
+
+    .ops-chart-mode-btn:hover {
+        background: rgba(255, 255, 255, 0.82);
+        color: #075985;
+    }
+
+    .ops-chart-mode-btn.active {
+        background: #ffffff;
+        color: #0f172a;
+        box-shadow: 0 7px 16px rgba(15, 23, 42, 0.10);
+    }
+
+    .ops-global-chart-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 999px;
+        padding: 7px 10px;
+        background: #eef6ff;
+        color: #33506d;
+        font-size: .74rem;
+        font-weight: 900;
+        border: 1px solid #dbeafe;
+    }
+
+
+
+    /* ==========================================================
+       KPIs AUTOMATICOS DE COMPRAS
+       ========================================================== */
+    .ops-general-card,
+    .ops-compras-card {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ops-general-card::before,
+    .ops-compras-card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 12px;
+        bottom: 12px;
+        width: 4px;
+        border-radius: 999px;
+        background: #0ea5e9;
+        opacity: .95;
+    }
+
+    .ops-compras-card::before {
+        background: #f97316;
+    }
+
+    .ops-compras-card .ops-depto-name i {
+        color: #ea580c;
+    }
+
+    .ops-compras-card.active {
+        border-color: rgba(249, 115, 22, .58) !important;
+        background: linear-gradient(135deg, #fff7ed, #ffffff) !important;
+        box-shadow: 0 14px 32px rgba(249, 115, 22, .16) !important;
+    }
+
+    .ops-general-card.active {
+        border-color: rgba(14, 165, 233, .58) !important;
+        background: linear-gradient(135deg, #e0f2fe, #ffffff) !important;
+    }
+
+    .ops-auto-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 7px 11px;
+        background: #ecfeff;
+        border: 1px solid #bae6fd;
+        color: #075985;
+        font-size: .74rem;
+        font-weight: 950;
+    }
+
+    .ops-kpi-grid.compras-grid .ops-kpi-card {
+        grid-column: auto !important;
+    }
+
+    .ops-kpi-grid.compras-grid .ops-kpi-chart {
+        height: 340px !important;
+        min-height: 340px !important;
+    }
+
+    @@media (max-width: 768px) {
+        .ops-global-actions {
+            justify-content: flex-start;
+            width: 100%;
+        }
+
+        .ops-chart-switch {
+            width: 100%;
+            overflow-x: auto;
+        }
+    }
+
 </style>
 
 <div class="ops-v2-page">
@@ -1580,12 +1720,35 @@ body:has(.kpis-shell) .container-xxl {
             <aside class="ops-panel ops-sidebar">
                 <div class="ops-sidebar-title">
                     <h3><i class="fas fa-sitemap me-1"></i> Áreas</h3>
-                    <button type="button" class="ops-btn" id="btnGeneral" style="padding: 7px 10px; font-size: .76rem;">
-                        General
-                    </button>
                 </div>
 
                 <div class="ops-depto-list" id="departamentosList">
+                    <button type="button"
+                            class="ops-depto-item active ops-general-card"
+                            id="navGeneralItem">
+                        <div class="ops-depto-name">
+                            <i class="fas fa-layer-group me-1"></i>
+                            GENERAL
+                        </div>
+                        <div class="ops-depto-meta">
+                            <span>Vista global</span>
+                            <span>Todos</span>
+                        </div>
+                    </button>
+
+                    <button type="button"
+                            class="ops-depto-item ops-compras-card"
+                            id="navComprasItem">
+                        <div class="ops-depto-name">
+                            <i class="fas fa-cart-shopping me-1"></i>
+                            COMPRAS
+                        </div>
+                        <div class="ops-depto-meta">
+                            <span id="comprasCardMeta">KPI automático</span>
+                            <span id="comprasCardPct">Módulo</span>
+                        </div>
+                    </button>
+
                     @foreach (var depto in Model.Departamentos)
                     {
                         <button type="button"
@@ -1651,9 +1814,24 @@ body:has(.kpis-shell) .container-xxl {
                             @Model.Dashboard.TotalKpis KPI(s) evaluados · @Model.Dashboard.KpisCumplidos cumplen meta · @Model.Dashboard.KpisNoCumplidos requieren atención
                         </p>
                     </div>
-                    <div class="ops-badge neutral" id="dashboardScopeBadge">
-                        <i class="fas fa-layer-group"></i>
-                        <span>@(Model.DepartamentoSeleccionadoID.HasValue ? "Área seleccionada" : "Vista general")</span>
+
+                    <div class="ops-global-actions">
+                        <div class="ops-badge neutral" id="dashboardScopeBadge">
+                            <i class="fas fa-layer-group"></i>
+                            <span>@(Model.DepartamentoSeleccionadoID.HasValue ? "Área seleccionada" : "Vista general")</span>
+                        </div>
+
+                        <div class="ops-chart-switch" aria-label="Cambiar gráfica de rendimiento general">
+                            <button type="button" class="ops-chart-mode-btn active" data-global-chart-mode="resumen">
+                                <i class="fas fa-chart-column"></i> Resumen
+                            </button>
+                            <button type="button" class="ops-chart-mode-btn" data-global-chart-mode="porcentaje">
+                                <i class="fas fa-percent"></i> Cumplimiento
+                            </button>
+                            <button type="button" class="ops-chart-mode-btn" data-global-chart-mode="termometro">
+                                <i class="fas fa-temperature-half"></i> Termómetro
+                            </button>
+                        </div>
                     </div>
                 </section>
 
@@ -1709,6 +1887,7 @@ body:has(.kpis-shell) .container-xxl {
                 </span>
 
                 <div class="d-flex gap-2">
+        
                     <button type="button"
                             class="btn btn-secondary fw-bold rounded-pill px-3"
                             data-bs-dismiss="modal">
@@ -1730,11 +1909,13 @@ body:has(.kpis-shell) .container-xxl {
 
 <script>
     const initialDashboard = @Html.Raw(JsonSerializer.Serialize(Model.Dashboard, jsonOptions));
+    const departamentosBase = @Html.Raw(JsonSerializer.Serialize(Model.Departamentos, jsonOptions));
     const initialDepartamentoId = @(Model.DepartamentoSeleccionadoID.HasValue ? Model.DepartamentoSeleccionadoID.Value.ToString() : "null");
 
     const endpoints = {
         general: '@Url.Action("ObtenerDashboardGeneral", "Operaciones")',
-        departamento: '@Url.Action("ObtenerDashboardDepartamento", "Operaciones")'
+        departamento: '@Url.Action("ObtenerDashboardDepartamento", "Operaciones")',
+        compras: '@Url.Action("ObtenerKpisCompras", "Operaciones")'
     };
 
     const dashboardState = {
@@ -1742,10 +1923,13 @@ body:has(.kpis-shell) .container-xxl {
         filtroTiempo: document.getElementById('filtroTiempo').value || 'anio',
         mes: document.getElementById('filtroMes').value || '',
         semana: document.getElementById('filtroSemana').value || '',
-        dia: document.getElementById('filtroDia').value || ''
+        dia: document.getElementById('filtroDia').value || '',
+        globalChartMode: 'resumen',
+        viewMode: 'kpis'
     };
 
     let dashboardActual = initialDashboard;
+    let comprasActual = null;
     const chartInstances = new Map();
 
     function pick(obj, ...keys) {
@@ -1804,6 +1988,12 @@ body:has(.kpis-shell) .container-xxl {
 
     async function cargarDashboard() {
         updateFilterStateFromUi();
+
+        if (dashboardState.viewMode === 'compras') {
+            await cargarDashboardCompras();
+            return;
+        }
+
         showLoading(true);
 
         const params = new URLSearchParams();
@@ -1841,12 +2031,20 @@ body:has(.kpis-shell) .container-xxl {
     }
 
     function setDepartamentoActivo(idDepartamento) {
+        dashboardState.viewMode = 'kpis';
         dashboardState.departamentoId = idDepartamento && Number(idDepartamento) > 0 ? Number(idDepartamento) : null;
 
-        document.querySelectorAll('.ops-depto-item').forEach(btn => {
+        document.getElementById('navGeneralItem')?.classList.remove('active');
+        document.getElementById('navComprasItem')?.classList.remove('active');
+
+        document.querySelectorAll('.ops-depto-item[data-departamento-id]').forEach(btn => {
             const id = Number(btn.dataset.departamentoId);
             btn.classList.toggle('active', dashboardState.departamentoId === id);
         });
+
+        if (!dashboardState.departamentoId) {
+            document.getElementById('navGeneralItem')?.classList.add('active');
+        }
 
         cargarDashboard();
     }
@@ -1857,12 +2055,349 @@ body:has(.kpis-shell) .container-xxl {
         document.getElementById('filtroMes').value = String(new Date().getMonth() + 1);
         document.getElementById('filtroSemana').value = '1';
         document.getElementById('filtroDia').value = '';
+        dashboardState.viewMode = 'kpis';
         document.querySelectorAll('.ops-depto-item').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('navGeneralItem')?.classList.add('active');
         cargarDashboard();
+    }
+
+    function activarVistaKpis() {
+        dashboardState.viewMode = 'kpis';
+        dashboardState.departamentoId = null;
+        document.querySelectorAll('.ops-depto-item').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('navGeneralItem')?.classList.add('active');
+        document.getElementById('departamentosList')?.classList.remove('compras-mode');
+        cargarDashboard();
+    }
+
+    function activarVistaCompras() {
+        dashboardState.viewMode = 'compras';
+        dashboardState.departamentoId = null;
+        document.querySelectorAll('.ops-depto-item').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('navComprasItem')?.classList.add('active');
+        cargarDashboardCompras();
+    }
+
+    function obtenerNombreDepartamentoActivo() {
+        if (!dashboardState.departamentoId) return '';
+        const depto = departamentosBase.find(d => Number(pick(d, 'departamentoID', 'DepartamentoID', 'departamentoId')) === Number(dashboardState.departamentoId));
+        return pick(depto, 'nombreDepartamento', 'NombreDepartamento') || '';
+    }
+
+    function obtenerAnioComprasDesdeFiltro() {
+        const filtro = dashboardState.filtroTiempo || 'anio';
+        if (filtro === 'historico') return '';
+        const dia = document.getElementById('filtroDia')?.value;
+        if (filtro === 'dia' && dia) return new Date(dia).getFullYear();
+        return new Date().getFullYear();
+    }
+
+    function obtenerMesComprasDesdeFiltro() {
+        const filtro = dashboardState.filtroTiempo || 'anio';
+        if (filtro === 'mes') return dashboardState.mes || '';
+        if (filtro === 'dia') {
+            const dia = document.getElementById('filtroDia')?.value;
+            if (dia) return new Date(dia).getMonth() + 1;
+        }
+        return '';
+    }
+
+    async function cargarDashboardCompras() {
+        updateFilterStateFromUi();
+        showLoading(true);
+
+        const params = new URLSearchParams();
+        const anio = obtenerAnioComprasDesdeFiltro();
+        const mes = obtenerMesComprasDesdeFiltro();
+        const departamento = obtenerNombreDepartamentoActivo();
+
+        if (anio) params.set('anio', anio);
+        if (mes) params.set('mes', mes);
+        if (departamento) params.set('departamento', departamento);
+
+        try {
+            const response = await fetch(`${endpoints.compras}?${params.toString()}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (!response.ok) {
+                console.warn('No se pudo cargar KPIs automáticos de Compras.');
+                return;
+            }
+
+            const payload = await response.json();
+            comprasActual = payload;
+            renderDashboardCompras(payload);
+        } catch (error) {
+            console.error('Error al cargar KPIs de Compras:', error);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+
+    function actualizarTarjetaComprasSidebar(data) {
+        const total = Number(pick(data, 'totalSolicitudes', 'TotalSolicitudes')) || 0;
+        const cumplimiento = Number(pick(data, 'cumplimientoSla', 'CumplimientoSla')) || 0;
+
+        const meta = document.getElementById('comprasCardMeta');
+        const pct = document.getElementById('comprasCardPct');
+
+        if (meta) meta.textContent = `${total} solicitud(es)`;
+        if (pct) pct.textContent = `${cumplimiento.toFixed(2)}%`;
+    }
+
+    function renderDashboardCompras(data) {
+        if (!data) return;
+
+        const total = toNumber(pick(data, 'totalSolicitudes', 'TotalSolicitudes'));
+        const cerradas = toNumber(pick(data, 'totalCerradas', 'TotalCerradas'));
+        const retrasadas = toNumber(pick(data, 'totalRetrasadas', 'TotalRetrasadas'));
+        const cumplimiento = toNumber(pick(data, 'cumplimientoSla', 'CumplimientoSla'));
+        const promedioDias = toNumber(pick(data, 'promedioDiasCompra', 'PromedioDiasCompra'));
+        const departamento = obtenerNombreDepartamentoActivo();
+
+        document.getElementById('dashboardTitle').textContent = departamento ? `Compras · ${departamento}` : 'KPIs automáticos de Compras';
+        document.getElementById('dashboardSubtitle').textContent = `${total} solicitudes evaluadas · ${cerradas} cerradas · ${retrasadas} retrasadas · ${cumplimiento.toFixed(2)}% SLA`;
+        document.querySelector('#dashboardScopeBadge span').textContent = 'Fuente automática: módulo Compras';
+
+        renderSummaryCardsCompras(data);
+        renderGlobalChartCompras(data);
+        renderKpiGridCompras(data);
+    }
+
+    function renderSummaryCardsCompras(data) {
+        const target = document.getElementById('summaryCards');
+        const total = toNumber(pick(data, 'totalSolicitudes', 'TotalSolicitudes'));
+        const cerradas = toNumber(pick(data, 'totalCerradas', 'TotalCerradas'));
+        const retrasadas = toNumber(pick(data, 'totalRetrasadas', 'TotalRetrasadas'));
+        const cumplimiento = toNumber(pick(data, 'cumplimientoSla', 'CumplimientoSla'));
+        const promedioDias = toNumber(pick(data, 'promedioDiasCompra', 'PromedioDiasCompra'));
+
+        const cards = [
+            { estado: 'neutral', icono: 'fas fa-file-invoice', titulo: 'Solicitudes', valor: total, subtitulo: 'Compras evaluadas' },
+            { estado: 'success', icono: 'fas fa-circle-check', titulo: 'Cerradas', valor: cerradas, subtitulo: 'Estatus finalizado' },
+            { estado: retrasadas > 0 ? 'danger' : 'success', icono: 'fas fa-triangle-exclamation', titulo: 'Retrasadas', valor: retrasadas, subtitulo: 'Fuera de días permitidos' },
+            { estado: cumplimiento >= 90 ? 'success' : 'warning', icono: 'fas fa-gauge-high', titulo: 'Cumplimiento SLA', valor: `${cumplimiento.toFixed(2)}%`, subtitulo: 'A tiempo / evaluables' },
+            { estado: 'neutral', icono: 'fas fa-clock', titulo: 'Tiempo promedio', valor: `${promedioDias.toFixed(2)} días`, subtitulo: 'Días hábiles transcurridos' }
+        ];
+
+        target.innerHTML = cards.map(card => `
+            <article class="ops-panel ops-summary-card state-${card.estado}">
+                <div class="ops-summary-top">
+                    <span class="ops-summary-icon"><i class="${card.icono}"></i></span>
+                    <span class="ops-summary-title">${escapeHtml(card.titulo)}</span>
+                </div>
+                <div class="ops-summary-value">${escapeHtml(card.valor)}</div>
+                <div class="ops-summary-subtitle">${escapeHtml(card.subtitulo)}</div>
+            </article>
+        `).join('');
+    }
+
+    function renderGlobalChartCompras(data) {
+        const el = document.getElementById('globalChart');
+        const departamentos = safeArray(pick(data, 'porDepartamento', 'PorDepartamento'));
+
+        disposeChart('globalChart');
+        const chart = echarts.init(el);
+        chartInstances.set('globalChart', chart);
+
+        if (!departamentos.length) {
+            el.style.height = '360px';
+            chart.setOption(emptyChartOption('Sin datos de Compras para el filtro actual'));
+            return;
+        }
+
+        const height = Math.max(340, Math.min(640, (departamentos.length * 54) + 160));
+        el.style.height = `${height}px`;
+        chart.resize();
+
+        if (dashboardState.globalChartMode === 'termometro') {
+            chart.setOption(buildComprasThermometerOption(data));
+            return;
+        }
+
+        if (dashboardState.globalChartMode === 'porcentaje') {
+            chart.setOption(buildComprasCumplimientoDeptoOption(departamentos));
+            return;
+        }
+
+        chart.setOption(buildComprasTiempoDeptoOption(departamentos));
+    }
+
+    function renderKpiGridCompras(data) {
+        disposeKpiCharts();
+        const grid = document.getElementById('kpiGrid');
+        grid.classList.add('compras-grid');
+
+        grid.innerHTML = `
+            <article class="ops-panel ops-kpi-card">
+                <div class="ops-kpi-head">
+                    <div>
+                        <h3 class="ops-kpi-title">Retrasadas por departamento</h3>
+                        <div class="ops-kpi-subtitle">Conteo de solicitudes fuera de tiempo</div>
+                    </div>
+                    <span class="ops-auto-note"><i class="fas fa-database"></i> Compras</span>
+                </div>
+                <div id="comprasRetrasadasChart" class="ops-kpi-chart"></div>
+            </article>
+
+            <article class="ops-panel ops-kpi-card">
+                <div class="ops-kpi-head">
+                    <div>
+                        <h3 class="ops-kpi-title">Cuello de botella por etapa</h3>
+                        <div class="ops-kpi-subtitle">Promedio de días por etapa del flujo</div>
+                    </div>
+                    <span class="ops-auto-note"><i class="fas fa-route"></i> Flujo</span>
+                </div>
+                <div id="comprasEtapasChart" class="ops-kpi-chart"></div>
+            </article>
+
+            <article class="ops-panel ops-kpi-card">
+                <div class="ops-kpi-head">
+                    <div>
+                        <h3 class="ops-kpi-title">Carga por comprador</h3>
+                        <div class="ops-kpi-subtitle">Solicitudes asignadas y retrasadas</div>
+                    </div>
+                    <span class="ops-auto-note"><i class="fas fa-users-gear"></i> Compradores</span>
+                </div>
+                <div id="comprasCompradoresChart" class="ops-kpi-chart"></div>
+            </article>
+        `;
+
+        renderSimpleChart('comprasRetrasadasChart', buildComprasRetrasadasDeptoOption(safeArray(pick(data, 'porDepartamento', 'PorDepartamento'))));
+        renderSimpleChart('comprasEtapasChart', buildComprasEtapasOption(safeArray(pick(data, 'cuelloBotella', 'CuelloBotella'))));
+        renderSimpleChart('comprasCompradoresChart', buildComprasCompradoresOption(safeArray(pick(data, 'porComprador', 'PorComprador'))));
+    }
+
+    function renderSimpleChart(id, option) {
+        disposeChart(id);
+        const el = document.getElementById(id);
+        if (!el) return;
+        const chart = echarts.init(el);
+        chartInstances.set(id, chart);
+        chart.setOption(option);
+    }
+
+    function buildComprasTiempoDeptoOption(departamentos) {
+        const data = departamentos
+            .map(x => ({
+                departamento: pick(x, 'departamento', 'Departamento') || 'Sin departamento',
+                promedio: toNumber(pick(x, 'promedioDias', 'PromedioDias')),
+                permitido: toNumber(pick(x, 'promedioDiasPermitidos', 'PromedioDiasPermitidos'))
+            }))
+            .sort((a, b) => b.promedio - a.promedio);
+
+        return {
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true },
+            legend: { top: 4 },
+            grid: { left: 155, right: 36, top: 58, bottom: 42 },
+            xAxis: { type: 'value', name: 'Días', splitLine: { lineStyle: { type: 'dashed' } } },
+            yAxis: { type: 'category', data: data.map(x => x.departamento), axisLabel: { fontWeight: 850 } },
+            series: [
+                { name: 'Promedio real', type: 'bar', data: data.map(x => x.promedio), barMaxWidth: 24, itemStyle: { borderRadius: [0, 10, 10, 0], color: '#0ea5e9' }, label: { show: true, position: 'right', formatter: '{c} d' } },
+                { name: 'Días permitidos', type: 'line', data: data.map(x => x.permitido), symbolSize: 8, lineStyle: { type: 'dashed', width: 2, color: '#f59e0b' }, itemStyle: { color: '#f59e0b' } }
+            ]
+        };
+    }
+
+    function buildComprasCumplimientoDeptoOption(departamentos) {
+        const data = departamentos
+            .map(x => ({
+                departamento: pick(x, 'departamento', 'Departamento') || 'Sin departamento',
+                cumplimiento: toNumber(pick(x, 'cumplimientoSla', 'CumplimientoSla'))
+            }))
+            .sort((a, b) => b.cumplimiento - a.cumplimiento);
+
+        return {
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true, valueFormatter: v => `${v}%` },
+            grid: { left: 155, right: 36, top: 42, bottom: 42 },
+            xAxis: { type: 'value', min: 0, max: 100, axisLabel: { formatter: '{value}%' }, splitLine: { lineStyle: { type: 'dashed' } } },
+            yAxis: { type: 'category', data: data.map(x => x.departamento), axisLabel: { fontWeight: 850 } },
+            series: [{
+                name: 'Cumplimiento SLA',
+                type: 'bar',
+                data: data.map(x => ({ value: x.cumplimiento, itemStyle: { color: x.cumplimiento >= 90 ? '#16a34a' : x.cumplimiento >= 70 ? '#f59e0b' : '#ef4444' } })),
+                barMaxWidth: 26,
+                label: { show: true, position: 'right', formatter: '{c}%' },
+                markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: '#0f172a' }, label: { formatter: 'Meta 90%' }, data: [{ xAxis: 90 }] }
+            }]
+        };
+    }
+
+    function buildComprasThermometerOption(data) {
+        const cumplimiento = toNumber(pick(data, 'cumplimientoSla', 'CumplimientoSla'));
+        const meta = toNumber(pick(data, 'metaCumplimientoSla', 'MetaCumplimientoSla')) || 90;
+        const color = cumplimiento >= meta ? '#16a34a' : cumplimiento >= 70 ? '#f59e0b' : '#ef4444';
+
+        return {
+            title: { text: 'Cumplimiento SLA Compras', subtext: 'Solicitudes a tiempo / solicitudes evaluables', left: 18, top: 10, textStyle: { fontWeight: 950, fontSize: 15 }, subtextStyle: { color: '#64748b', fontWeight: 750 } },
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: () => `Cumplimiento: <strong>${cumplimiento.toFixed(2)}%</strong><br/>Meta: <strong>${meta}%</strong>` },
+            grid: { left: 52, right: 62, top: 95, bottom: 62 },
+            xAxis: { type: 'value', min: 0, max: 100, axisLabel: { formatter: '{value}%' }, splitLine: { lineStyle: { type: 'dashed' } } },
+            yAxis: { type: 'category', data: ['SLA'], axisLabel: { fontWeight: 950 } },
+            series: [
+                { name: 'Base', type: 'bar', data: [100], barMaxWidth: 44, barGap: '-100%', silent: true, itemStyle: { borderRadius: 999, color: '#e5edf6' } },
+                { name: 'Cumplimiento', type: 'bar', data: [cumplimiento], barMaxWidth: 44, itemStyle: { borderRadius: 999, color }, label: { show: true, position: 'right', formatter: `${cumplimiento.toFixed(2)}%`, fontWeight: 950 }, markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: '#f59e0b', width: 2 }, label: { formatter: `Meta ${meta}%`, fontWeight: 900 }, data: [{ xAxis: meta }] } }
+            ]
+        };
+    }
+
+    function buildComprasRetrasadasDeptoOption(departamentos) {
+        const data = departamentos
+            .map(x => ({ departamento: pick(x, 'departamento', 'Departamento') || 'Sin departamento', retrasadas: toNumber(pick(x, 'retrasadas', 'Retrasadas')), total: toNumber(pick(x, 'totalSolicitudes', 'TotalSolicitudes')) }))
+            .sort((a, b) => b.retrasadas - a.retrasadas)
+            .slice(0, 10);
+
+        if (!data.length) return emptyChartOption('Sin solicitudes retrasadas');
+
+        return {
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true },
+            grid: { left: 135, right: 28, top: 34, bottom: 34 },
+            xAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed' } } },
+            yAxis: { type: 'category', data: data.map(x => x.departamento), axisLabel: { fontWeight: 850 } },
+            series: [{ name: 'Retrasadas', type: 'bar', data: data.map(x => x.retrasadas), barMaxWidth: 22, itemStyle: { borderRadius: [0, 10, 10, 0], color: '#ef4444' }, label: { show: true, position: 'right' } }]
+        };
+    }
+
+    function buildComprasEtapasOption(etapas) {
+        const data = etapas.map(x => ({ etapa: pick(x, 'etapa', 'Etapa') || 'Etapa', dias: toNumber(pick(x, 'promedioDias', 'PromedioDias')) }));
+        if (!data.length) return emptyChartOption('Sin datos por etapa');
+
+        return {
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true },
+            grid: { left: 52, right: 24, top: 34, bottom: 58 },
+            xAxis: { type: 'category', data: data.map(x => x.etapa), axisLabel: { interval: 0, rotate: 25 } },
+            yAxis: { type: 'value', name: 'Días', splitLine: { lineStyle: { type: 'dashed' } } },
+            series: [{ name: 'Promedio días', type: 'bar', data: data.map(x => x.dias), barMaxWidth: 34, itemStyle: { borderRadius: [10, 10, 0, 0], color: '#0ea5e9' }, label: { show: true, position: 'top', formatter: '{c} d' } }]
+        };
+    }
+
+    function buildComprasCompradoresOption(compradores) {
+        const data = compradores
+            .map(x => ({ comprador: pick(x, 'comprador', 'Comprador') || 'Sin asignar', total: toNumber(pick(x, 'totalSolicitudes', 'TotalSolicitudes')), retrasadas: toNumber(pick(x, 'retrasadas', 'Retrasadas')) }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 10);
+
+        if (!data.length) return emptyChartOption('Sin datos por comprador');
+
+        return {
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true },
+            legend: { top: 4 },
+            grid: { left: 142, right: 28, top: 54, bottom: 34 },
+            xAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed' } } },
+            yAxis: { type: 'category', data: data.map(x => x.comprador), axisLabel: { fontWeight: 850 } },
+            series: [
+                { name: 'Total', type: 'bar', data: data.map(x => x.total), barMaxWidth: 18, itemStyle: { borderRadius: [0, 9, 9, 0], color: '#0ea5e9' } },
+                { name: 'Retrasadas', type: 'bar', data: data.map(x => x.retrasadas), barMaxWidth: 18, itemStyle: { borderRadius: [0, 9, 9, 0], color: '#ef4444' } }
+            ]
+        };
     }
 
     function renderDashboard(dashboard) {
         if (!dashboard) return;
+
+        document.getElementById('kpiGrid')?.classList.remove('compras-grid');
 
         const departamento = pick(dashboard, 'departamento', 'Departamento') || 'Vista general';
         const totalKpis = toNumber(pick(dashboard, 'totalKpis', 'TotalKpis'));
@@ -1909,17 +2444,7 @@ body:has(.kpis-shell) .container-xxl {
 
     function renderGlobalChart(dashboard) {
         const el = document.getElementById('globalChart');
-        const kpis = getKpis(dashboard);
-
-        const data = kpis.map(kpi => {
-            const resultado = getResultado(kpi);
-            return {
-                name: pick(kpi, 'nombreMetrica', 'NombreMetrica') || 'KPI',
-                value: toNumber(pick(resultado, 'resultado', 'Resultado')),
-                cumple: pick(resultado, 'cumpleMeta', 'CumpleMeta'),
-                label: pick(resultado, 'resultadoFormateado', 'ResultadoFormateado') || ''
-            };
-        });
+        const data = buildDepartamentoRendimientoData(dashboard);
 
         disposeChart('globalChart');
         const chart = echarts.init(el);
@@ -1930,40 +2455,265 @@ body:has(.kpis-shell) .container-xxl {
             return;
         }
 
-        chart.setOption({
+        const height = Math.max(310, Math.min(640, (data.length * 54) + 150));
+        el.style.height = `${height}px`;
+        chart.resize();
+
+        if (dashboardState.globalChartMode === 'termometro') {
+            chart.setOption(buildGlobalThermometerOption(data));
+            return;
+        }
+
+        if (dashboardState.globalChartMode === 'porcentaje') {
+            chart.setOption(buildGlobalPercentageOption(data));
+            return;
+        }
+
+        chart.setOption(buildGlobalResumenOption(data));
+    }
+
+    function buildDepartamentoRendimientoData(dashboard) {
+        const kpis = getKpis(dashboard);
+        const grupos = new Map();
+
+        kpis.forEach(kpi => {
+            const departamento = pick(kpi, 'departamento', 'Departamento') || 'Sin departamento';
+            const resultado = getResultado(kpi);
+            const cumpleMeta = pick(resultado, 'cumpleMeta', 'CumpleMeta');
+
+            if (!grupos.has(departamento)) {
+                grupos.set(departamento, {
+                    departamento,
+                    total: 0,
+                    cumplidos: 0,
+                    noCumplidos: 0,
+                    sinEvaluacion: 0,
+                    porcentaje: 0
+                });
+            }
+
+            const row = grupos.get(departamento);
+            row.total += 1;
+
+            if (cumpleMeta === true) {
+                row.cumplidos += 1;
+            } else if (cumpleMeta === false) {
+                row.noCumplidos += 1;
+            } else {
+                row.sinEvaluacion += 1;
+            }
+        });
+
+        let data = Array.from(grupos.values()).map(row => {
+            row.porcentaje = row.total > 0 ? Number(((row.cumplidos / row.total) * 100).toFixed(2)) : 0;
+            return row;
+        });
+
+        if (!data.length && Array.isArray(departamentosBase)) {
+            data = departamentosBase.map(depto => ({
+                departamento: pick(depto, 'nombreDepartamento', 'NombreDepartamento') || 'Departamento',
+                total: toNumber(pick(depto, 'totalKpis', 'TotalKpis')),
+                cumplidos: 0,
+                noCumplidos: toNumber(pick(depto, 'totalKpis', 'TotalKpis')),
+                sinEvaluacion: 0,
+                porcentaje: toNumber(pick(depto, 'porcentajeCumplimiento', 'PorcentajeCumplimiento'))
+            })).filter(row => row.total > 0);
+        }
+
+        return data.sort((a, b) => b.porcentaje - a.porcentaje || b.total - a.total);
+    }
+
+    function buildGlobalResumenOption(data) {
+        const nombres = data.map(x => x.departamento);
+
+        return {
+            title: {
+                text: 'Rendimiento general por departamento',
+                subtext: 'Se muestran KPIs cumplidos contra KPIs que requieren atención.',
+                left: 18,
+                top: 10,
+                textStyle: { fontSize: 15, fontWeight: 900, color: '#0f172a' },
+                subtextStyle: { fontSize: 12, fontWeight: 700, color: '#64748b' }
+            },
             tooltip: {
                 trigger: 'axis',
                 axisPointer: { type: 'shadow' },
                 formatter: params => {
-                    const p = params[0];
-                    const row = data[p.dataIndex];
-                    return `<strong>${escapeHtml(row.name)}</strong><br/>Resultado: ${escapeHtml(row.label || p.value)}`;
+                    const idx = params[0].dataIndex;
+                    const row = data[idx];
+                    return `<strong>${escapeHtml(row.departamento)}</strong><br/>` +
+                        `Total KPI(s): <strong>${row.total}</strong><br/>` +
+                        `Cumplidos: <strong>${row.cumplidos}</strong><br/>` +
+                        `Requieren atención: <strong>${row.noCumplidos}</strong><br/>` +
+                        `Cumplimiento: <strong>${row.porcentaje.toFixed(2)}%</strong>`;
                 }
             },
-            grid: { left: 48, right: 26, top: 28, bottom: 92 },
+            legend: { top: 52, right: 20 },
+            grid: { left: 145, right: 34, top: 92, bottom: 34 },
             xAxis: {
-                type: 'category',
-                data: data.map(x => x.name),
-                axisLabel: {
-                    interval: 0,
-                    rotate: 35,
-                    width: 95,
-                    overflow: 'truncate'
-                }
-            },
-            yAxis: {
                 type: 'value',
+                minInterval: 1,
                 splitLine: { lineStyle: { type: 'dashed' } }
             },
+            yAxis: {
+                type: 'category',
+                data: nombres,
+                inverse: true,
+                axisLabel: { fontWeight: 800, color: '#334155' }
+            },
+            series: [
+                {
+                    name: 'Cumplen meta',
+                    type: 'bar',
+                    stack: 'kpis',
+                    data: data.map(x => x.cumplidos),
+                    barMaxWidth: 28,
+                    itemStyle: { borderRadius: [6, 0, 0, 6], color: '#16a34a' }
+                },
+                {
+                    name: 'Requieren atención',
+                    type: 'bar',
+                    stack: 'kpis',
+                    data: data.map(x => x.noCumplidos),
+                    barMaxWidth: 28,
+                    itemStyle: { borderRadius: [0, 6, 6, 0], color: '#ef4444' }
+                }
+            ]
+        };
+    }
+
+    function buildGlobalPercentageOption(data) {
+        return {
+            title: {
+                text: 'Porcentaje de cumplimiento por departamento',
+                subtext: 'Promedio calculado como KPIs cumplidos / KPIs evaluados.',
+                left: 18,
+                top: 10,
+                textStyle: { fontSize: 15, fontWeight: 900, color: '#0f172a' },
+                subtextStyle: { fontSize: 12, fontWeight: 700, color: '#64748b' }
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: params => {
+                    const idx = params[0].dataIndex;
+                    const row = data[idx];
+                    return `<strong>${escapeHtml(row.departamento)}</strong><br/>` +
+                        `Cumplimiento: <strong>${row.porcentaje.toFixed(2)}%</strong><br/>` +
+                        `${row.cumplidos} de ${row.total} KPI(s) cumplen meta`;
+                }
+            },
+            grid: { left: 145, right: 34, top: 86, bottom: 34 },
+            xAxis: {
+                type: 'value',
+                min: 0,
+                max: 100,
+                axisLabel: { formatter: '{value}%' },
+                splitLine: { lineStyle: { type: 'dashed' } }
+            },
+            yAxis: {
+                type: 'category',
+                data: data.map(x => x.departamento),
+                inverse: true,
+                axisLabel: { fontWeight: 800, color: '#334155' }
+            },
             series: [{
-                name: 'Resultado KPI',
+                name: 'Cumplimiento',
                 type: 'bar',
-                data: data.map(x => x.value),
-                barMaxWidth: 42,
-                itemStyle: {
-                    borderRadius: [8, 8, 0, 0]
+                data: data.map(x => x.porcentaje),
+                barMaxWidth: 28,
+                label: {
+                    show: true,
+                    position: 'right',
+                    formatter: p => `${Number(p.value).toFixed(2)}%`,
+                    fontWeight: 900
+                },
+                itemStyle: { borderRadius: [0, 8, 8, 0], color: '#0ea5e9' },
+                markLine: {
+                    silent: true,
+                    symbol: 'none',
+                    lineStyle: { type: 'dashed', color: '#f59e0b' },
+                    label: { formatter: 'Meta 90%', fontWeight: 900 },
+                    data: [{ xAxis: 90 }]
                 }
             }]
+        };
+    }
+
+    function buildGlobalThermometerOption(data) {
+        return {
+            title: {
+                text: 'Termómetro de cumplimiento general',
+                subtext: 'Cada barra representa el avance porcentual por departamento.',
+                left: 18,
+                top: 10,
+                textStyle: { fontSize: 15, fontWeight: 900, color: '#0f172a' },
+                subtextStyle: { fontSize: 12, fontWeight: 700, color: '#64748b' }
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: params => {
+                    const idx = params[0].dataIndex;
+                    const row = data[idx];
+                    return `<strong>${escapeHtml(row.departamento)}</strong><br/>` +
+                        `Termómetro: <strong>${row.porcentaje.toFixed(2)}%</strong><br/>` +
+                        `${row.cumplidos} cumplidos · ${row.noCumplidos} requieren atención · ${row.total} total`;
+                }
+            },
+            grid: { left: 145, right: 52, top: 86, bottom: 34 },
+            xAxis: {
+                type: 'value',
+                min: 0,
+                max: 100,
+                axisLabel: { formatter: '{value}%' },
+                splitLine: { lineStyle: { type: 'dashed' } }
+            },
+            yAxis: {
+                type: 'category',
+                data: data.map(x => x.departamento),
+                inverse: true,
+                axisLabel: { fontWeight: 800, color: '#334155' }
+            },
+            series: [
+                {
+                    name: 'Base',
+                    type: 'bar',
+                    barGap: '-100%',
+                    data: data.map(() => 100),
+                    barMaxWidth: 24,
+                    silent: true,
+                    itemStyle: { borderRadius: 999, color: '#e5edf6' }
+                },
+                {
+                    name: 'Cumplimiento',
+                    type: 'bar',
+                    data: data.map(x => x.porcentaje),
+                    barMaxWidth: 24,
+                    label: {
+                        show: true,
+                        position: 'right',
+                        formatter: p => `${Number(p.value).toFixed(2)}%`,
+                        fontWeight: 950,
+                        color: '#0f172a'
+                    },
+                    itemStyle: {
+                        borderRadius: 999,
+                        color: params => {
+                            const value = Number(params.value);
+                            if (value >= 90) return '#16a34a';
+                            if (value >= 70) return '#f59e0b';
+                            return '#ef4444';
+                        }
+                    }
+                }
+            ]
+        };
+    }
+
+    function actualizarBotonesModoGlobal() {
+        document.querySelectorAll('[data-global-chart-mode]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.globalChartMode === dashboardState.globalChartMode);
         });
     }
 
@@ -2052,6 +2802,11 @@ body:has(.kpis-shell) .container-xxl {
 
         if (!historial.length) {
             chart.setOption(emptyChartOption('Sin historial capturado'));
+            return;
+        }
+
+        if (tipoGrafica.includes('thermometer') || tipoGrafica.includes('termometro') || tipoGrafica.includes('termómetro')) {
+            chart.setOption(buildKpiThermometerOption(kpi));
             return;
         }
 
@@ -2151,6 +2906,88 @@ body:has(.kpis-shell) .container-xxl {
             yAxis,
             series
         });
+    }
+
+
+    function buildKpiThermometerOption(kpi) {
+        const resultado = getResultado(kpi);
+        const nombre = pick(kpi, 'nombreMetrica', 'NombreMetrica') || 'KPI';
+        const valor = toNumber(pick(resultado, 'resultado', 'Resultado'));
+        const valorTexto = pick(resultado, 'resultadoFormateado', 'ResultadoFormateado') || valor.toString();
+        const meta = pick(kpi, 'metaEsperada', 'MetaEsperada');
+        const metaNumero = meta === null || meta === undefined ? null : toNumber(meta);
+        const metaTexto = pick(resultado, 'metaFormateada', 'MetaFormateada') || (metaNumero === null ? '' : metaNumero.toString());
+        const tipoValor = pick(resultado, 'tipoValor', 'TipoValor') || pick(kpi, 'tipoValor', 'TipoValor') || '';
+        const unidad = pick(resultado, 'unidadMedida', 'UnidadMedida') || pick(kpi, 'unidadMedida', 'UnidadMedida') || '';
+        const baseMax = Math.max(valor, metaNumero || 0, 100);
+        const maximo = baseMax <= 100 ? 100 : Math.ceil(baseMax * 1.18);
+        const estado = pick(resultado, 'estadoVisual', 'EstadoVisual') || 'neutral';
+        const color = estado === 'success' ? '#16a34a' : estado === 'danger' ? '#ef4444' : '#0ea5e9';
+
+        return {
+            title: {
+                text: 'Termómetro del KPI',
+                subtext: nombre,
+                left: 18,
+                top: 8,
+                textStyle: { fontSize: 14, fontWeight: 900, color: '#0f172a' },
+                subtextStyle: { fontSize: 12, fontWeight: 750, color: '#64748b' }
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: () => {
+                    return `<strong>${escapeHtml(nombre)}</strong><br/>` +
+                        `Resultado: <strong>${escapeHtml(valorTexto)}</strong>` +
+                        (metaNumero !== null ? `<br/>Meta: <strong>${escapeHtml(metaTexto)}</strong>` : '');
+                }
+            },
+            grid: { left: 44, right: 40, top: 86, bottom: 58 },
+            xAxis: {
+                type: 'value',
+                min: 0,
+                max: maximo,
+                axisLabel: { formatter: value => formatAxisValue(value, tipoValor, unidad) },
+                splitLine: { lineStyle: { type: 'dashed' } }
+            },
+            yAxis: {
+                type: 'category',
+                data: ['Resultado'],
+                axisLabel: { fontWeight: 900, color: '#334155' }
+            },
+            series: [
+                {
+                    name: 'Base',
+                    type: 'bar',
+                    barGap: '-100%',
+                    data: [maximo],
+                    barMaxWidth: 38,
+                    silent: true,
+                    itemStyle: { borderRadius: 999, color: '#e5edf6' }
+                },
+                {
+                    name: 'Resultado',
+                    type: 'bar',
+                    data: [valor],
+                    barMaxWidth: 38,
+                    label: {
+                        show: true,
+                        position: 'right',
+                        formatter: () => valorTexto,
+                        fontWeight: 950,
+                        color: '#0f172a'
+                    },
+                    itemStyle: { borderRadius: 999, color },
+                    markLine: metaNumero !== null ? {
+                        silent: true,
+                        symbol: 'none',
+                        lineStyle: { type: 'dashed', color: '#f59e0b', width: 2 },
+                        label: { formatter: `Meta: ${metaTexto}`, fontWeight: 900 },
+                        data: [{ xAxis: metaNumero }]
+                    } : undefined
+                }
+            ]
+        };
     }
 
     function buildPieOption(kpi, historial) {
@@ -2276,11 +3113,28 @@ body:has(.kpis-shell) .container-xxl {
         document.getElementById('btnApplyFilters').addEventListener('click', cargarDashboard);
         document.getElementById('btnRefreshDashboard').addEventListener('click', cargarDashboard);
         document.getElementById('btnClearFilters').addEventListener('click', limpiarFiltros);
-        document.getElementById('btnGeneral').addEventListener('click', () => setDepartamentoActivo(null));
+        document.getElementById('navGeneralItem')?.addEventListener('click', activarVistaKpis);
+        document.getElementById('navComprasItem')?.addEventListener('click', activarVistaCompras);
 
-        document.querySelectorAll('.ops-depto-item').forEach(btn => {
+        document.querySelectorAll('.ops-depto-item[data-departamento-id]').forEach(btn => {
             btn.addEventListener('click', () => setDepartamentoActivo(btn.dataset.departamentoId));
         });
+
+        document.querySelectorAll('[data-global-chart-mode]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                dashboardState.globalChartMode = btn.dataset.globalChartMode || 'resumen';
+                actualizarBotonesModoGlobal();
+
+                if (dashboardState.viewMode === 'compras' && comprasActual) {
+                    renderGlobalChartCompras(comprasActual);
+                    return;
+                }
+
+                renderGlobalChart(dashboardActual);
+            });
+        });
+
+        actualizarBotonesModoGlobal();
 
         window.addEventListener('resize', () => {
             chartInstances.forEach(chart => chart.resize());

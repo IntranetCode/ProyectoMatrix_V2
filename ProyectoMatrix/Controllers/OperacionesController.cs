@@ -9,6 +9,7 @@ using ProyectoMatrix.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -527,6 +528,185 @@ namespace ProyectoMatrix.Controllers
             }
 
             return registros;
+        }
+
+        /* 
+        ***IMPORTACIONES COMPRAS***
+        */
+
+        [HttpGet("ObtenerKpisCompras")]
+        public async Task<IActionResult> ObtenerKpisCompras(
+            int? anio,
+            int? mes,
+            string? departamento,
+            string? comprador,
+            bool? soloRetrasadas)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+                return Unauthorized();
+
+            var datos = await ObtenerSeguimientoComprasParaKpisAsync();
+
+            if (anio.HasValue && anio.Value > 0)
+            {
+                datos = datos
+                    .Where(x => x.FechaCreacion.Year == anio.Value)
+                    .ToList();
+            }
+
+            if (mes.HasValue && mes.Value >= 1 && mes.Value <= 12)
+            {
+                datos = datos
+                    .Where(x => x.FechaCreacion.Month == mes.Value)
+                    .ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(departamento))
+            {
+                datos = datos
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Departamento) &&
+                                x.Departamento.Contains(departamento.Trim(), StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(comprador))
+            {
+                datos = datos
+                    .Where(x => !string.IsNullOrWhiteSpace(x.CompradorAsignado) &&
+                                x.CompradorAsignado.Contains(comprador.Trim(), StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            if (soloRetrasadas == true)
+            {
+                datos = datos
+                    .Where(EsSolicitudCompraRetrasada)
+                    .ToList();
+            }
+
+            var total = datos.Count;
+            var cerradas = datos.Count(x => x.EstatusID == 10);
+            var retrasadas = datos.Count(EsSolicitudCompraRetrasada);
+            var evaluables = datos.Where(x => x.DiasPermitidos > 0).ToList();
+            var aTiempo = evaluables.Count(x => !EsSolicitudCompraRetrasada(x));
+
+            decimal cumplimiento = evaluables.Any()
+                ? Math.Round((decimal)aTiempo / evaluables.Count * 100, 2)
+                : 0;
+
+            decimal promedioDias = datos.Any()
+                ? Math.Round((decimal)datos.Average(x => x.DiasHabilesTranscurridos), 2)
+                : 0;
+
+            decimal promedioPermitidos = datos.Any()
+                ? Math.Round((decimal)datos.Average(x => x.DiasPermitidos), 2)
+                : 0;
+
+            var porDepartamento = datos
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.Departamento) ? "Sin departamento" : x.Departamento.Trim())
+                .Select(g =>
+                {
+                    var lista = g.ToList();
+                    var evalDepto = lista.Where(x => x.DiasPermitidos > 0).ToList();
+                    var retrasadasDepto = lista.Count(EsSolicitudCompraRetrasada);
+                    var aTiempoDepto = evalDepto.Count(x => !EsSolicitudCompraRetrasada(x));
+
+                    return new OperacionesComprasKpiDepartamentoVm
+                    {
+                        Departamento = g.Key,
+                        TotalSolicitudes = lista.Count,
+                        Cerradas = lista.Count(x => x.EstatusID == 10),
+                        Retrasadas = retrasadasDepto,
+                        ATiempo = aTiempoDepto,
+                        PromedioDias = lista.Any()
+                            ? Math.Round((decimal)lista.Average(x => x.DiasHabilesTranscurridos), 2)
+                            : 0,
+                        PromedioDiasPermitidos = lista.Any()
+                            ? Math.Round((decimal)lista.Average(x => x.DiasPermitidos), 2)
+                            : 0,
+                        CumplimientoSla = evalDepto.Any()
+                            ? Math.Round((decimal)aTiempoDepto / evalDepto.Count * 100, 2)
+                            : 0
+                    };
+                })
+                .OrderByDescending(x => x.TotalSolicitudes)
+                .ThenBy(x => x.Departamento)
+                .ToList();
+
+            var cuelloBotella = new List<OperacionesComprasKpiEtapaVm>
+            {
+                new OperacionesComprasKpiEtapaVm
+                {
+                    Etapa = "Compras",
+                    PromedioDias = PromedioEtapaCompras(datos, x => x.DiasCompras)
+                },
+                new OperacionesComprasKpiEtapaVm
+                {
+                    Etapa = "Presupuesto",
+                    PromedioDias = PromedioEtapaCompras(datos, x => x.DiasPresupuesto)
+                },
+                new OperacionesComprasKpiEtapaVm
+                {
+                    Etapa = "O.C.",
+                    PromedioDias = PromedioEtapaCompras(datos, x => x.DiasOC)
+                },
+                new OperacionesComprasKpiEtapaVm
+                {
+                    Etapa = "Proveedor",
+                    PromedioDias = PromedioEtapaCompras(datos, x => x.DiasProveedor)
+                },
+                new OperacionesComprasKpiEtapaVm
+                {
+                    Etapa = "Almacén",
+                    PromedioDias = PromedioEtapaCompras(datos, x => x.DiasAlmacen)
+                }
+            };
+
+            var porComprador = datos
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.CompradorAsignado) ? "Sin asignar" : x.CompradorAsignado.Trim())
+                .Select(g =>
+                {
+                    var lista = g.ToList();
+                    var evalComprador = lista.Where(x => x.DiasPermitidos > 0).ToList();
+                    var retrasadasComprador = lista.Count(EsSolicitudCompraRetrasada);
+                    var aTiempoComprador = evalComprador.Count(x => !EsSolicitudCompraRetrasada(x));
+
+                    return new OperacionesComprasKpiCompradorVm
+                    {
+                        Comprador = g.Key,
+                        TotalSolicitudes = lista.Count,
+                        Cerradas = lista.Count(x => x.EstatusID == 10),
+                        Retrasadas = retrasadasComprador,
+                        PromedioDias = lista.Any()
+                            ? Math.Round((decimal)lista.Average(x => x.DiasHabilesTranscurridos), 2)
+                            : 0,
+                        CumplimientoSla = evalComprador.Any()
+                            ? Math.Round((decimal)aTiempoComprador / evalComprador.Count * 100, 2)
+                            : 0
+                    };
+                })
+                .OrderByDescending(x => x.TotalSolicitudes)
+                .ThenBy(x => x.Comprador)
+                .ToList();
+
+            var resultado = new OperacionesComprasKpiVm
+            {
+                TotalSolicitudes = total,
+                TotalCerradas = cerradas,
+                TotalRetrasadas = retrasadas,
+                TotalATiempo = aTiempo,
+                CumplimientoSla = cumplimiento,
+                MetaCumplimientoSla = 90,
+                PromedioDiasCompra = promedioDias,
+                PromedioDiasPermitidos = promedioPermitidos,
+                PorDepartamento = porDepartamento,
+                CuelloBotella = cuelloBotella,
+                PorComprador = porComprador
+            };
+
+            return Json(resultado);
         }
 
         #endregion
@@ -1247,6 +1427,154 @@ namespace ProyectoMatrix.Controllers
             }
 
             return periodo ?? 0;
+        }
+
+        /*
+                ***HELPERS COMPRAS***
+        */
+        private async Task<List<OperacionesComprasSeguimientoRowVm>> ObtenerSeguimientoComprasParaKpisAsync()
+        {
+            var datos = new List<OperacionesComprasSeguimientoRowVm>();
+
+            var conn = _context.Database.GetDbConnection();
+            bool cerrarConexion = conn.State != ConnectionState.Open;
+
+            try
+            {
+                if (cerrarConexion)
+                    await conn.OpenAsync();
+
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "sp_Compras_SeguimientoDireccion";
+                cmd.CommandType = CommandType.StoredProcedure;
+
+                using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    datos.Add(new OperacionesComprasSeguimientoRowVm
+                    {
+                        SolicitudID = LeerIntKpiCompras(reader, "SolicitudID"),
+                        Folio = LeerStringKpiCompras(reader, "Folio"),
+                        FechaCreacion = LeerFechaKpiCompras(reader, "FechaCreacion") ?? DateTime.MinValue,
+
+                        Departamento = LeerStringKpiCompras(reader, "Departamento"),
+                        CompradorAsignado = LeerStringKpiCompras(reader, "CompradorAsignado"),
+                        Estatus = LeerStringKpiCompras(reader, "Estatus"),
+                        EstatusID = LeerIntKpiCompras(reader, "EstatusID"),
+
+                        DiasPermitidos = LeerIntKpiCompras(reader, "DiasPermitidos"),
+                        DiasHabilesTranscurridos = LeerIntKpiCompras(reader, "DiasHabilesTranscurridos"),
+                        SemaforoTexto = LeerStringKpiCompras(reader, "SemaforoTexto"),
+
+                        DiasCompras = LeerIntKpiCompras(reader, "DiasCompras"),
+                        DiasPresupuesto = LeerIntKpiCompras(reader, "DiasPresupuesto"),
+                        DiasOC = LeerIntKpiCompras(reader, "DiasOC"),
+                        DiasProveedor = LeerIntKpiCompras(reader, "DiasProveedor"),
+                        DiasAlmacen = LeerIntKpiCompras(reader, "DiasAlmacen")
+                    });
+                }
+            }
+            finally
+            {
+                if (cerrarConexion && conn.State == ConnectionState.Open)
+                    await conn.CloseAsync();
+            }
+
+            return datos;
+        }
+
+        private bool EsSolicitudCompraRetrasada(OperacionesComprasSeguimientoRowVm item)
+        {
+            if (!string.IsNullOrWhiteSpace(item.SemaforoTexto) &&
+                item.SemaforoTexto.Contains("Retrasada", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (item.DiasPermitidos > 0 &&
+                item.DiasHabilesTranscurridos > item.DiasPermitidos)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private decimal PromedioEtapaCompras(
+            List<OperacionesComprasSeguimientoRowVm> datos,
+            Func<OperacionesComprasSeguimientoRowVm, int> selector)
+        {
+            var valores = datos
+                .Select(selector)
+                .Where(x => x > 0)
+                .ToList();
+
+            if (!valores.Any())
+                return 0;
+
+            return Math.Round((decimal)valores.Average(), 2);
+        }
+
+        private string LeerStringKpiCompras(DbDataReader reader, string columna)
+        {
+            if (!ExisteColumnaKpiCompras(reader, columna))
+                return "";
+
+            var valor = reader[columna];
+
+            return valor == DBNull.Value
+                ? ""
+                : valor?.ToString()?.Trim() ?? "";
+        }
+
+        private int LeerIntKpiCompras(DbDataReader reader, string columna)
+        {
+            if (!ExisteColumnaKpiCompras(reader, columna))
+                return 0;
+
+            var valor = reader[columna];
+
+            if (valor == DBNull.Value || valor == null)
+                return 0;
+
+            if (int.TryParse(valor.ToString(), out int resultado))
+                return resultado;
+
+            if (decimal.TryParse(valor.ToString(), out decimal decimalResultado))
+                return Convert.ToInt32(decimalResultado);
+
+            return 0;
+        }
+
+        private DateTime? LeerFechaKpiCompras(DbDataReader reader, string columna)
+        {
+            if (!ExisteColumnaKpiCompras(reader, columna))
+                return null;
+
+            var valor = reader[columna];
+
+            if (valor == DBNull.Value || valor == null)
+                return null;
+
+            if (valor is DateTime fecha)
+                return fecha;
+
+            if (DateTime.TryParse(valor.ToString(), out DateTime fechaConvertida))
+                return fechaConvertida;
+
+            return null;
+        }
+
+        private bool ExisteColumnaKpiCompras(DbDataReader reader, string columna)
+        {
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                if (reader.GetName(i).Equals(columna, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
         }
 
         #endregion
@@ -4231,6 +4559,7 @@ namespace ProyectoMatrix.Controllers
 
             return datosAcceso.Departamentos.Contains(departamentoId);
         }
+
 
         #endregion
     }

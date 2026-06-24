@@ -61,32 +61,35 @@
             {
                 return EstatusID switch
                 {
-                    1 => 10,   // Solicitado
-                    2 => 25,   // Cotizado
-                    3 => 40,   // En Presupuesto
-                    4 => 55,   // OC Generada
-                    5 => 65,   // OC Enviada a Proveedor
-                    6 => 75,   // Recibida en Almacén
-                    7 => 85,   // Entregada a Usuario
-                    8 => 95,   // Pendiente CxP
-                    9 => 100,  // Rechazado
-                    10 => 100, // Cerrada
-                    11 => 100, // Rechazada por CxP
+                    1 => 10,
+                    2 => 25,
+                    3 => 40,
+                    4 => 55,
+                    5 => 70,
+                    6 => 80,
+                    7 => 82,
+                    8 => 85,
+                    9 => 90,
+                    10 => 100,
+                    11 => 100,
+                    12 => 100,
                     _ => 0
                 };
             }
         }
+
         public string ColorProgreso => EstatusID switch
         {
-            9 => "bg-danger",
             10 => "bg-success",
             11 => "bg-danger",
-            8 => "bg-info",
+            12 => "bg-secondary",
+            8 => "bg-warning",
+            9 => "bg-warning",
+            5 => "bg-primary",
             6 => "bg-primary",
             7 => "bg-primary",
-            4 => "bg-warning",
-            5 => "bg-warning",
             3 => "bg-info",
+            4 => "bg-info",
             _ => "bg-primary"
         };
     }
@@ -233,17 +236,18 @@
             {
                 return EstatusID switch
                 {
-                    1 => 10,   // Solicitado
-                    2 => 25,   // Cotizado
-                    3 => 40,   // En Presupuesto
-                    4 => 55,   // OC Generada
-                    5 => 65,   // OC Enviada a Proveedor
-                    6 => 75,   // Recibida en Almacén
-                    7 => 85,   // Entregada a Usuario
-                    8 => 95,   // Pendiente CxP
-                    9 => 100,  // Rechazado
+                    1 => 10,   // Solicitada / Pendiente de cotización
+                    2 => 25,   // Cotizaciones cargadas
+                    3 => 40,   // Pendiente documentación usuario
+                    4 => 55,   // En Control Presupuestal
+                    5 => 70,   // Autorizada para O.C.
+                    6 => 80,   // O.C. generada
+                    7 => 82,   // O.C. enviada al proveedor
+                    8 => 85,   // Pendiente recepción almacén
+                    9 => 90,   // Pendiente entrega usuario
                     10 => 100, // Cerrada
-                    11 => 100, // Rechazada por CxP
+                    11 => 100, // Rechazada por Control Presupuestal
+                    12 => 100, // Cancelada
                     _ => 0
                 };
             }
@@ -252,15 +256,20 @@
         // Color de la barra según estatus
         public string ColorProgreso => EstatusID switch
         {
-            9 => "bg-danger",
-            10 => "bg-success",
-            11 => "bg-danger",
-            8 => "bg-info",
-            7 => "bg-primary",
+            10 => "bg-success",   // Cerrada
+            11 => "bg-danger",    // Rechazada por Control Presupuestal
+            12 => "bg-secondary", // Cancelada
+
+            8 => "bg-warning",    // Pendiente recepción almacén
+            9 => "bg-warning",    // Pendiente entrega usuario
+
+            5 => "bg-primary",
             6 => "bg-primary",
-            5 => "bg-warning",
-            4 => "bg-warning",
+            7 => "bg-primary",
+
             3 => "bg-info",
+            4 => "bg-info",
+
             _ => "bg-primary"
         };
 

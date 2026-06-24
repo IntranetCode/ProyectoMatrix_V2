@@ -347,4 +347,72 @@ namespace ProyectoMatrix.Models
         public OperacionesImportacionResumenVm Importacion { get; set; } = new();
         public List<OperacionesImportacionDetalleVm> Detalles { get; set; } = new();
     }
+
+    public class OperacionesComprasKpiVm
+    {
+        public int TotalSolicitudes { get; set; }
+        public int TotalCerradas { get; set; }
+        public int TotalRetrasadas { get; set; }
+        public int TotalATiempo { get; set; }
+
+        public decimal CumplimientoSla { get; set; }
+        public decimal MetaCumplimientoSla { get; set; } = 90;
+
+        public decimal PromedioDiasCompra { get; set; }
+        public decimal PromedioDiasPermitidos { get; set; }
+
+        public List<OperacionesComprasKpiDepartamentoVm> PorDepartamento { get; set; } = new();
+        public List<OperacionesComprasKpiEtapaVm> CuelloBotella { get; set; } = new();
+        public List<OperacionesComprasKpiCompradorVm> PorComprador { get; set; } = new();
+    }
+
+    public class OperacionesComprasKpiDepartamentoVm
+    {
+        public string Departamento { get; set; } = "";
+        public int TotalSolicitudes { get; set; }
+        public int Cerradas { get; set; }
+        public int Retrasadas { get; set; }
+        public int ATiempo { get; set; }
+        public decimal PromedioDias { get; set; }
+        public decimal PromedioDiasPermitidos { get; set; }
+        public decimal CumplimientoSla { get; set; }
+    }
+
+    public class OperacionesComprasKpiEtapaVm
+    {
+        public string Etapa { get; set; } = "";
+        public decimal PromedioDias { get; set; }
+    }
+
+    public class OperacionesComprasKpiCompradorVm
+    {
+        public string Comprador { get; set; } = "";
+        public int TotalSolicitudes { get; set; }
+        public int Cerradas { get; set; }
+        public int Retrasadas { get; set; }
+        public decimal PromedioDias { get; set; }
+        public decimal CumplimientoSla { get; set; }
+    }
+
+    public class OperacionesComprasSeguimientoRowVm
+    {
+        public int SolicitudID { get; set; }
+        public string Folio { get; set; } = "";
+        public DateTime FechaCreacion { get; set; }
+
+        public string Departamento { get; set; } = "";
+        public string CompradorAsignado { get; set; } = "";
+        public string Estatus { get; set; } = "";
+        public int EstatusID { get; set; }
+
+        public int DiasPermitidos { get; set; }
+        public int DiasHabilesTranscurridos { get; set; }
+        public string SemaforoTexto { get; set; } = "";
+
+        public int DiasCompras { get; set; }
+        public int DiasPresupuesto { get; set; }
+        public int DiasOC { get; set; }
+        public int DiasProveedor { get; set; }
+        public int DiasAlmacen { get; set; }
+    }
 }

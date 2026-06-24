@@ -88,6 +88,7 @@
                             @{
                                 decimal presupuesto = Model.MontoPresupuestoSolicitado ?? 0;
                                 decimal diferencia = Model.MontoCotizado - presupuesto;
+                                bool requiereDesviacionPorMonto =   Model.MontoPresupuestoSolicitado.HasValue && Model.MontoCotizado > Model.MontoPresupuestoSolicitado.Value;
                             }
 
                             @if (Model.MontoPresupuestoSolicitado.HasValue)
@@ -117,11 +118,11 @@
                                 Estatus presupuestal inicial
                             </label>
 
-                            @if (Model.FueraPresupuestoUsuario)
+                            @if (Model.FueraPresupuestoUsuario || requiereDesviacionPorMonto)
                             {
                                 <span class="badge badge-warning">
                                     <i class="fas fa-exclamation-triangle mr-1"></i>
-                                    Fuera de presupuesto
+                                    Requiere desviación
                                 </span>
                             }
                             else
@@ -134,31 +135,33 @@
                         </div>
 
                         <div class="col-md-6">
-                            @if (Model.FueraPresupuestoUsuario)
+                            @if (!string.IsNullOrWhiteSpace(Model.ArchivoDesviacionPath))
                             {
-                                if (!string.IsNullOrWhiteSpace(Model.ArchivoDesviacionPath))
-                                {
-                                    <button type="button"
-                                            class="btn btn-outline-warning btn-sm btn-block btn-ver-archivo"
-                                            data-ruta="@Model.ArchivoDesviacionPath"
-                                            data-titulo="Desviación firmada - @Model.Folio">
-                                        <i class="fas fa-eye mr-1"></i>
-                                        Ver archivo de desviación
-                                    </button>
-                                }
-                                else
-                                {
-                                    <div class="alert alert-danger mb-0">
-                                        <i class="fas fa-exclamation-circle mr-1"></i>
-                                        Esta solicitud fue marcada como fuera de presupuesto, pero no tiene archivo de desviación.
-                                    </div>
-                                }
+                                <div class="alert alert-warning mb-2">
+                                    <i class="fas fa-file-signature mr-1"></i>
+                                    Esta solicitud cuenta con archivo de desviación cargado.
+                                </div>
+
+                                <button type="button"
+                                        class="btn btn-outline-warning btn-sm btn-block btn-ver-archivo"
+                                        data-ruta="@Model.ArchivoDesviacionPath"
+                                        data-titulo="Desviación firmada - @Model.Folio">
+                                    <i class="fas fa-eye mr-1"></i>
+                                    Ver archivo de desviación
+                                </button>
+                            }
+                            else if (Model.FueraPresupuestoUsuario || requiereDesviacionPorMonto)
+                            {
+                                <div class="alert alert-danger mb-0">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    La cotización supera el presupuesto o fue marcada fuera de presupuesto. Se requiere archivo de desviación.
+                                </div>
                             }
                             else
                             {
                                 <div class="alert alert-success mb-0">
                                     <i class="fas fa-check-circle mr-1"></i>
-                                    El usuario declaró que esta compra está dentro de presupuesto.
+                                    La cotización está dentro del presupuesto declarado.
                                 </div>
                             }
                         </div>
@@ -202,7 +205,53 @@
                 </div>
             </div>
 
+            <div class="card shadow-sm mb-4 border-left-warning">
+                <div class="card-body">
+                    <h6 class="font-weight-bold text-warning">
+                        <i class="fas fa-folder-open mr-1"></i>
+                        ¿Falta documentación?
+                    </h6>
+
+                    <p class="text-muted mb-3">
+                        Usa esta opción si necesitas que el solicitante cargue o corrija documentos antes de dictaminar.
+                    </p>
+
+                    <button type="button"
+                            class="btn btn-warning btn-block"
+                            id="btnMostrarSolicitarDocumentos">
+                        <i class="fas fa-file-upload mr-1"></i>
+                        Solicitar documentos al usuario
+                    </button>
+
+                    <div id="seccionSolicitarDocumentos" style="display:none;" class="mt-3">
+                        <form asp-action="SolicitarDocumentosPresupuesto" method="post">
+                            @Html.AntiForgeryToken()
+
+                            <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
+
+                            <div class="form-group">
+                                <label class="font-weight-bold text-warning">
+                                    Indica qué documento falta o qué debe corregirse
+                                </label>
+
+                                <textarea name="observaciones"
+                                          class="form-control"
+                                          rows="3"
+                                          required
+                                          placeholder="Ej. Favor de cargar la desviación firmada / formato de requisición correcto / documento actualizado."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-warning btn-block">
+                                Enviar solicitud de documentos
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <form asp-action="ProcesarDictamen" method="post">
+                @Html.AntiForgeryToken()
+
                 <input type="hidden" asp-for="SolicitudID" />
 
                 <div class="form-group">
@@ -216,12 +265,16 @@
                 <div id="seccionProcede">
                     <div class="form-group">
                         <label class="font-weight-bold">Tipo de Proceso</label>
+
                         <div class="btn-group btn-group-toggle d-block" data-toggle="buttons">
                             <label class="btn btn-outline-primary active">
-                                <input type="radio" asp-for="TipoGasto" value="GASTO" checked> GASTO DIRECTO
+                                <input type="radio" asp-for="TipoGasto" value="GASTO" checked />
+                                GASTO DIRECTO
                             </label>
+
                             <label class="btn btn-outline-primary">
-                                <input type="radio" asp-for="TipoGasto" value="REQUISICION"> CON REQUISICIÓN
+                                <input type="radio" asp-for="TipoGasto" value="REQUISICION" />
+                                CON REQUISICIÓN
                             </label>
                         </div>
                     </div>
@@ -235,10 +288,11 @@
                     </div>
 
                     <div id="seccionRequisicion" style="display:none;">
-                        
                         <div class="form-group">
                             <label class="font-weight-bold">ID de Requisición</label>
-                            <input asp-for="NumeroRequisicion" class="form-control" placeholder="Ingrese ID de Requi..." />
+                            <input asp-for="NumeroRequisicion"
+                                   class="form-control"
+                                   placeholder="Ingrese ID de Requi..." />
                         </div>
                     </div>
                 </div>
@@ -246,58 +300,22 @@
                 <div id="seccionRechazo" style="display:none;">
                     <div class="form-group">
                         <label class="font-weight-bold text-danger">Motivo de Rechazo</label>
-                        <textarea asp-for="Observaciones" class="form-control" rows="3"></textarea>
+                        <textarea asp-for="Observaciones"
+                                  class="form-control"
+                                  rows="3"></textarea>
                     </div>
                 </div>
+
                 <hr />
 
-                <div class="card shadow-sm mb-4 border-left-warning">
-                    <div class="card-body">
-                        <h6 class="font-weight-bold text-warning">
-                            <i class="fas fa-folder-open mr-1"></i>
-                            ¿Falta documentación?
-                        </h6>
-
-                        <p class="text-muted mb-3">
-                            Usa esta opción si necesitas que el solicitante cargue o corrija documentos antes de dictaminar.
-                        </p>
-
-                        <button type="button"
-                                class="btn btn-warning btn-block"
-                                id="btnMostrarSolicitarDocumentos">
-                            <i class="fas fa-file-upload mr-1"></i>
-                            Solicitar documentos al usuario
-                        </button>
-
-                        <div id="seccionSolicitarDocumentos" style="display:none;" class="mt-3">
-                            <form asp-action="SolicitarDocumentosPresupuesto" method="post">
-                                @Html.AntiForgeryToken()
-
-                                <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
-
-                                <div class="form-group">
-                                    <label class="font-weight-bold text-warning">
-                                        Indica qué documento falta o qué debe corregirse
-                                    </label>
-
-                                    <textarea name="observaciones"
-                                              class="form-control"
-                                              rows="3"
-                                              required
-                                              placeholder="Ej. Favor de cargar la desviación firmada / formato de requisición correcto / documento actualizado."></textarea>
-                                </div>
-
-                                <button type="submit" class="btn btn-warning btn-block">
-                                    Enviar solicitud de documentos
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                <hr />
-                <button type="submit" class="btn btn-success btn-block">Aplicar Dictamen Final</button>
+                <button type="submit" class="btn btn-success btn-block">
+                    Aplicar Dictamen Final
+                </button>
             </form>
-        </div>
+
+            <hr />
+
+           
     </div>
 </div>
 
@@ -463,12 +481,20 @@
         border: none;
     }
 
-    .card-header h6 {
-        color: white !important;
-        font-size: 1rem;
-        letter-spacing: .3px;
-    }
+        .card-header h6 {
+            font-size: 1rem;
+            letter-spacing: .3px;
+            color: #0f172a !important;
+        }
 
+        .card-header.bg-dark h6,
+        .card-header.bg-primary h6,
+        .card-header.bg-info h6,
+        .card-header.bg-success h6,
+        .card-header.bg-warning h6,
+        .card-header.bg-danger h6 {
+            color: white !important;
+        }
  
 
     .alert-info {
