@@ -1,232 +1,25 @@
-@model ProyectoMatrix.Models.Guia
-@using System.Collections
-@using System.Text.RegularExpressions
+@model IEnumerable<ProyectoMatrix.Models.Guia>
 @{
     Layout = null;
 
     var fechaGeneracion = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
-    var fechaGeneracionCorta = DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss");
-    var folio = Model != null ? $"G-{Model.IdGuia}" : "G-0";
+    var guias = Model?.OrderByDescending(x => x.FechaSolicitud).ToList() ?? new List<ProyectoMatrix.Models.Guia>();
 
-    object rawFormulario = null;
-
-    if (ViewBag.FormularioCapturado != null)
-    {
-        rawFormulario = ViewBag.FormularioCapturado;
-    }
-    else if (ViewBag.FormulariosCapturados != null)
-    {
-        rawFormulario = ViewBag.FormulariosCapturados;
-    }
-    else if (ViewBag.FormularioCapturadoTexto != null)
-    {
-        rawFormulario = ViewBag.FormularioCapturadoTexto;
-    }
-    else if (Model != null)
-    {
-        rawFormulario = ObtenerPropiedad(Model, "FormularioCapturado", "FormulariosCapturados", "FormularioCapturadoTexto", "DatosFormulario", "FormularioJson", "RespuestasFormulario");
-    }
-
-    var registrosFormulario = LeerRegistrosFormulario(rawFormulario);
+    decimal totalCosto = guias.Sum(x => x.Costo);
+    int totalGuias = guias.Count;
+    int totalFrio = guias.Count(x => x.RequiereCadenaFrio == true);
 }
-@functions {
-    public string Texto(object valor)
-    {
-        var texto = Convert.ToString(valor);
-        return string.IsNullOrWhiteSpace(texto) ? "-" : texto.Trim();
-    }
 
-    public string Fecha(DateTime? fecha)
-    {
-        return fecha.HasValue ? fecha.Value.ToString("dd/MM/yyyy") : "-";
-    }
-
-    public string Dinero(decimal valor)
-    {
-        return valor.ToString("C");
-    }
-
-    public object ObtenerPropiedad(object objeto, params string[] nombres)
-    {
-        if (objeto == null)
-        {
-            return null;
-        }
-
-        var tipo = objeto.GetType();
-
-        foreach (var nombre in nombres)
-        {
-            var propiedad = tipo.GetProperty(nombre);
-            if (propiedad != null)
-            {
-                return propiedad.GetValue(objeto, null);
-            }
-        }
-
-        return null;
-    }
-
-    public string ObtenerTextoPropiedad(object objeto, params string[] nombres)
-    {
-        return Texto(ObtenerPropiedad(objeto, nombres));
-    }
-
-    public List<Dictionary<string, string>> LeerRegistrosFormulario(object raw)
-    {
-        var registros = new List<Dictionary<string, string>>();
-
-        if (raw == null)
-        {
-            return registros;
-        }
-
-        var texto = Convert.ToString(raw);
-
-        if (raw is string)
-        {
-            registros.AddRange(ParsearFormularioTexto(texto));
-            return registros;
-        }
-
-        var enumerable = raw as IEnumerable;
-        if (enumerable != null)
-        {
-            foreach (var item in enumerable)
-            {
-                if (item == null)
-                {
-                    continue;
-                }
-
-                var itemTexto = Convert.ToString(item);
-                if (!string.IsNullOrWhiteSpace(itemTexto) && item.GetType() == typeof(string))
-                {
-                    registros.AddRange(ParsearFormularioTexto(itemTexto));
-                    continue;
-                }
-
-                var fila = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["Formulario"] = ObtenerTextoPropiedad(item, "Formulario", "NombreFormulario", "TituloFormulario", "Nombre"),
-                    ["Campo"] = ObtenerTextoPropiedad(item, "Campo", "NombreCampo", "Etiqueta", "Label"),
-                    ["Registro"] = ObtenerTextoPropiedad(item, "Registro", "NumeroRegistro", "Indice"),
-                    ["ClaveSAT"] = ObtenerTextoPropiedad(item, "ClaveSAT", "ClaveSat"),
-                    ["Descripcion"] = ObtenerTextoPropiedad(item, "Descripcion", "Descripción", "Description"),
-                    ["Cantidad"] = ObtenerTextoPropiedad(item, "Cantidad"),
-                    ["UM"] = ObtenerTextoPropiedad(item, "UM", "UnidadMedida", "Unidad"),
-                    ["Peso"] = ObtenerTextoPropiedad(item, "Peso", "PesoKg"),
-                    ["Valor"] = ObtenerTextoPropiedad(item, "Valor", "ValorDeclarado"),
-                    ["ValeSalidaFactura"] = ObtenerTextoPropiedad(item, "ValeSalidaFactura", "Vale salida / factura", "Factura")
-                };
-
-                registros.Add(fila);
-            }
-
-            return registros;
-        }
-
-        registros.AddRange(ParsearFormularioTexto(texto));
-        return registros;
-    }
-
-    public List<Dictionary<string, string>> ParsearFormularioTexto(string texto)
-    {
-        var registros = new List<Dictionary<string, string>>();
-
-        if (string.IsNullOrWhiteSpace(texto))
-        {
-            return registros;
-        }
-
-        var formularioActual = "Formulario";
-        var campoActual = "-";
-        var lineas = Regex.Split(texto.Trim(), "\\r?\\n");
-
-        foreach (var lineaOriginal in lineas)
-        {
-            var linea = lineaOriginal.Trim();
-            if (string.IsNullOrWhiteSpace(linea))
-            {
-                continue;
-            }
-
-            if (!linea.Contains(":") && !linea.Contains("|"))
-            {
-                formularioActual = linea;
-                continue;
-            }
-
-            var fila = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Formulario"] = formularioActual,
-                ["Campo"] = campoActual,
-                ["Registro"] = "-",
-                ["ClaveSAT"] = "-",
-                ["Descripcion"] = "-",
-                ["Cantidad"] = "-",
-                ["UM"] = "-",
-                ["Peso"] = "-",
-                ["Valor"] = "-",
-                ["ValeSalidaFactura"] = "-"
-            };
-
-            var registroMatch = Regex.Match(linea, @"Registro\s*(\d+)", RegexOptions.IgnoreCase);
-            if (registroMatch.Success)
-            {
-                fila["Registro"] = registroMatch.Groups[1].Value;
-            }
-
-            var limpio = Regex.Replace(linea, @"Registro\s*\d+\s*:\s*", "", RegexOptions.IgnoreCase);
-            var partes = limpio.Split('|');
-
-            foreach (var parteOriginal in partes)
-            {
-                var parte = parteOriginal.Trim();
-                if (string.IsNullOrWhiteSpace(parte))
-                {
-                    continue;
-                }
-
-                var match = Regex.Match(parte, @"^(?<llave>[^:]+):\s*(?<valor>.*)$");
-                if (!match.Success)
-                {
-                    if (fila["Campo"] == "-")
-                    {
-                        fila["Campo"] = parte;
-                    }
-                    continue;
-                }
-
-                var llave = match.Groups["llave"].Value.Trim().ToLowerInvariant();
-                var valor = match.Groups["valor"].Value.Trim();
-
-                if (llave.Contains("clave")) fila["ClaveSAT"] = valor;
-                else if (llave.Contains("descrip")) fila["Descripcion"] = valor;
-                else if (llave.Contains("cantidad")) fila["Cantidad"] = valor;
-                else if (llave == "um" || llave.Contains("unidad")) fila["UM"] = valor;
-                else if (llave.Contains("peso")) fila["Peso"] = valor;
-                else if (llave.Contains("valor")) fila["Valor"] = valor;
-                else if (llave.Contains("vale") || llave.Contains("factura")) fila["ValeSalidaFactura"] = valor;
-                else if (llave.Contains("campo")) fila["Campo"] = valor;
-                else if (llave.Contains("formulario")) fila["Formulario"] = valor;
-            }
-
-            registros.Add(fila);
-        }
-
-        return registros;
-    }
-}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8" />
-    <title>Solicitud de Guía</title>
+    <title>Auditoría de Guías</title>
+
     <style>
         @@page {
-            size: Letter portrait;
-            margin: 9mm;
+            size: Letter landscape;
+            margin: 8mm;
         }
 
         * {
@@ -247,44 +40,69 @@
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            margin-bottom: 5px;
             border: 1px solid #000;
         }
 
         th, td {
             border: 1px solid #000;
-            padding: 3px 4px;
+            padding: 4px 5px;
             vertical-align: middle;
             word-wrap: break-word;
-            overflow-wrap: anywhere;
+            overflow-wrap: break-word;
         }
 
-        th, .section-title, .label {
+        th {
             background: #e9e9e9;
             font-weight: 900;
-        }
-
-        .logo-cell {
-            width: 16%;
             text-align: center;
         }
 
-        .logo-main {
-            font-size: 18px;
-            font-weight: 900;
-            line-height: 1;
+        .header-table {
+            margin-bottom: 6px;
         }
 
-        .logo-sub {
-            font-size: 5px;
+        .logo-cell {
+            width: 10%;
+            text-align: center;
+        }
+
+        .logo-mark {
+            display: inline-block;
+            width: 42px;
+            height: 42px;
+            border: 2px solid #000;
+            border-radius: 50%;
+            line-height: 38px;
+            font-weight: 900;
+            font-size: 18px;
+        }
+
+        .logo-text {
+            font-size: 5.8px;
             font-weight: 900;
             margin-top: 2px;
         }
 
-        .doc-title {
-            font-size: 11px;
+        .title {
+            font-size: 14px;
             font-weight: 900;
             text-align: center;
+        }
+
+        .subtitle {
+            font-size: 8px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .label {
+            background: #eeeeee;
+            font-weight: 900;
+        }
+
+        .value {
+            text-align: center;
+            font-weight: 700;
         }
 
         .center {
@@ -295,200 +113,128 @@
             text-align: right;
         }
 
-        .value {
-            text-align: center;
+        .kpi-table {
+            margin-bottom: 6px;
         }
 
-        .section-title {
-            text-align: center;
-        }
-
-        .captured-form-table th {
-            font-size: 6.2px;
-            padding: 3px 2px;
-        }
-
-        .captured-form-table td {
-            font-size: 6.4px;
-            padding: 4px 3px;
-            text-align: center;
-        }
-
-        .captured-form-table .text-left {
-            text-align: left;
-        }
-
-        .footer-table {
-            margin-top: 22px;
-            border: 0;
-        }
-
-        .footer-table td {
-            border: 0;
-            text-align: center;
-            font-size: 6px;
-        }
-
-        .signature-line {
-            border-top: 1px solid #000;
-            padding-top: 4px;
+        .kpi-label {
+            background: #f1f1f1;
             font-weight: 900;
+            text-align: center;
+        }
+
+        .kpi-value {
+            font-size: 11px;
+            font-weight: 900;
+            text-align: center;
+        }
+
+        .small {
+            font-size: 7px;
         }
 
         tr {
             page-break-inside: avoid;
         }
+
+        thead {
+            display: table-header-group;
+        }
     </style>
 </head>
 <body>
-    <table>
+    <table class="header-table">
         <tr>
-            <td rowspan="3" class="logo-cell">
-                <div class="logo-main">NS</div>
-                <div class="logo-sub">GROUP</div>
+            <td rowspan="4" class="logo-cell">
+                <div class="logo-mark">NS</div>
+                <div class="logo-text">GROUP</div>
             </td>
-            <td colspan="6" class="label">NS GROUP</td>
-            <td colspan="2" class="value">@fechaGeneracion</td>
+            <td colspan="8" class="label">NS GROUP</td>
+            <td colspan="3" class="value">@fechaGeneracion</td>
         </tr>
         <tr>
-            <td colspan="8" class="label">PROCESOS Y MEJORA CONTINUA</td>
+            <td colspan="11" class="label">PROCESOS Y MEJORA CONTINUA</td>
         </tr>
         <tr>
-            <td colspan="8" class="doc-title">Solicitud de Guía</td>
+            <td colspan="11" class="title">Reporte de Auditoría de Guías y Paquetería</td>
         </tr>
         <tr>
-            <td class="label">Área:</td>
-            <td colspan="2" class="value">@Texto(Model?.Departamento)</td>
-            <td class="label">Folio:</td>
-            <td class="value">@folio</td>
-            <td class="label">Fecha solicitud:</td>
-            <td class="value">@Fecha(Model?.FechaSolicitud)</td>
-            <td class="label">Estado:</td>
-            <td class="value">@Texto(Model?.EstadoEdicion)</td>
+            <td colspan="11" class="subtitle">
+                Reporte generado desde el módulo de Logística para control de solicitudes, costos, cadena de frío y cancelaciones.
+            </td>
+        </tr>
+    </table>
+
+    <table class="kpi-table">
+        <tr>
+            <td class="kpi-label">Total de guías</td>
+            <td class="kpi-label">Cadena de frío</td>
+            <td class="kpi-label">Costo total</td>
+            <td class="kpi-label">Fecha de generación</td>
+        </tr>
+        <tr>
+            <td class="kpi-value">@totalGuias</td>
+            <td class="kpi-value">@totalFrio</td>
+            <td class="kpi-value">@totalCosto.ToString("C")</td>
+            <td class="kpi-value">@fechaGeneracion</td>
         </tr>
     </table>
 
     <table>
-        <tr><td colspan="4" class="section-title">Datos generales de la guía</td></tr>
-        <tr>
-            <td class="label">Empresa</td><td class="value">@Texto(Model?.Empresa)</td>
-            <td class="label">Cliente / Proyecto</td><td class="value">@Texto(Model?.ClienteProyecto)</td>
-        </tr>
-        <tr>
-            <td class="label">Departamento</td><td class="value">@Texto(Model?.Departamento)</td>
-            <td class="label">Quién gestiona</td><td class="value">@Texto(Model?.QuienGestiona)</td>
-        </tr>
-        <tr>
-            <td class="label">Tipo de requerimiento</td><td class="value">@Texto(Model?.TipoRequerimiento)</td>
-            <td class="label">Tipo de entrega</td><td class="value">@Texto(Model?.TipoEntrega)</td>
-        </tr>
-        <tr>
-            <td class="label">Fecha de envío</td><td class="value">@Fecha(Model?.FechaEnvio)</td>
-            <td class="label">Tipo de envío</td><td class="value">@Texto(Model?.TipoEnvio)</td>
-        </tr>
-        <tr>
-            <td class="label">Costo</td><td class="value">@Dinero(Model?.Costo ?? 0)</td>
-            <td class="label">Cadena de frío</td><td class="value">@(Model?.RequiereCadenaFrio == true ? "Sí" : "No")</td>
-        </tr>
-    </table>
-
-    <table>
-        <tr><td colspan="4" class="section-title">Origen y destino</td></tr>
-        <tr>
-            <td class="label">Remitente</td><td class="value">@Texto(Model?.RemitenteNombre)</td>
-            <td class="label">Teléfono remitente</td><td class="value">@Texto(Model?.RemitenteTelefono)</td>
-        </tr>
-        <tr>
-            <td class="label">Origen</td><td class="value">@Texto(Model?.Origen)</td>
-            <td class="label">Código postal origen</td><td class="value">@Texto(Model?.CodigoPostalOrigen)</td>
-        </tr>
-        <tr>
-            <td class="label">Destinatario</td><td class="value">@Texto(Model?.DestinatarioNombre)</td>
-            <td class="label">Teléfono destinatario</td><td class="value">@Texto(Model?.DestinatarioTelefono)</td>
-        </tr>
-        <tr>
-            <td class="label">Correo destinatario</td><td class="value">@Texto(Model?.DestinatarioCorreo)</td>
-            <td class="label">Destino</td><td class="value">@Texto(Model?.Destino)</td>
-        </tr>
-        <tr>
-            <td class="label">Código postal destino</td><td class="value">@Texto(Model?.CodigoPostalDestino)</td>
-            <td class="label">Contenido declarado</td><td class="value">@Texto(Model?.ContenidoDeclarado)</td>
-        </tr>
-    </table>
-
-    <table>
-        <tr><td colspan="4" class="section-title">Peso, dimensiones y observaciones</td></tr>
-        <tr>
-            <td class="label">Información peso / dimensiones</td><td class="value">@Texto(Model?.InformacionDimensionesPeso)</td>
-            <td class="label">Peso kg</td><td class="value">@(Model?.PesoKg.HasValue == true ? Model.PesoKg.Value.ToString("N2") : "-")</td>
-        </tr>
-        <tr>
-            <td class="label">Largo cm</td><td class="value">@(Model?.LargoCm.HasValue == true ? Model.LargoCm.Value.ToString("N2") : "-")</td>
-            <td class="label">Ancho cm</td><td class="value">@(Model?.AnchoCm.HasValue == true ? Model.AnchoCm.Value.ToString("N2") : "-")</td>
-        </tr>
-        <tr>
-            <td class="label">Alto cm</td><td class="value">@(Model?.AltoCm.HasValue == true ? Model.AltoCm.Value.ToString("N2") : "-")</td>
-            <td class="label">Observaciones</td><td class="value">@Texto(Model?.Observaciones)</td>
-        </tr>
-    </table>
-
-    <table class="captured-form-table">
-        <tr><td colspan="10" class="section-title">Formulario capturado</td></tr>
-        <tr>
-            <th style="width: 12%;">Formulario</th>
-            <th style="width: 10%;">Campo</th>
-            <th style="width: 8%;">Registro</th>
-            <th style="width: 11%;">Clave SAT</th>
-            <th style="width: 19%;">Descripción</th>
-            <th style="width: 8%;">Cantidad</th>
-            <th style="width: 7%;">UM</th>
-            <th style="width: 8%;">Peso</th>
-            <th style="width: 8%;">Valor</th>
-            <th style="width: 9%;">Vale salida / factura</th>
-        </tr>
-
-        @if (registrosFormulario.Any())
-        {
-            foreach (var r in registrosFormulario)
+        <thead>
+            <tr>
+                <th style="width: 6%;">Folio</th>
+                <th style="width: 9%;">Fecha solicitud</th>
+                <th style="width: 10%;">Empresa</th>
+                <th style="width: 10%;">Cliente / Proyecto</th>
+                <th style="width: 9%;">Gestión</th>
+                <th style="width: 9%;">Requerimiento</th>
+                <th style="width: 8%;">Entrega</th>
+                <th style="width: 12%;">Remitente</th>
+                <th style="width: 12%;">Destinatario</th>
+                <th style="width: 8%;">Tipo envío</th>
+                <th style="width: 7%;">Peso</th>
+                <th style="width: 8%;">Frío</th>
+                <th style="width: 8%;">Costo</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (guias.Any())
+            {
+                foreach (var g in guias)
+                {
+                    <tr>
+                        <td class="center">GU-@g.IdGuia</td>
+                        <td class="center">@(g.FechaSolicitud.HasValue ? g.FechaSolicitud.Value.ToString("dd/MM/yyyy") : "")</td>
+                        <td>@(g.Empresa ?? "")</td>
+                        <td>@(g.ClienteProyecto ?? "")</td>
+                        <td class="center">@(g.QuienGestiona ?? "")</td>
+                        <td class="center">@(g.TipoRequerimiento ?? "")</td>
+                        <td class="center">@(g.TipoEntrega ?? "")</td>
+                        <td>
+                            <strong>@(g.RemitenteNombre ?? "")</strong><br />
+                            <span class="small">Tel: @(g.RemitenteTelefono ?? "")</span><br />
+                            <span class="small">Origen: @(g.Origen ?? "")</span>
+                        </td>
+                        <td>
+                            <strong>@(g.DestinatarioNombre ?? "")</strong><br />
+                            <span class="small">Tel: @(g.DestinatarioTelefono ?? "")</span><br />
+                            <span class="small">CP: @(g.CodigoPostalDestino ?? "")</span>
+                        </td>
+                        <td class="center">@(g.TipoEnvio ?? "")</td>
+                        <td class="center">@(g.PesoKg.HasValue ? g.PesoKg.Value.ToString("N2") + " kg" : "")</td>
+                        <td class="center">@(g.RequiereCadenaFrio == true ? "Sí" : "No")</td>
+                        <td class="right">@g.Costo.ToString("C")</td>
+                    </tr>
+                }
+            }
+            else
             {
                 <tr>
-                    <td>@Texto(r.ContainsKey("Formulario") ? r["Formulario"] : null)</td>
-                    <td>@Texto(r.ContainsKey("Campo") ? r["Campo"] : null)</td>
-                    <td>@Texto(r.ContainsKey("Registro") ? r["Registro"] : null)</td>
-                    <td>@Texto(r.ContainsKey("ClaveSAT") ? r["ClaveSAT"] : null)</td>
-                    <td class="text-left">@Texto(r.ContainsKey("Descripcion") ? r["Descripcion"] : null)</td>
-                    <td>@Texto(r.ContainsKey("Cantidad") ? r["Cantidad"] : null)</td>
-                    <td>@Texto(r.ContainsKey("UM") ? r["UM"] : null)</td>
-                    <td>@Texto(r.ContainsKey("Peso") ? r["Peso"] : null)</td>
-                    <td>@Texto(r.ContainsKey("Valor") ? r["Valor"] : null)</td>
-                    <td>@Texto(r.ContainsKey("ValeSalidaFactura") ? r["ValeSalidaFactura"] : null)</td>
+                    <td colspan="13" class="center">No hay guías activas para reportar.</td>
                 </tr>
             }
-        }
-        else
-        {
-            <tr>
-                <td colspan="10" class="center">No hay formulario capturado para esta guía.</td>
-            </tr>
-        }
+        </tbody>
     </table>
-
-    <table class="footer-table">
-        <tr>
-            <td style="width: 33%;"><div class="signature-line">SOLICITANTE</div></td>
-            <td style="width: 33%;"><div class="signature-line">JEFATURA LOGÍSTICA</div></td>
-            <td style="width: 33%;"><div class="signature-line">AUTORIZACIÓN</div></td>
-        </tr>
-        <tr>
-            <td>Firma / Sello</td>
-            <td>Firma / Sello</td>
-            <td>Firma / Sello</td>
-        </tr>
-    </table>
-
-    <div style="font-size: 6px; margin-top: 10px; display: flex; justify-content: space-between;">
-        <span>Generado por Sistema NS Intranet: @fechaGeneracionCorta</span>
-        <span>Página 1 de 1</span>
-    </div>
 </body>
 </html>

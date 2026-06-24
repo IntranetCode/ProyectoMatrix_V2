@@ -36,514 +36,342 @@
     var eliminadas = registrosVisibles
         .Where(x => x.EstaBorrado)
         .ToList();
-
-    string seccionInicialTransporte = esLogistica ? "seccionPendientes" : "seccionAutorizadas";
-    string menuLogisticaUrl = "/Logistica/Formularios/CentroFormularios?origenModulo=Transporte";
 }
 
 <input type="hidden" id="FirmaPanelTransporte" value="@(ViewBag.FirmaPanelTransporte ?? "")" />
 
 <style>
     :root {
-        --ns-navy: #001f45;
-        --ns-navy-2: #062b5f;
-        --ns-orange: #e65a00;
-        --ns-orange-2: #c94c00;
-        --ns-bg: #f4f7fb;
-        --ns-card: #ffffff;
-        --ns-border: #dfe5ed;
-        --ns-muted: #6b7280;
-        --ns-text: #111827;
-        --ns-shadow: 0 12px 30px rgba(15, 23, 42, .08);
-        --ns-shadow-soft: 0 6px 18px rgba(15, 23, 42, .06);
+        --pm-navy: #0b1220;
+        --pm-navy-2: #111827;
+        --pm-blue: #2563eb;
+        --pm-sky: #38bdf8;
+        --pm-orange: #f97316;
+        --pm-orange-2: #ea580c;
+        --pm-green: #16a34a;
         --pm-red: #dc2626;
-        --navy-principal: #001f45;
-        --navy-oscuro: #00152f;
-        --naranja-brillante: #e65a00;
+        --pm-slate: #64748b;
+        --pm-bg: #eef3f8;
+        --pm-card: rgba(255,255,255,.92);
+        --pm-border: rgba(148,163,184,.28);
+        --pm-shadow: 0 18px 45px rgba(15,23,42,.12);
+        --pm-soft-shadow: 0 10px 28px rgba(15,23,42,.08);
+        --navy-principal: #0b1220;
+        --navy-oscuro: #020617;
+        --naranja-brillante: #f97316;
     }
 
     body {
-        background: var(--ns-bg);
-        color: var(--ns-text);
+        background:
+            radial-gradient(circle at top left, rgba(37,99,235,.13), transparent 28rem),
+            radial-gradient(circle at bottom right, rgba(249,115,22,.13), transparent 26rem),
+            linear-gradient(180deg, #f8fafc 0%, var(--pm-bg) 100%);
         font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #0f172a;
     }
 
     .fade-in-up {
-        animation: fadeInUp .38s ease-out both;
+        animation: fadeInUp .55s cubic-bezier(.16, 1, .3, 1) forwards;
+        opacity: 0;
+        transform: translateY(18px);
     }
 
     @@keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(14px); }
         to { opacity: 1; transform: translateY(0); }
     }
 
-    .transport-layout-shell {
-        width: calc(100vw - 16px);
-        min-height: calc(100vh - 74px);
-        display: flex;
-        align-items: stretch;
-        background: var(--ns-bg);
-        margin-left: calc(50% - 50vw + 8px);
-        margin-right: calc(50% - 50vw + 8px);
+    .hero-logistica {
+        position: relative;
+        overflow: hidden;
+        color: white;
+        border-radius: 28px;
+        padding: 30px;
+        background:
+            radial-gradient(circle at 15% 20%, rgba(56,189,248,.22), transparent 16rem),
+            radial-gradient(circle at 92% 10%, rgba(249,115,22,.36), transparent 18rem),
+            linear-gradient(135deg, #020617 0%, #0f172a 45%, #1e293b 100%);
+        box-shadow: 0 24px 60px rgba(2,6,23,.28);
     }
 
-    .transport-side-menu {
-        flex: 0 0 222px;
-        width: 222px;
-        background: #ffffff;
-        border-right: 1px solid var(--ns-border);
-        padding: 22px 12px 18px;
-        display: flex;
-        flex-direction: column;
-        gap: 22px;
-        box-shadow: 8px 0 24px rgba(15, 23, 42, .035);
-        z-index: 1;
+    .hero-logistica::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px);
+        background-size: 34px 34px;
+        mask-image: linear-gradient(to right, rgba(0,0,0,.75), rgba(0,0,0,.08));
+        pointer-events: none;
     }
 
-    .side-brand {
-        display: flex;
-        align-items: center;
-        gap: 11px;
-        padding: 0 10px 8px;
-    }
+    .hero-logistica > .row { position: relative; z-index: 1; }
 
-    .side-brand-mark {
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-        background: var(--ns-navy);
-        color: #fff;
+    .hero-chip {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
-        font-size: .76rem;
-        font-weight: 900;
-        letter-spacing: .03em;
-    }
-
-    .side-brand-name {
-        font-size: 1.02rem;
-        line-height: 1;
-        font-weight: 900;
-        color: #151922;
-        letter-spacing: -.01em;
-    }
-
-    .side-brand-subtitle {
-        margin-top: 4px;
-        color: #6b7280;
-        font-size: .76rem;
-        font-weight: 600;
-    }
-
-    .side-new-request {
-        width: 100%;
-        min-height: 38px;
-        border: 0;
-        border-radius: 8px;
-        background: #4b1208;
-        color: #f97316;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        font-size: .84rem;
-        font-weight: 900;
-        box-shadow: 0 10px 22px rgba(75, 18, 8, .16);
-        transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
-    }
-
-    .side-new-request:hover {
-        transform: translateY(-1px);
-        filter: brightness(1.03);
-        box-shadow: 0 14px 26px rgba(75, 18, 8, .22);
-    }
-
-    .side-create-form {
-        width: 100%;
-        min-height: 36px;
-        border: 1px solid rgba(230, 90, 0, .28);
-        border-radius: 8px;
-        background: #fff7ed;
-        color: #7c2d12;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        font-size: .8rem;
-        font-weight: 900;
-        box-shadow: 0 8px 16px rgba(124, 45, 18, .08);
-        transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
-    }
-
-    .side-create-form:hover {
-        transform: translateY(-1px);
-        background: #ffedd5;
-        box-shadow: 0 12px 22px rgba(124, 45, 18, .12);
-    }
-
-
-    .side-nav {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .side-nav-title {
-        padding: 0 10px 8px;
-        color: #9ca3af;
-        font-size: .66rem;
-        text-transform: uppercase;
-        font-weight: 900;
-        letter-spacing: .08em;
-    }
-
-    .side-link {
-        width: 100%;
-        min-height: 38px;
-        border: 0;
-        border-radius: 8px;
-        background: transparent;
-        color: #3f4652;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 9px 12px;
-        text-decoration: none;
-        font-size: .84rem;
-        font-weight: 800;
-        text-align: left;
-        transition: background .18s ease, color .18s ease, transform .18s ease;
-    }
-
-    .side-link i {
-        width: 18px;
-        text-align: center;
-        color: inherit;
-    }
-
-    .side-link:hover {
-        background: #f1f3f6;
-        color: #111827;
-        transform: translateX(2px);
-    }
-
-    .side-link.active {
-        background: #dedede;
-        color: #20242c;
-        box-shadow: inset 3px 0 0 #6b4a3b;
-    }
-
-    .side-link.side-subitem {
-        margin-left: 10px;
-        width: calc(100% - 10px);
-        min-height: 34px;
-        font-size: .78rem;
-        color: #6b7280;
-    }
-
-    .side-count {
-        margin-left: auto;
-        min-width: 24px;
-        height: 22px;
+        gap: .5rem;
+        padding: .45rem .75rem;
         border-radius: 999px;
-        background: #eef2f7;
-        color: #4b5563;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 8px;
-        font-size: .72rem;
-        font-weight: 900;
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.18);
+        color: rgba(255,255,255,.86);
+        font-weight: 700;
+        font-size: .82rem;
+        letter-spacing: .02em;
     }
 
-    .side-link.active .side-count {
-        background: #ffffff;
-        color: #3b1609;
-    }
 
-    .side-link[disabled] {
-        opacity: .55;
-        cursor: not-allowed;
-        transform: none;
+    
+    .page-back-zone {
+        margin-bottom: 1rem;
     }
-
-    .side-menu-spacer {
-        flex: 1 1 auto;
-    }
-
-    .side-menu-footer {
-        border-top: 1px solid var(--ns-border);
-        padding-top: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .transport-page-shell {
-        flex: 1 1 auto;
-        width: 100%;
-        min-width: 0;
-        max-width: none;
-        margin: 0;
-        padding: 20px 18px 44px 20px;
-    }
-
-    .transport-layout-shell + .btn-flotante {
-        display: none;
-    }
-
-    .transport-top-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-        margin-bottom: 22px;
-    }
-
-    .page-back-zone { margin: 0; }
 
     .page-back-btn {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: .55rem;
         border: 0;
-        background: transparent;
-        color: #3f4652;
-        font-weight: 700;
-        padding: 0;
+        border-radius: 999px;
+        padding: .72rem 1.15rem;
+        font-weight: 900;
+        color: #0f172a;
+        background: rgba(255,255,255,.92);
+        box-shadow: 0 14px 30px rgba(15,23,42,.13);
         text-decoration: none;
-        transition: color .18s ease, transform .18s ease;
+        transition: transform .18s ease, box-shadow .18s ease;
     }
 
     .page-back-btn:hover {
-        color: var(--ns-navy);
-        transform: translateX(-2px);
+        transform: translateY(-2px);
+        box-shadow: 0 18px 36px rgba(15,23,42,.18);
+        color: #0f172a;
     }
 
-    .transport-top-actions {
-        display: flex;
+    .scroll-top-btn {
+        position: fixed;
+        left: 26px;
+        bottom: 26px;
+        z-index: 1040;
+        width: 50px;
+        height: 50px;
+        border: 0;
+        border-radius: 999px;
+        display: none;
         align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
+        justify-content: center;
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #0f172a);
+        box-shadow: 0 18px 34px rgba(15,23,42,.28);
+        transition: transform .18s ease, filter .18s ease;
     }
 
-    .mini-action-btn,
+    .scroll-top-btn:hover {
+        transform: translateY(-3px);
+        filter: brightness(1.05);
+    }
+
+    .scroll-top-btn.visible {
+        display: inline-flex;
+    }
+
+    @@media (max-width: 768px) {
+        .scroll-top-btn {
+            left: 18px;
+            bottom: 88px;
+        }
+    }
+
+
+    .hero-actions-panel {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: .7rem;
+        width: min(100%, 260px);
+        margin-left: auto;
+    }
+
+    .hero-actions-row {
+        display: flex;
+        gap: .65rem;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+
     .hero-action-btn {
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        border: 1px solid var(--ns-border);
-        background: #fff;
-        color: #333;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: .45rem;
+        border-radius: 999px;
+        padding: .68rem 1rem;
+        min-width: 118px;
+        font-weight: 900;
+        font-size: .86rem;
         text-decoration: none;
-        box-shadow: var(--ns-shadow-soft);
-        transition: transform .18s ease, box-shadow .18s ease, color .18s ease;
-        font-size: 0;
-        padding: 0;
-        min-width: 38px;
+        border: 1px solid rgba(255,255,255,.18);
+        box-shadow: 0 12px 26px rgba(2,6,23,.22);
+        transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+        white-space: nowrap;
     }
 
-    .mini-action-btn i,
-    .hero-action-btn i { font-size: 15px; }
-
-    .mini-action-btn:hover,
     .hero-action-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 10px 24px rgba(15, 23, 42, .12);
-        color: var(--ns-orange);
+        box-shadow: 0 16px 32px rgba(2,6,23,.28);
+        filter: brightness(1.04);
     }
 
-    .hero-actions-panel,
-    .hero-actions-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        justify-content: flex-end;
-        flex-wrap: wrap;
+    .hero-action-back {
+        background: rgba(255,255,255,.96);
+        color: #0f172a !important;
     }
 
-    .hero-action-pdf i { color: #dc2626; }
-    .hero-action-excel i { color: #16803c; }
-    .hero-action-costs i { color: var(--ns-navy); }
-
-    .transport-hero,
-    .hero-logistica {
-        position: relative;
-        overflow: hidden;
-        border-radius: 10px;
-        min-height: 158px;
-        padding: 42px 46px;
-        color: #fff;
-        background: linear-gradient(135deg, #001f45 0%, #002b5f 58%, #00214b 100%);
-        box-shadow: 0 14px 28px rgba(0, 31, 69, .18);
+    .hero-action-pdf {
+        background: linear-gradient(135deg, #ef4444, #b91c1c);
+        color: white !important;
     }
 
-    .transport-hero::after,
-    .hero-logistica::after {
-        content: "\f0d1";
-        font-family: "Font Awesome 5 Free";
-        font-weight: 900;
-        position: absolute;
-        right: 58px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 78px;
-        color: rgba(255, 255, 255, .14);
-        pointer-events: none;
+    .hero-action-excel {
+        background: linear-gradient(135deg, #22c55e, #15803d);
+        color: white !important;
     }
 
-    .transport-hero-title {
-        position: relative;
-        z-index: 1;
-        font-size: clamp(28px, 3vw, 42px);
-        font-weight: 800;
-        margin: 0 0 8px;
-        letter-spacing: -.02em;
+    .hero-action-costs {
+        background: linear-gradient(135deg, #38bdf8, #0e7490);
+        color: white !important;
     }
 
-    .transport-hero-subtitle {
-        position: relative;
-        z-index: 1;
-        margin: 0;
-        color: rgba(255, 255, 255, .62);
-        font-size: 1.05rem;
+    @@media (max-width: 992px) {
+        .hero-actions-panel {
+            width: 100%;
+            margin-left: 0;
+            margin-top: 1rem;
+        }
+
+        .hero-actions-row {
+            justify-content: flex-start;
+        }
     }
 
-    .hero-chip { display: none; }
-
-    .transport-kpis {
-        margin-top: 40px;
-        margin-bottom: 26px;
+    @@media (max-width: 576px) {
+        .hero-action-btn {
+            width: 100%;
+        }
     }
+
+
+    .dashboard-card, .kpi-card {
+        background: var(--pm-card);
+        border: 1px solid var(--pm-border);
+        border-radius: 24px;
+        box-shadow: var(--pm-soft-shadow);
+        backdrop-filter: blur(12px);
+    }
+
+    .dashboard-card { overflow: hidden; }
 
     .kpi-card {
-        cursor: pointer;
-        background: #fff;
-        border: 1px solid var(--ns-border);
-        border-bottom: 4px solid transparent;
-        border-radius: 10px;
-        min-height: 108px;
-        padding: 22px 22px 18px;
-        box-shadow: var(--ns-shadow-soft);
-        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        padding: 20px;
+        height: 100%;
+        transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
     }
 
-    .kpi-card:hover,
-    .kpi-card.active {
-        transform: translateY(-3px);
-        box-shadow: var(--ns-shadow);
-    }
-
-    .kpi-card.kpi-pending { border-bottom-color: #5b220f; }
-    .kpi-card.kpi-authorized { border-bottom-color: #e5e7eb; }
-    .kpi-card.kpi-finished { border-bottom-color: #6b7280; }
-    .kpi-card.kpi-cancelled { border-bottom-color: #dc2626; }
-
-    .kpi-label {
-        color: #4b5563;
-        font-size: .86rem;
-        font-weight: 700;
-        margin-bottom: 14px;
-    }
-
-    .kpi-value {
-        font-size: 2rem;
-        line-height: 1;
-        color: #0b0f19;
-        font-weight: 800;
-        letter-spacing: -.02em;
+    .kpi-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--pm-shadow);
+        border-color: rgba(37,99,235,.28);
     }
 
     .kpi-icon {
-        width: 28px;
-        height: 28px;
+        width: 48px;
+        height: 48px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        border-radius: 16px;
+        font-size: 1.1rem;
+    }
+
+    .workflow-tabs {
+        position: sticky;
+        top: 12px;
+        z-index: 20;
+        background: rgba(248,250,252,.78);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(148,163,184,.24);
         border-radius: 999px;
-        background: transparent !important;
-        color: #3f4652;
-        font-size: 16px;
+        padding: .5rem;
+        box-shadow: 0 10px 24px rgba(15,23,42,.07);
+        width: fit-content;
     }
 
-    .transport-board,
-    .dashboard-card {
-        background: #fff;
-        border: 1px solid #edf1f6;
-        border-radius: 12px;
-        box-shadow: var(--ns-shadow-soft);
-        overflow: hidden;
-    }
-
-    .transport-board-clean {
-        margin-top: 20px;
-    }
-
-    .transport-board-header,
-    .section-toolbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 14px;
-        padding: 16px 18px 12px;
-        border-bottom: 1px solid #e5e7eb;
-        flex-wrap: wrap;
-    }
-
-    .workflow-tabs,
-    .transport-tabs {
-        display: flex;
-        align-items: center;
-        gap: 26px !important;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        background: transparent;
-    }
-
-    .workflow-tabs .nav-link,
-    .transport-tabs .nav-link {
-        border: 0;
-        border-radius: 0;
-        padding: 10px 0 12px;
-        background: transparent;
-        color: #4b5563;
+    .workflow-tabs .nav-link {
+        border-radius: 999px;
         font-weight: 800;
-        font-size: .9rem;
+        color: #475569;
+        padding: .62rem 1rem;
+        border: 0;
+        transition: .2s ease;
+    }
+
+    .workflow-tabs .nav-link:hover { background: #e2e8f0; color: #0f172a; }
+    .workflow-tabs .nav-link.active { background: linear-gradient(135deg, var(--pm-navy), #1e293b); color: white; box-shadow: 0 8px 18px rgba(15,23,42,.22); }
+
+
+    .kpi-filter {
+        cursor: pointer;
+        user-select: none;
         position: relative;
     }
 
-    .workflow-tabs .nav-link::after,
-    .transport-tabs .nav-link::after {
-        content: "";
+    .kpi-filter.active {
+        border-color: rgba(37,99,235,.48);
+        box-shadow: 0 20px 42px rgba(37,99,235,.16);
+        transform: translateY(-3px);
+    }
+
+    .kpi-filter.active::after {
+        content: "Viendo";
         position: absolute;
-        left: 0;
-        right: 0;
-        bottom: -15px;
-        height: 3px;
+        right: 18px;
+        bottom: 12px;
+        font-size: .68rem;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #2563eb;
+        background: rgba(37,99,235,.10);
+        border: 1px solid rgba(37,99,235,.16);
         border-radius: 999px;
-        background: transparent;
+        padding: .24rem .55rem;
     }
 
-    .workflow-tabs .nav-link.active,
-    .transport-tabs .nav-link.active {
-        color: #3b1609;
-        background: transparent;
+    .seccion-filtrable {
+        display: none;
     }
 
-    .workflow-tabs .nav-link.active::after,
-    .transport-tabs .nav-link.active::after {
-        background: #4a1d0b;
+    .seccion-filtrable.seccion-activa {
+        display: block;
+        animation: fadeInUp .35s cubic-bezier(.16, 1, .3, 1) forwards;
+    }
+
+
+    .section-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .section-toolbar .section-title-line {
+        margin-bottom: 0 !important;
+        flex: 1;
     }
 
     .search-module-box {
         position: relative;
-        min-width: min(100%, 248px);
+        width: min(100%, 360px);
     }
 
     .search-module-box i {
@@ -551,403 +379,217 @@
         left: 14px;
         top: 50%;
         transform: translateY(-50%);
-        color: #9ca3af;
-        font-size: .9rem;
+        color: #64748b;
         pointer-events: none;
     }
 
-    .busqueda-seccion {
+    .search-module-box input {
         width: 100%;
-        min-height: 38px;
-        border: 1px solid #d1d5db;
-        border-radius: 10px;
-        padding: 9px 14px 9px 40px;
-        color: #374151;
-        background: #fff;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,.38);
+        padding: .72rem 1rem .72rem 2.45rem;
+        background: rgba(255,255,255,.92);
+        box-shadow: 0 10px 24px rgba(15,23,42,.06);
+        font-weight: 700;
+        color: #0f172a;
         outline: none;
-        transition: border-color .18s ease, box-shadow .18s ease;
     }
 
-    .busqueda-seccion:focus {
-        border-color: var(--ns-navy);
-        box-shadow: 0 0 0 4px rgba(0, 31, 69, .08);
+    .search-module-box input:focus {
+        border-color: rgba(37,99,235,.55);
+        box-shadow: 0 0 0 .22rem rgba(37,99,235,.13), 0 12px 28px rgba(15,23,42,.08);
     }
 
-    .seccion-filtrable { display: none; }
-    .seccion-filtrable.seccion-activa { display: block; }
-
-    .section-table-wrap { padding: 0; overflow-x: visible; }
-
-    .table-custom,
-    .transport-table {
-        margin-bottom: 0;
-        color: #111827;
-        font-size: .88rem;
-        table-layout: auto;
-        width: 100%;
+    .fila-oculta-busqueda {
+        display: none !important;
     }
 
-    .table-custom thead th,
-    .transport-table thead th {
-        background: #fff;
-        color: #4b5563;
-        font-size: .72rem;
-        letter-spacing: .05em;
-        text-transform: uppercase;
-        font-weight: 800;
-        padding: 12px 14px;
-        border-bottom: 2px solid #d1d5db;
-        white-space: nowrap;
-    }
-
-    .table-custom tbody td,
-    .transport-table tbody td {
-        padding: 14px 14px;
-        vertical-align: middle;
-        border-bottom: 1px solid #edf1f6;
-        background: #fff;
-    }
-
-    .table-custom tbody tr:hover td,
-    .transport-table tbody tr:hover td { background: #fbfcfe; }
-
-    .transport-client-main { font-weight: 800; color: #111827; }
-    .transport-client-sub { font-size: .8rem; color: #6b7280; margin-top: 1px; }
-
-    .badge-navy,
-    .folio-pill {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        background: transparent;
-        color: #111827;
-        font-weight: 900;
-        padding: 0;
-    }
-
-    .status-pill {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 5px 10px;
-        border-radius: 999px;
-        background: #eef0f3;
-        color: #4b5563;
-        font-size: .76rem;
-        font-weight: 800;
-        white-space: nowrap;
-    }
-
-    .status-pill.authorized { background: #eaf8ef; color: #15803d; }
-    .status-pill.finished { background: #eef2ff; color: #4338ca; }
-    .status-pill.cancelled { background: #fef2f2; color: #b91c1c; }
-
-    .transport-icon-btn,
-    .btn-icon-clean {
-        border: 0;
-        background: transparent;
-        color: #4b5563;
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        transition: background .18s ease, color .18s ease, transform .18s ease;
-    }
-
-    .transport-icon-btn:hover,
-    .btn-icon-clean:hover {
-        background: #f3f4f6;
-        color: var(--ns-navy);
-        transform: translateY(-1px);
-    }
-
-    .table-footer-line {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 14px 24px;
-        color: #4b5563;
-        font-size: .9rem;
-        background: #fbfcfe;
-        border-top: 1px solid #edf1f6;
-    }
-
-    .table-pager {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        color: #9ca3af;
-    }
-
-    .empty-search-message,
-    .section-empty {
+    .empty-search-message {
         display: none;
-        margin: 18px 24px;
-        padding: 14px 16px;
-        border: 1px dashed #cbd5e1;
-        border-radius: 10px;
+        border: 2px dashed #cbd5e1;
+        border-radius: 18px;
+        padding: 22px;
+        text-align: center;
         color: #64748b;
-        background: #f8fafc;
+        background: rgba(248,250,252,.9);
         font-weight: 700;
     }
 
-    .fila-oculta-busqueda { display: none !important; }
+    .section-title-line {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+
+    .section-title-line::after {
+        content: "";
+        height: 1px;
+        flex: 1;
+        background: linear-gradient(90deg, rgba(148,163,184,.45), transparent);
+    }
+
+    .table-custom {
+        border-collapse: separate;
+        border-spacing: 0 .65rem;
+        margin-bottom: 0;
+    }
+
+    .table-custom thead th {
+        background: transparent !important;
+        color: #64748b;
+        text-transform: uppercase;
+        font-size: .76rem;
+        letter-spacing: .08em;
+        border: none;
+        padding: .7rem .85rem;
+    }
+
+    .table-custom tbody tr {
+        background: white;
+        border-radius: 18px;
+        box-shadow: 0 8px 18px rgba(15,23,42,.055);
+        transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .table-custom tbody tr:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 28px rgba(15,23,42,.10);
+    }
+
+    .table-custom tbody td {
+        border-top: 1px solid #edf2f7;
+        border-bottom: 1px solid #edf2f7;
+        padding: .95rem .85rem;
+        vertical-align: middle;
+    }
+
+    .table-custom tbody td:first-child { border-left: 1px solid #edf2f7; border-radius: 16px 0 0 16px; }
+    .table-custom tbody td:last-child { border-right: 1px solid #edf2f7; border-radius: 0 16px 16px 0; }
+
+    .badge-navy, .folio-pill {
+        background: linear-gradient(135deg, #0f172a, #334155);
+        color: white;
+        border-radius: 999px;
+        padding: .5rem .75rem;
+        box-shadow: 0 8px 15px rgba(15,23,42,.18);
+    }
 
     .btn-flotante {
         position: fixed;
-        left: 32px;
-        bottom: 32px;
-        z-index: 1035;
-        border: 0;
-        border-radius: 10px;
-        padding: 13px 22px;
-        background: #4b1605;
-        color: #e96500;
-        font-weight: 900;
-        box-shadow: 0 14px 30px rgba(75, 22, 5, .18);
-        transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+        bottom: 34px;
+        right: 34px;
+        background: linear-gradient(135deg, var(--pm-orange), var(--pm-orange-2));
+        color: white;
+        border-radius: 999px;
+        padding: 15px 24px;
+        font-size: 1.03rem;
+        font-weight: 800;
+        box-shadow: 0 18px 38px rgba(234,88,12,.34);
+        border: none;
+        z-index: 1000;
+        transition: transform .2s ease, box-shadow .2s ease;
     }
 
     .btn-flotante:hover {
-        color: #fff;
-        transform: translateY(-2px);
-        filter: brightness(1.05);
-        box-shadow: 0 18px 36px rgba(75, 22, 5, .24);
+        transform: translateY(-4px) scale(1.01);
+        color: white;
+        box-shadow: 0 24px 48px rgba(234,88,12,.42);
     }
 
     .modal-content {
         border: 0;
-        border-radius: 10px;
+        border-radius: 26px;
         overflow: hidden;
-        box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
+        box-shadow: 0 34px 90px rgba(2,6,23,.36);
     }
 
-    #modalTransporte .modal-header,
-    .modal-header[style*="--navy-principal"] {
-        background: var(--ns-navy) !important;
-        min-height: 70px;
-        padding: 22px 34px;
+    .modal-header {
+        background:
+            radial-gradient(circle at 90% 20%, rgba(249,115,22,.36), transparent 14rem),
+            linear-gradient(135deg, #020617, #172554 78%) !important;
+        padding: 1.15rem 1.35rem;
+        border-bottom: 0;
     }
 
-    #modalTransporte .modal-title {
-        font-size: 1.28rem;
-        font-weight: 800;
-    }
+    .modal-body { background: #f8fafc !important; }
 
-    #modalTransporte .modal-body {
-        background: #f3f6fa !important;
-        padding: 0 !important;
-    }
-
-    #formTransporte .nav-pills,
-    .transport-wizard {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 10px;
-        background: #f6f8fb;
-        padding: 24px 34px 22px;
-        margin: 0 !important;
-        border-bottom: 1px solid #dfe5ed;
-    }
-
-    #formTransporte .nav-pills .nav-item,
-    .transport-wizard .nav-item {
-        flex: 1 1 0;
-        position: relative;
-        display: flex;
-        justify-content: center;
-    }
-
-    #formTransporte .nav-pills .nav-item:not(:last-child)::after,
-    .transport-wizard .nav-item:not(:last-child)::after {
-        content: "";
-        position: absolute;
-        left: calc(50% + 20px);
-        right: calc(-50% + 20px);
-        top: 15px;
-        height: 2px;
-        background: #d5dbe3;
-        z-index: 0;
-    }
-
-    #formTransporte .nav-pills .nav-link,
-    .transport-wizard .nav-link {
-        position: relative;
-        z-index: 1;
-        border: 0;
-        background: transparent;
-        color: #3f4652;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 7px;
-        font-size: .78rem;
-        font-weight: 800;
-        text-align: center;
-    }
-
-    .wizard-number {
-        width: 30px;
-        height: 30px;
+    #formTransporte .nav-pills {
+        background: white;
+        border: 1px solid #e2e8f0;
         border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: #d8dde5;
-        color: #6b7280;
-        font-weight: 900;
-        box-shadow: 0 0 0 4px #f6f8fb;
+        width: fit-content;
+        padding: .42rem;
+        margin-left: auto;
+        margin-right: auto;
+        box-shadow: 0 12px 24px rgba(15,23,42,.08);
     }
 
-    #formTransporte .nav-pills .nav-link.active,
-    .transport-wizard .nav-link.active { color: var(--ns-orange); }
-
-    #formTransporte .nav-pills .nav-link.active .wizard-number,
-    .transport-wizard .nav-link.active .wizard-number {
-        background: var(--ns-orange);
-        color: #fff;
+    #formTransporte .nav-pills .nav-link {
+        border-radius: 999px;
+        color: #64748b;
+        font-weight: 800;
+        padding: .65rem .95rem;
     }
 
-    .transport-wizard-body,
+    #formTransporte .nav-pills .nav-link.active {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white;
+        box-shadow: 0 10px 20px rgba(37,99,235,.28);
+    }
+
     .tab-content.bg-white {
-        background: #fff !important;
-        padding: 42px 34px !important;
-        border: 0 !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-    }
-
-    .wizard-scroll {
-        max-height: 68vh;
-        overflow-y: auto;
+        border-radius: 24px !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 14px 34px rgba(15,23,42,.08) !important;
     }
 
     .form-section-title {
+        color: #0f172a;
+        font-weight: 900;
+        border: none;
+        padding: 0 0 12px 0;
+        margin-bottom: 18px;
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin: 0 0 28px;
-        color: #1f2937;
-        font-size: 1.15rem;
-        font-weight: 900;
+        gap: .7rem;
     }
 
-    .form-section-title::after {
+    .form-section-title::before {
         content: "";
-        flex: 1 1 auto;
-        height: 1px;
-        background: #d1d5db;
-    }
-
-    .form-section-subtitle {
-        color: #4b5563;
-        margin: -18px 0 30px;
-        font-size: .94rem;
-    }
-
-    .form-label {
-        color: #374151;
-        font-size: .86rem;
-        margin-bottom: 7px;
-    }
-
-    .form-control,
-    .form-select {
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        min-height: 42px;
-        color: #374151;
-        background-color: #fff;
-        box-shadow: none;
-        transition: border-color .18s ease, box-shadow .18s ease;
-    }
-
-    .form-control:focus,
-    .form-select:focus {
-        border-color: var(--ns-navy);
-        box-shadow: 0 0 0 4px rgba(0, 31, 69, .08);
-    }
-
-    .readonly-field,
-    .detalle-card {
-        border: 1px solid #dfe5ed;
-        border-radius: 10px;
-        background: #f2f5f8;
-        padding: 12px 14px;
-        min-height: 42px;
-        color: #374151;
-    }
-
-    .route-card {
-        background: #fff;
-        border: 1px solid #cfd6df;
-        border-radius: 9px;
-        padding: 24px;
-        box-shadow: none;
-    }
-
-    .route-card-title {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding-bottom: 16px;
-        margin-bottom: 20px;
-        border-bottom: 1px solid #dfe5ed;
-        font-weight: 900;
-        color: #1f2937;
-    }
-
-    .route-index {
-        width: 24px;
-        height: 24px;
+        width: 11px;
+        height: 28px;
         border-radius: 999px;
-        background: #eef0f3;
-        color: #6b7280;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: .82rem;
-        font-weight: 900;
+        background: linear-gradient(180deg, var(--pm-orange), var(--pm-blue));
+        box-shadow: 0 8px 16px rgba(249,115,22,.22);
     }
 
-    .btn-soft-primary {
-        color: var(--ns-orange);
-        background: transparent;
-        border: 0;
-        font-weight: 900;
-        padding-left: 0;
+    .form-label { color: #334155; }
+    .form-control, .form-select {
+        border-radius: 14px;
+        border: 1px solid #cbd5e1;
+        min-height: 44px;
+        transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
     }
 
-    .btn-soft-primary:hover { color: var(--ns-orange-2); background: transparent; }
-
-    .wizard-actions {
-        margin-top: 32px;
-        padding-top: 22px;
-        border-top: 1px solid #edf1f6;
+    .form-control:focus, .form-select:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 .22rem rgba(37,99,235,.13);
     }
 
-    .btn-wizard-next,
-    .btn-wizard-save {
-        background: var(--ns-orange);
-        border: 0;
-        color: #fff;
-        border-radius: 8px !important;
-        min-width: 150px;
-        font-weight: 900;
-        box-shadow: 0 10px 18px rgba(230, 90, 0, .18);
+    .detalle-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 14px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        box-shadow: 0 8px 18px rgba(15,23,42,.055);
     }
 
-    .btn-wizard-next:hover,
-    .btn-wizard-save:hover {
-        background: var(--ns-orange-2);
-        color: #fff;
+    .destino-row, .partida-row {
+        position: relative;
+        border-left: 5px solid #2563eb;
     }
+
+    .partida-row { border-left-color: #f97316; }
 
     .required::after {
         content: " *";
@@ -955,713 +597,449 @@
         font-weight: 900;
     }
 
-    .scroll-top-btn {
-        position: fixed;
-        right: 28px;
-        bottom: 32px;
-        z-index: 1034;
-        width: 44px;
-        height: 44px;
-        border: 0;
-        border-radius: 999px;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        background: var(--ns-navy);
-        color: #fff;
-        box-shadow: var(--ns-shadow);
+    .section-empty {
+        border: 2px dashed #cbd5e1;
+        border-radius: 22px;
+        padding: 30px;
+        color: #64748b;
+        background: rgba(255,255,255,.72);
+        text-align: center;
     }
 
-    .scroll-top-btn.visible { display: inline-flex; }
+    .btn {
+        font-weight: 750;
+    }
 
-    .modal-costos { border-radius: 16px; }
-    .modal-costos-header { background: linear-gradient(135deg, var(--ns-navy), var(--ns-navy-2)) !important; }
-    .modal-costos-body { background: #f8fafc; }
+    .btn-soft-primary {
+        color: #1d4ed8;
+        background: rgba(37,99,235,.1);
+        border: 1px solid rgba(37,99,235,.18);
+    }
+
+    .btn-soft-primary:hover { background: rgba(37,99,235,.16); color: #1d4ed8; }
+
+
+
+    .wizard-scroll {
+        max-height: 62vh;
+        overflow-y: auto;
+        padding-bottom: 16px !important;
+        scrollbar-width: thin;
+    }
+
+    .wizard-actions {
+        position: sticky;
+        bottom: -1px;
+        z-index: 5;
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
+        margin-bottom: -1.5rem;
+        padding: 18px 1.5rem 0 1.5rem;
+        background: linear-gradient(180deg, rgba(255,255,255,0), #ffffff 34%, #ffffff 100%);
+    }
+
+    .btn-wizard-next {
+        color: #fff !important;
+        background: linear-gradient(135deg, var(--pm-blue), #1d4ed8);
+        border: 0;
+        box-shadow: 0 10px 22px rgba(37,99,235,.22);
+    }
+
+    .btn-wizard-save {
+        color: #fff !important;
+        background: linear-gradient(135deg, var(--pm-orange), var(--pm-orange-2));
+        border: 0;
+        box-shadow: 0 12px 26px rgba(234,88,12,.28);
+    }
+
+    .btn-wizard-next:hover,
+    .btn-wizard-save:hover {
+        color: #fff !important;
+        transform: translateY(-1px);
+        filter: brightness(1.02);
+    }
+
+    @@media (max-width: 768px) {
+        .hero-logistica { padding: 22px; border-radius: 22px; }
+        .btn-flotante { right: 18px; bottom: 18px; padding: 13px 18px; }
+        .workflow-tabs, #formTransporte .nav-pills { border-radius: 22px; width: 100%; }
+        .workflow-tabs .nav-link, #formTransporte .nav-pills .nav-link { font-size: .86rem; padding: .55rem .7rem; }
+    }
+
+    /* Dashboard financiero / Costos */
+    .modal-costos {
+        border-radius: 28px;
+        overflow: hidden;
+        background: #f8fafc;
+    }
+
+    .modal-costos-header {
+        background:
+            radial-gradient(circle at 90% 20%, rgba(249,115,22,.35), transparent 14rem),
+            radial-gradient(circle at 10% 10%, rgba(37,99,235,.35), transparent 12rem),
+            linear-gradient(135deg, #020617, #0f172a 55%, #312e81);
+        border-bottom: 0;
+        padding: 1.25rem 1.5rem;
+    }
+
+    .modal-costos-body {
+        background:
+            radial-gradient(circle at top left, rgba(37,99,235,.08), transparent 18rem),
+            linear-gradient(180deg, #f8fafc, #eef3f8);
+    }
+
     .cost-kpi {
         position: relative;
-        overflow: hidden;
-        min-height: 110px;
-        border-radius: 14px;
-        border: 1px solid #e5e7eb;
-        background: #fff;
+        min-height: 112px;
+        background: rgba(255,255,255,.92);
+        border: 1px solid rgba(148,163,184,.25);
+        border-radius: 22px;
         padding: 18px;
-        box-shadow: var(--ns-shadow-soft);
-    }
-    .cost-kpi-label { color: #64748b; font-size: .78rem; text-transform: uppercase; font-weight: 800; }
-    .cost-kpi-value { font-size: 1.45rem; font-weight: 900; color: #0f172a; }
-    .cost-kpi-icon { position: absolute; right: 16px; bottom: 12px; color: rgba(0, 31, 69, .12); font-size: 2.4rem; }
-    .chart-shell { background: #fff; border-radius: 14px; border: 1px solid #e5e7eb; box-shadow: var(--ns-shadow-soft); }
-    .chart-container-custom { position: relative; min-height: 320px; }
-
-    @@media (max-width: 992px) {
-        .transport-page-shell { padding: 22px 14px 52px; }
-        .transport-hero, .hero-logistica { padding: 32px 24px; }
-        .transport-hero::after, .hero-logistica::after { right: 22px; font-size: 56px; }
-        .transport-board-header, .section-toolbar { align-items: stretch; }
-        .search-module-box { width: 100%; }
+        box-shadow: 0 14px 30px rgba(15,23,42,.08);
+        overflow: hidden;
     }
 
-    @@media (max-width: 768px) {
-        .transport-top-row { align-items: flex-start; flex-direction: column; }
-        #formTransporte .nav-pills, .transport-wizard { padding: 20px 18px; gap: 6px; }
-        .wizard-label { display: none; }
-        #formTransporte .nav-pills .nav-item:not(:last-child)::after,
-        .transport-wizard .nav-item:not(:last-child)::after { left: calc(50% + 16px); right: calc(-50% + 16px); }
-        .transport-wizard-body, .tab-content.bg-white { padding: 28px 18px !important; }
-        .btn-flotante { left: 18px; right: 18px; bottom: 18px; width: calc(100% - 36px); }
-        .scroll-top-btn { display: none !important; }
+    .cost-kpi::after {
+        content: "";
+        position: absolute;
+        width: 110px;
+        height: 110px;
+        right: -35px;
+        bottom: -45px;
+        border-radius: 999px;
+        background: rgba(37,99,235,.08);
     }
 
-
-    @@media (max-width: 1100px) {
-        .transport-layout-shell {
-            flex-direction: column;
-        }
-
-        .transport-side-menu {
-            width: 100%;
-            flex: 0 0 auto;
-            padding: 18px 16px;
-            border-right: 0;
-            border-bottom: 1px solid var(--ns-border);
-        }
-
-        .side-nav {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 6px;
-        }
-
-        .side-nav-title,
-        .side-menu-spacer,
-        .side-menu-footer {
-            display: none;
-        }
-
-        .transport-page-shell {
-            padding: 24px 18px 52px;
-        }
+    .cost-kpi-label {
+        color: #64748b;
+        font-size: .76rem;
+        text-transform: uppercase;
+        letter-spacing: .09em;
+        font-weight: 800;
+        margin-bottom: 8px;
     }
 
-    @@media (max-width: 768px) {
-        .side-nav {
-            grid-template-columns: 1fr;
-        }
-
-        .transport-layout-shell + .btn-flotante {
-            display: inline-flex;
-        }
+    .cost-kpi-value {
+        color: #0f172a;
+        font-size: 1.75rem;
+        font-weight: 900;
     }
 
-
-    .side-brand {
-        background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
-        border: 1px solid #edf1f6;
-        border-radius: 14px;
-        padding: 12px 12px;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, .04);
-        margin-bottom: -4px;
-    }
-
-    .side-brand-name {
-        font-size: 1rem;
-        letter-spacing: -.01em;
-    }
-
-    .side-brand-subtitle {
-        color: #8a94a6;
-    }
-
-    .section-toolbar {
-        padding: 18px 20px 14px;
-    }
-
-    .section-heading {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        min-width: 0;
-    }
-
-    .section-icon {
+    .cost-kpi-icon {
+        position: absolute;
+        top: 16px;
+        right: 16px;
         width: 42px;
         height: 42px;
-        border-radius: 12px;
+        border-radius: 15px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: #eef2ff;
-        color: var(--ns-navy);
-        flex: 0 0 auto;
-        box-shadow: inset 0 0 0 1px rgba(0, 31, 69, .06);
+        z-index: 1;
     }
 
-    .section-icon.pending { background: #fff4ef; color: #7c2d12; }
-    .section-icon.authorized { background: #eefaf3; color: #15803d; }
-    .section-icon.finished { background: #eff6ff; color: #1d4ed8; }
-    .section-icon.cancelled { background: #fef2f2; color: #dc2626; }
-
-    .section-heading-copy {
-        min-width: 0;
-    }
-
-    .section-eyebrow {
-        font-size: .72rem;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        color: #9ca3af;
-        font-weight: 800;
-        margin-bottom: 2px;
-    }
-
-    .section-title-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-
-    .section-title {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 900;
-        color: #1f2937;
-        letter-spacing: -.01em;
-    }
-
-    .section-meta-badge {
-        display: inline-flex;
-        align-items: center;
-        min-height: 24px;
-        padding: 0 10px;
-        border-radius: 999px;
-        background: #f3f4f6;
-        color: #4b5563;
-        font-size: .72rem;
-        font-weight: 800;
-    }
-
-    .transport-table th:last-child,
-    .transport-table td:last-child {
-        width: 116px;
-        min-width: 116px;
-    }
-
-    .transport-actions-row {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        flex-wrap: nowrap;
-        white-space: nowrap;
-    }
-
-    .transport-actions-row .transport-icon-btn,
-    .transport-actions-row a.transport-icon-btn {
-        flex: 0 0 auto;
-    }
-
-
-    .transport-table th:nth-child(1),
-    .transport-table td:nth-child(1) { width: 88px; }
-
-    .transport-table th:nth-child(2),
-    .transport-table td:nth-child(2) { width: 122px; }
-
-    .transport-table th:nth-child(3),
-    .transport-table td:nth-child(3) { width: 220px; }
-
-    .transport-table th:nth-child(4),
-    .transport-table td:nth-child(4) { width: 145px; }
-
-    .transport-table th:nth-child(5),
-    .transport-table td:nth-child(5) { width: 120px; }
-
-    .transport-table th:nth-child(6),
-    .transport-table td:nth-child(6) { width: 96px; }
-
-    .transport-table th:nth-child(7),
-    .transport-table td:nth-child(7) { width: 104px; }
-
-    .transport-table td:nth-child(3),
-    .transport-table td:nth-child(4),
-    .transport-table td:nth-child(5) {
-        white-space: normal;
-    }
-
-    .transport-client-main,
-    .transport-client-sub {
-        overflow-wrap: anywhere;
-    }
-
-
-    .table-footer-line {
-        padding: 14px 20px;
-    }
-
-    @@media (max-width: 992px) {
-        .section-heading {
-            width: 100%;
-        }
-
-        .search-module-box {
-            width: 100%;
-        }
-
-        .section-toolbar {
-            align-items: stretch;
-        }
-    }
-
-
-    .forms-workspace {
-        padding: 22px;
-        background: #fbfcfe;
-    }
-
-    .forms-intro-card {
-        border: 1px solid #e5e7eb;
-        border-radius: 14px;
-        background: #ffffff;
+    .chart-shell {
+        background: rgba(255,255,255,.95);
+        border: 1px solid rgba(148,163,184,.25);
+        border-radius: 26px;
         padding: 20px;
-        box-shadow: 0 8px 18px rgba(15, 23, 42, .04);
+        box-shadow: 0 16px 36px rgba(15,23,42,.09);
     }
 
-    .forms-intro-title {
-        margin: 0 0 6px;
-        color: #111827;
-        font-weight: 900;
-        font-size: 1.05rem;
-    }
-
-    .forms-intro-text {
-        margin: 0;
-        color: #6b7280;
-        font-size: .88rem;
-        line-height: 1.45;
-    }
-
-    .forms-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-        gap: 14px;
-        margin-top: 18px;
-    }
-
-    .form-template-card {
-        border: 1px solid #e5e7eb;
-        border-radius: 14px;
-        background: #ffffff;
+    .chart-container-custom {
+        position: relative;
+        height: 380px;
+        background:
+            linear-gradient(180deg, rgba(248,250,252,.96), rgba(255,255,255,.96));
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
         padding: 18px;
-        min-height: 148px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        box-shadow: 0 8px 18px rgba(15, 23, 42, .04);
     }
-
-    .form-template-card.add-card {
-        border-style: dashed;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        background: #fff7ed;
-        border-color: rgba(230, 90, 0, .32);
-    }
-
-    .form-template-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: #eef2ff;
-        color: var(--ns-navy);
-    }
-
-    .form-template-title {
-        margin: 0;
-        color: #111827;
-        font-size: .95rem;
-        font-weight: 900;
-    }
-
-    .form-template-subtitle {
-        margin: 0;
-        color: #6b7280;
-        font-size: .78rem;
-        line-height: 1.35;
-    }
-
-    .form-template-meta {
-        margin-top: auto;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        color: #6b7280;
-        font-size: .76rem;
-        font-weight: 700;
-    }
-
-    .form-status-pill {
-        border-radius: 999px;
-        padding: 4px 9px;
-        background: #dcfce7;
-        color: #166534;
-        font-size: .7rem;
-        font-weight: 900;
-    }
-
-    .btn-form-ghost {
-        border: 1px solid rgba(230, 90, 0, .28);
-        border-radius: 10px;
-        background: #ffffff;
-        color: #7c2d12;
-        min-height: 36px;
-        padding: 0 14px;
-        font-weight: 900;
-        font-size: .82rem;
-    }
-
-    .form-builder-modal .modal-header {
-        background: linear-gradient(135deg, var(--ns-navy), var(--ns-navy-2));
-        color: #ffffff;
-    }
-
-    .form-builder-modal .form-label {
-        font-size: .78rem;
-        font-weight: 900;
-        color: #374151;
-    }
-
 
 </style>
 
-<div class="transport-layout-shell fade-in-up" id="inicioPagina">
-    <aside class="transport-side-menu" aria-label="Menu lateral de Logistica">
-        <div class="side-brand">
-            <div class="side-brand-mark">NS</div>
-            <div>
-                <div class="side-brand-name">NS EQUIPO</div>
-                <div class="side-brand-subtitle">Intranet Corporativa</div>
-            </div>
-        </div>
-
-        <a href="/Logistica/Formularios?origenModulo=Transporte" class="side-new-request">
-            <i class="fas fa-plus"></i> Nueva Solicitud
-        </a>
-
-        @if (esLogistica)
-        {
-            <a href="/Logistica/Formularios/Crear?origenModulo=Transporte" class="side-create-form">
-                <i class="fas fa-file-alt"></i> Crear Formulario
-            </a>
-        }
-
-        <nav class="side-nav">
-            <div class="side-nav-title">Menu principal</div>
-            <button type="button" class="side-link active transport-module-main" onclick="mostrarSeccionTransporte('@seccionInicialTransporte')">
-                <i class="fas fa-truck"></i><span>Logistica Transporte</span>
-            </button>
-            @if (esLogistica)
-            {
-                <button type="button" class="side-link" onclick="abrirModalDashboard()">
-                    <i class="fas fa-chart-bar"></i><span>Reportes</span>
-                </button>
-            }
-            <a href="/Logistica/Formularios?origenModulo=Transporte" id="btnFormulariosMenu" class="side-link transport-form-menu">
-                <i class="fas fa-clipboard-list"></i><span>Formularios</span>
-            </a>
-
-            <div class="side-nav-title mt-3">Flujo de transporte</div>
-            @if (esLogistica)
-            {
-                <button type="button" class="side-link side-subitem transport-flow-link active" data-target="seccionPendientes" onclick="mostrarSeccionTransporte('seccionPendientes')">
-                    <i class="fas fa-clock"></i><span>Pendientes</span><span class="side-count">@pendientes.Count</span>
-                </button>
-            }
-            <button type="button" class="side-link side-subitem transport-flow-link @(esLogistica ? "" : "active")" data-target="seccionAutorizadas" onclick="mostrarSeccionTransporte('seccionAutorizadas')">
-                <i class="fas fa-check-circle"></i><span>Autorizadas</span><span class="side-count">@autorizadas.Count</span>
-            </button>
-            @if (esLogistica)
-            {
-                <button type="button" class="side-link side-subitem transport-flow-link" data-target="seccionFinalizadas" onclick="mostrarSeccionTransporte('seccionFinalizadas')">
-                    <i class="fas fa-flag-checkered"></i><span>Finalizadas</span><span class="side-count">@finalizadas.Count</span>
-                </button>
-            }
-            <button type="button" class="side-link side-subitem transport-flow-link" data-target="seccionEliminadas" onclick="mostrarSeccionTransporte('seccionEliminadas')">
-                <i class="fas fa-times-circle"></i><span>Canceladas</span><span class="side-count">@eliminadas.Count</span>
-            </button>
-        </nav>
-
-    </aside>
-
-    <main class="transport-page-shell">
-
-    <div class="transport-top-row">
-        <div class="page-back-zone">
-            <a href="@menuLogisticaUrl" class="page-back-btn">
-                <i class="fas fa-arrow-left"></i> Regresar
-            </a>
-        </div>
-
-        @if (esLogistica)
-        {
-            <div class="transport-top-actions">
-                <a href="/Logistica/DescargarReporteTransportesPDF" target="_blank" class="hero-action-btn hero-action-pdf" title="Descargar PDF">
-                    <i class="fas fa-file-pdf"></i> PDF
-                </a>
-                <a href="/Logistica/DescargarReporteTransportesExcel" target="_blank" class="hero-action-btn hero-action-excel" title="Descargar Excel">
-                    <i class="fas fa-file-excel"></i> Excel
-                </a>
-                <button type="button" class="hero-action-btn hero-action-costs" onclick="abrirModalDashboard()" title="Dashboard de costos">
-                    <i class="fas fa-chart-line"></i> Costos
-                </button>
-            </div>
-        }
+<div class="container-fluid px-4 my-4 fade-in-up" id="inicioPagina">
+    <div class="page-back-zone">
+        <button type="button" class="page-back-btn" onclick="window.history.back();">
+            <i class="fas fa-arrow-left"></i> Regresar
+        </button>
     </div>
 
-    <section class="transport-hero mb-4">
-        <h1 class="transport-hero-title">Solicitudes de Transporte</h1>
-        <p class="transport-hero-subtitle">Gestión y seguimiento de requerimientos logísticos.</p>
-    </section>
+    <div class="hero-logistica mb-4">
+        <div class="row align-items-center g-3">
+            <div class="col-lg-8">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="kpi-icon bg-warning text-dark fs-4"><i class="fas fa-truck-moving"></i></div>
+                    <div>
+                        <h2 class="fw-bold mb-1">Solicitudes de Transporte</h2>
+                        <p class="mb-0 opacity-75">Bandeja de aprobación, operaciones autorizadas, cancelaciones, destinos y plan de embarque.</p>
+                        <div class="mt-3 d-flex flex-wrap gap-2"><span class="hero-chip"><i class="fas fa-bell"></i> Notificaciones activas</span><span class="hero-chip"><i class="fas fa-route"></i> Flujo de autorización</span><span class="hero-chip"><i class="fas fa-boxes-stacked"></i> Plan de embarque</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="hero-actions-panel">
+                    @if (esLogistica)
+                    {
+                        <div class="hero-actions-row">
+                            <a href="/Logistica/DescargarReporteTransportesPDF" target="_blank" class="hero-action-btn hero-action-pdf">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </a>
 
-    <div class="transport-board transport-board-clean">
+                            <a href="/Logistica/DescargarReporteTransportesExcel" target="_blank" class="hero-action-btn hero-action-excel">
+                                <i class="fas fa-file-excel"></i> Excel
+                            </a>
+                        </div>
+
+                        <div class="hero-actions-row">
+                            <button class="hero-action-btn hero-action-costs" onclick="abrirModalDashboard()">
+                                <i class="fas fa-chart-line"></i> Costos
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
         @if (esLogistica)
         {
-            <div id="seccionPendientes" data-section="seccionPendientes" class="seccion-filtrable seccion-activa">
-                <div class="section-toolbar">
-                    <div class="section-heading">
-                        <span class="section-icon pending"><i class="fas fa-clock"></i></span>
-                        <div class="section-heading-copy">
-                            <div class="section-eyebrow">Flujo de transporte</div>
-                            <div class="section-title-row">
-                                <h2 class="section-title">Solicitudes pendientes de autorización</h2>
-                                <span class="section-meta-badge">@pendientes.Count registro@(pendientes.Count == 1 ? "" : "s")</span>
-                            </div>
-                        </div>
+            <div class="col-md-3">
+                <div class="kpi-card kpi-filter active" data-target="seccionPendientes" data-tab="tabPendientes">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div><div class="text-muted fw-semibold small text-uppercase">Por autorizar</div><div class="fs-2 fw-bold text-primary">@pendientes.Count</div></div>
+                        <div class="kpi-icon bg-primary bg-opacity-10 text-primary"><i class="fas fa-inbox"></i></div>
                     </div>
+                </div>
+            </div>
+        }
+
+        <div class="col-md-@(esLogistica ? "3" : "6")">
+            <div class="kpi-card kpi-filter @(esLogistica ? "" : "active")" data-target="seccionAutorizadas" data-tab="tabAutorizadas">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div><div class="text-muted fw-semibold small text-uppercase">Autorizadas</div><div class="fs-2 fw-bold text-success">@autorizadas.Count</div></div>
+                    <div class="kpi-icon bg-success bg-opacity-10 text-success"><i class="fas fa-clipboard-check"></i></div>
+                </div>
+            </div>
+        </div>
+
+        @if (esLogistica)
+        {
+            <div class="col-md-3">
+                <div class="kpi-card kpi-filter" data-target="seccionFinalizadas" data-tab="tabFinalizadas">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div><div class="text-muted fw-semibold small text-uppercase">Finalizadas</div><div class="fs-2 fw-bold" style="color:#7c3aed;">@finalizadas.Count</div></div>
+                        <div class="kpi-icon bg-primary bg-opacity-10" style="color:#7c3aed;"><i class="fas fa-flag-checkered"></i></div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="col-md-@(esLogistica ? "3" : "6")">
+            <div class="kpi-card kpi-filter" data-target="seccionEliminadas" data-tab="tabEliminadas">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div><div class="text-muted fw-semibold small text-uppercase">Canceladas / eliminadas</div><div class="fs-2 fw-bold text-danger">@eliminadas.Count</div></div>
+                    <div class="kpi-icon bg-danger bg-opacity-10 text-danger"><i class="fas fa-trash-alt"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <ul class="nav workflow-tabs gap-2 mb-4" id="tabsFlujoTransporte" role="tablist">
+        @if (esLogistica)
+        {
+            <li class="nav-item" role="presentation"><a id="tabPendientes" href="#seccionPendientes" class="nav-link active" data-target="seccionPendientes"><i class="fas fa-inbox me-1"></i> Pendientes</a></li>
+        }
+        <li class="nav-item" role="presentation"><a id="tabAutorizadas" href="#seccionAutorizadas" class="nav-link @(esLogistica ? "" : "active")" data-target="seccionAutorizadas"><i class="fas fa-check-circle me-1"></i> Autorizadas</a></li>
+        @if (esLogistica)
+        {
+            <li class="nav-item" role="presentation"><a id="tabFinalizadas" href="#seccionFinalizadas" class="nav-link" data-target="seccionFinalizadas"><i class="fas fa-flag-checkered me-1"></i> Finalizadas</a></li>
+        }
+        <li class="nav-item" role="presentation"><a id="tabEliminadas" href="#seccionEliminadas" class="nav-link" data-target="seccionEliminadas"><i class="fas fa-ban me-1"></i> Canceladas</a></li>
+    </ul>
+
+    @if (esLogistica)
+    {
+        <div id="seccionPendientes" data-section="seccionPendientes" class="card dashboard-card shadow border-primary border-top-0 border-end-0 border-bottom-0 rounded-3 mb-5 seccion-filtrable @(esLogistica ? "seccion-activa" : "")" style="border-left-width: 5px !important;">
+            <div class="card-body p-4">
+                <div class="section-toolbar">
+                    <h5 class="text-primary fw-bold section-title-line"><i class="fas fa-inbox me-2"></i> Peticiones por Autorizar</h5>
                     <div class="search-module-box">
                         <i class="fas fa-search"></i>
-                        <input type="text" class="busqueda-seccion" data-target="#tablaPendientes" placeholder="Buscar por folio o cliente...">
+                        <input type="text" class="busqueda-seccion" data-target="#tablaPendientes" placeholder="Buscar folio, cliente, proyecto...">
                     </div>
                 </div>
                 <div class="empty-search-message" data-empty-for="#tablaPendientes">
-                    <i class="fas fa-magnifying-glass me-1"></i> No se encontraron solicitudes pendientes con esa búsqueda.
+                    <i class="fas fa-magnifying-glass me-1"></i> No se encontraron peticiones pendientes con esa búsqueda.
                 </div>
-                <div class="table-responsive section-table-wrap">
-                    <table class="table transport-table align-middle" id="tablaPendientes">
-                        <thead>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle text-center w-100 bg-white rounded shadow-sm" id="tablaPendientes">
+                        <thead class="table-primary">
                             <tr>
                                 <th>Folio</th>
-                                <th>Fecha solicitud</th>
-                                <th>Cliente / Proyecto</th>
-                                <th>Ruta - Unidad</th>
-                                <th>Estado</th>
-                                <th class="text-center">Acciones</th>
+                                <th>Cliente</th>
+                                <th>Proyecto</th>
+                                <th>Solicitante</th>
+                                <th>Fecha carga</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var item in pendientes)
                             {
+                                string nombreCreador = dicUsuarios != null && dicUsuarios.ContainsKey(item.UsuarioID) ? dicUsuarios[item.UsuarioID] : (item.ElaboradoPor ?? "N/A");
                                 <tr>
-                                    <td><span class="folio-pill">@(item.Folio ?? $"TR-{item.IdTransporte}")</span></td>
-                                    <td>@(item.FechaCarga.HasValue ? item.FechaCarga.Value.ToString("dd MMM yyyy") : "N/A")</td>
+                                    <td class="fw-bold text-primary">@(item.Folio ?? $"TR-{item.IdTransporte}")</td>
+                                    <td>@(item.Cliente ?? "N/A")</td>
+                                    <td>@(item.Proyecto ?? "N/A")</td>
+                                    <td>@nombreCreador</td>
+                                    <td>@(item.FechaCarga.HasValue ? item.FechaCarga.Value.ToString("dd/MM/yyyy") : "N/A")</td>
                                     <td>
-                                        <div class="transport-client-main">@(item.Cliente ?? "N/A")</div>
-                                        <div class="transport-client-sub">@(item.Proyecto ?? "N/A")</div>
-                                    </td>
-                                    <td>@(item.TipoRuta ?? "N/A") <span class="text-muted mx-1">→</span> @(item.TipoUnidad ?? "N/A")</td>
-                                    <td><span class="status-pill">Por autorizar</span></td>
-                                    <td class="text-center">
-                                        <div class="transport-actions-row">
-                                            <button class="transport-icon-btn" onclick="abrirModalVer(@item.IdTransporte)" title="Ver"><i class="fas fa-eye"></i></button>
-                                            <button class="transport-icon-btn" onclick="abrirModalEditar(@item.IdTransporte)" title="Revisar"><i class="fas fa-pen"></i></button>
-                                            <button class="transport-icon-btn text-success" onclick="resolverTransporte(@item.IdTransporte, 'Aceptada')" title="Autorizar"><i class="fas fa-check"></i></button>
-                                            <button class="transport-icon-btn text-danger" onclick="resolverTransporte(@item.IdTransporte, 'Rechazada')" title="Rechazar"><i class="fas fa-times"></i></button>
-                                        </div>
+                                        <button class="btn btn-sm btn-light border me-1" onclick="abrirModalVer(@item.IdTransporte)" title="Ver"><i class="fas fa-eye text-primary"></i></button>
+                                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3 me-1" onclick="abrirModalEditar(@item.IdTransporte)"><i class="fas fa-pen me-1"></i> Revisar</button>
+                                        <button class="btn btn-sm btn-success rounded-circle me-1" onclick="resolverTransporte(@item.IdTransporte, 'Aceptada')" title="Autorizar"><i class="fas fa-check"></i></button>
+                                        <button class="btn btn-sm btn-danger rounded-circle" onclick="resolverTransporte(@item.IdTransporte, 'Rechazada')" title="Rechazar"><i class="fas fa-times"></i></button>
                                     </td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 </div>
-                <div class="table-footer-line">
-                    <span>Mostrando 1 a @pendientes.Count de @pendientes.Count registros</span>
-                    <span class="table-pager"><i class="fas fa-angle-left"></i><i class="fas fa-angle-right"></i></span>
-                </div>
-            </div>
-        }
-
-        <div id="seccionAutorizadas" data-section="seccionAutorizadas" class="seccion-filtrable @(esLogistica ? "" : "seccion-activa")">
-            <div class="section-toolbar">
-                <div class="section-heading">
-                    <span class="section-icon authorized"><i class="fas fa-check-circle"></i></span>
-                    <div class="section-heading-copy">
-                        <div class="section-eyebrow">Flujo de transporte</div>
-                        <div class="section-title-row">
-                            <h2 class="section-title">Solicitudes autorizadas</h2>
-                            <span class="section-meta-badge">@autorizadas.Count registro@(autorizadas.Count == 1 ? "" : "s")</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="search-module-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" class="busqueda-seccion" data-target="#tablaTransporte" placeholder="Buscar por folio o cliente...">
-                </div>
-            </div>
-            <div class="empty-search-message" data-empty-for="#tablaTransporte">
-                <i class="fas fa-magnifying-glass me-1"></i> No se encontraron solicitudes autorizadas con esa búsqueda.
-            </div>
-            <div class="table-responsive section-table-wrap">
-                <table class="table transport-table align-middle" id="tablaTransporte">
-                    <thead>
-                        <tr>
-                            <th>Folio</th>
-                            <th>Fecha solicitud</th>
-                            <th>Cliente / Proyecto</th>
-                            <th>Ruta - Unidad</th>
-                            <th>Fletero</th>
-                            <th>Costo</th>
-                            <th>Estado</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in autorizadas)
-                        {
-                            <tr>
-                                <td><span class="folio-pill">@(item.Folio ?? $"TR-{item.IdTransporte}")</span></td>
-                                <td>@(item.FechaCarga.HasValue ? item.FechaCarga.Value.ToString("dd MMM yyyy") : "N/A")</td>
-                                <td>
-                                    <div class="transport-client-main">@(item.Cliente ?? "N/A")</div>
-                                    <div class="transport-client-sub">@(item.Proyecto ?? "N/A")</div>
-                                </td>
-                                <td>@(item.TipoRuta ?? "N/A") <span class="text-muted mx-1">→</span> @(item.TipoUnidad ?? "N/A")</td>
-                                <td>@(item.Fletero ?? "N/A")</td>
-                                <td>@((item.CostoFlete ?? 0).ToString("C"))</td>
-                                <td><span class="status-pill authorized">Autorizada</span></td>
-                                <td class="text-center">
-                                    <div class="transport-actions-row">
-                                        <a class="transport-icon-btn" href="/Logistica/DescargarTransportePDF?id=@item.IdTransporte" target="_blank" title="PDF"><i class="fas fa-file-pdf"></i></a>
-                                        <button class="transport-icon-btn" onclick="abrirModalVer(@item.IdTransporte)" title="Ver"><i class="fas fa-eye"></i></button>
-                                        <button class="transport-icon-btn" onclick="abrirModalEditar(@item.IdTransporte)" title="Editar"><i class="fas fa-pen"></i></button>
-                                        <button class="transport-icon-btn" onclick="finalizarTransporte(@item.IdTransporte)" title="Finalizar"><i class="fas fa-flag-checkered"></i></button>
-                                        <button class="transport-icon-btn text-danger" onclick="abrirModalBorrar(@item.IdTransporte)" title="Cancelar"><i class="fas fa-trash-alt"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-            <div class="table-footer-line">
-                <span>Mostrando 1 a @autorizadas.Count de @autorizadas.Count registros</span>
-                <span class="table-pager"><i class="fas fa-angle-left"></i><i class="fas fa-angle-right"></i></span>
             </div>
         </div>
+    }
 
-        @if (esLogistica)
-        {
-            <div id="seccionFinalizadas" data-section="seccionFinalizadas" class="seccion-filtrable">
-                <div class="section-toolbar">
-                    <div class="section-heading">
-                        <span class="section-icon finished"><i class="fas fa-flag-checkered"></i></span>
-                        <div class="section-heading-copy">
-                            <div class="section-eyebrow">Flujo de transporte</div>
-                            <div class="section-title-row">
-                                <h2 class="section-title">Transportes finalizados</h2>
-                                <span class="section-meta-badge">@finalizadas.Count registro@(finalizadas.Count == 1 ? "" : "s")</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="search-module-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" class="busqueda-seccion" data-target="#tablaFinalizadas" placeholder="Buscar por folio o cliente...">
-                    </div>
-                </div>
-                <div class="empty-search-message" data-empty-for="#tablaFinalizadas">
-                    <i class="fas fa-magnifying-glass me-1"></i> No se encontraron transportes finalizados con esa búsqueda.
-                </div>
-                <div class="table-responsive section-table-wrap">
-                    <table class="table transport-table align-middle" id="tablaFinalizadas">
-                        <thead>
-                            <tr>
-                                <th>Folio</th>
-                                <th>Fecha solicitud</th>
-                                <th>Cliente / Proyecto</th>
-                                <th>Ruta - Unidad</th>
-                                <th>Fletero</th>
-                                <th>Costo</th>
-                                <th>Estado</th>
-                                <th class="text-center">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in finalizadas)
-                            {
-                                <tr>
-                                    <td><span class="folio-pill">@(item.Folio ?? $"TR-{item.IdTransporte}")</span></td>
-                                    <td>@(item.FechaCarga.HasValue ? item.FechaCarga.Value.ToString("dd MMM yyyy") : "N/A")</td>
-                                    <td>
-                                        <div class="transport-client-main">@(item.Cliente ?? "N/A")</div>
-                                        <div class="transport-client-sub">@(item.Proyecto ?? "N/A")</div>
-                                    </td>
-                                    <td>@(item.TipoRuta ?? "N/A") <span class="text-muted mx-1">→</span> @(item.TipoUnidad ?? "N/A")</td>
-                                    <td>@(item.Fletero ?? "N/A")</td>
-                                    <td>@((item.CostoFlete ?? 0).ToString("C"))</td>
-                                    <td><span class="status-pill finished">Finalizada</span></td>
-                                    <td class="text-center">
-                                        <a class="transport-icon-btn" href="/Logistica/DescargarTransportePDF?id=@item.IdTransporte" target="_blank" title="PDF"><i class="fas fa-file-pdf"></i></a>
-                                        <button class="transport-icon-btn" onclick="abrirModalVer(@item.IdTransporte)" title="Ver"><i class="fas fa-eye"></i></button>
-                                        @if (esLogistica)
-                                        {
-                                            <button class="transport-icon-btn text-danger" onclick="eliminarTransporteFinalizado(@item.IdTransporte)" title="Eliminar finalizado"><i class="fas fa-trash-alt"></i></button>
-                                        }
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                <div class="table-footer-line">
-                    <span>Mostrando 1 a @finalizadas.Count de @finalizadas.Count registros</span>
-                    <span class="table-pager"><i class="fas fa-angle-left"></i><i class="fas fa-angle-right"></i></span>
-                </div>
+    <div id="seccionAutorizadas" data-section="seccionAutorizadas" class="dashboard-card p-4 mb-5 seccion-filtrable @(esLogistica ? "" : "seccion-activa")">
+        <div class="section-toolbar">
+            <h5 class="fw-bold section-title-line" style="color: var(--pm-navy);"><i class="fas fa-clipboard-check text-success me-2"></i> Operaciones Autorizadas</h5>
+            <div class="search-module-box">
+                <i class="fas fa-search"></i>
+                <input type="text" class="busqueda-seccion" data-target="#tablaTransporte" placeholder="Buscar folio, cliente, ruta, fletero...">
             </div>
-        }
+        </div>
+        <div class="empty-search-message" data-empty-for="#tablaTransporte">
+            <i class="fas fa-magnifying-glass me-1"></i> No se encontraron operaciones autorizadas con esa búsqueda.
+        </div>
+        <div class="table-responsive">
+            <table class="table table-custom align-middle" id="tablaTransporte">
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th>Cliente</th>
+                        <th>Proyecto</th>
+                        <th>Fecha carga</th>
+                        <th>Tipo ruta</th>
+                        <th>Unidad</th>
+                        <th>Fletero</th>
+                        <th>Costo</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in autorizadas)
+                    {
+                        <tr>
+                            <td><span class="badge badge-navy">@(item.Folio ?? $"TR-{item.IdTransporte}")</span></td>
+                            <td class="fw-semibold">@(item.Cliente ?? "N/A")</td>
+                            <td>@(item.Proyecto ?? "N/A")</td>
+                            <td>@(item.FechaCarga.HasValue ? item.FechaCarga.Value.ToString("dd/MM/yyyy") : "N/A")</td>
+                            <td>@(item.TipoRuta ?? "N/A")</td>
+                            <td>@(item.TipoUnidad ?? "N/A")</td>
+                            <td>@(item.Fletero ?? "N/A")</td>
+                            <td>@((item.CostoFlete ?? 0).ToString("C"))</td>
+                            <td class="text-center">
+                                <div class="btn-group shadow-sm rounded-3">
+                                    <button class="btn btn-sm btn-light border" onclick="abrirModalVer(@item.IdTransporte)" title="Ver"><i class="fas fa-eye text-primary"></i></button>
+                                    <a class="btn btn-sm btn-light border" href="/Logistica/DescargarTransportePDF?id=@item.IdTransporte" target="_blank" title="PDF"><i class="fas fa-file-pdf text-danger"></i></a>
+                                    <button class="btn btn-sm btn-light border" onclick="abrirModalEditar(@item.IdTransporte)" title="Editar"><i class="fas fa-pen text-secondary"></i></button>
+                                    <button class="btn btn-sm btn-light border" onclick="finalizarTransporte(@item.IdTransporte)" title="Finalizar"><i class="fas fa-flag-checkered" style="color:#7c3aed;"></i></button>
+                                    <button class="btn btn-sm btn-light border" onclick="abrirModalBorrar(@item.IdTransporte)" title="Cancelar"><i class="fas fa-trash text-danger"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-        <div id="seccionEliminadas" data-section="seccionEliminadas" class="seccion-filtrable">
+    @if (esLogistica)
+    {
+    <div id="seccionFinalizadas" data-section="seccionFinalizadas" class="dashboard-card p-4 mb-5 seccion-filtrable">
+        <div class="section-toolbar">
+        <h5 class="fw-bold section-title-line" style="color:#7c3aed;"><i class="fas fa-flag-checkered me-2"></i> Transportes Finalizados</h5>
+        <div class="search-module-box">
+            <i class="fas fa-search"></i>
+            <input type="text" class="busqueda-seccion" data-target="#tablaFinalizadas" placeholder="Buscar folio, cliente, proyecto...">
+        </div>
+    </div>
+    <div class="empty-search-message" data-empty-for="#tablaFinalizadas">
+        <i class="fas fa-magnifying-glass me-1"></i> No se encontraron transportes finalizados con esa búsqueda.
+    </div>
+        <div class="table-responsive">
+            <table class="table table-custom align-middle" id="tablaFinalizadas">
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th>Cliente</th>
+                        <th>Proyecto</th>
+                        <th>Fecha carga</th>
+                        <th>Tipo ruta</th>
+                        <th>Fletero</th>
+                        <th>Costo</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in finalizadas)
+                    {
+                        <tr>
+                            <td><span class="badge" style="background:#7c3aed;color:white;">@(item.Folio ?? $"TR-{item.IdTransporte}")</span></td>
+                            <td class="fw-semibold">@(item.Cliente ?? "N/A")</td>
+                            <td>@(item.Proyecto ?? "N/A")</td>
+                            <td>@(item.FechaCarga.HasValue ? item.FechaCarga.Value.ToString("dd/MM/yyyy") : "N/A")</td>
+                            <td>@(item.TipoRuta ?? "N/A")</td>
+                            <td>@(item.Fletero ?? "N/A")</td>
+                            <td>@((item.CostoFlete ?? 0).ToString("C"))</td>
+                            <td class="text-center">
+                                <div class="btn-group shadow-sm rounded-3">
+                                    <button class="btn btn-sm btn-light border" onclick="abrirModalVer(@item.IdTransporte)" title="Ver"><i class="fas fa-eye text-primary"></i></button>
+                                    <a class="btn btn-sm btn-light border" href="/Logistica/DescargarTransportePDF?id=@item.IdTransporte" target="_blank" title="PDF"><i class="fas fa-file-pdf text-danger"></i></a>
+                                    @if (esLogistica)
+                                    {
+                                        <button class="btn btn-sm btn-light border" onclick="eliminarTransporteFinalizado(@item.IdTransporte)" title="Eliminar finalizado"><i class="fas fa-trash-alt text-danger"></i></button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    }
+
+    <div id="seccionEliminadas" data-section="seccionEliminadas" class="dashboard-card p-4 mb-5 seccion-filtrable">
             <div class="section-toolbar">
-                <div class="section-heading">
-                    <span class="section-icon cancelled"><i class="fas fa-times-circle"></i></span>
-                    <div class="section-heading-copy">
-                        <div class="section-eyebrow">Flujo de transporte</div>
-                        <div class="section-title-row">
-                            <h2 class="section-title">Solicitudes canceladas</h2>
-                            <span class="section-meta-badge">@eliminadas.Count registro@(eliminadas.Count == 1 ? "" : "s")</span>
-                        </div>
-                    </div>
-                </div>
+                <h5 class="fw-bold text-danger section-title-line"><i class="fas fa-trash-alt me-2"></i> Peticiones Canceladas / Eliminadas</h5>
                 <div class="search-module-box">
                     <i class="fas fa-search"></i>
-                    <input type="text" class="busqueda-seccion" data-target="#tablaBorrados" placeholder="Buscar por folio o cliente...">
+                    <input type="text" class="busqueda-seccion" data-target="#tablaBorrados" placeholder="Buscar folio, cliente, motivo...">
                 </div>
             </div>
             <div class="empty-search-message" data-empty-for="#tablaBorrados">
                 <i class="fas fa-magnifying-glass me-1"></i> No se encontraron registros cancelados con esa búsqueda.
             </div>
-            <div class="table-responsive section-table-wrap">
-                <table class="table transport-table align-middle" id="tablaBorrados">
+            <div class="table-responsive">
+                <table class="table table-custom align-middle" id="tablaBorrados">
                     <thead>
                         <tr>
                             <th>Folio</th>
-                            <th>Fecha</th>
-                            <th>Cliente / Proyecto</th>
+                            <th>Cliente</th>
+                            <th>Proyecto</th>
                             <th>Motivo</th>
-                            <th>Estado</th>
+                            <th>Fecha</th>
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
@@ -1669,23 +1047,22 @@
                         @foreach (var item in eliminadas)
                         {
                             <tr>
-                                <td><span class="folio-pill">@(item.Folio ?? $"TR-{item.IdTransporte}")</span></td>
-                                <td>@(item.FechaBorrado.HasValue ? item.FechaBorrado.Value.ToString("dd MMM yyyy") : "N/A")</td>
-                                <td>
-                                    <div class="transport-client-main">@(item.Cliente ?? "N/A")</div>
-                                    <div class="transport-client-sub">@(item.Proyecto ?? "N/A")</div>
-                                </td>
+                                <td><span class="badge bg-danger">@(item.Folio ?? $"TR-{item.IdTransporte}")</span></td>
+                                <td>@(item.Cliente ?? "N/A")</td>
+                                <td>@(item.Proyecto ?? "N/A")</td>
                                 <td>@(item.MotivoBorrado ?? "N/A")</td>
-                                <td><span class="status-pill cancelled">Cancelada</span></td>
+                                <td>@(item.FechaBorrado.HasValue ? item.FechaBorrado.Value.ToString("dd/MM/yyyy HH:mm") : "N/A")</td>
                                 <td class="text-center">
                                     @if (esLogistica)
                                     {
-                                        <button class="transport-icon-btn text-success" onclick="restaurarTransporte(@item.IdTransporte)" title="Restaurar"><i class="fas fa-undo"></i></button>
-                                        <button class="transport-icon-btn text-danger" onclick="eliminarTransporteDefinitivo(@item.IdTransporte)" title="Eliminar definitivo"><i class="fas fa-trash-alt"></i></button>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-success rounded-pill me-1" onclick="restaurarTransporte(@item.IdTransporte)"><i class="fas fa-undo me-1"></i> Restaurar</button>
+                                            <button class="btn btn-sm btn-outline-danger rounded-pill" onclick="eliminarTransporteDefinitivo(@item.IdTransporte)"><i class="fas fa-trash-alt me-1"></i> Eliminar definitivo</button>
+                                        </div>
                                     }
                                     else
                                     {
-                                        <button class="transport-icon-btn" onclick="abrirModalVer(@item.IdTransporte)" title="Ver"><i class="fas fa-eye"></i></button>
+                                        <button class="btn btn-sm btn-light border rounded-pill" onclick="abrirModalVer(@item.IdTransporte)"><i class="fas fa-eye text-primary me-1"></i> Ver</button>
                                     }
                                 </td>
                             </tr>
@@ -1693,209 +1070,42 @@
                     </tbody>
                 </table>
             </div>
-            <div class="table-footer-line">
-                <span>Mostrando 1 a @eliminadas.Count de @eliminadas.Count registros</span>
-                <span class="table-pager"><i class="fas fa-angle-left"></i><i class="fas fa-angle-right"></i></span>
-            </div>
         </div>
-
-        <div id="seccionFormularios" data-section="seccionFormularios" class="seccion-filtrable">
-            <div class="section-toolbar">
-                <div class="section-heading">
-                    <span class="section-icon finished"><i class="fas fa-clipboard-list"></i></span>
-                    <div class="section-heading-copy">
-                        <div class="section-eyebrow">Administración interna</div>
-                        <div class="section-title-row">
-                            <h2 class="section-title">Formularios</h2>
-                            <span class="section-meta-badge">Repositorio de formularios</span>
-                        </div>
-                    </div>
-                </div>
-                <button type="button" class="btn-form-ghost" onclick="abrirModalCrearFormulario()">
-                    <i class="fas fa-plus me-1"></i> Crear formulario
-                </button>
-            </div>
-
-            <div class="forms-workspace">
-                <div class="forms-intro-card">
-                    <h3 class="forms-intro-title">Formularios del módulo de logística</h3>
-                    <p class="forms-intro-text">
-                        Este apartado queda reservado para cargar y administrar los formularios nuevos que se vayan creando para Transportes,
-                        Guías y futuros procesos internos.
-                    </p>
-
-                    <div class="forms-grid" id="formulariosGrid">
-                        <article class="form-template-card">
-                            <span class="form-template-icon"><i class="fas fa-truck"></i></span>
-                            <h4 class="form-template-title">Solicitud de Transporte</h4>
-                            <p class="form-template-subtitle">Formulario principal para registrar nuevas solicitudes de transporte.</p>
-                            <div class="form-template-meta">
-                                <span>Transportes</span>
-                                <span class="form-status-pill">Activo</span>
-                            </div>
-                        </article>
-
-                        <article class="form-template-card">
-                            <span class="form-template-icon"><i class="fas fa-map-marked-alt"></i></span>
-                            <h4 class="form-template-title">Guías de envío</h4>
-                            <p class="form-template-subtitle">Acceso al módulo de guías. Después podemos darle el mismo estilo visual.</p>
-                            <div class="form-template-meta">
-                                <span>Guías</span>
-                                <a href="/Logistica/Guias" class="text-decoration-none fw-bold">Abrir</a>
-                            </div>
-                        </article>
-
-                        <article class="form-template-card add-card">
-                            <span class="form-template-icon"><i class="fas fa-plus"></i></span>
-                            <h4 class="form-template-title">Nuevo formulario</h4>
-                            <p class="form-template-subtitle">Crea la vista base para un nuevo formulario del flujo logístico.</p>
-                            <button type="button" class="btn-form-ghost mt-1" onclick="abrirModalCrearFormulario()">Crear formulario</button>
-                        </article>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</main>
 </div>
 
-<a class="btn-flotante" href="/Logistica/Formularios?origenModulo=Transporte"><i class="fas fa-plus me-2"></i> Nueva Solicitud</a>
-
-<div class="modal fade form-builder-modal" id="modalCrearFormulario" tabindex="-1" aria-labelledby="modalCrearFormularioLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header border-0">
-                <div>
-                    <h5 class="modal-title fw-bold" id="modalCrearFormularioLabel">
-                        <i class="fas fa-clipboard-list me-2"></i> Crear nuevo formulario
-                    </h5>
-                    <small class="text-white-50">Vista inicial para preparar los formularios que se irán agregando al módulo.</small>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            </div>
-            <div class="modal-body bg-light">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="nuevoFormularioNombre">Nombre del formulario</label>
-                        <input type="text" id="nuevoFormularioNombre" class="form-control" placeholder="Ej. Checklist de carga">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="nuevoFormularioModulo">Módulo</label>
-                        <select id="nuevoFormularioModulo" class="form-select">
-                            <option value="Transportes">Transportes</option>
-                            <option value="Guías">Guías</option>
-                            <option value="General">General</option>
-                        </select>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label" for="nuevoFormularioDescripcion">Descripción</label>
-                        <textarea id="nuevoFormularioDescripcion" class="form-control" rows="3" placeholder="Describe para qué servirá este formulario."></textarea>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="nuevoFormularioTipo">Tipo de formulario</label>
-                        <select id="nuevoFormularioTipo" class="form-select">
-                            <option value="Solicitud">Solicitud</option>
-                            <option value="Autorización">Autorización</option>
-                            <option value="Checklist">Checklist</option>
-                            <option value="Reporte">Reporte</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="nuevoFormularioEstado">Estado inicial</label>
-                        <select id="nuevoFormularioEstado" class="form-select">
-                            <option value="Borrador">Borrador</option>
-                            <option value="Activo">Activo</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="forms-intro-card mt-4">
-                    <h6 class="fw-bold mb-2">Campos base sugeridos</h6>
-                    <p class="forms-intro-text mb-3">
-                        Esta parte queda visualmente preparada para después conectarla a la base de datos y permitir campos dinámicos.
-                    </p>
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <input class="form-control form-control-sm" value="Solicitante" readonly>
-                        </div>
-                        <div class="col-md-4">
-                            <input class="form-control form-control-sm" value="Fecha de solicitud" readonly>
-                        </div>
-                        <div class="col-md-4">
-                            <input class="form-control form-control-sm" value="Estado" readonly>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer bg-white">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="agregarFormularioVista()">
-                    <i class="fas fa-save me-1"></i> Guardar vista
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+<button class="btn-flotante" onclick="abrirModalCrear()"><i class="fas fa-plus me-2"></i> Nueva Solicitud</button>
 
 <div class="modal fade" id="modalTransporte" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content shadow-lg">
-            <div class="modal-header text-white">
-                <h5 class="modal-title fw-bold"><i class="fas fa-truck-moving me-2"></i> Solicitud de Transporte</h5>
+            <div class="modal-header text-white" style="background-color: var(--navy-principal);">
+                <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i> Solicitud de Transporte</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4 bg-light">
                 <form id="formTransporte">
                     <input type="hidden" id="IdTransporte" name="IdTransporte" value="0" />
 
-                    <ul class="nav nav-pills transport-wizard" role="tablist">
-                        <li class="nav-item">
-                            <button class="nav-link active" id="tab-general" data-bs-toggle="pill" data-bs-target="#step-general" type="button">
-                                <span class="wizard-number">1</span><span class="wizard-label">General</span>
-                            </button>
-                        </li>
-                        <li class="nav-item">
-                            <button class="nav-link" id="tab-ruta" data-bs-toggle="pill" data-bs-target="#step-ruta" type="button">
-                                <span class="wizard-number">2</span><span class="wizard-label">Ruta y Unidad</span>
-                            </button>
-                        </li>
-                        <li class="nav-item">
-                            <button class="nav-link" id="tab-destinos" data-bs-toggle="pill" data-bs-target="#step-destinos" type="button">
-                                <span class="wizard-number">3</span><span class="wizard-label">Destinos</span>
-                            </button>
-                        </li>
-                        <li class="nav-item">
-                            <button class="nav-link" id="tab-embarque" data-bs-toggle="pill" data-bs-target="#step-embarque" type="button">
-                                <span class="wizard-number">4</span><span class="wizard-label">Plan Embarque</span>
-                            </button>
-                        </li>
-                        <li class="nav-item">
-                            <button class="nav-link" id="tab-flete" data-bs-toggle="pill" data-bs-target="#step-flete" type="button">
-                                <span class="wizard-number">5</span><span class="wizard-label">Flete</span>
-                            </button>
-                        </li>
+                    <ul class="nav nav-pills flex-wrap justify-content-center gap-2 mb-4" role="tablist">
+                        <li class="nav-item"><button class="nav-link active" id="tab-general" data-bs-toggle="pill" data-bs-target="#step-general" type="button">1. General</button></li>
+                        <li class="nav-item"><button class="nav-link" id="tab-ruta" data-bs-toggle="pill" data-bs-target="#step-ruta" type="button">2. Ruta y Unidad</button></li>
+                        <li class="nav-item"><button class="nav-link" id="tab-destinos" data-bs-toggle="pill" data-bs-target="#step-destinos" type="button">3. Destinos</button></li>
+                        <li class="nav-item"><button class="nav-link" id="tab-embarque" data-bs-toggle="pill" data-bs-target="#step-embarque" type="button">4. Plan de Embarque</button></li>
+                        <li class="nav-item"><button class="nav-link" id="tab-flete" data-bs-toggle="pill" data-bs-target="#step-flete" type="button">5. Flete</button></li>
                     </ul>
 
-                    <div class="tab-content transport-wizard-body wizard-scroll">
+                    <div class="tab-content bg-white p-4 rounded-3 border shadow-sm wizard-scroll">
                         <div class="tab-pane fade show active" id="step-general">
-                            <h6 class="form-section-title">Datos Principales</h6>
-                            <div class="row g-4 mb-5">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold"><i class="fas fa-user me-1"></i> Solicitante</label>
-                                    <div class="readonly-field">@usuarioActualNombre</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold"><i class="fas fa-building me-1"></i> Departamento</label>
-                                    <div class="readonly-field">@usuarioActualArea</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold"><i class="fas fa-file-invoice me-1"></i> # Factura <span class="text-muted small">(Opcional)</span></label>
-                                    <input type="text" class="form-control" id="NumeroFactura" name="NumeroFactura" placeholder="Ej. F001-12345">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold required"><i class="fas fa-building me-1"></i> Compañía Solicitante</label>
+                            <h6 class="form-section-title">Datos generales para facturacion</h6>
+                            <div class="row g-3">
+                                <div class="col-md-3"><label class="form-label fw-semibold"># Factura</label><input type="text" class="form-control" id="NumeroFactura" name="NumeroFactura" placeholder="Si aplica"></div>
+                                <div class="col-md-3"><label class="form-label fw-semibold required">Fecha de carga</label><input type="date" class="form-control" id="FechaCarga" name="FechaCarga" required></div>
+                                <div class="col-md-3"><label class="form-label fw-semibold required">Horario de carga</label><input type="text" class="form-control" id="HorarioCarga" name="HorarioCarga" placeholder="Ej. 08:00 - 12:00" required></div>
+                                <div class="col-md-3"><label class="form-label fw-semibold">Horario llegada destino</label><input type="text" class="form-control" id="HorarioLlegadaDestino" name="HorarioLlegadaDestino" placeholder="Ej. 16:00"></div>
+                                <div class="col-md-4"><label class="form-label fw-semibold">Duración aprox. de flete</label><input type="text" class="form-control" id="DuracionAproxFlete" name="DuracionAproxFlete" placeholder="Ej. 4 hrs / 2 días"></div>
+                                <div class="col-md-4"><label class="form-label fw-semibold required">Compania solicitante</label>
                                     <select class="form-select" id="CompaniaSolicitante" name="CompaniaSolicitante" required>
-                                        <option value="">Seleccione compañía</option>
+                                        <option value="">Seleccione...</option>
                                         @if (empresasTransporte.Any())
                                         {
                                             foreach (var empresa in empresasTransporte)
@@ -1911,86 +1121,43 @@
                                         }
                                     </select>
                                 </div>
-                            </div>
-
-                            <h6 class="form-section-title">Programación</h6>
-                            <div class="row g-4 mb-5">
+                                <div class="col-md-4"><label class="form-label fw-semibold">Centro de costo</label><input type="text" class="form-control" id="CentroCosto" name="CentroCosto" placeholder="Ej. Directo / área / cuenta"></div>
+                                <div class="col-md-6"><label class="form-label fw-semibold required">Cliente</label><input type="text" class="form-control" id="Cliente" name="Cliente" required></div>
+                                <div class="col-md-6"><label class="form-label fw-semibold required">Proyecto</label><input type="text" class="form-control" id="Proyecto" name="Proyecto" required></div>
+                                <div class="col-md-6"><label class="form-label fw-semibold">Autorizado presupuesto</label><input type="text" class="form-control" id="AutorizadoPresupuesto" name="AutorizadoPresupuesto" placeholder="Nombre o autorización"></div>
                                 <div class="col-md-6">
-                                    <label class="form-label fw-semibold required"><i class="fas fa-calendar-day me-1"></i> Fecha de Carga</label>
-                                    <input type="date" class="form-control" id="FechaCarga" name="FechaCarga" required>
+                                    <label class="form-label fw-semibold">Solicitante</label>
+                                    <div class="detalle-card bg-light">
+                                        <i class="fas fa-user me-1 text-primary"></i> @usuarioActualNombre
+                                        <div class="small text-muted">Se toma automaticamente del usuario que inicio sesion.</div>
+                                    </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label fw-semibold"><i class="fas fa-clock me-1"></i> Horario de Carga</label>
-                                    <input type="text" class="form-control" id="HorarioCarga" name="HorarioCarga" placeholder="Ej. 08:00 - 12:00" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold"><i class="fas fa-clock me-1"></i> Horario Llegada</label>
-                                    <input type="text" class="form-control" id="HorarioLlegadaDestino" name="HorarioLlegadaDestino" placeholder="--:-- --">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold"><i class="fas fa-stopwatch me-1"></i> Duración Flete Estimada</label>
-                                    <input type="text" class="form-control" id="DuracionAproxFlete" name="DuracionAproxFlete" placeholder="0 Horas">
-                                </div>
-                            </div>
-
-                            <h6 class="form-section-title">Asignación Financiera</h6>
-                            <div class="row g-4">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold required"><i class="fas fa-landmark me-1"></i> Centro de Costo</label>
-                                    <input type="text" class="form-control" id="CentroCosto" name="CentroCosto" placeholder="Seleccione CC">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold"><i class="fas fa-briefcase me-1"></i> Proyecto</label>
-                                    <input type="text" class="form-control" id="Proyecto" name="Proyecto" placeholder="Nombre o código de proyecto" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold required"><i class="fas fa-gem me-1"></i> Cliente</label>
-                                    <input type="text" class="form-control" id="Cliente" name="Cliente" placeholder="Razón social del cliente" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold"><i class="fas fa-shield-alt me-1"></i> Autorizado Presupuesto por</label>
-                                    <input type="text" class="form-control" id="AutorizadoPresupuesto" name="AutorizadoPresupuesto" placeholder="Nombre de jefatura">
+                                    <label class="form-label fw-semibold">Departamento / area</label>
+                                    <div class="detalle-card bg-light">
+                                        <i class="fas fa-building me-1 text-primary"></i> @usuarioActualArea
+                                        <div class="small text-muted">Se toma automaticamente de la base de datos.</div>
+                                    </div>
                                 </div>
                                 <div class="col-12 d-flex justify-content-end wizard-actions">
-                                    <button type="button" class="btn btn-wizard-next px-4" onclick="validarYMostrarPaso('step-general', 'tab-ruta')">
-                                        Siguiente Paso <i class="fas fa-arrow-right ms-1"></i>
+                                    <button type="button" class="btn btn-wizard-next px-4 rounded-pill" onclick="validarYMostrarPaso('step-general', 'tab-ruta')">
+                                        Siguiente <i class="fas fa-arrow-right ms-1"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         <div class="tab-pane fade" id="step-ruta">
-                            <h6 class="form-section-title">Ruta y Unidad</h6>
-                            <p class="form-section-subtitle">Captura la ruta de origen, la volumetría y el tipo de unidad sugerida para el flete.</p>
-                            <div class="row g-4">
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold required">Tipo de ruta</label>
-                                    <select class="form-select" id="TipoRuta" name="TipoRuta" required>
-                                        <option value="">Seleccione...</option>
-                                        <option value="Local">Local</option>
-                                        <option value="Foranea">Foranea</option>
-                                        <option value="Especial">Especial</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-8">
-                                    <label class="form-label fw-semibold required">Dirección de origen / carga</label>
-                                    <input type="text" class="form-control" id="DireccionRecoleccion" name="DireccionRecoleccion" placeholder="Planta, bodega o punto de recolección" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold required">Volumetría / dimensiones</label>
-                                    <input type="text" class="form-control" id="Volumetria" name="Volumetria" placeholder="Ej. 2.5m x 6.0m" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold required">Tipo de unidad sugerida</label>
-                                    <input type="text" class="form-control" id="TipoUnidad" name="TipoUnidad" placeholder="Ej. Torton, Rabón, Camioneta" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Comentarios de unidad</label>
-                                    <input type="text" class="form-control" id="ComentariosUnidad" name="ComentariosUnidad" placeholder="Observaciones adicionales">
-                                </div>
+                            <h6 class="form-section-title">Ruta, recoleccion y unidad</h6>
+                            <div class="row g-3">
+                                <div class="col-md-4"><label class="form-label fw-semibold required">Tipo de ruta</label><select class="form-select" id="TipoRuta" name="TipoRuta" required><option value="">Seleccione...</option><option value="Local">Local</option><option value="Foranea">Foranea</option><option value="Especial">Especial</option></select></div>
+                                <div class="col-md-8"><label class="form-label fw-semibold required">Direccion de recoleccion</label><input type="text" class="form-control" id="DireccionRecoleccion" name="DireccionRecoleccion" required></div>
+                                <div class="col-md-4"><label class="form-label fw-semibold required">Volumetria</label><input type="text" class="form-control" id="Volumetria" name="Volumetria" placeholder="Ej. 2.5 x 6 mts" required></div>
+                                <div class="col-md-4"><label class="form-label fw-semibold required">Tipo de unidad</label><input type="text" class="form-control" id="TipoUnidad" name="TipoUnidad" placeholder="Ej. Torton, Rabon, Camioneta" required></div>
+                                <div class="col-md-4"><label class="form-label fw-semibold">Comentarios de unidad</label><input type="text" class="form-control" id="ComentariosUnidad" name="ComentariosUnidad"></div>
                                 <div class="col-12 d-flex justify-content-between wizard-actions">
-                                    <button type="button" class="btn btn-outline-secondary px-4" onclick="mostrarPaso('tab-general')">Atrás</button>
-                                    <button type="button" class="btn btn-wizard-next px-4" onclick="validarYMostrarPaso('step-ruta', 'tab-destinos')">
+                                    <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" onclick="mostrarPaso('tab-general')">Atras</button>
+                                    <button type="button" class="btn btn-wizard-next px-4 rounded-pill" onclick="validarYMostrarPaso('step-ruta', 'tab-destinos')">
                                         Siguiente <i class="fas fa-arrow-right ms-1"></i>
                                     </button>
                                 </div>
@@ -1998,46 +1165,38 @@
                         </div>
 
                         <div class="tab-pane fade" id="step-destinos">
-                            <h6 class="form-section-title">Información de Destinos</h6>
-                            <p class="form-section-subtitle">Puede agregar múltiples destinos para esta ruta. Los campos marcados con * son obligatorios.</p>
+                            <h6 class="form-section-title">Destinos y personas que reciben carga</h6>
                             <div id="contenedorDestinos"></div>
-                            <button type="button" class="btn btn-soft-primary mt-2" onclick="agregarDestino()"><i class="fas fa-plus-circle me-1"></i> Agregar destino</button>
+                            <button type="button" class="btn btn-soft-primary rounded-pill mt-2" onclick="agregarDestino()"><i class="fas fa-plus me-1"></i> Agregar destino</button>
                             <div class="col-12 d-flex justify-content-between wizard-actions">
-                                <button type="button" class="btn btn-outline-secondary px-4" onclick="mostrarPaso('tab-ruta')">Atrás</button>
-                                <button type="button" class="btn btn-wizard-next px-4" onclick="validarYMostrarPaso('step-destinos', 'tab-embarque')">
+                                <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" onclick="mostrarPaso('tab-ruta')">Atras</button>
+                                <button type="button" class="btn btn-wizard-next px-4 rounded-pill" onclick="validarYMostrarPaso('step-destinos', 'tab-embarque')">
                                     Siguiente <i class="fas fa-arrow-right ms-1"></i>
                                 </button>
                             </div>
                         </div>
 
                         <div class="tab-pane fade" id="step-embarque">
-                            <h6 class="form-section-title">Plan de Embarque</h6>
-                            <p class="form-section-subtitle">Agrega las partidas de material o equipo que viajarán en la solicitud.</p>
+                            <h6 class="form-section-title">Plan de embarque</h6>
                             <div id="contenedorPlanEmbarque"></div>
-                            <button type="button" class="btn btn-soft-primary mt-2" onclick="agregarPartida()"><i class="fas fa-plus-circle me-1"></i> Agregar partida</button>
+                            <button type="button" class="btn btn-soft-primary rounded-pill mt-2" onclick="agregarPartida()"><i class="fas fa-plus me-1"></i> Agregar partida</button>
                             <div class="col-12 d-flex justify-content-between wizard-actions">
-                                <button type="button" class="btn btn-outline-secondary px-4" onclick="mostrarPaso('tab-destinos')">Atrás</button>
-                                <button type="button" class="btn btn-wizard-next px-4" onclick="validarYMostrarPaso('step-embarque', 'tab-flete')">
+                                <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" onclick="mostrarPaso('tab-destinos')">Atras</button>
+                                <button type="button" class="btn btn-wizard-next px-4 rounded-pill" onclick="validarYMostrarPaso('step-embarque', 'tab-flete')">
                                     Siguiente <i class="fas fa-arrow-right ms-1"></i>
                                 </button>
                             </div>
                         </div>
 
                         <div class="tab-pane fade" id="step-flete">
-                            <h6 class="form-section-title">Flete</h6>
-                            <p class="form-section-subtitle">Estos campos pueden quedar vacíos si Logística los completará al revisar o autorizar la solicitud.</p>
-                            <div class="row g-4">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">Línea transportista / Fletero asignado</label>
-                                    <input type="text" class="form-control" id="Fletero" name="Fletero" placeholder="Lo puede completar Logística">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">Tarifa estimada autorizada</label>
-                                    <input type="number" step="0.01" class="form-control" id="CostoFlete" name="CostoFlete" placeholder="Lo puede completar Logística">
-                                </div>
+                            <h6 class="form-section-title">Fletero y costo</h6>
+                            <div class="alert alert-info py-2 small"><i class="fas fa-circle-info me-1"></i> Estos campos pueden quedar vacios si Logistica los completara al revisar o autorizar la solicitud.</div>
+                            <div class="row g-3">
+                                <div class="col-md-6"><label class="form-label fw-semibold">Fletero</label><input type="text" class="form-control" id="Fletero" name="Fletero" placeholder="Lo puede completar Logistica"></div>
+                                <div class="col-md-6"><label class="form-label fw-semibold">Costo del flete</label><input type="number" step="0.01" class="form-control" id="CostoFlete" name="CostoFlete" placeholder="Lo puede completar Logistica"></div>
                                 <div class="col-12 d-flex justify-content-between wizard-actions">
-                                    <button type="button" class="btn btn-outline-secondary px-4" onclick="mostrarPaso('tab-embarque')">Atrás</button>
-                                    <button type="button" class="btn btn-wizard-save px-5" id="btnGuardar" onclick="guardarTransporte()">
+                                    <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" onclick="mostrarPaso('tab-embarque')">Atras</button>
+                                    <button type="button" class="btn btn-wizard-save px-5 rounded-pill" id="btnGuardar" onclick="guardarTransporte()">
                                         <i class="fas fa-paper-plane me-1" id="iconGuardar"></i> Guardar Solicitud
                                     </button>
                                 </div>
@@ -2049,6 +1208,7 @@
         </div>
     </div>
 </div>
+
 <div class="modal fade" id="modalVerDetalles" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content border-0 shadow-lg">
@@ -2258,8 +1418,6 @@
         function mostrarSeccionTransporte(targetId) {
             if (!targetId) return;
 
-            const esPanelFormularios = targetId === 'seccionFormularios';
-
             document.querySelectorAll('.seccion-filtrable').forEach(sec => {
                 sec.classList.toggle('seccion-activa', sec.id === targetId);
             });
@@ -2272,62 +1430,8 @@
                 card.classList.toggle('active', card.dataset.target === targetId);
             });
 
-            document.querySelectorAll('.transport-flow-link').forEach(link => {
-                link.classList.toggle('active', !esPanelFormularios && link.dataset.target === targetId);
-            });
-
-            document.querySelectorAll('.transport-module-main').forEach(link => {
-                link.classList.toggle('active', !esPanelFormularios);
-            });
-
-            document.querySelectorAll('.transport-form-menu').forEach(link => {
-                link.classList.toggle('active', esPanelFormularios);
-            });
-
             const destino = document.getElementById(targetId);
             if (destino) destino.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        function abrirModalCrearFormulario() {
-            const modal = document.getElementById('modalCrearFormulario');
-            if (!modal) return;
-            bootstrap.Modal.getOrCreateInstance(modal).show();
-        }
-
-        function agregarFormularioVista() {
-            const nombre = (document.getElementById('nuevoFormularioNombre')?.value || '').trim();
-            const modulo = document.getElementById('nuevoFormularioModulo')?.value || 'General';
-            const descripcion = (document.getElementById('nuevoFormularioDescripcion')?.value || '').trim();
-            const estado = document.getElementById('nuevoFormularioEstado')?.value || 'Borrador';
-
-            if (!nombre) {
-                document.getElementById('nuevoFormularioNombre')?.focus();
-                return;
-            }
-
-            const grid = document.getElementById('formulariosGrid');
-            if (grid) {
-                const card = document.createElement('article');
-                card.className = 'form-template-card';
-                card.innerHTML = `
-                    <span class="form-template-icon"><i class="fas fa-file-alt"></i></span>
-                    <h4 class="form-template-title">${nombre}</h4>
-                    <p class="form-template-subtitle">${descripcion || 'Formulario agregado desde la vista. Pendiente de conexión a base de datos.'}</p>
-                    <div class="form-template-meta">
-                        <span>${modulo}</span>
-                        <span class="form-status-pill">${estado}</span>
-                    </div>
-                `;
-
-                const addCard = grid.querySelector('.add-card');
-                grid.insertBefore(card, addCard || null);
-            }
-
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCrearFormulario')).hide();
-            mostrarSeccionTransporte('seccionFormularios');
-
-            document.getElementById('nuevoFormularioNombre').value = '';
-            document.getElementById('nuevoFormularioDescripcion').value = '';
         }
 
         function mostrarPaso(tabId) {
