@@ -1,0 +1,377 @@
+@{
+    Layout = "_LayoutComunicados";
+    ViewData["Title"] = "Centro de formularios logísticos";
+
+    var origenModulo = (ViewData["OrigenModulo"]?.ToString() ?? Context.Request.Query["origenModulo"].ToString()).Trim();
+    var moduloActual = string.IsNullOrWhiteSpace(origenModulo) ? "Guias" : origenModulo;
+
+    var esGuias = moduloActual.Equals("Guias", StringComparison.OrdinalIgnoreCase)
+        || moduloActual.Equals("Guías", StringComparison.OrdinalIgnoreCase);
+
+    var tituloModulo = esGuias ? "Guías y Envíos" : "Solicitudes de Transporte";
+    var subtituloModulo = esGuias
+        ? "Elige si quieres crear una petición desde formularios de Guías o revisar el seguimiento operativo."
+        : "Elige si quieres crear una petición desde formularios de Transporte o revisar el seguimiento operativo.";
+
+    var iconoModulo = esGuias ? "fas fa-box-open" : "fas fa-truck";
+    var colorModulo = esGuias ? "guias" : "transporte";
+}
+
+@section Estilos {
+    <style>
+        :root {
+            --centro-navy: #062b57;
+            --centro-navy-2: #073b78;
+            --centro-orange: #e85d04;
+            --centro-teal: #0f7686;
+            --centro-blue: #2563eb;
+            --centro-muted: #64748b;
+            --centro-line: #e2e8f0;
+            --centro-card: #ffffff;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at top left, rgba(37, 99, 235, .08), transparent 25rem),
+                radial-gradient(circle at bottom right, rgba(249, 115, 22, .10), transparent 28rem),
+                linear-gradient(180deg, #f8fafc 0%, #f3f6fb 100%);
+        }
+
+        .centro-formularios-page {
+            width: min(100%, 1180px);
+            margin: 0 auto;
+            padding: 10px 0 36px;
+            color: #0f172a;
+        }
+
+        .centro-top-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .centro-back {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            min-height: 42px;
+            padding: 0 16px;
+            border-radius: 999px;
+            background: #ffffff;
+            color: #0f172a !important;
+            border: 1px solid var(--centro-line);
+            font-size: .90rem;
+            font-weight: 900;
+            text-decoration: none !important;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+            transition: all .18s ease;
+        }
+
+        .centro-back:hover {
+            background: var(--centro-navy);
+            color: #ffffff !important;
+            border-color: var(--centro-navy);
+            transform: translateY(-1px);
+        }
+
+        .centro-hero {
+            position: relative;
+            background: linear-gradient(135deg, var(--centro-navy), var(--centro-navy-2));
+            border-radius: 20px;
+            color: #ffffff;
+            padding: 36px 34px;
+            margin-bottom: 22px;
+            overflow: hidden;
+            box-shadow: 0 18px 44px rgba(15, 23, 42, .12);
+        }
+
+        .centro-hero h1 {
+            margin: 0;
+            font-size: clamp(1.8rem, 3vw, 2.35rem);
+            font-weight: 950;
+            letter-spacing: -.04em;
+        }
+
+        .centro-hero p {
+            margin: 10px 0 0;
+            color: rgba(255,255,255,.86);
+            max-width: 760px;
+            font-size: .98rem;
+        }
+
+        .centro-hero-icon {
+            position: absolute;
+            right: 32px;
+            top: 26px;
+            width: 76px;
+            height: 76px;
+            border-radius: 22px;
+            display: grid;
+            place-items: center;
+            background: rgba(255,255,255,.13);
+            color: rgba(255,255,255,.70);
+            font-size: 2.1rem;
+        }
+
+        .centro-section-head {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 16px;
+            margin: 24px 0 16px;
+        }
+
+        .centro-section-head h2 {
+            margin: 0;
+            font-size: 1.45rem;
+            font-weight: 950;
+            letter-spacing: -.03em;
+        }
+
+        .centro-section-head p {
+            margin: 6px 0 0;
+            color: var(--centro-muted);
+            font-size: .92rem;
+        }
+
+        .centro-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .centro-card {
+            position: relative;
+            background: var(--centro-card);
+            border: 1px solid var(--centro-line);
+            border-radius: 20px;
+            padding: 24px;
+            min-height: 210px;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, .08);
+            text-decoration: none !important;
+            color: inherit !important;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+            overflow: hidden;
+        }
+
+        .centro-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 22px 46px rgba(15, 23, 42, .13);
+            border-color: rgba(37, 99, 235, .28);
+        }
+
+        .centro-card.is-active::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 6px;
+            background: var(--centro-orange);
+        }
+
+        .centro-card.guias.is-active::before {
+            background: var(--centro-teal);
+        }
+
+        .centro-card-icon {
+            width: 62px;
+            height: 62px;
+            border-radius: 18px;
+            display: grid;
+            place-items: center;
+            color: #ffffff;
+            font-size: 1.55rem;
+            margin-bottom: 18px;
+            box-shadow: 0 14px 26px rgba(15, 23, 42, .15);
+        }
+
+        .centro-card.guias .centro-card-icon {
+            background: linear-gradient(135deg, #0f7686, #0891b2);
+        }
+
+        .centro-card.transporte .centro-card-icon {
+            background: linear-gradient(135deg, #7c2d12, #e85d04);
+        }
+
+        .centro-card h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 950;
+            letter-spacing: -.02em;
+        }
+
+        .centro-card p {
+            margin: 8px 0 0;
+            color: var(--centro-muted);
+            line-height: 1.45;
+            font-size: .94rem;
+        }
+
+        .centro-card-footer {
+            margin-top: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .centro-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 38px;
+            padding: 0 14px;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-weight: 950;
+            font-size: .85rem;
+        }
+
+        .centro-card.guias .centro-pill {
+            background: #ecfeff;
+            color: #0e7490;
+        }
+
+        .centro-arrow {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .centro-quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .centro-small-action {
+            background: rgba(255,255,255,.78);
+            border: 1px solid var(--centro-line);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            text-decoration: none !important;
+            color: #0f172a !important;
+            font-weight: 950;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+            transition: all .18s ease;
+        }
+
+        .centro-small-action:hover {
+            transform: translateY(-2px);
+            background: #ffffff;
+            border-color: rgba(37, 99, 235, .28);
+        }
+
+        .centro-small-action span {
+            color: var(--centro-muted);
+            font-weight: 800;
+            font-size: .86rem;
+        }
+
+        @@media (max-width: 860px) {
+            .centro-grid,
+            .centro-quick-actions {
+                grid-template-columns: 1fr;
+            }
+
+            .centro-hero-icon {
+                display: none;
+            }
+
+            .centro-section-head {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+    </style>
+}
+
+<div class="centro-formularios-page">
+    <div class="centro-top-actions">
+        <a class="centro-back" href="/Menu/Grupo/5">
+            <i class="fas fa-arrow-left"></i>
+            <span>Volver al menú de logística</span>
+        </a>
+    </div>
+
+    <section class="centro-hero @colorModulo">
+        <div class="centro-hero-icon">
+            <i class="@iconoModulo"></i>
+        </div>
+        <h1>@tituloModulo</h1>
+        <p>@subtituloModulo</p>
+    </section>
+
+    <div class="centro-section-head">
+        <div>
+            <h2>Centro de formularios logísticos</h2>
+            <p>Selecciona el tipo de formularios que quieres usar para crear una nueva petición.</p>
+        </div>
+    </div>
+
+    <section class="centro-grid" aria-label="Formularios por módulo">
+        <a class="centro-card guias @(esGuias ? "is-active" : "")" href="/Logistica/Formularios?origenModulo=Guias">
+            <div>
+                <div class="centro-card-icon"><i class="fas fa-box-open"></i></div>
+                <h3>Formularios de Guías</h3>
+                <p>Usa plantillas para registrar solicitudes de guía, envíos, remitenes, destinatarios y datos de paquetería.</p>
+            </div>
+            <div class="centro-card-footer">
+                <span class="centro-pill"><i class="fas fa-clipboard-list"></i> Abrir formularios</span>
+                <span class="centro-arrow"><i class="fas fa-arrow-right"></i></span>
+            </div>
+        </a>
+
+        <a class="centro-card transporte @(!esGuias ? "is-active" : "")" href="/Logistica/Formularios?origenModulo=Transporte">
+            <div>
+                <div class="centro-card-icon"><i class="fas fa-truck"></i></div>
+                <h3>Formularios de Transporte</h3>
+                <p>Usa plantillas para crear solicitudes de transporte, rutas, destinos, plan de embarque y datos de flete.</p>
+            </div>
+            <div class="centro-card-footer">
+                <span class="centro-pill"><i class="fas fa-clipboard-list"></i> Abrir formularios</span>
+                <span class="centro-arrow"><i class="fas fa-arrow-right"></i></span>
+            </div>
+        </a>
+    </section>
+
+    <div class="centro-section-head">
+        <div>
+            <h2>Seguimiento operativo</h2>
+            <p>Entra al panel normal del módulo para revisar solicitudes ya creadas.</p>
+        </div>
+    </div>
+
+    <section class="centro-quick-actions" aria-label="Seguimiento operativo">
+        <a class="centro-small-action" href="/Logistica/Guias">
+            <div>
+                <strong>Ir a Guías y Envíos</strong><br />
+                <span>Consulta guías activas, validación y cadena de frío.</span>
+            </div>
+            <i class="fas fa-arrow-right"></i>
+        </a>
+
+        <a class="centro-small-action" href="/Logistica/Transporte">
+            <div>
+                <strong>Ir a Solicitudes de Transporte</strong><br />
+                <span>Consulta pendientes, autorizadas, finalizadas y canceladas.</span>
+            </div>
+            <i class="fas fa-arrow-right"></i>
+        </a>
+    </section>
+</div>

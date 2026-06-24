@@ -166,11 +166,11 @@
 
 /* Mejora Continua */
 .action-card.mejora::before {
-    background: #ffd500;
+    background: #8b5cf6;
 }
 
 .action-card.mejora .action-icon {
-    background: linear-gradient(135deg, #f7d723, #f4d109);
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
 }
 
 /* Compras */
@@ -267,64 +267,4 @@
 .action-card.loading {
     opacity: 0;
     transform: translateY(20px);
-}
-
-/* ===== CLASES FALTANTES PARA MENÚS Y GRUPOS ===== */
-
-/* Genérico / Por defecto */
-.action-card.generico::before {
-    background: #64748b;
-}
-.action-card.generico .action-icon {
-    background: linear-gradient(135deg, #64748b, #475569);
-}
-
-/* Gestión de Usuarios / RRHH */
-.action-card.gestion-usuarios::before {
-    background: #8b5cf6;
-}
-.action-card.gestion-usuarios .action-icon {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-/* Directorio */
-.action-card.directorio::before {
-    background: #0ea5e9;
-}
-.action-card.directorio .action-icon {
-    background: linear-gradient(135deg, #0ea5e9, #0284c7);
-}
-
-/* Compras Internacional */
-.action-card.compras-internacional::before {
-    background: #f43f5e;
-}
-.action-card.compras-internacional .action-icon {
-    background: linear-gradient(135deg, #f43f5e, #e11d48);
-}
-
-/* Compras Nacional */
-.action-card.compras-nacional::before {
-    background: #fb923c;
-}
-.action-card.compras-nacional .action-icon {
-    background: linear-gradient(135deg, #fb923c, #f97316);
-}
-
-/* ===== NUEVOS MÓDULOS ===== */
-
-/* Vacaciones */
-.action-card.vacaciones::before {
-    background: #14b8a6; /* Turquesa */
-}
-.action-card.vacaciones .action-icon {
-    background: linear-gradient(135deg, #14b8a6, #0d9488);
-}
-
-/* Citas */
-.action-card.citas::before {
-    background: #8b5cf6; /* Violeta */
-}
-.action-card.citas .action-icon {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
 }

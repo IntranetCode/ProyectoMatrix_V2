@@ -36,9 +36,10 @@ namespace ProyectoMatrix.Models.ModelUsuarios
 
         public string? ApellidoMaterno { get; set; }
 
+        [Required(ErrorMessage = "El correo electrónico es obligatorio.")]
         [EmailAddress(ErrorMessage = "El formato del correo no es válido.")]
         [Remote(action: "VerificarCorreo", controller: "Usuarios", AdditionalFields = nameof(UsuarioID), ErrorMessage = "Este correo electrónico ya está en uso.")]
-        public string? Correo { get; set; }
+        public string Correo { get; set; }
 
         public string? Telefono { get; set; }
 

@@ -45,13 +45,6 @@ namespace ProyectoMatrix.Models
         public DbSet<NotificacionEmpresas> NotificacionEmpresas { get; set; }
         public DbSet<PermisosPorRol> PermisosPorRol { get; set; }
         public DbSet<SubMenuAcciones> SubMenuAcciones { get; set; }
-        public DbSet<Departamento> Departamentos { get; set; } 
-        public DbSet<CatMetricas> CatMetricas { get; set; }
-        public DbSet<RegistroKpi> RegistroKpis { get; set; }
-        public DbSet<CatMetricas_Variables> CatMetricas_Variables { get; set; }
-        public DbSet<RegistroKpis_Valores> RegistroKpis_Valores { get; set; }
-        public DbSet<ImportacionKpi> ImportacionesKpi { get; set; }
-        public DbSet<ImportacionKpiDetalle> ImportacionesKpi_Detalle { get; set; }
 
         // ==========================================
         // MÓDULO LOGÍSTICA (Axel)

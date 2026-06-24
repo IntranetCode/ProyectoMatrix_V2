@@ -12,8 +12,7 @@
     <div class="card-body">
         <div class="row justify-content-center">
             <div class="col-md-10">
-                <form asp-action="Crear" method="post">
-                    @Html.AntiForgeryToken()
+                <form asp-action="Crear">
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                     <h5 class="text-primary"><i class="fas fa-user-circle"></i> Datos Personales</h5>
@@ -72,12 +71,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label asp-for="Password" class="form-label"></label>
-                            <div class="input-group">
-                                <input asp-for="Password" type="password" id="txtPasswordCrear" class="form-control" autocomplete="new-password" />
-                                <button class="btn btn-outline-secondary js-toggle-password-crear" type="button" data-password-target="#txtPasswordCrear" aria-label="Mostrar contraseña" title="Mostrar contraseña">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
+                            <input asp-for="Password" type="password" class="form-control" />
                             <span asp-validation-for="Password" class="text-danger"></span>
                         </div>
                     </div>
@@ -94,8 +88,6 @@
                             </select>
                             <span asp-validation-for="EmpresasIDs" class="text-danger"></span>
                         </div>
-                    </div>
-
                     <div class="form-group mt-4 text-end">
                         <a asp-action="Index" class="btn btn-secondary me-2"><i class="fas fa-times"></i> Cancelar</a>
                         <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Crear Usuario</button>
@@ -105,26 +97,3 @@
         </div>
     </div>
 </div>
-
-@section Scripts {
-    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
-
-    <script>
-        document.addEventListener('click', function (event) {
-            const btn = event.target.closest('.js-toggle-password-crear');
-            if (!btn) return;
-
-            event.preventDefault();
-            const input = document.querySelector(btn.getAttribute('data-password-target'));
-            const icon = btn.querySelector('i');
-            if (!input) return;
-
-            const show = input.type === 'password';
-            input.type = show ? 'text' : 'password';
-            icon?.classList.toggle('fa-eye', !show);
-            icon?.classList.toggle('fa-eye-slash', show);
-            btn.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
-            btn.setAttribute('title', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
-        });
-    </script>
-}
