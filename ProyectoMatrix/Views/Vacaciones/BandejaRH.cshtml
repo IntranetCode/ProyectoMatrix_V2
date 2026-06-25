@@ -498,125 +498,139 @@ else
 </div>
 </div>
 
-<script>
-    function abrirModalAjuste(personaId, nombre) {
-        $('#txtPersonaID').val(personaId);
-        $('#lblNombreEmpleado').text(nombre);
-        $('#modalAjusteManual').modal('show');
-    }
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
-    function guardarAjusteManual() {
-        const data = {
-            PersonaID: $('#txtPersonaID').val(),
-            FechaInicio: $('#txtFechaInicio').val(),
-            FechaFin: $('#txtFechaFin').val(),
-            DiasATomar: $('#txtDiasAjuste').val(),
-            Observaciones: $('#txtObsAjuste').val()
-        };
-
-        if (!data.FechaInicio || !data.FechaFin || !data.DiasATomar) {
-            Swal.fire('Atención', 'Por favor completa los campos de fechas y días.', 'warning');
-            return;
+    <script>
+        function abrirModalAjuste(personaId, nombre) {
+            $('#txtPersonaID').val(personaId);
+            $('#lblNombreEmpleado').text(nombre);
+            $('#modalAjusteManual').modal('show');
         }
 
-        Swal.fire({
-            title: '¿Registrar ajuste?',
-            text: "Esto afectará el saldo disponible del usuario de inmediato.",
-            icon: 'info',
-            showCancelButton: true,
-            confirmButtonText: 'Sí, registrar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.post('@Url.Action("GuardarAjusteManual", "Vacaciones")', data, function (res) {
-                    if (res.success) {
-                        Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
-                    } else {
-                        Swal.fire('Error', res.message, 'error');
-                    }
-                });
-            }
-        });
-    }
+        function guardarAjusteManual() {
+            const data = {
+                PersonaID: $('#txtPersonaID').val(),
+                FechaInicio: $('#txtFechaInicio').val(),
+                FechaFin: $('#txtFechaFin').val(),
+                DiasATomar: $('#txtDiasAjuste').val(),
+                Observaciones: $('#txtObsAjuste').val()
+            };
 
-    function abrirModalMasivo() {
-        Swal.fire({
-            title: 'Descuento Masivo de Días',
-            html: `
-                <input type="number" id="diasMasivo" class="swal2-input" placeholder="Cantidad de días (ej. 1)" step="0.5">
-                <textarea id="motivoMasivo" class="swal2-textarea" placeholder="Motivo del descuento masivo..."></textarea>
-            `,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Aplicar a TODOS',
-            confirmButtonColor: '#dc3545',
-            preConfirm: () => {
-                const dias = document.getElementById('diasMasivo').value;
-                const motivo = document.getElementById('motivoMasivo').value;
-                if (!dias || !motivo) {
-                    Swal.showValidationMessage('Ambos campos son obligatorios');
+            if (!data.FechaInicio || !data.FechaFin || !data.DiasATomar) {
+                Swal.fire('Atención', 'Por favor completa los campos de fechas y días.', 'warning');
+                return;
+            }
+
+            Swal.fire({
+                title: '¿Registrar ajuste?',
+                text: "Esto afectará el saldo disponible del usuario de inmediato.",
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, registrar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('@Url.Action("GuardarAjusteManual", "Vacaciones")', data, function (res) {
+                        if (res.success) {
+                            Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', res.message, 'error');
+                        }
+                    });
                 }
-                return { dias: dias, motivo: motivo };
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.post('@Url.Action("AplicarDescuentoMasivo", "Vacaciones")', result.value, function(res) {
-                    if (res.success) {
-                        Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
-                    } else {
-                        Swal.fire('Error', res.message, 'error');
+            });
+        }
+
+        function abrirModalMasivo() {
+            Swal.fire({
+                title: 'Descuento Masivo de Días',
+                html: `
+                    <input type="number" id="diasMasivo" class="swal2-input" placeholder="Cantidad de días (ej. 1)" step="0.5">
+                    <textarea id="motivoMasivo" class="swal2-textarea" placeholder="Motivo del descuento masivo..."></textarea>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Aplicar a TODOS',
+                confirmButtonColor: '#dc3545',
+                preConfirm: () => {
+                    const dias = document.getElementById('diasMasivo').value;
+                    const motivo = document.getElementById('motivoMasivo').value;
+                    if (!dias || !motivo) {
+                        Swal.showValidationMessage('Ambos campos son obligatorios');
                     }
-                });
-            }
-        });
-    }
+                    return { dias: parseFloat(dias), motivo: motivo };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const token = '@Html.AntiForgeryToken()'.match(/value="([^"]+)"/)[1];
 
-    /*  Lógica para controlar la ventana emergente de Días Extra */
-    function abrirModalDiasExtra(personaId, nombreCompleto) {
-        $('#txtPersonaIDExtra').val(personaId);
-        $('#lblNombreEmpleadoExtra').text(nombreCompleto);
-        $('#txtCantidadDiasExtra').val('');
-        $('#txtMotivoExtra').val('');
-        $('#modalDiasExtra').modal('show');
-    }
+                    const dataSubmit = {
+                        dias: result.value.dias,
+                        motivo: result.value.motivo,
+                        __RequestVerificationToken: token
+                    };
+
+                    $.post('@Url.Action("AplicarDescuentoMasivo", "Vacaciones")', dataSubmit, function(res) {
+                        if (res.success) {
+                            Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', res.message, 'error');
+                        }
+                    }).fail(function(xhr) {
+                        console.error("Fallo descuento masivo:", xhr.status, xhr.responseText);
+                        Swal.fire('Error', 'Error de comunicación con el servidor. Código: ' + xhr.status, 'error');
+                    });
+                }
+            });
+        }
+
+        function abrirModalDiasExtra(personaId, nombreCompleto) {
+            $('#txtPersonaIDExtra').val(personaId);
+            $('#lblNombreEmpleadoExtra').text(nombreCompleto);
+            $('#txtCantidadDiasExtra').val('');
+            $('#txtMotivoExtra').val('');
+            $('#modalDiasExtra').modal('show');
+        }
+
         function guardarDiasExtra() {
-        const id = $('#txtPersonaIDExtra').val();
-        const dias = $('#txtCantidadDiasExtra').val();
-        const motivo = $('#txtMotivoExtra').val();
+            const id = $('#txtPersonaIDExtra').val();
+            const dias = $('#txtCantidadDiasExtra').val();
+            const motivo = $('#txtMotivoExtra').val();
 
-        if (!dias || parseFloat(dias) <= 0) {
-            Swal.fire('Atención', 'Por favor ingresa una cantidad válida de días.', 'warning');
-            return;
-        }
-
-        if (!motivo || motivo.trim().length < 5) {
-            Swal.fire('Atención', 'Por favor ingresa una justificación descriptiva (mínimo 5 caracteres).', 'warning');
-            return;
-        }
-
-        
-        const token = '@Html.AntiForgeryToken()'.match(/value="([^"]+)"/)[1];
-
-        const dataSubmit = {
-            PersonaID: parseInt(id),
-            DiasRegalo: parseFloat(dias),
-            Motivo: motivo,
-            __RequestVerificationToken: token 
-        };
-
-        $.post('@Url.Action("OtorgarDiasExtra", "Vacaciones")', dataSubmit, function (res) {
-            if (res.success) {
-                $('#modalDiasExtra').modal('hide');
-                Swal.fire('¡Proceso Correcto!', res.message, 'success').then(() => {
-                    location.reload();
-                });
-            } else {
-                Swal.fire('Error', res.message, 'error');
+            if (!dias || parseFloat(dias) <= 0) {
+                Swal.fire('Atención', 'Por favor ingresa una cantidad válida de días.', 'warning');
+                return;
             }
-        }).fail(function(xhr, status, error) {
-            console.error("Detalle del fallo de red:", xhr.status, xhr.responseText);
-            Swal.fire('Error', 'No se pudo comunicar con el servidor. Código de estado: ' + xhr.status, 'error');
-        });
-    }
-</script>
 
+            if (!motivo || motivo.trim().length < 5) {
+                Swal.fire('Atención', 'Por favor ingresa una justificación descriptiva (mínimo 5 caracteres).', 'warning');
+                return;
+            }
+
+            const token = '@Html.AntiForgeryToken()'.match(/value="([^"]+)"/)[1];
+
+            const dataSubmit = {
+                PersonaID: parseInt(id),
+                DiasRegalo: parseFloat(dias),
+                Motivo: motivo,
+                __RequestVerificationToken: token
+            };
+
+            $.post('@Url.Action("OtorgarDiasExtra", "Vacaciones")', dataSubmit, function (res) {
+                if (res.success) {
+                    $('#modalDiasExtra').modal('hide');
+                    Swal.fire('¡Proceso Correcto!', res.message, 'success').then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', res.message, 'error');
+                }
+            }).fail(function(xhr) {
+                console.error("Detalle del fallo de red:", xhr.status, xhr.responseText);
+                Swal.fire('Error', 'No se pudo comunicar con el servidor. Código de estado: ' + xhr.status, 'error');
+            });
+        }
+    </script>
+}
 
