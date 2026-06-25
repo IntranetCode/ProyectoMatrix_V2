@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication;
+﻿using System;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -32,10 +33,14 @@ public class LoginController : Controller
     [AllowAnonymous]
     public IActionResult Login()
     {
+        if (HttpContext.Session.GetInt32("UsuarioCambioPasswordID") != null)
+        {
+            return RedirectToAction("CambiarPasswordInicial", "CuentaPassword");
+        }
+
         if (HttpContext.Session.GetInt32("UsuarioID") != null)
         {
             return RedirectToAction("Index", "Menu"); // Redirige si el usuario es diferente de null, porque ya tiene la sesio abierta
-
         }
 
         return View();
@@ -188,9 +193,94 @@ public class LoginController : Controller
         return await CompletarLogin(usuario, empresa);
     }
 
+
+    // ---------- VALIDAR POLÍTICA DE CONTRASEÑA ----------
+    private async Task<bool> DebeRedirigirCambioPasswordAsync(int usuarioId)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string query = @"
+            SELECT TOP 1
+                ISNULL(DebeCambiarPassword, 0) AS DebeCambiarPassword,
+                FechaUltimoCambioPassword
+            FROM Usuarios
+            WHERE UsuarioID = @UsuarioID
+              AND Activo = 1;";
+
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+        using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            return false;
+        }
+
+        var debeCambiar = false;
+        var ordDebeCambiar = reader.GetOrdinal("DebeCambiarPassword");
+
+        if (!reader.IsDBNull(ordDebeCambiar))
+        {
+            var valor = reader.GetValue(ordDebeCambiar);
+
+            if (valor is bool booleano)
+            {
+                debeCambiar = booleano;
+            }
+            else
+            {
+                debeCambiar = Convert.ToInt32(valor) == 1;
+            }
+        }
+
+        var fechaUltimoCambio = (DateTime?)null;
+        var ordFechaUltimoCambio = reader.GetOrdinal("FechaUltimoCambioPassword");
+
+        if (!reader.IsDBNull(ordFechaUltimoCambio))
+        {
+            fechaUltimoCambio = reader.GetDateTime(ordFechaUltimoCambio);
+        }
+
+        if (debeCambiar)
+        {
+            return true;
+        }
+
+        // Si la fecha viene NULL, se obliga el cambio para que el usuario entre a la política.
+        if (!fechaUltimoCambio.HasValue)
+        {
+            return true;
+        }
+
+        var fechaLimite = DateTime.Now.AddMonths(-2);
+        return fechaUltimoCambio.Value <= fechaLimite;
+    }
+
     // ---------- COMPLETAR LOGIN ----------
     private async Task<IActionResult> CompletarLogin(UsuarioModel usuario, EmpresaModel empresa)
     {
+        if (await DebeRedirigirCambioPasswordAsync(usuario.UsuarioID))
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            HttpContext.Session.Remove("UsuarioID");
+            HttpContext.Session.Remove("Username");
+            HttpContext.Session.Remove("EmpresaID");
+            HttpContext.Session.Remove("EmpresaId");
+            HttpContext.Session.Remove("EmpresaSeleccionada");
+            HttpContext.Session.Remove("MenuUsuario");
+
+            HttpContext.Session.SetInt32("UsuarioCambioPasswordID", usuario.UsuarioID);
+            HttpContext.Session.SetString("UsernameCambioPassword", usuario.Username ?? "");
+            HttpContext.Session.SetInt32("EmpresaCambioPasswordID", empresa.EmpresaID);
+            HttpContext.Session.SetString("EmpresaCambioPasswordNombre", empresa.Nombre ?? "");
+
+            TempData["InfoMessage"] = "Por seguridad, debes actualizar tu contraseña antes de ingresar a la intranet.";
+
+            return RedirectToAction("CambiarPasswordInicial", "CuentaPassword");
+        }
 
         // ✅ OBTENER EL RolID desde la base de datos
         int rolId = await ObtenerRolIdPorUsuarioAsync(usuario.UsuarioID);
@@ -277,7 +367,7 @@ public class LoginController : Controller
 
         //Si el rol = 7 de invitado entra directo a index universidad
 
-       
+
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
@@ -594,7 +684,7 @@ public class LoginController : Controller
         };
     }
 
-    // ✅ AGREGAR ESTE MÉTODO NUEVO al final de tu LoginController
+    // ---------- OBTENER ROL ID POR USUARIO ----------
     private async Task<int> ObtenerRolIdPorUsuarioAsync(int usuarioId)
     {
         using var connection = new SqlConnection(_connectionString);
@@ -632,7 +722,7 @@ public class LoginController : Controller
         command.Parameters.AddWithValue("@UsuarioID", usuarioId);
 
         using var reader = await command.ExecuteReaderAsync();
-        if(await reader.ReadAsync())
+        if (await reader.ReadAsync())
         {
             var nombre = reader["Nombre"] as string ?? "";
             var apePat = reader["ApellidoPaterno"] as string ?? "";
@@ -640,7 +730,7 @@ public class LoginController : Controller
 
             var nombreMostrar = $"{nombre} {apePat} {apeMat}".Trim();
 
-            if(!string.IsNullOrWhiteSpace(nombreMostrar))
+            if (!string.IsNullOrWhiteSpace(nombreMostrar))
                 return nombreMostrar;
 
         }
@@ -672,8 +762,8 @@ public class LoginController : Controller
     public IActionResult Index()
     {
 
-        
-      
+
+
 
         if (HttpContext.Session.GetInt32("UsuarioID") != null)
         {

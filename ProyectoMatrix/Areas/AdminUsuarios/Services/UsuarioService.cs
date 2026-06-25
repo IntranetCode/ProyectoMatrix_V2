@@ -224,7 +224,9 @@ WHERE fe.TienePermiso = 1;";
                 new SqlParameter("@UsuarioID", usuario.UsuarioID),
                 new SqlParameter("@Nombre", usuario.Nombre),
                 new SqlParameter("@ApellidoPaterno", usuario.ApellidoPaterno),
-                new SqlParameter("@Correo", usuario.Correo),
+                new SqlParameter("@Correo", string.IsNullOrWhiteSpace(usuario.Correo)
+                ? DBNull.Value
+                : usuario.Correo.Trim()),
                 new SqlParameter("@RolID", usuario.RolID),
                 new SqlParameter("@Activo", usuario.Activo),
                 new SqlParameter("@ApellidoMaterno", (object)usuario.ApellidoMaterno ?? DBNull.Value),
