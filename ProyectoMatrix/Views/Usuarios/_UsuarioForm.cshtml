@@ -1,5 +1,4 @@
-﻿
-@using System.Linq
+﻿@using System.Linq
 @using Microsoft.AspNetCore.Mvc.Rendering
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @using ProyectoMatrix.Models.ModelUsuarios
@@ -243,7 +242,6 @@
 
     .permission-group-header {
         background: linear-gradient(135deg,#1a237e 0%,#0d47a1 100%);
-  
         color: #fff;
         padding: .85rem 1.1rem;
         font-weight: 700;
@@ -413,8 +411,8 @@
 
 
     /* Corrección puntual para modales cargados dentro del panel lateral por AJAX.
-       El modal de restablecer contraseña se mueve al body antes de abrirse; estas reglas
-       aseguran que quede por encima del backdrop y que sus controles sigan interactivos. */
+               El modal de restablecer contraseña se mueve al body antes de abrirse; estas reglas
+               aseguran que quede por encima del backdrop y que sus controles sigan interactivos. */
     body.pm-reset-password-open > .modal-backdrop,
     body.pm-reset-password-open > .modal-backdrop.show,
     .modal-backdrop.pm-reset-password-backdrop {
@@ -428,21 +426,21 @@
         z-index: 2147483000 !important;
     }
 
-    body > .modal.modal-reset-password-usuario .modal-dialog,
-    body > .modal.modal-reset-password-usuario .modal-content,
-    body > .modal.pm-reset-password-modal .modal-dialog,
-    body > .modal.pm-reset-password-modal .modal-content {
-        pointer-events: auto !important;
-    }
+        body > .modal.modal-reset-password-usuario .modal-dialog,
+        body > .modal.modal-reset-password-usuario .modal-content,
+        body > .modal.pm-reset-password-modal .modal-dialog,
+        body > .modal.pm-reset-password-modal .modal-content {
+            pointer-events: auto !important;
+        }
 
     #modalUsuarioGuardado {
         z-index: 2147483000 !important;
     }
 
-    #modalUsuarioGuardado .modal-dialog,
-    #modalUsuarioGuardado .modal-content {
-        pointer-events: auto !important;
-    }
+        #modalUsuarioGuardado .modal-dialog,
+        #modalUsuarioGuardado .modal-content {
+            pointer-events: auto !important;
+        }
 
 
 
@@ -503,7 +501,7 @@
     }
 
     /* Password fields sin controles nativos del navegador.
-       Usamos type="text" + máscara visual para evitar el ojo/popup nativo de Edge dentro del modal. */
+               Usamos type="text" + máscara visual para evitar el ojo/popup nativo de Edge dentro del modal. */
     .pm-secret-field.pm-secret-masked {
         -webkit-text-security: disc;
         text-security: disc;
@@ -532,198 +530,310 @@
         pointer-events: none !important;
     }
 
+
+    /* ===== Notificaciones modernas de UsuarioForm ===== */
+    .toast-usuario-form {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 2147483000;
+        width: min(520px, calc(100vw - 32px));
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid rgba(231, 233, 239, .95);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, .18);
+        overflow: hidden;
+        animation: toastUsuarioFormIn .22s ease-out;
+    }
+
+    .toast-usuario-form-inner {
+        display: flex;
+        gap: 14px;
+        padding: 16px 18px 14px 16px;
+        align-items: flex-start;
+    }
+
+    .toast-usuario-form-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 42px;
+        font-size: 18px;
+    }
+
+    .toast-usuario-form-title {
+        font-weight: 800;
+        color: #1f2937;
+        font-size: .98rem;
+        margin-bottom: 4px;
+    }
+
+    .toast-usuario-form-message {
+        color: #4b5563;
+        font-size: .9rem;
+        line-height: 1.45;
+    }
+
+    .toast-usuario-form-close {
+        border: 0;
+        background: transparent;
+        color: #6b7280;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex: 0 0 28px;
+    }
+
+        .toast-usuario-form-close:hover {
+            background: #f3f4f6;
+            color: #111827;
+        }
+
+    .toast-usuario-form-progress-wrap {
+        height: 4px;
+        background: #eef2f7;
+    }
+
+    .toast-usuario-form-progress {
+        height: 100%;
+        width: 100%;
+        animation-name: toastUsuarioFormProgress;
+        animation-timing-function: linear;
+        animation-fill-mode: forwards;
+    }
+
+    @@keyframes toastUsuarioFormIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px) translateX(12px) scale(.98);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) translateX(0) scale(1);
+        }
+    }
+
+    @@keyframes toastUsuarioFormOut {
+        from {
+            opacity: 1;
+            transform: translateY(0) translateX(0) scale(1);
+        }
+
+        to {
+            opacity: 0;
+            transform: translateY(-8px) translateX(12px) scale(.98);
+        }
+    }
+
+    @@keyframes toastUsuarioFormProgress {
+        from {
+            width: 100%;
+        }
+
+        to {
+            width: 0%;
+        }
+    }
 </style>
 
 <div data-usuario-form-root="true">
 
-<!-- ENCABEZADO -->
-<div class="panel-header-modern">
-    <div class="user-profile-section">
-        <div class="user-avatar-circle">@iniciales</div>
-        <div class="user-info">
-            <h2 class="user-name">@nombreCompleto</h2>
-            @if (!Model.EsModoCrear)
-            {
-                <div class="user-meta">
-                    <span class="badge @(Model.Activo ? "bg-success" : "bg-secondary")">
-                        @(Model.Activo ? "Activo" : "Inactivo")
-                    </span>
-                    <button type="button"
-                            class="reset-password-link"
-                            id="btnAbrirRestablecerPassword"
-                            data-bs-toggle="modal"
-                            data-bs-target="#@resetPasswordModalId"
-                            onmousedown="var m=document.getElementById('@resetPasswordModalId');if(m){document.querySelectorAll('#@resetPasswordModalId').forEach(function(x){if(x!==m)x.remove();});if(m.parentElement!==document.body){m.__usuarioFormOriginalParent=m.parentElement;m.__usuarioFormNextSibling=m.nextSibling;document.body.appendChild(m);}m.classList.add('pm-reset-password-modal');m.style.setProperty('z-index','2147483000','important');document.body.classList.add('pm-reset-password-open');setTimeout(function(){document.querySelectorAll('.modal-backdrop').forEach(function(b){b.classList.add('pm-reset-password-backdrop');b.style.setProperty('z-index','2147482990','important');});},0);}">
-                        <i class="fas fa-key"></i> Restablecer contraseña
-                    </button>
-                </div>
-            }
-        </div>
-    </div>
-    <button type="button" class="btn-close-modern" id="close-panel-btn" aria-label="Cerrar">
-        <i class="fas fa-times"></i>
-    </button>
-</div>
-
-<!-- Tokens / IDs ocultos para AJAX -->
-<input type="hidden" id="__RequestVerificationToken" value="@Antiforgery.GetAndStoreTokens(Context).RequestToken" />
-<input type="hidden" id="UsuarioIDPanel" value="@Model.UsuarioID" />
-<input type="hidden" id="EmpresaIDPanel" value="@(empresaId?.ToString() ?? "")" />
-
-<!-- TABS -->
-<ul class="nav nav-tabs nav-tabs-modern" id="userTab" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="cuenta-tab" data-bs-toggle="tab" data-bs-target="#tab-cuenta" type="button" role="tab">
-            <i class="fas fa-user me-2"></i>Cuenta
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="permisos-tab" data-bs-toggle="tab" data-bs-target="#tab-permisos" type="button" role="tab">
-            <i class="fas fa-shield-alt me-2"></i>Permisos
-        </button>
-    </li>
-    @if (!Model.EsModoCrear && Model.HistorialDeCambios != null && Model.HistorialDeCambios.Any())
-    {
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="auditoria-tab" data-bs-toggle="tab" data-bs-target="#tab-auditoria" type="button" role="tab">
-                <i class="fas fa-history me-2"></i>Auditoría
-            </button>
-        </li>
-    }
-   
-</ul>
-
-<!-- CONTENIDO -->
-<div class="tab-content tab-content-modern" id="userTabContent">
-    <!-- CUENTA -->
-    <div class="tab-pane fade show active" id="tab-cuenta" role="tabpanel">
-        <div class="pane-scroll">
-            <form id="user-form" asp-action="@accion" asp-controller="Usuarios" asp-route-id="@Model.UsuarioID" method="post" class="form-modern">
-                @Html.AntiForgeryToken()
-                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
-
+    <!-- ENCABEZADO -->
+    <div class="panel-header-modern">
+        <div class="user-profile-section">
+            <div class="user-avatar-circle">@iniciales</div>
+            <div class="user-info">
+                <h2 class="user-name">@nombreCompleto</h2>
                 @if (!Model.EsModoCrear)
                 {
-                    <input type="hidden" asp-for="UsuarioID" />
+                    <div class="user-meta">
+                        <span class="badge @(Model.Activo ? "bg-success" : "bg-secondary")">
+                            @(Model.Activo ? "Activo" : "Inactivo")
+                        </span>
+                        <button type="button"
+                                class="reset-password-link"
+                                id="btnAbrirRestablecerPassword"
+                                data-bs-toggle="modal"
+                                data-bs-target="#@resetPasswordModalId"
+                                onmousedown="var m=document.getElementById('@resetPasswordModalId');if(m){document.querySelectorAll('#@resetPasswordModalId').forEach(function(x){if(x!==m)x.remove();});if(m.parentElement!==document.body){m.__usuarioFormOriginalParent=m.parentElement;m.__usuarioFormNextSibling=m.nextSibling;document.body.appendChild(m);}m.classList.add('pm-reset-password-modal');m.style.setProperty('z-index','2147483000','important');document.body.classList.add('pm-reset-password-open');setTimeout(function(){document.querySelectorAll('.modal-backdrop').forEach(function(b){b.classList.add('pm-reset-password-backdrop');b.style.setProperty('z-index','2147482990','important');});},0);}">
+                            <i class="fas fa-key"></i> Restablecer contraseña
+                        </button>
+                    </div>
                 }
+            </div>
+        </div>
+        <button type="button" class="btn-close-modern" id="close-panel-btn" aria-label="Cerrar">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
 
-                <div class="form-section">
-                    <div class="section-header">
-                        <i class="fas fa-user-circle section-icon"></i>
-                        <h5 class="section-title">Datos Personales</h5>
+    <!-- Tokens / IDs ocultos para AJAX -->
+    <input type="hidden" id="__RequestVerificationToken" value="@Antiforgery.GetAndStoreTokens(Context).RequestToken" />
+    <input type="hidden" id="UsuarioIDPanel" value="@Model.UsuarioID" />
+    <input type="hidden" id="EmpresaIDPanel" value="@(empresaId?.ToString() ?? "")" />
+
+    <!-- TABS -->
+    <ul class="nav nav-tabs nav-tabs-modern" id="userTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="cuenta-tab" data-bs-toggle="tab" data-bs-target="#tab-cuenta" type="button" role="tab">
+                <i class="fas fa-user me-2"></i>Cuenta
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="permisos-tab" data-bs-toggle="tab" data-bs-target="#tab-permisos" type="button" role="tab">
+                <i class="fas fa-shield-alt me-2"></i>Permisos
+            </button>
+        </li>
+        @if (!Model.EsModoCrear && Model.HistorialDeCambios != null && Model.HistorialDeCambios.Any())
+        {
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="auditoria-tab" data-bs-toggle="tab" data-bs-target="#tab-auditoria" type="button" role="tab">
+                    <i class="fas fa-history me-2"></i>Auditoría
+                </button>
+            </li>
+        }
+
+    </ul>
+
+    <!-- CONTENIDO -->
+    <div class="tab-content tab-content-modern" id="userTabContent">
+        <!-- CUENTA -->
+        <div class="tab-pane fade show active" id="tab-cuenta" role="tabpanel">
+            <div class="pane-scroll">
+                <form id="user-form" asp-action="@accion" asp-controller="Usuarios" asp-route-id="@Model.UsuarioID" method="post" class="form-modern">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    @if (!Model.EsModoCrear)
+                    {
+                        <input type="hidden" asp-for="UsuarioID" />
+                    }
+
+                    <div class="form-section">
+                        <div class="section-header">
+                            <i class="fas fa-user-circle section-icon"></i>
+                            <h5 class="section-title">Datos Personales</h5>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="Nombre" class="form-label-modern"></label>
+                                <input asp-for="Nombre" class="form-control form-control-modern" placeholder="Ingrese el nombre" />
+                                <span asp-validation-for="Nombre" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="ApellidoPaterno" class="form-label-modern"></label>
+                                <input asp-for="ApellidoPaterno" class="form-control form-control-modern" placeholder="Ingrese el apellido paterno" />
+                                <span asp-validation-for="ApellidoPaterno" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="ApellidoMaterno" class="form-label-modern"></label>
+                                <input asp-for="ApellidoMaterno" class="form-control form-control-modern" placeholder="Ingrese el apellido materno" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Telefono" class="form-label-modern"></label>
+                                <input asp-for="Telefono" class="form-control form-control-modern" placeholder="+52 000 000 0000" />
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Correo" class="form-label-modern">Correo electrónico <span class="text-muted fw-normal">(opcional)</span></label>
+                                <input asp-for="Correo" type="email" class="form-control form-control-modern" placeholder="correo@ejemplo.com" />
+                                <span asp-validation-for="Correo" class="text-danger small"></span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label asp-for="Nombre" class="form-label-modern"></label>
-                            <input asp-for="Nombre" class="form-control form-control-modern" placeholder="Ingrese el nombre" />
-                            <span asp-validation-for="Nombre" class="text-danger small"></span>
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="ApellidoPaterno" class="form-label-modern"></label>
-                            <input asp-for="ApellidoPaterno" class="form-control form-control-modern" placeholder="Ingrese el apellido paterno" />
-                            <span asp-validation-for="ApellidoPaterno" class="text-danger small"></span>
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="ApellidoMaterno" class="form-label-modern"></label>
-                            <input asp-for="ApellidoMaterno" class="form-control form-control-modern" placeholder="Ingrese el apellido materno" />
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="Telefono" class="form-label-modern"></label>
-                            <input asp-for="Telefono" class="form-control form-control-modern" placeholder="+52 000 000 0000" />
-                        </div>
-                        <div class="col-12">
-                            <label asp-for="Correo" class="form-label-modern">Correo electrónico <span class="text-muted fw-normal">(opcional)</span></label>
-                            <input asp-for="Correo" type="email" class="form-control form-control-modern" placeholder="correo@ejemplo.com" />
-                            <span asp-validation-for="Correo" class="text-danger small"></span>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="form-section">
-                    <div class="section-header">
-                        <i class="fas fa-briefcase section-icon"></i>
-                        <h5 class="section-title">Información de Empleado</h5>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label asp-for="NumeroEmpleado" class="form-label-modern">Número de Empleado</label>
-                            <input asp-for="NumeroEmpleado" class="form-control form-control-modern" placeholder="Ej: 00123" />
+                    <div class="form-section">
+                        <div class="section-header">
+                            <i class="fas fa-briefcase section-icon"></i>
+                            <h5 class="section-title">Información de Empleado</h5>
                         </div>
-                        <div class="col-md-4">
-                            <label asp-for="ClaveEmpleadoNomina" class="form-label-modern">Clave Nómina</label>
-                            <input asp-for="ClaveEmpleadoNomina" type="text" class="form-control form-control-modern" placeholder="Ej: NSE00033" autocomplete="off" />
-                        </div>
-                        <div class="col-md-4">
-                            <label asp-for="FechaIngreso" class="form-label-modern">Fecha de Ingreso</label>
-                            <input asp-for="FechaIngreso" type="date" class="form-control form-control-modern" />
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="Puesto" class="form-label-modern">Puesto</label>
-                            <input asp-for="Puesto" class="form-control form-control-modern" placeholder="Cargo del colaborador" />
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="FechaNacimiento" class="form-label-modern">Fecha de Nacimiento</label>
-                            <input asp-for="FechaNacimiento" type="date" class="form-control form-control-modern" />
-                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label asp-for="NumeroEmpleado" class="form-label-modern">Número de Empleado</label>
+                                <input asp-for="NumeroEmpleado" class="form-control form-control-modern" placeholder="Ej: 00123" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="ClaveEmpleadoNomina" class="form-label-modern">Clave Nómina</label>
+                                <input asp-for="ClaveEmpleadoNomina" type="text" class="form-control form-control-modern" placeholder="Ej: NSE00033" autocomplete="off" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="FechaIngreso" class="form-label-modern">Fecha de Ingreso</label>
+                                <input asp-for="FechaIngreso" type="date" class="form-control form-control-modern" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Puesto" class="form-label-modern">Puesto</label>
+                                <input asp-for="Puesto" class="form-control form-control-modern" placeholder="Cargo del colaborador" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="FechaNacimiento" class="form-label-modern">Fecha de Nacimiento</label>
+                                <input asp-for="FechaNacimiento" type="date" class="form-control form-control-modern" />
+                            </div>
 
 
-                        @{
-                            var departamentos = ViewBag.Departamentos as IEnumerable<SelectListItem> 
-                                                ?? Enumerable.Empty<SelectListItem>();
+                            @{
+                                var departamentos = ViewBag.Departamentos as IEnumerable<SelectListItem>
+                                                    ?? Enumerable.Empty<SelectListItem>();
 
-                            var departamentoActual = Model.DepartamentoID?.ToString();
-                        }
+                                var departamentoActual = Model.DepartamentoID?.ToString();
+                            }
 
-                        <div class="col-md-12 mb-3">
-                            <label asp-for="DepartamentoID" class="form-label-modern">Departamento</label>
+                            <div class="col-md-12 mb-3">
+                                <label asp-for="DepartamentoID" class="form-label-modern">Departamento</label>
 
-                            <div class="input-group departamento-input-group">
-                                <span class="input-group-text departamento-icon">
-                                    <i class="fas fa-building"></i>
-                                </span>
+                                <div class="input-group departamento-input-group">
+                                    <span class="input-group-text departamento-icon">
+                                        <i class="fas fa-building"></i>
+                                    </span>
 
-                                <select asp-for="DepartamentoID"
-                                        id="selectDepartamento"
-                                        name="DepartamentoID"
-                                        class="form-select form-control-modern departamento-select">
-                                    <option value="">-- Seleccione un Departamento --</option>
+                                    <select asp-for="DepartamentoID"
+                                            id="selectDepartamento"
+                                            name="DepartamentoID"
+                                            class="form-select form-control-modern departamento-select">
+                                        <option value="">-- Seleccione un Departamento --</option>
 
-                                    @foreach (var depto in departamentos)
-                                    {
-                                        if (depto.Value == departamentoActual)
+                                        @foreach (var depto in departamentos)
                                         {
-                                            <option value="@depto.Value" selected>@depto.Text</option>
+                                            if (depto.Value == departamentoActual)
+                                            {
+                                                <option value="@depto.Value" selected>@depto.Text</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@depto.Value">@depto.Text</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+
+                                <span asp-validation-for="DepartamentoID" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label-modern">Jefe Directo</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white"><i class="fas fa-user-tie text-primary"></i></span>
+                                    <select asp-for="JefeInmediatoPersonaID" id="selectJefe" class="form-select">
+                                        @if (Model.JefeInmediatoPersonaID > 0)
+                                        {
+                                            <option value="@Model.JefeInmediatoPersonaID" selected>@Model.JefeInmediatoNombreCompleto</option>
                                         }
                                         else
                                         {
-                                            <option value="@depto.Value">@depto.Text</option>
+                                            <option value="">-- Buscar Jefe --</option>
                                         }
-                                    }
-                                </select>
+                                    </select>
+                                </div>
                             </div>
-
-                            <span asp-validation-for="DepartamentoID" class="text-danger small"></span>
-                        </div>
-
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label-modern">Jefe Directo</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white"><i class="fas fa-user-tie text-primary"></i></span>
-                                <select asp-for="JefeInmediatoPersonaID" id="selectJefe" class="form-select">
-                                    @if (Model.JefeInmediatoPersonaID > 0)
-                                    {
-                                        <option value="@Model.JefeInmediatoPersonaID" selected>@Model.JefeInmediatoNombreCompleto</option>
-                                    }
-                                    else
-                                    {
-                                        <option value="">-- Buscar Jefe --</option>
-                                    }
-                                </select>
-                            </div>
-                        </div>
 
                         
-                    @*    @if (!Model.EsModoCrear)
+                            @*    @if (!Model.EsModoCrear)
                         {
                             <div class="col-md-12 mt-3">
                                 <div class="p-3 border border-warning rounded bg-light bg-opacity-10">
@@ -738,77 +848,77 @@
                             </div>
                         }*@
 
+                        </div>
                     </div>
-                </div>
 
 
-                @if (Model.EsModoCrear)
-                {
+                    @if (Model.EsModoCrear)
+                    {
+                        <div class="form-section">
+                            <div class="section-header">
+                                <i class="fas fa-lock section-icon"></i>
+                                <h5 class="section-title">Credenciales de Acceso</h5>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label asp-for="Username" class="form-label-modern"></label>
+                                    <input asp-for="Username" class="form-control form-control-modern" placeholder="usuario123" />
+                                    <span asp-validation-for="Username" class="text-danger small"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Password" class="form-label-modern">Contraseña</label>
+                                    <div class="input-group">
+                                        <input asp-for="Password" type="text" id="txtPassword" class="form-control form-control-modern pm-secret-field pm-secret-masked" placeholder="••••••••" autocomplete="off" data-lpignore="true" data-1p-ignore="true" />
+                                        <button class="btn btn-outline-secondary border-2" type="button" onclick="if(event){event.preventDefault();event.stopPropagation();}var input=this.closest('.input-group').querySelector('input');var icon=this.querySelector('i');if(input){input.type='text';input.classList.add('pm-secret-field');var reveal=input.classList.contains('pm-secret-masked');input.classList.toggle('pm-secret-masked',!reveal);input.classList.toggle('pm-secret-unmasked',reveal);if(icon){icon.classList.toggle('fa-eye',!reveal);icon.classList.toggle('fa-eye-slash',reveal);}}return false;">
+                                            <i id="eyeIcon" class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <span asp-validation-for="Password" class="text-danger small"></span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
                     <div class="form-section">
                         <div class="section-header">
-                            <i class="fas fa-lock section-icon"></i>
-                            <h5 class="section-title">Credenciales de Acceso</h5>
+                            <i class="fas fa-cogs section-icon"></i>
+                            <h5 class="section-title">Configuración de Cuenta</h5>
                         </div>
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label asp-for="Username" class="form-label-modern"></label>
-                                <input asp-for="Username" class="form-control form-control-modern" placeholder="usuario123" />
-                                <span asp-validation-for="Username" class="text-danger small"></span>
+                                <label asp-for="RolID" class="form-label-modern">Rol</label>
+                                <select asp-for="RolID"
+                                        asp-items="@ViewBag.URol"
+                                        class="form-select form-control-modern">
+                                    <option value="">-- Seleccione un rol --</option>
+                                </select>
+                                <span asp-validation-for="RolID" class="text-danger small"></span>
                             </div>
                             <div class="col-md-6">
-                                <label asp-for="Password" class="form-label-modern">Contraseña</label>
-                                <div class="input-group">
-                                    <input asp-for="Password" type="text" id="txtPassword" class="form-control form-control-modern pm-secret-field pm-secret-masked" placeholder="••••••••" autocomplete="off" data-lpignore="true" data-1p-ignore="true" />
-                                    <button class="btn btn-outline-secondary border-2" type="button" onclick="if(event){event.preventDefault();event.stopPropagation();}var input=this.closest('.input-group').querySelector('input');var icon=this.querySelector('i');if(input){input.type='text';input.classList.add('pm-secret-field');var reveal=input.classList.contains('pm-secret-masked');input.classList.toggle('pm-secret-masked',!reveal);input.classList.toggle('pm-secret-unmasked',reveal);if(icon){icon.classList.toggle('fa-eye',!reveal);icon.classList.toggle('fa-eye-slash',reveal);}}return false;">
-                                        <i id="eyeIcon" class="fas fa-eye"></i>
-                                    </button>
-                                </div>
-                                <span asp-validation-for="Password" class="text-danger small"></span>
+                                <label asp-for="EmpresasIDs" class="form-label-modern"></label>
+                                <select asp-for="EmpresasIDs" asp-items="@ViewBag.Empresas" class="form-select form-control-modern" multiple size="4"></select>
+                                <span asp-validation-for="EmpresasIDs" class="text-danger small"></span>
+                                <small class="text-muted d-block mt-1">Mantén Ctrl para seleccionar varias</small>
                             </div>
-                        </div>
-                    </div>
-                }
 
-                <div class="form-section">
-                    <div class="section-header">
-                        <i class="fas fa-cogs section-icon"></i>
-                        <h5 class="section-title">Configuración de Cuenta</h5>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label asp-for="RolID" class="form-label-modern">Rol</label>
-                            <select asp-for="RolID"
-                                    asp-items="@ViewBag.URol"
-                                    class="form-select form-control-modern">
-                                <option value="">-- Seleccione un rol --</option>
-                            </select>
-                            <span asp-validation-for="RolID" class="text-danger small"></span>
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="EmpresasIDs" class="form-label-modern"></label>
-                            <select asp-for="EmpresasIDs" asp-items="@ViewBag.Empresas" class="form-select form-control-modern" multiple size="4"></select>
-                            <span asp-validation-for="EmpresasIDs" class="text-danger small"></span>
-                            <small class="text-muted d-block mt-1">Mantén Ctrl para seleccionar varias</small>
-                        </div>
-
-                        @if (!Model.EsModoCrear)
-                        {
-                            <div class="col-12">
-                                <div class="form-check form-switch form-switch-modern">
-                                    <input class="form-check-input" type="checkbox" role="switch" asp-for="Activo" id="switchActivo" />
-                                    <label class="form-check-label" for="switchActivo">
-                                        <strong>Usuario Activo</strong>
-                                        <small class="d-block text-muted">Desactiva para suspender el acceso</small>
-                                    </label>
+                            @if (!Model.EsModoCrear)
+                            {
+                                <div class="col-12">
+                                    <div class="form-check form-switch form-switch-modern">
+                                        <input class="form-check-input" type="checkbox" role="switch" asp-for="Activo" id="switchActivo" />
+                                        <label class="form-check-label" for="switchActivo">
+                                            <strong>Usuario Activo</strong>
+                                            <small class="d-block text-muted">Desactiva para suspender el acceso</small>
+                                        </label>
+                                    </div>
                                 </div>
-                            </div>
-                        }
+                            }
+                        </div>
                     </div>
-                </div>
-                
-                @*  
-         
-                @if (!Model.EsModoCrear)
+
+                    @*
+
+@if (!Model.EsModoCrear)
                 {
                     <div class="form-section border-orange">
                         <div class="section-header">
@@ -829,317 +939,413 @@
                     </div>
                 }*@
 
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline-secondary btn-modern" id="cancel-btn">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-primary btn-modern">
-                        <i class="fas fa-save me-2"></i>@(Model.EsModoCrear ? "Crear Usuario" : "Guardar Cambios")
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- PERMISOS -->
-    <div class="tab-pane fade" id="tab-permisos" role="tabpanel" aria-labelledby="permisos-tab">
-        <div class="pane-scroll">
-            <div class="permissions-container">
-                <div class="permissions-header">
-                    <div>
-                        <h5 class="mb-1">Permisos Personalizados</h5>
-                        <p class="text-muted small mb-0">Configura permisos específicos para este usuario. Por defecto hereda los del rol.</p>
-                    </div>
-
-                    @if ((ViewBag.OverrideGrupos is List<OverridesVm> _gr) && _gr.Count > 0 && !Model.EsModoCrear)
-                    {
-                        <div class="d-flex align-items-center gap-2">
-                            <span id="ov-dirty-indicator" class="badge bg-warning text-dark d-none">Cambios sin guardar</span>
-                          
-                        </div>
-                    }
-                </div>
-
-                @if (!(ViewBag.OverrideGrupos is List<OverridesVm> grupos) || grupos.Count == 0)
-                {
-                    <div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>No hay información de permisos disponible.</div>
-                }
-                else
-                {
-                    <form id="ov-form" asp-action="GuardarOverrides" asp-controller="Usuarios" method="post" data-ajax-permisos="true">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="UsuarioID" value="@Model.UsuarioID" />
-                        @{
-                            var idx = 0;
-                        }
-
-                        @foreach (var grupo in grupos)
-                        {
-                            <div class="permission-group mb-3">
-                                <div class="permission-group-header sticky-top">
-                                    <i class="fas fa-folder-open me-2"></i>
-                                    <strong>@grupo.MenuNombre</strong>
-                                    <span class="badge bg-light text-dark ms-2">@grupo.Items.Count permisos</span>
-                                </div>
-
-                                <div class="table-responsive ov-table-scroll">
-                                    <table class="table table-permissions align-middle mb-0">
-                                        <thead class="sticky-top">
-                                            <tr>
-                                                <th style="width:60px;">ID</th>
-                                                <th>Permiso</th>
-                                                <th class="text-center" style="width:200px;">Acceso</th>
-                                                <th class="text-center" style="width:100px;">Estado</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var it in grupo.Items)
-                                            {
-                                                <tr data-submenu="@it.SubMenuID" data-estado-inicial="@(it.Estado >= -1 ? it.Estado : -1)">
-                                                    <td class="text-muted">@it.SubMenuID</td>
-                                                    <td>
-                                                        <strong>@it.Nombre</strong>
-                                                        <div class="ov-badge mt-1 @(it.Estado == -1 ? "d-none" : "")">
-                                                            <span class="badge @(it.Estado == 1 ? "bg-success" : "bg-warning text-dark")">
-                                                                @(it.Estado == 1 ? "Override: Permitido" : "Override: Denegado")
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td class="text-center">
-                                                        <!-- Radio buttons para selección -->
-                                                        <div class="btn-group-vertical btn-group-sm" role="group">
-                                                            <div class="form-check">
-                                                                <input class="form-check-input ov-radio" type="radio"
-                                                                       name="Items[@idx].Estado" value="1"
-                                                                       id="perm_@it.SubMenuID"
-                                                                       @(it.Estado == 1 ? "checked" : "")>
-                                                                <label class="form-check-label text-success" for="perm_@it.SubMenuID">
-                                                                    <i class="fas fa-check me-1"></i> Permitir
-                                                                </label>
-                                                            </div>
-                                                            <div class="form-check">
-                                                                <input class="form-check-input ov-radio" type="radio"
-                                                                       name="Items[@idx].Estado" value="0"
-                                                                       id="deny_@it.SubMenuID"
-                                                                       @(it.Estado == 0 ? "checked" : "")>
-                                                                <label class="form-check-label text-danger" for="deny_@it.SubMenuID">
-                                                                    <i class="fas fa-times me-1"></i> Denegar
-                                                                </label>
-                                                            </div>
-                                                            <div class="form-check">
-                                                                <input class="form-check-input ov-radio" type="radio"
-                                                                       name="Items[@idx].Estado" value="-1"
-                                                                       id="inherit_@it.SubMenuID"
-                                                                       @(it.Estado == -1 ? "checked" : "")>
-                                                                <label class="form-check-label text-muted" for="inherit_@it.SubMenuID">
-                                                                    <i class="fas fa-undo me-1"></i> Heredar
-                                                                </label>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td class="text-center ov-estado">
-                                                        @if (it.PermisoEfectivo)
-                                                        {
-                                                            <span class="text-success" title="Efectivo: Sí"><i class="fas fa-check-circle fa-lg"></i></span>
-                                                        }
-                                                        else
-                                                        {
-                                                            <span class="text-muted" title="Efectivo: No"><i class="fas fa-times-circle fa-lg"></i></span>
-                                                        }
-                                                    </td>
-                                                    <td class="d-none">
-                                                        <input type="hidden" name="Items[@idx].SubMenuID" value="@it.SubMenuID" />
-                                                    </td>
-                                                </tr>
-                                                idx++;
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        }
-
-                        <div class="ov-sticky-footer">
-                            <div class="d-flex align-items-center gap-2">
-                                <span id="ov-dirty-indicator-bottom" class="badge bg-warning text-dark d-none">Cambios sin guardar</span>
-                                <button type="submit" class="btn btn-primary btn-modern" id="ov-save">
-                                    <i class="fas fa-save me-2"></i>Guardar overrides
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary btn-modern" id="ov-reset-all">
-                                    <i class="fas fa-undo me-2"></i>Revertir cambios
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                }
-            </div>
-        </div>
-    </div>
-
-    <!-- AUDITORÍA -->
-    @if (!Model.EsModoCrear && Model.HistorialDeCambios != null && Model.HistorialDeCambios.Any())
-    {
-        <div class="tab-pane fade" id="tab-auditoria" role="tabpanel">
-            <div class="pane-scroll">
-                <div class="audit-container">
-                    <div class="audit-header">
-                        <h5 class="mb-1">Historial de Cambios</h5>
-                        <p class="text-muted small mb-0">Registro completo de modificaciones</p>
-                    </div>
-                    <div class="timeline">
-                        @foreach (var item in Model.HistorialDeCambios.OrderByDescending(x => x.FechaModificacion))
-                        {
-                            <div class="timeline-item">
-                                <div class="timeline-marker"></div>
-                                <div class="timeline-content">
-                                    <div class="timeline-date"><i class="fas fa-clock me-1"></i>@item.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</div>
-                                    <div class="timeline-description">@item.DescripcionDelCambio</div>
-                                    <div class="timeline-user"><i class="fas fa-user me-1"></i>@item.ModificadoPor</div>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
-</div>
-
-<!-- MODAL DE CONFIRMACIÓN PARA GUARDADO AJAX -->
-<div class="modal fade" id="modalUsuarioGuardado" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Cambios guardados</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            </div>
-            <div class="modal-body">
-                <p id="modalUsuarioGuardadoMensaje" class="mb-0">Los cambios se han guardado correctamente.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="btnModalUsuarioGuardadoOk" data-bs-dismiss="modal">Aceptar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-@if (!Model.EsModoCrear)
-{
-    <div class="modal fade modal-reset-password-usuario" id="@resetPasswordModalId" tabindex="-1" aria-labelledby="@resetPasswordModalLabelId" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <form id="form-restablecer-password" method="post" action="@Url.Action("RestablecerPassword", "Usuarios")">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="usuarioId" value="@Model.UsuarioID" />
-
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title" id="@resetPasswordModalLabelId">
-                            <i class="fas fa-key me-2"></i>Restablecer contraseña
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                    </div>
-
-                    <div class="modal-body">
-                        <div class="alert alert-info small mb-3">
-                            Se actualizará la contraseña del usuario <strong>@Model.Username</strong>.
-                            Si dejas marcada la opción de cambio obligatorio, al iniciar sesión se le pedirá crear una contraseña nueva.
-                        </div>
-
-                        <div id="resetPasswordResultado" class="alert d-none" role="alert"></div>
-
-                        <div class="mb-3">
-                            <label for="resetNuevaPassword" class="form-label-modern">Nueva contraseña</label>
-                            <div class="input-group">
-                                <input type="text"
-                                       class="form-control form-control-modern pm-secret-field pm-secret-masked"
-                                       id="resetNuevaPassword"
-                                       name="nuevaPassword"
-                                       autocomplete="off"
-                                       aria-autocomplete="none"
-                                       data-lpignore="true"
-                                       data-1p-ignore="true"
-                                       minlength="6"
-                                       required />
-                                <button class="btn btn-outline-secondary border-2 js-toggle-reset-password"
-                                        type="button"
-                                        data-target="resetNuevaPassword"
-                                        onclick="if(event){event.preventDefault();event.stopPropagation();}var input=this.closest('.input-group').querySelector('input');var icon=this.querySelector('i');if(input){input.type='text';input.classList.add('pm-secret-field');var reveal=input.classList.contains('pm-secret-masked');input.classList.toggle('pm-secret-masked',!reveal);input.classList.toggle('pm-secret-unmasked',reveal);if(icon){icon.classList.toggle('fa-eye',!reveal);icon.classList.toggle('fa-eye-slash',reveal);}}return false;"
-                                        aria-label="Ver u ocultar contraseña">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                            <small class="text-muted">Mínimo 6 caracteres.</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="resetConfirmarPassword" class="form-label-modern">Confirmar contraseña</label>
-                            <div class="input-group">
-                                <input type="text"
-                                       class="form-control form-control-modern pm-secret-field pm-secret-masked"
-                                       id="resetConfirmarPassword"
-                                       name="confirmarPassword"
-                                       autocomplete="off"
-                                       aria-autocomplete="none"
-                                       data-lpignore="true"
-                                       data-1p-ignore="true"
-                                       minlength="6"
-                                       required />
-                                <button class="btn btn-outline-secondary border-2 js-toggle-reset-password"
-                                        type="button"
-                                        data-target="resetConfirmarPassword"
-                                        onclick="if(event){event.preventDefault();event.stopPropagation();}var input=this.closest('.input-group').querySelector('input');var icon=this.querySelector('i');if(input){input.type='text';input.classList.add('pm-secret-field');var reveal=input.classList.contains('pm-secret-masked');input.classList.toggle('pm-secret-masked',!reveal);input.classList.toggle('pm-secret-unmasked',reveal);if(icon){icon.classList.toggle('fa-eye',!reveal);icon.classList.toggle('fa-eye-slash',reveal);}}return false;"
-                                        aria-label="Ver u ocultar confirmación">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                       <div class="form-check form-switch mb-2">
-                            <input class="form-check-input"
-                                type="checkbox"
-                                id="resetForzarCambio"
-                                name="forzarCambio"
-                                value="true"
-                                checked />
-
-                            <input type="hidden" name="forzarCambio" value="false" />
-
-                            <label class="form-check-label" for="resetForzarCambio">
-                                Obligar al usuario a cambiar la contraseña al iniciar sesión
-                            </label>
-                        </div>
-
-                        <div class="form-check form-switch">
-                            <input class="form-check-input"
-                                type="checkbox"
-                                id="resetEnviarCorreo"
-                                name="enviarCorreo"
-                                value="true"
-                                checked />
-
-                            <input type="hidden" name="enviarCorreo" value="false" />
-
-                            <label class="form-check-label" for="resetEnviarCorreo">
-                                Enviar la nueva contraseña por correo si el usuario tiene correo registrado
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary" id="btnRestablecerPasswordSubmit">
-                            <i class="fas fa-save me-2"></i>Guardar contraseña
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline-secondary btn-modern" id="cancel-btn">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary btn-modern">
+                            <i class="fas fa-save me-2"></i>@(Model.EsModoCrear ? "Crear Usuario" : "Guardar Cambios")
                         </button>
                     </div>
                 </form>
             </div>
         </div>
+
+        <!-- PERMISOS -->
+        <div class="tab-pane fade" id="tab-permisos" role="tabpanel" aria-labelledby="permisos-tab">
+            <div class="pane-scroll">
+                <div class="permissions-container">
+                    <div class="permissions-header">
+                        <div>
+                            <h5 class="mb-1">Permisos Personalizados</h5>
+                            <p class="text-muted small mb-0">Configura permisos específicos para este usuario. Por defecto hereda los del rol.</p>
+                        </div>
+
+                        @if ((ViewBag.OverrideGrupos is List<OverridesVm> _gr) && _gr.Count > 0 && !Model.EsModoCrear)
+                        {
+                            <div class="d-flex align-items-center gap-2">
+                                <span id="ov-dirty-indicator" class="badge bg-warning text-dark d-none">Cambios sin guardar</span>
+
+                            </div>
+                        }
+                    </div>
+
+                    @if (!(ViewBag.OverrideGrupos is List<OverridesVm> grupos) || grupos.Count == 0)
+                    {
+                        <div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>No hay información de permisos disponible.</div>
+                    }
+                    else
+                    {
+                        <form id="ov-form" asp-action="GuardarOverrides" asp-controller="Usuarios" method="post" data-ajax-permisos="true">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="UsuarioID" value="@Model.UsuarioID" />
+                            @{
+                                var idx = 0;
+                            }
+
+                            @foreach (var grupo in grupos)
+                            {
+                                <div class="permission-group mb-3">
+                                    <div class="permission-group-header sticky-top">
+                                        <i class="fas fa-folder-open me-2"></i>
+                                        <strong>@grupo.MenuNombre</strong>
+                                        <span class="badge bg-light text-dark ms-2">@grupo.Items.Count permisos</span>
+                                    </div>
+
+                                    <div class="table-responsive ov-table-scroll">
+                                        <table class="table table-permissions align-middle mb-0">
+                                            <thead class="sticky-top">
+                                                <tr>
+                                                    <th style="width:60px;">ID</th>
+                                                    <th>Permiso</th>
+                                                    <th class="text-center" style="width:200px;">Acceso</th>
+                                                    <th class="text-center" style="width:100px;">Estado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var it in grupo.Items)
+                                                {
+                                                    <tr data-submenu="@it.SubMenuID" data-estado-inicial="@(it.Estado >= -1 ? it.Estado : -1)">
+                                                        <td class="text-muted">@it.SubMenuID</td>
+                                                        <td>
+                                                            <strong>@it.Nombre</strong>
+                                                            <div class="ov-badge mt-1 @(it.Estado == -1 ? "d-none" : "")">
+                                                                <span class="badge @(it.Estado == 1 ? "bg-success" : "bg-warning text-dark")">
+                                                                    @(it.Estado == 1 ? "Override: Permitido" : "Override: Denegado")
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <!-- Radio buttons para selección -->
+                                                            <div class="btn-group-vertical btn-group-sm" role="group">
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input ov-radio" type="radio"
+                                                                           name="Items[@idx].Estado" value="1"
+                                                                           id="perm_@it.SubMenuID"
+                                                                    @(it.Estado == 1 ? "checked" : "")>
+                                                                    <label class="form-check-label text-success" for="perm_@it.SubMenuID">
+                                                                        <i class="fas fa-check me-1"></i> Permitir
+                                                                    </label>
+                                                                </div>
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input ov-radio" type="radio"
+                                                                           name="Items[@idx].Estado" value="0"
+                                                                           id="deny_@it.SubMenuID"
+                                                                    @(it.Estado == 0 ? "checked" : "")>
+                                                                    <label class="form-check-label text-danger" for="deny_@it.SubMenuID">
+                                                                        <i class="fas fa-times me-1"></i> Denegar
+                                                                    </label>
+                                                                </div>
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input ov-radio" type="radio"
+                                                                           name="Items[@idx].Estado" value="-1"
+                                                                           id="inherit_@it.SubMenuID"
+                                                                    @(it.Estado == -1 ? "checked" : "")>
+                                                                    <label class="form-check-label text-muted" for="inherit_@it.SubMenuID">
+                                                                        <i class="fas fa-undo me-1"></i> Heredar
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-center ov-estado">
+                                                            @if (it.PermisoEfectivo)
+                                                            {
+                                                                <span class="text-success" title="Efectivo: Sí"><i class="fas fa-check-circle fa-lg"></i></span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="text-muted" title="Efectivo: No"><i class="fas fa-times-circle fa-lg"></i></span>
+                                                            }
+                                                        </td>
+                                                        <td class="d-none">
+                                                            <input type="hidden" name="Items[@idx].SubMenuID" value="@it.SubMenuID" />
+                                                        </td>
+                                                    </tr>
+                                                    idx++;
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            }
+
+                            <div class="ov-sticky-footer">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span id="ov-dirty-indicator-bottom" class="badge bg-warning text-dark d-none">Cambios sin guardar</span>
+                                    <button type="submit" class="btn btn-primary btn-modern" id="ov-save">
+                                        <i class="fas fa-save me-2"></i>Guardar overrides
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-modern" id="ov-reset-all">
+                                        <i class="fas fa-undo me-2"></i>Revertir cambios
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- AUDITORÍA -->
+        @if (!Model.EsModoCrear && Model.HistorialDeCambios != null && Model.HistorialDeCambios.Any())
+        {
+            <div class="tab-pane fade" id="tab-auditoria" role="tabpanel">
+                <div class="pane-scroll">
+                    <div class="audit-container">
+                        <div class="audit-header">
+                            <h5 class="mb-1">Historial de Cambios</h5>
+                            <p class="text-muted small mb-0">Registro completo de modificaciones</p>
+                        </div>
+                        <div class="timeline">
+                            @foreach (var item in Model.HistorialDeCambios.OrderByDescending(x => x.FechaModificacion))
+                            {
+                                <div class="timeline-item">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-date"><i class="fas fa-clock me-1"></i>@item.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</div>
+                                        <div class="timeline-description">@item.DescripcionDelCambio</div>
+                                        <div class="timeline-user"><i class="fas fa-user me-1"></i>@item.ModificadoPor</div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
-}
+
+    <!-- MODAL DE CONFIRMACIÓN PARA GUARDADO AJAX -->
+    <div class="modal fade" id="modalUsuarioGuardado" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Cambios guardados</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="modalUsuarioGuardadoMensaje" class="mb-0">Los cambios se han guardado correctamente.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="btnModalUsuarioGuardadoOk" data-bs-dismiss="modal">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!Model.EsModoCrear)
+    {
+        <div class="modal fade modal-reset-password-usuario" id="@resetPasswordModalId" tabindex="-1" aria-labelledby="@resetPasswordModalLabelId" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form id="form-restablecer-password" method="post" action="@Url.Action("RestablecerPassword", "Usuarios")">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="usuarioId" value="@Model.UsuarioID" />
+
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="@resetPasswordModalLabelId">
+                                <i class="fas fa-key me-2"></i>Restablecer contraseña
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <div class="alert alert-info small mb-3">
+                                Se actualizará la contraseña del usuario <strong>@Model.Username</strong>.
+                                Si dejas marcada la opción de cambio obligatorio, al iniciar sesión se le pedirá crear una contraseña nueva.
+                            </div>
+
+                            <div id="resetPasswordResultado" class="alert d-none" role="alert"></div>
+
+                            <div class="mb-3">
+                                <label for="resetNuevaPassword" class="form-label-modern">Nueva contraseña</label>
+                                <div class="input-group">
+                                    <input type="text"
+                                           class="form-control form-control-modern pm-secret-field pm-secret-masked"
+                                           id="resetNuevaPassword"
+                                           name="nuevaPassword"
+                                           autocomplete="off"
+                                           aria-autocomplete="none"
+                                           data-lpignore="true"
+                                           data-1p-ignore="true"
+                                           minlength="6"
+                                           required />
+                                    <button class="btn btn-outline-secondary border-2 js-toggle-reset-password"
+                                            type="button"
+                                            data-target="resetNuevaPassword"
+                                            onclick="if(event){event.preventDefault();event.stopPropagation();}var input=this.closest('.input-group').querySelector('input');var icon=this.querySelector('i');if(input){input.type='text';input.classList.add('pm-secret-field');var reveal=input.classList.contains('pm-secret-masked');input.classList.toggle('pm-secret-masked',!reveal);input.classList.toggle('pm-secret-unmasked',reveal);if(icon){icon.classList.toggle('fa-eye',!reveal);icon.classList.toggle('fa-eye-slash',reveal);}}return false;"
+                                            aria-label="Ver u ocultar contraseña">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">Mínimo 6 caracteres.</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="resetConfirmarPassword" class="form-label-modern">Confirmar contraseña</label>
+                                <div class="input-group">
+                                    <input type="text"
+                                           class="form-control form-control-modern pm-secret-field pm-secret-masked"
+                                           id="resetConfirmarPassword"
+                                           name="confirmarPassword"
+                                           autocomplete="off"
+                                           aria-autocomplete="none"
+                                           data-lpignore="true"
+                                           data-1p-ignore="true"
+                                           minlength="6"
+                                           required />
+                                    <button class="btn btn-outline-secondary border-2 js-toggle-reset-password"
+                                            type="button"
+                                            data-target="resetConfirmarPassword"
+                                            onclick="if(event){event.preventDefault();event.stopPropagation();}var input=this.closest('.input-group').querySelector('input');var icon=this.querySelector('i');if(input){input.type='text';input.classList.add('pm-secret-field');var reveal=input.classList.contains('pm-secret-masked');input.classList.toggle('pm-secret-masked',!reveal);input.classList.toggle('pm-secret-unmasked',reveal);if(icon){icon.classList.toggle('fa-eye',!reveal);icon.classList.toggle('fa-eye-slash',reveal);}}return false;"
+                                            aria-label="Ver u ocultar confirmación">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="resetForzarCambio"
+                                       name="forzarCambio"
+                                       value="true"
+                                       checked />
+
+                                <input type="hidden" name="forzarCambio" value="false" />
+
+                                <label class="form-check-label" for="resetForzarCambio">
+                                    Obligar al usuario a cambiar la contraseña al iniciar sesión
+                                </label>
+                            </div>
+
+                            <div class="form-check form-switch">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="resetEnviarCorreo"
+                                       name="enviarCorreo"
+                                       value="true"
+                                       checked />
+
+                                <input type="hidden" name="enviarCorreo" value="false" />
+
+                                <label class="form-check-label" for="resetEnviarCorreo">
+                                    Enviar la nueva contraseña por correo si el usuario tiene correo registrado
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" id="btnRestablecerPasswordSubmit">
+                                <i class="fas fa-save me-2"></i>Guardar contraseña
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
 
 </div>
 
 <script>
+
+
+    // ===== NOTIFICACIONES MODERNAS =====
+    function escapeHtmlUsuarioForm(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function mostrarNotificacionUsuarioForm(mensaje, tipo, redirectUrl) {
+        document.querySelectorAll('.toast-usuario-form').forEach(function (x) {
+            x.remove();
+        });
+
+        const esError = tipo === 'error';
+        const esInfo = tipo === 'info';
+
+        const config = {
+            success: {
+                titulo: 'Operación completada',
+                icono: 'fa-check-circle',
+                fondoIcono: '#dcfce7',
+                colorIcono: '#16a34a',
+                borde: '#10b981',
+                duracion: 5000
+            },
+            error: {
+                titulo: 'No se pudo completar',
+                icono: 'fa-exclamation-circle',
+                fondoIcono: '#fee2e2',
+                colorIcono: '#dc2626',
+                borde: '#ef4444',
+                duracion: 8000
+            },
+            info: {
+                titulo: 'Información',
+                icono: 'fa-info-circle',
+                fondoIcono: '#e0ecff',
+                colorIcono: '#1d4ed8',
+                borde: '#1d4ed8',
+                duracion: 6000
+            }
+        };
+
+        const estilo = esError ? config.error : esInfo ? config.info : config.success;
+
+        const alerta = document.createElement('div');
+        alerta.className = 'toast-usuario-form';
+        alerta.style.borderLeft = '5px solid ' + estilo.borde;
+
+        alerta.innerHTML = `
+            <div class="toast-usuario-form-inner">
+                <div class="toast-usuario-form-icon" style="background:${estilo.fondoIcono}; color:${estilo.colorIcono};">
+                    <i class="fas ${estilo.icono}"></i>
+                </div>
+
+                <div style="flex:1; min-width:0;">
+                    <div class="toast-usuario-form-title">${estilo.titulo}</div>
+                    <div class="toast-usuario-form-message">
+                        ${escapeHtmlUsuarioForm(mensaje || (esError ? 'No fue posible guardar los cambios.' : 'La operación se realizó correctamente.'))}
+                    </div>
+                </div>
+
+                <button type="button" class="toast-usuario-form-close" aria-label="Cerrar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="toast-usuario-form-progress-wrap">
+                <div class="toast-usuario-form-progress"
+                     style="background:${estilo.borde}; animation-duration:${estilo.duracion}ms;">
+                </div>
+            </div>
+        `;
+
+        function cerrarToast() {
+            alerta.style.animation = 'toastUsuarioFormOut .18s ease-in forwards';
+
+            setTimeout(function () {
+                alerta.remove();
+
+                if (redirectUrl) {
+                    window.location.href = redirectUrl;
+                }
+            }, 180);
+        }
+
+        alerta.querySelector('.toast-usuario-form-close')?.addEventListener('click', cerrarToast);
+
+        document.body.appendChild(alerta);
+
+        setTimeout(cerrarToast, estilo.duracion);
+    }
 
     // ===== MODAL RESTABLECER CONTRASEÑA =====
     window.prepararModalRestablecerPasswordUsuario = function (modalId) {
@@ -1457,29 +1663,24 @@
         if (!userForm) return;
 
         function mostrarModalConfirmacion(message, redirectUrl) {
-            const modalEl = document.getElementById('modalUsuarioGuardado');
-            if (modalEl && modalEl.parentElement !== document.body) {
-                document.body.appendChild(modalEl);
-            }
-            const msgEl = document.getElementById('modalUsuarioGuardadoMensaje');
-            if (msgEl) msgEl.textContent = message || 'Los cambios se han guardado correctamente.';
-
-            if (!modalEl || !window.bootstrap?.Modal) {
-                alert(message || 'Los cambios se han guardado correctamente.');
-                if (redirectUrl) window.location.href = redirectUrl;
-                return;
-            }
-
-            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modalEl.addEventListener('hidden.bs.modal', function handler() {
-                modalEl.removeEventListener('hidden.bs.modal', handler);
-                if (redirectUrl) window.location.href = redirectUrl;
-            });
-            modal.show();
+            mostrarNotificacionUsuarioForm(
+                message || 'Los cambios se han guardado correctamente.',
+                'success',
+                redirectUrl
+            );
         }
 
+        if (userForm.dataset.ajaxUsuarioBound === '1') return;
+        userForm.dataset.ajaxUsuarioBound = '1';
+
         userForm.addEventListener('submit', async function (e) {
+            // Importante:
+            // Este formulario vive dentro del panel lateral y usuarios-panel.js tambien puede
+            // escuchar submits. Detenemos la propagacion para que ningun otro handler tome
+            // el JSON y lo pinte como HTML dentro del panel.
             e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
 
             if (window.jQuery && $.validator && !$(userForm).valid()) return;
 
@@ -1502,16 +1703,45 @@
                 });
 
                 const contentType = response.headers.get('content-type') || '';
+
                 if (contentType.includes('application/json')) {
                     const data = await response.json();
-                    if (!response.ok || !data?.ok) throw new Error(data?.message || 'No fue posible guardar los cambios.');
+
+                    if (!response.ok || !data?.ok) {
+                        throw new Error(data?.message || 'No fue posible guardar los cambios.');
+                    }
+
                     mostrarModalConfirmacion(data.message, data.redirectUrl);
                     return;
                 }
 
                 const html = await response.text();
+
+                // Respaldo: si el servidor devuelve JSON con content-type incorrecto,
+                // lo procesamos como JSON y NO lo insertamos en el panel.
+                const htmlLimpio = (html || '').trim();
+                if (htmlLimpio.startsWith('{') || htmlLimpio.startsWith('[')) {
+                    let data = null;
+
+                    try {
+                        data = JSON.parse(htmlLimpio);
+                    } catch {
+                        data = null;
+                    }
+
+                    if (data) {
+                        if (!response.ok || !data?.ok) {
+                            throw new Error(data?.message || 'No fue posible guardar los cambios.');
+                        }
+
+                        mostrarModalConfirmacion(data.message, data.redirectUrl);
+                        return;
+                    }
+                }
+
                 const doc = new DOMParser().parseFromString(html, 'text/html');
                 const updatedForm = doc.getElementById('user-form');
+
                 if (updatedForm) {
                     userForm.outerHTML = updatedForm.outerHTML;
                 } else {
@@ -1525,7 +1755,7 @@
                     submitBtn.innerHTML = originalHtml;
                 }
             }
-        });
+        }, true);
     })();
 
     // ===== GESTOR DE PERMISOS =====
@@ -1569,16 +1799,13 @@
         }
 
         function showToast(type, message) {
-            document.querySelectorAll('.alert.position-fixed').forEach(a => a.remove());
-            const alertClass = type === 'success' ? 'alert-success' : type === 'error' ? 'alert-danger' : 'alert-info';
-            const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ';
-            const el = document.createElement('div');
-            el.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
-            el.style.cssText = 'top:20px;right:20px;z-index:9999;min-width:350px;box-shadow:0 4px 12px rgba(0,0,0,.15)';
-            el.innerHTML = `<strong>${icon} ${type === 'success' ? 'Éxito' : type === 'error' ? 'Error' : 'Info'}:</strong> ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), type === 'success' ? 4000 : 7000);
+            const tipo = type === 'error'
+                ? 'error'
+                : type === 'info'
+                    ? 'info'
+                    : 'success';
+
+            mostrarNotificacionUsuarioForm(message, tipo);
         }
 
         document.getElementById('tab-permisos')?.addEventListener('change', (ev) => {
@@ -1683,10 +1910,10 @@
 
         @if (Model.JefeInmediatoPersonaID > 0)
         {
-                <text>
-                var optJefe = new Option('@Model.JefeInmediatoNombreCompleto', '@Model.JefeInmediatoPersonaID', true, true);
-                $('#selectJefe').append(optJefe).trigger('change');
-                </text>
+                        <text>
+                                var optJefe = new Option('@Model.JefeInmediatoNombreCompleto', '@Model.JefeInmediatoPersonaID', true, true);
+                                $('#selectJefe').append(optJefe).trigger('change');
+                        </text>
         }
     });
     }

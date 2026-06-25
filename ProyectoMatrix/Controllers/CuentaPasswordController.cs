@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using ProyectoMatrix.Models;
 using ProyectoMatrix.Models.ModelUsuarios;
 using System;
 using Microsoft.Data.SqlClient;
@@ -13,6 +12,10 @@ namespace ProyectoMatrix.Controllers
     {
         private readonly string _connectionString;
 
+        private const string SessionUsuarioPendienteCambioPasswordID = "UsuarioPendienteCambioPasswordID";
+        private const string SessionUsuarioCambioPasswordID = "UsuarioCambioPasswordID";
+        private const string SessionUsernameCambioPassword = "UsernameCambioPassword";
+
         public CuentaPasswordController(IConfiguration configuration)
         {
             _connectionString = configuration.GetConnectionString("DefaultConnection");
@@ -21,17 +24,20 @@ namespace ProyectoMatrix.Controllers
         [HttpGet]
         public async Task<IActionResult> CambiarPasswordInicial()
         {
-            var usuarioId = HttpContext.Session.GetInt32("UsuarioPendienteCambioPasswordID");
+            var usuarioId = ObtenerUsuarioPendienteCambioPasswordId();
 
-            if (!usuarioId.HasValue)
+            if (!usuarioId.HasValue || usuarioId.Value <= 0)
             {
                 return RedirectToAction("Login", "Login");
             }
 
+            NormalizarSesionCambioPassword(usuarioId.Value);
+
             var debeCambiar = await DebeCambiarPasswordAsync(usuarioId.Value);
+
             if (!debeCambiar)
             {
-                HttpContext.Session.Remove("UsuarioPendienteCambioPasswordID");
+                LimpiarSesionCambioPassword();
                 return RedirectToAction("Login", "Login");
             }
 
@@ -45,12 +51,14 @@ namespace ProyectoMatrix.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CambiarPasswordInicial(CambioPasswordInicialViewModel viewModel)
         {
-            var usuarioIdSesion = HttpContext.Session.GetInt32("UsuarioPendienteCambioPasswordID");
+            var usuarioIdSesion = ObtenerUsuarioPendienteCambioPasswordId();
 
-            if (!usuarioIdSesion.HasValue || usuarioIdSesion.Value != viewModel.UsuarioID)
+            if (!usuarioIdSesion.HasValue || usuarioIdSesion.Value <= 0 || usuarioIdSesion.Value != viewModel.UsuarioID)
             {
                 return RedirectToAction("Login", "Login");
             }
+
+            NormalizarSesionCambioPassword(usuarioIdSesion.Value);
 
             if (!ModelState.IsValid)
             {
@@ -58,6 +66,7 @@ namespace ProyectoMatrix.Controllers
             }
 
             var passwordActual = await ObtenerPasswordActualAsync(viewModel.UsuarioID);
+
             if (passwordActual == null)
             {
                 HttpContext.Session.Clear();
@@ -73,9 +82,42 @@ namespace ProyectoMatrix.Controllers
             await ActualizarPasswordInicialAsync(viewModel.UsuarioID, viewModel.NuevaPassword);
 
             HttpContext.Session.Clear();
+
             TempData["SuccessMessage"] = "Contraseña actualizada correctamente. Ingresa nuevamente con tu nueva contraseña.";
 
             return RedirectToAction("Login", "Login");
+        }
+
+        private int? ObtenerUsuarioPendienteCambioPasswordId()
+        {
+            var usuarioPendiente = HttpContext.Session.GetInt32(SessionUsuarioPendienteCambioPasswordID);
+
+            if (usuarioPendiente.HasValue && usuarioPendiente.Value > 0)
+            {
+                return usuarioPendiente.Value;
+            }
+
+            var usuarioCambio = HttpContext.Session.GetInt32(SessionUsuarioCambioPasswordID);
+
+            if (usuarioCambio.HasValue && usuarioCambio.Value > 0)
+            {
+                return usuarioCambio.Value;
+            }
+
+            return null;
+        }
+
+        private void NormalizarSesionCambioPassword(int usuarioId)
+        {
+            HttpContext.Session.SetInt32(SessionUsuarioPendienteCambioPasswordID, usuarioId);
+            HttpContext.Session.SetInt32(SessionUsuarioCambioPasswordID, usuarioId);
+        }
+
+        private void LimpiarSesionCambioPassword()
+        {
+            HttpContext.Session.Remove(SessionUsuarioPendienteCambioPasswordID);
+            HttpContext.Session.Remove(SessionUsuarioCambioPasswordID);
+            HttpContext.Session.Remove(SessionUsernameCambioPassword);
         }
 
         private async Task<bool> DebeCambiarPasswordAsync(int usuarioId)
@@ -99,6 +141,7 @@ namespace ProyectoMatrix.Controllers
             command.Parameters.AddWithValue("@UsuarioID", usuarioId);
 
             var result = await command.ExecuteScalarAsync();
+
             return result != null && result != DBNull.Value && Convert.ToBoolean(result);
         }
 
@@ -117,7 +160,10 @@ namespace ProyectoMatrix.Controllers
             command.Parameters.AddWithValue("@UsuarioID", usuarioId);
 
             var result = await command.ExecuteScalarAsync();
-            return result == null || result == DBNull.Value ? null : Convert.ToString(result);
+
+            return result == null || result == DBNull.Value
+                ? null
+                : Convert.ToString(result);
         }
 
         private async Task ActualizarPasswordInicialAsync(int usuarioId, string nuevaPassword)
