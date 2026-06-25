@@ -11,6 +11,9 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Security.Claims;
+using System.Text;
+using System.Security.Cryptography;
+using System;
 using System.Threading.Tasks;
 
 public class LoginController : Controller
@@ -18,13 +21,16 @@ public class LoginController : Controller
 
     private readonly string _connectionString;
     private readonly BitacoraService _bitacoraService;
+    private readonly ServicioNotificaciones _servicioNotificaciones;
 
-    public LoginController(IConfiguration configuration, BitacoraService bitacora)
+    public LoginController(
+        IConfiguration configuration,
+        BitacoraService bitacora,
+        ServicioNotificaciones servicioNotificaciones)
     {
         _connectionString = configuration.GetConnectionString("DefaultConnection");
         _bitacoraService = bitacora;
-
-
+        _servicioNotificaciones = servicioNotificaciones;
     }
 
     // ---------- LOGIN GET ----------
@@ -594,6 +600,504 @@ public class LoginController : Controller
         };
     }
 
+
+    // =========================================================
+    // RECUPERACIÓN DE CONTRASEÑA POR CÓDIGO EN CORREO
+    // =========================================================
+
+    private sealed class UsuarioRecuperacionCorreo
+    {
+        public int UsuarioID { get; set; }
+        public int PersonaID { get; set; }
+        public string Username { get; set; } = "";
+        public string NombreCompleto { get; set; } = "";
+        public string Correo { get; set; } = "";
+    }
+
+    private sealed class CodigoRecuperacionActivo
+    {
+        public int PasswordRecoveryCodeID { get; set; }
+        public int UsuarioID { get; set; }
+        public string CodigoHash { get; set; } = "";
+        public int Intentos { get; set; }
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult RecuperarPassword()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SolicitarCodigoRecuperacion(string usuarioOCorreo)
+    {
+        usuarioOCorreo = (usuarioOCorreo ?? "").Trim();
+
+        if (string.IsNullOrWhiteSpace(usuarioOCorreo))
+        {
+            return Json(new
+            {
+                ok = false,
+                mensaje = "Ingresa tu usuario o correo registrado."
+            });
+        }
+
+        var usuario = await BuscarUsuarioParaRecuperacionCorreoAsync(usuarioOCorreo);
+
+        if (usuario == null || usuario.UsuarioID <= 0 || usuario.PersonaID <= 0 || string.IsNullOrWhiteSpace(usuario.Correo))
+        {
+            return Json(new
+            {
+                ok = false,
+                mensaje = "No fue posible completar la recuperación automáticamente. Verifica que tu usuario o correo sea correcto y que tengas un correo registrado."
+            });
+        }
+
+        var codigo = GenerarCodigoRecuperacion();
+        await GuardarCodigoRecuperacionAsync(usuario.UsuarioID, usuario.PersonaID, codigo);
+
+        var asunto = "Código de recuperación de contraseña - Intranet NS Group";
+        var nombreSeguro = System.Net.WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(usuario.NombreCompleto) ? usuario.Username : usuario.NombreCompleto);
+        var codigoSeguro = System.Net.WebUtility.HtmlEncode(codigo);
+
+        var html = $@"
+            <div style='font-family:Segoe UI,Arial,sans-serif;color:#1f2937;line-height:1.5;'>
+                <h2 style='color:#0b1744;margin-bottom:8px;'>Recuperación de contraseña</h2>
+                <p>Hola <strong>{nombreSeguro}</strong>.</p>
+                <p>Recibimos una solicitud para cambiar la contraseña de tu cuenta en la intranet.</p>
+                <p>Tu código de verificación es:</p>
+                <div style='font-size:30px;font-weight:800;letter-spacing:8px;color:#0b1744;background:#f1f5f9;border-radius:12px;padding:16px 20px;display:inline-block;margin:12px 0;'>
+                    {codigoSeguro}
+                </div>
+                <p style='font-size:13px;color:#64748b;'>Este código vence en 10 minutos y solo puede usarse una vez.</p>
+                <p style='font-size:13px;color:#64748b;'>Si tú no solicitaste este cambio, ignora este correo.</p>
+            </div>";
+
+        try
+        {
+            var resultadoAviso = await _servicioNotificaciones.EnviarABccPersonasAsync(
+                new List<int> { usuario.PersonaID },
+                asunto,
+                html
+            );
+
+            if (resultadoAviso == null || resultadoAviso.Enviados <= 0 || resultadoAviso.Errores > 0)
+            {
+                return Json(new
+                {
+                    ok = false,
+                    mensaje = "No fue posible enviar el código en este momento. Intenta nuevamente más tarde."
+                });
+            }
+
+            return Json(new
+            {
+                ok = true,
+                mensaje = "Si la cuenta existe y tiene correo registrado, enviaremos un código de verificación."
+            });
+        }
+        catch
+        {
+            return Json(new
+            {
+                ok = false,
+                mensaje = "No fue posible enviar el código en este momento. Intenta nuevamente más tarde."
+            });
+        }
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ValidarCodigoRecuperacion(string usuarioOCorreo, string codigo)
+    {
+        usuarioOCorreo = (usuarioOCorreo ?? "").Trim();
+        codigo = (codigo ?? "").Trim();
+
+        if (string.IsNullOrWhiteSpace(usuarioOCorreo) || string.IsNullOrWhiteSpace(codigo))
+        {
+            return Json(new
+            {
+                ok = false,
+                mensaje = "Ingresa tu usuario/correo y el código recibido."
+            });
+        }
+
+        var resultado = await ValidarCodigoRecuperacionAsync(usuarioOCorreo, codigo, registrarIntentoFallido: true);
+
+        if (!resultado)
+        {
+            return Json(new
+            {
+                ok = false,
+                mensaje = "El código no es válido o ya no puede usarse. Solicita un nuevo código para continuar."
+            });
+        }
+
+        return Json(new
+        {
+            ok = true,
+            mensaje = "Código validado correctamente. Ahora define tu nueva contraseña."
+        });
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CambiarPasswordRecuperacion(string usuarioOCorreo, string codigo, string nuevaPassword, string confirmarPassword)
+    {
+        usuarioOCorreo = (usuarioOCorreo ?? "").Trim();
+        codigo = (codigo ?? "").Trim();
+        nuevaPassword = nuevaPassword ?? "";
+        confirmarPassword = confirmarPassword ?? "";
+
+        if (string.IsNullOrWhiteSpace(usuarioOCorreo) || string.IsNullOrWhiteSpace(codigo))
+        {
+            return Json(new
+            {
+                ok = false,
+                mensaje = "La solicitud no es válida. Vuelve a solicitar un código."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(nuevaPassword) || nuevaPassword.Length < 6)
+        {
+            return Json(new
+            {
+                ok = false,
+                mensaje = "La contraseña debe tener al menos 6 caracteres."
+            });
+        }
+
+        if (nuevaPassword != confirmarPassword)
+        {
+            return Json(new
+            {
+                ok = false,
+                mensaje = "Las contraseñas no coinciden."
+            });
+        }
+
+        var usuario = await BuscarUsuarioParaRecuperacionCorreoAsync(usuarioOCorreo);
+
+        if (usuario == null)
+        {
+            return Json(new
+            {
+                ok = false,
+                mensaje = "No fue posible completar la recuperación. Solicita un nuevo código."
+            });
+        }
+
+        var codigoActivo = await ObtenerCodigoRecuperacionActivoAsync(usuario.UsuarioID);
+
+        if (codigoActivo == null || codigoActivo.CodigoHash != CalcularHashCodigo(codigo))
+        {
+            await RegistrarIntentoFallidoCodigoAsync(codigoActivo);
+
+            return Json(new
+            {
+                ok = false,
+                mensaje = "El código no es válido o ya no puede usarse. Solicita un nuevo código para continuar."
+            });
+        }
+
+        var actualizado = await ActualizarPasswordRecuperacionAsync(
+            codigoActivo.PasswordRecoveryCodeID,
+            usuario.UsuarioID,
+            nuevaPassword
+        );
+
+        if (!actualizado)
+        {
+            return Json(new
+            {
+                ok = false,
+                mensaje = "No se pudo actualizar la contraseña. Solicita un nuevo código."
+            });
+        }
+
+        return Json(new
+        {
+            ok = true,
+            mensaje = "Tu contraseña fue actualizada correctamente. Ya puedes iniciar sesión."
+        });
+    }
+
+    private async Task<UsuarioRecuperacionCorreo?> BuscarUsuarioParaRecuperacionCorreoAsync(string usuarioOCorreo)
+    {
+        usuarioOCorreo = (usuarioOCorreo ?? "").Trim();
+
+        if (string.IsNullOrWhiteSpace(usuarioOCorreo))
+            return null;
+
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string query = @"
+            SELECT TOP 1
+                u.UsuarioID,
+                u.PersonaID,
+                ISNULL(u.Username, '') AS Username,
+                LTRIM(RTRIM(
+                    ISNULL(p.Nombre, '') + ' ' +
+                    ISNULL(p.ApellidoPaterno, '') + ' ' +
+                    ISNULL(p.ApellidoMaterno, '')
+                )) AS NombreCompleto,
+                ISNULL(p.Correo, '') AS Correo
+            FROM dbo.Usuarios u
+            INNER JOIN dbo.Persona p ON p.PersonaID = u.PersonaID
+            WHERE u.Activo = 1
+              AND (
+                    UPPER(LTRIM(RTRIM(u.Username))) = UPPER(LTRIM(RTRIM(@Valor)))
+                    OR UPPER(LTRIM(RTRIM(p.Correo))) = UPPER(LTRIM(RTRIM(@Valor)))
+              );";
+
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@Valor", usuarioOCorreo);
+
+        using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+            return null;
+
+        return new UsuarioRecuperacionCorreo
+        {
+            UsuarioID = Convert.ToInt32(reader["UsuarioID"]),
+            PersonaID = Convert.ToInt32(reader["PersonaID"]),
+            Username = reader["Username"]?.ToString() ?? "",
+            NombreCompleto = reader["NombreCompleto"]?.ToString() ?? "",
+            Correo = reader["Correo"]?.ToString() ?? ""
+        };
+    }
+
+    private static string GenerarCodigoRecuperacion()
+    {
+        using var rng = RandomNumberGenerator.Create();
+        var bytes = new byte[4];
+        rng.GetBytes(bytes);
+
+        var valor = BitConverter.ToUInt32(bytes, 0);
+        var codigo = (valor % 900000) + 100000;
+
+        return codigo.ToString();
+    }
+
+    private static string CalcularHashCodigo(string codigo)
+    {
+        codigo = (codigo ?? "").Trim();
+        using var sha = SHA256.Create();
+        var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(codigo));
+        return BitConverter.ToString(bytes).Replace("-", "");
+    }
+
+    private async Task GuardarCodigoRecuperacionAsync(int usuarioId, int personaId, string codigo)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            const string invalidarAnteriores = @"
+                UPDATE dbo.PasswordRecoveryCodes
+                SET Usado = 1,
+                    FechaUso = SYSDATETIME()
+                WHERE UsuarioID = @UsuarioID
+                  AND Usado = 0;";
+
+            using (var command = new SqlCommand(invalidarAnteriores, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                await command.ExecuteNonQueryAsync();
+            }
+
+            const string insertar = @"
+                INSERT INTO dbo.PasswordRecoveryCodes
+                (
+                    UsuarioID,
+                    PersonaID,
+                    CodigoHash,
+                    FechaExpiracion,
+                    IPRegistro,
+                    UserAgent
+                )
+                VALUES
+                (
+                    @UsuarioID,
+                    @PersonaID,
+                    @CodigoHash,
+                    DATEADD(MINUTE, 10, SYSDATETIME()),
+                    @IPRegistro,
+                    @UserAgent
+                );";
+
+            using (var command = new SqlCommand(insertar, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                command.Parameters.AddWithValue("@PersonaID", personaId);
+                command.Parameters.AddWithValue("@CodigoHash", CalcularHashCodigo(codigo));
+                command.Parameters.AddWithValue("@IPRegistro", HttpContext.Connection.RemoteIpAddress?.ToString() ?? "");
+                command.Parameters.AddWithValue("@UserAgent", Request.Headers.UserAgent.ToString());
+
+                await command.ExecuteNonQueryAsync();
+            }
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    private async Task<bool> ValidarCodigoRecuperacionAsync(string usuarioOCorreo, string codigo, bool registrarIntentoFallido)
+    {
+        var usuario = await BuscarUsuarioParaRecuperacionCorreoAsync(usuarioOCorreo);
+
+        if (usuario == null)
+            return false;
+
+        var codigoActivo = await ObtenerCodigoRecuperacionActivoAsync(usuario.UsuarioID);
+
+        if (codigoActivo == null)
+            return false;
+
+        var coincide = codigoActivo.CodigoHash == CalcularHashCodigo(codigo);
+
+        if (!coincide && registrarIntentoFallido)
+        {
+            await RegistrarIntentoFallidoCodigoAsync(codigoActivo);
+        }
+
+        return coincide;
+    }
+
+    private async Task<CodigoRecuperacionActivo?> ObtenerCodigoRecuperacionActivoAsync(int usuarioId)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string query = @"
+            SELECT TOP 1
+                PasswordRecoveryCodeID,
+                UsuarioID,
+                CodigoHash,
+                Intentos
+            FROM dbo.PasswordRecoveryCodes
+            WHERE UsuarioID = @UsuarioID
+              AND Usado = 0
+              AND Bloqueado = 0
+              AND FechaExpiracion > SYSDATETIME()
+            ORDER BY PasswordRecoveryCodeID DESC;";
+
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+
+        using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+            return null;
+
+        return new CodigoRecuperacionActivo
+        {
+            PasswordRecoveryCodeID = Convert.ToInt32(reader["PasswordRecoveryCodeID"]),
+            UsuarioID = Convert.ToInt32(reader["UsuarioID"]),
+            CodigoHash = reader["CodigoHash"]?.ToString() ?? "",
+            Intentos = Convert.ToInt32(reader["Intentos"])
+        };
+    }
+
+    private async Task RegistrarIntentoFallidoCodigoAsync(CodigoRecuperacionActivo? codigoActivo)
+    {
+        if (codigoActivo == null)
+            return;
+
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string query = @"
+            UPDATE dbo.PasswordRecoveryCodes
+            SET Intentos = Intentos + 1,
+                Bloqueado = CASE WHEN Intentos + 1 >= 5 THEN 1 ELSE Bloqueado END
+            WHERE PasswordRecoveryCodeID = @PasswordRecoveryCodeID
+              AND Usado = 0;";
+
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@PasswordRecoveryCodeID", codigoActivo.PasswordRecoveryCodeID);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task<bool> ActualizarPasswordRecuperacionAsync(int passwordRecoveryCodeId, int usuarioId, string nuevaPassword)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            const string actualizarUsuario = @"
+                UPDATE dbo.Usuarios
+                SET Contrasena = @NuevaPassword,
+                    DebeCambiarPassword = 0,
+                    FechaUltimoCambioPassword = GETDATE()
+                WHERE UsuarioID = @UsuarioID
+                  AND Activo = 1;";
+
+            int filasUsuario;
+
+            using (var command = new SqlCommand(actualizarUsuario, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@NuevaPassword", nuevaPassword);
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                filasUsuario = await command.ExecuteNonQueryAsync();
+            }
+
+            if (filasUsuario <= 0)
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            const string marcarCodigoUsado = @"
+                UPDATE dbo.PasswordRecoveryCodes
+                SET Usado = 1,
+                    FechaUso = SYSDATETIME()
+                WHERE PasswordRecoveryCodeID = @PasswordRecoveryCodeID
+                  AND UsuarioID = @UsuarioID
+                  AND Usado = 0;";
+
+            int filasCodigo;
+
+            using (var command = new SqlCommand(marcarCodigoUsado, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@PasswordRecoveryCodeID", passwordRecoveryCodeId);
+                command.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                filasCodigo = await command.ExecuteNonQueryAsync();
+            }
+
+            if (filasCodigo <= 0)
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            transaction.Commit();
+            return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
     // ✅ AGREGAR ESTE MÉTODO NUEVO al final de tu LoginController
     private async Task<int> ObtenerRolIdPorUsuarioAsync(int usuarioId)
     {
@@ -649,93 +1153,6 @@ public class LoginController : Controller
     }
     //WHERE u.UsuarioID = @UsuarioID;
 
-    // ---------- RECUPERAR PASSWORD SIMPLE ----------
-    // Flujo sencillo sin correo, sin token y sin tabla adicional.
-    // El usuario escribe su usuario o correo, captura una nueva contraseña
-    // y se actualiza directamente Usuarios.Contrasena.
-    [HttpGet]
-    [AllowAnonymous]
-    public IActionResult RecuperarPassword()
-    {
-        return View();
-    }
-
-    [HttpPost]
-    [AllowAnonymous]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RecuperarPassword(string usuarioOCorreo, string nuevaPassword, string confirmarPassword)
-    {
-        usuarioOCorreo = (usuarioOCorreo ?? "").Trim();
-        nuevaPassword = nuevaPassword ?? "";
-        confirmarPassword = confirmarPassword ?? "";
-
-        ViewBag.UsuarioOCorreo = usuarioOCorreo;
-
-        if (string.IsNullOrWhiteSpace(usuarioOCorreo))
-        {
-            ModelState.AddModelError("", "Ingresa tu usuario o correo registrado.");
-        }
-
-        if (string.IsNullOrWhiteSpace(nuevaPassword))
-        {
-            ModelState.AddModelError("", "Ingresa la nueva contraseña.");
-        }
-        else if (nuevaPassword.Length < 6)
-        {
-            ModelState.AddModelError("", "La contraseña debe tener al menos 6 caracteres.");
-        }
-
-        if (string.IsNullOrWhiteSpace(confirmarPassword))
-        {
-            ModelState.AddModelError("", "Confirma la nueva contraseña.");
-        }
-        else if (nuevaPassword != confirmarPassword)
-        {
-            ModelState.AddModelError("", "Las contraseñas no coinciden.");
-        }
-
-        if (!ModelState.IsValid)
-        {
-            return View();
-        }
-
-        var actualizado = await CambiarPasswordPorUsuarioOCorreoAsync(usuarioOCorreo, nuevaPassword);
-
-        if (!actualizado)
-        {
-            ModelState.AddModelError("", "No encontramos una cuenta activa con ese usuario o correo.");
-            return View();
-        }
-
-        ViewBag.CambioExitoso = true;
-        return View();
-    }
-
-    private async Task<bool> CambiarPasswordPorUsuarioOCorreoAsync(string usuarioOCorreo, string nuevaPassword)
-    {
-        using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync();
-
-        const string query = @"
-            UPDATE u
-            SET u.Contrasena = @NuevaPassword
-            FROM Usuarios u
-            LEFT JOIN Persona p ON p.PersonaID = u.PersonaID
-            WHERE u.Activo = 1
-              AND (
-                    UPPER(LTRIM(RTRIM(u.Username))) = UPPER(LTRIM(RTRIM(@UsuarioOCorreo)))
-                    OR UPPER(LTRIM(RTRIM(ISNULL(p.Correo, '')))) = UPPER(LTRIM(RTRIM(@UsuarioOCorreo)))
-              );";
-
-        using var command = new SqlCommand(query, connection);
-        command.Parameters.AddWithValue("@UsuarioOCorreo", usuarioOCorreo);
-        command.Parameters.AddWithValue("@NuevaPassword", nuevaPassword);
-
-        var filasAfectadas = await command.ExecuteNonQueryAsync();
-        return filasAfectadas > 0;
-    }
-
-
     [HttpGet]
     [AllowAnonymous]
     public IActionResult VerificarSesion()
@@ -771,7 +1188,6 @@ public class LoginController : Controller
 
         return RedirectToAction("Login");
     }
-
 
 }
 

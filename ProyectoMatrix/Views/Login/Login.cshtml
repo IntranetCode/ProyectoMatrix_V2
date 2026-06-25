@@ -12,6 +12,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
     <link href="~/css/stylesLoginLogin.css" rel="stylesheet" />
+    <style>
+        .forgot-password-wrapper {
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .forgot-password-link {
+            color: #0b1744;
+            font-size: .92rem;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .forgot-password-link:hover {
+            color: #f47b20;
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
     <div class="login-container">
@@ -68,19 +86,18 @@
                 <button type="submit" class="btn-login" id="loginBtn">
                     <span class="btn-text">Acceder al Sistema</span>
                 </button>
-                <div class="text-center mt-3">
-                <a asp-controller="Login"
-                asp-action="RecuperarPassword"
-                    class="forgot-password-link">
+
+                <div class="forgot-password-wrapper">
+                    <a href="@Url.Action("RecuperarPassword", "Login")" class="forgot-password-link">
                         ¿Olvidaste tu contraseña?
-                </a>
-            </div>
+                    </a>
+                </div>
             </form>
 
             <div class="footer-section">
                 <p class="footer-text">
                     <i class="fas fa-copyright me-1"></i>
-                    @DateTime.Now.Year NSGroup. Todos los derechos reservados. 
+                    @DateTime.Now.Year NSGroup. Todos los derechos reservados.
                 </p>
             </div>
         </main>
