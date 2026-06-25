@@ -277,7 +277,7 @@ public class LoginController : Controller
 
         //Si el rol = 7 de invitado entra directo a index universidad
 
-       
+
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
@@ -632,7 +632,7 @@ public class LoginController : Controller
         command.Parameters.AddWithValue("@UsuarioID", usuarioId);
 
         using var reader = await command.ExecuteReaderAsync();
-        if(await reader.ReadAsync())
+        if (await reader.ReadAsync())
         {
             var nombre = reader["Nombre"] as string ?? "";
             var apePat = reader["ApellidoPaterno"] as string ?? "";
@@ -640,7 +640,7 @@ public class LoginController : Controller
 
             var nombreMostrar = $"{nombre} {apePat} {apeMat}".Trim();
 
-            if(!string.IsNullOrWhiteSpace(nombreMostrar))
+            if (!string.IsNullOrWhiteSpace(nombreMostrar))
                 return nombreMostrar;
 
         }
@@ -648,6 +648,93 @@ public class LoginController : Controller
 
     }
     //WHERE u.UsuarioID = @UsuarioID;
+
+    // ---------- RECUPERAR PASSWORD SIMPLE ----------
+    // Flujo sencillo sin correo, sin token y sin tabla adicional.
+    // El usuario escribe su usuario o correo, captura una nueva contraseña
+    // y se actualiza directamente Usuarios.Contrasena.
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult RecuperarPassword()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RecuperarPassword(string usuarioOCorreo, string nuevaPassword, string confirmarPassword)
+    {
+        usuarioOCorreo = (usuarioOCorreo ?? "").Trim();
+        nuevaPassword = nuevaPassword ?? "";
+        confirmarPassword = confirmarPassword ?? "";
+
+        ViewBag.UsuarioOCorreo = usuarioOCorreo;
+
+        if (string.IsNullOrWhiteSpace(usuarioOCorreo))
+        {
+            ModelState.AddModelError("", "Ingresa tu usuario o correo registrado.");
+        }
+
+        if (string.IsNullOrWhiteSpace(nuevaPassword))
+        {
+            ModelState.AddModelError("", "Ingresa la nueva contraseña.");
+        }
+        else if (nuevaPassword.Length < 6)
+        {
+            ModelState.AddModelError("", "La contraseña debe tener al menos 6 caracteres.");
+        }
+
+        if (string.IsNullOrWhiteSpace(confirmarPassword))
+        {
+            ModelState.AddModelError("", "Confirma la nueva contraseña.");
+        }
+        else if (nuevaPassword != confirmarPassword)
+        {
+            ModelState.AddModelError("", "Las contraseñas no coinciden.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View();
+        }
+
+        var actualizado = await CambiarPasswordPorUsuarioOCorreoAsync(usuarioOCorreo, nuevaPassword);
+
+        if (!actualizado)
+        {
+            ModelState.AddModelError("", "No encontramos una cuenta activa con ese usuario o correo.");
+            return View();
+        }
+
+        ViewBag.CambioExitoso = true;
+        return View();
+    }
+
+    private async Task<bool> CambiarPasswordPorUsuarioOCorreoAsync(string usuarioOCorreo, string nuevaPassword)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string query = @"
+            UPDATE u
+            SET u.Contrasena = @NuevaPassword
+            FROM Usuarios u
+            LEFT JOIN Persona p ON p.PersonaID = u.PersonaID
+            WHERE u.Activo = 1
+              AND (
+                    UPPER(LTRIM(RTRIM(u.Username))) = UPPER(LTRIM(RTRIM(@UsuarioOCorreo)))
+                    OR UPPER(LTRIM(RTRIM(ISNULL(p.Correo, '')))) = UPPER(LTRIM(RTRIM(@UsuarioOCorreo)))
+              );";
+
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@UsuarioOCorreo", usuarioOCorreo);
+        command.Parameters.AddWithValue("@NuevaPassword", nuevaPassword);
+
+        var filasAfectadas = await command.ExecuteNonQueryAsync();
+        return filasAfectadas > 0;
+    }
+
 
     [HttpGet]
     [AllowAnonymous]
@@ -672,8 +759,8 @@ public class LoginController : Controller
     public IActionResult Index()
     {
 
-        
-      
+
+
 
         if (HttpContext.Session.GetInt32("UsuarioID") != null)
         {

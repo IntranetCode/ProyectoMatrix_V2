@@ -14,14 +14,7 @@
 }
 
 <style>
-/* ==========================================================
-   OPERACIONES KPIs V2 - ESTILOS EMBEBIDOS EN LA VISTA
-   ========================================================== */
-/* ==========================================================
-   OPERACIONES KPIs V2 - TEMA GLOBAL
-   Objetivo: unificar Index, Gestor, Captura, Historial,
-             NuevaMetrica y PrevisualizarImportacion.
-   ========================================================== */
+
 
 :root {
     --ops-bg-1: #eef6fc;
@@ -1467,7 +1460,7 @@ body:has(.kpis-shell) .container-xxl {
     }
 
     .modal-kpis-pdf {
-        z-index: 20050 !important;
+    z-index: 20050 !important;
     }
 
     body.kpis-pdf-open .modal-backdrop {
@@ -1585,7 +1578,6 @@ body:has(.kpis-shell) .container-xxl {
         border: 1px solid #dbeafe;
     }
 
-<<<<<<< HEAD
 
 
     /* ==========================================================
@@ -1651,8 +1643,6 @@ body:has(.kpis-shell) .container-xxl {
         min-height: 340px !important;
     }
 
-=======
->>>>>>> origin/Rama_Luis
     @@media (max-width: 768px) {
         .ops-global-actions {
             justify-content: flex-start;
@@ -1898,11 +1888,13 @@ body:has(.kpis-shell) .container-xxl {
                 </span>
 
                 <div class="d-flex gap-2">
-<<<<<<< HEAD
-        
-=======
+                    <a class="btn btn-outline-danger fw-bold rounded-pill px-3"
+                       href="@Url.Content("~/contenidos/pdfs/KPIS-25.5.26.pdf")"
+                       target="_blank">
+                        <i class="fas fa-up-right-from-square me-1"></i>
+                        Abrir en otra pestaña
+                    </a>
 
->>>>>>> origin/Rama_Luis
                     <button type="button"
                             class="btn btn-secondary fw-bold rounded-pill px-3"
                             data-bs-dismiss="modal">
@@ -1939,12 +1931,8 @@ body:has(.kpis-shell) .container-xxl {
         mes: document.getElementById('filtroMes').value || '',
         semana: document.getElementById('filtroSemana').value || '',
         dia: document.getElementById('filtroDia').value || '',
-<<<<<<< HEAD
         globalChartMode: 'resumen',
         viewMode: 'kpis'
-=======
-        globalChartMode: 'resumen'
->>>>>>> origin/Rama_Luis
     };
 
     let dashboardActual = initialDashboard;
@@ -3143,15 +3131,12 @@ body:has(.kpis-shell) .container-xxl {
             btn.addEventListener('click', () => {
                 dashboardState.globalChartMode = btn.dataset.globalChartMode || 'resumen';
                 actualizarBotonesModoGlobal();
-<<<<<<< HEAD
 
                 if (dashboardState.viewMode === 'compras' && comprasActual) {
                     renderGlobalChartCompras(comprasActual);
                     return;
                 }
 
-=======
->>>>>>> origin/Rama_Luis
                 renderGlobalChart(dashboardActual);
             });
         });

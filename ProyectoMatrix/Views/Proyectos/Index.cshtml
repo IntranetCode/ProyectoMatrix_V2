@@ -5,8 +5,7 @@
 @model ProyectosViewModel
 @{
     ViewData["Title"] = "Gestión de Proyectos";
-    var rol = Context.Session.GetString("Rol") ?? "Colaborador";
-    Layout = rol == "Administrador" ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_Colaborador.cshtml";
+    Layout = "~/Views/Shared/_LayoutComunicados.cshtml";
 }
 @*SOLO CAMBIAR ESTO*@
 @*Mandar a llamar al servicio de acceso para ocultar o mostrar los botones correspondientes *@
@@ -19,7 +18,6 @@
 }
 
 
-<link href="~/css/stylesProyectosIndex.css" rel="stylesheet" />
 
 <div class="container-fluid">
 

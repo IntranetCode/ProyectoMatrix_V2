@@ -154,7 +154,7 @@ ORDER BY m.MenuID;";
                     {
                         MenuID = rd.GetInt32(rd.GetOrdinal("MenuID")),
                         Nombre = nombreMenu,
-                        Url = string.IsNullOrWhiteSpace(homeUrl) ? GetUrlPorDefecto(nombreMenu) : homeUrl,
+                        Url = GetUrlMenuLogistica(nombreMenu, homeUrl),
                         Icono = GetIconoParaMenu(nombreMenu),
                         Descripcion = GetDescripcionParaMenu(nombreMenu),
                     });
@@ -179,6 +179,19 @@ ORDER BY m.MenuID;";
 
 
         // --- Tus métodos Helper (GetUrlPorDefecto, GetIconoParaMenu, etc.) van aquí sin cambios ---
+        private string GetUrlMenuLogistica(string nombreMenu, string? homeUrl)
+        {
+            var normalized = RemoveAccents(nombreMenu ?? string.Empty).Trim().ToLowerInvariant();
+
+            if (normalized.Contains("guia") || normalized.Contains("guias"))
+                return "/Logistica/Formularios/CentroFormularios?origenModulo=Guias";
+
+            if (normalized.Contains("transporte"))
+                return "/Logistica/Formularios/CentroFormularios?origenModulo=Transporte";
+
+            return string.IsNullOrWhiteSpace(homeUrl) ? GetUrlPorDefecto(nombreMenu) : homeUrl;
+        }
+
         private string GetUrlPorDefecto(string nombreMenu)
         {
             if (string.IsNullOrEmpty(nombreMenu)) return "#";
@@ -194,48 +207,43 @@ ORDER BY m.MenuID;";
                 var x when x.Contains("help") => "/HelpDesk/Index",
                 var x when x.Contains("compras") => "/Compras/Index",
                 var x when x.Contains("nacional") => "/Compras/Nacional",
-                var x when x.Contains("guias") => "/Logistica/Guias",
-                var x when x.Contains("transporte") => "/Logistica/Transporte",
+                var x when RemoveAccents(x).Contains("guia") => "/Logistica/Formularios/CentroFormularios?origenModulo=Guias",
+                var x when RemoveAccents(x).Contains("transporte") => "/Logistica/Formularios/CentroFormularios?origenModulo=Transporte",
                 var x when x.Contains("directorio") => "/Directorio/Index",
                 var x when x.Contains("KPIS") => "/Operaciones/Index",
-                var x when x.Contains("Citas") => "/Citas/Index",
                 _ => "/"
             };
         }
-
-        
         private string GetIconoParaMenu(string nombreMenu)
-{
-    if (string.IsNullOrWhiteSpace(nombreMenu))
-        return "fa-layer-group";
+        {
+            if (string.IsNullOrWhiteSpace(nombreMenu)) return "fa-cogs";
 
-    var s = RemoveAccents(nombreMenu.Trim().ToLowerInvariant());
+           
+            var normalized = RemoveAccents(nombreMenu.Trim().ToLowerInvariant());
 
-    return s switch
-    {
-        var x when x.Contains("universidad") || x.Contains("capacitacion") => "fa-graduation-cap",
-        var x when x.Contains("gestion") || x.Contains("usuario") => "fa-users",
-        var x when x.Contains("lider") => "fa-user-shield",
-        var x when x.Contains("denuncia") => "fa-user-secret",
-        var x when x.Contains("vacacion") => "fa-umbrella-beach",
-        var x when x.Contains("cita") => "fa-calendar-check",
-        var x when x.Contains("directorio") => "fa-address-book",
-        var x when x.Contains("kpi") || x.Contains("indicador") => "fa-chart-pie",
-        var x when x.Contains("comunicado") || x.Contains("anuncio") => "fa-bullhorn",
-        var x when x.Contains("mejora") || x.Contains("continua") => "fa-chart-line",
-        var x when x.Contains("internacional") => "fa-plane-departure",
-        var x when x.Contains("nacional") || x.Contains("compra") => "fa-cart-shopping",
-        var x when x.Contains("transporte") => "fa-truck",
-        var x when x.Contains("embarque") => "fa-ship",
-        var x when x.Contains("guia") => "fa-map-location-dot",
-        var x when x.Contains("help") || x.Contains("soporte") || x.Contains("asistencia") => "fa-circle-question",
-        var x when x.Contains("ticket") => "fa-ticket",
-        var x when x.Contains("proyecto") => "fa-folder-open",
+            return normalized switch
+            {
+               
+                var s when s.Contains("universidad") || s.Contains("capacitacion") => "fa-graduation-cap",
+                var s when s.Contains("usuario") => "fa-users",
+                var s when s.Contains("gestion") => "fa-user-cog", 
+                var s when s.Contains("lider") => "fa-user-shield",  
+                var s when s.Contains("comunicado") || s.Contains("anuncio") => "fa-bullhorn",
+                var s when s.Contains("mejora") || s.Contains("continua") => "fa-chart-line",
+                var s when s.Contains("nacional") => "fa-shopping-cart",
+                var s when s.Contains("transporte") => "fa-truck",
+                var s when s.Contains("embarque") => "fa-ship",
+                var s when s.Contains("help") || s.Contains("soporte") || s.Contains("asistencia") => "fa-circle-question",  // ✅ FA6 FREE
+                var s when s.Contains("ticket") => "fa-ticket",
+                var s when s.Contains("proyecto") => "fa-folder-open",
+                var s when s.Contains("internacional") => "fa-plane-departure",
+                var s when s.Contains("guias") => "fa-map-location-dot",
+                var s when s.Contains("directorio") => "fa-address-book",
 
-        _ => "fa-layer-group"
-    };
-}
-        
+
+                _ => "fa-cogs"
+            };
+        }
 
         private string RemoveAccents(string text)
         {

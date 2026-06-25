@@ -7,14 +7,16 @@
     var username = Context.Session.GetString("Username") ?? "Invitado";
     var nombreMostrar = Context.Session.GetString("NombreMostrar") ?? username;
     var nombreEmpresa = Context.Session.GetString("EmpresaNombre") ?? "NS Group";
-    var empresaId = Context.Session.GetString("EmpresaId") ?? "default";
+    var empresaId = Context.Session.GetString("EmpresaID")
+        ?? Context.Session.GetString("EmpresaId")
+        ?? "default";
 
     var usuarioId = Context.Session.GetInt32("UsuarioID")?.ToString()
-        ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+        ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
         ?? "";
 
     var rolNombre = User.Identity?.IsAuthenticated == true
-        ? (User.FindFirst(ClaimTypes.Role)?.Value ?? Context.Session.GetString("Rol") ?? "Colaborador")
+        ? (User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? Context.Session.GetString("Rol") ?? "Colaborador")
         : (Context.Session.GetString("Rol") ?? "Colaborador");
 
     var correoUsuario = Context.Session.GetString("Correo")
@@ -59,11 +61,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link rel="stylesheet" href="~/css/stylesLayoutComunicados.css" asp-append-version="true" />
 
-<<<<<<< HEAD
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-=======
     <style>
         .perfil-modal-header {
             background: linear-gradient(135deg, #071142 0%, #12395f 62%, #5d3442 100%);
@@ -126,7 +123,6 @@
         }
     </style>
 
->>>>>>> origin/Rama_Luis
     @RenderSection("Estilos", required: false)
 </head>
 <body class="empresa-@empresaId">

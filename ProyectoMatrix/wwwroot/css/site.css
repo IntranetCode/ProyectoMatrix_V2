@@ -67,7 +67,7 @@ body {
         color: #fff;
     }
 
-.sidebar-nav .sub-item-line { /* La línea azul al lado del submenú activo */
+.sidebar-nav .sub-item-line { /* La lï¿½nea azul al lado del submenï¿½ activo */
     border-left: 3px solid #007bff;
     padding-left: 5px;
 }
@@ -111,19 +111,14 @@ html {
 body {
     margin: 0;
     min-height: 100vh;
-    background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 32rem), radial-gradient(circle at 80% 8%, rgba(6, 182, 212, 0.18), transparent 28rem), var(--bg);
+    background: #f4f6fb !important;
     color: var(--text);
 }
 
-    body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        background-image: linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px);
-        background-size: 48px 48px;
-        mask-image: linear-gradient(180deg, rgba(0,0,0,.6), transparent 70%);
-    }
+body::before {
+    content: none !important;
+    display: none !important;
+}
 
 body,
 button,
@@ -1073,7 +1068,7 @@ button {
     }
 }
 
-/* NS Streaming: pantalla pública directa al reproductor */
+/* NS Streaming: pantalla pï¿½blica directa al reproductor */
 .compact-public .public-header {
     margin-top: 12px;
     border-radius: 22px;

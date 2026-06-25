@@ -2013,20 +2013,18 @@ ORDER BY b.FechaSolicitud DESC;";
         [HttpPost]
         public async Task<IActionResult> SolicitarHabilitacion(int usuarioId, string motivo)
         {
-            
-
             try
             {
-               
                 if (string.IsNullOrWhiteSpace(motivo) || motivo.Length < 15)
                     return Json(new { success = false, message = "El motivo debe tener al menos 15 caracteres." });
 
-               
                 using (SqlConnection conn = new SqlConnection(_connectionString))
                 {
+                    // Agregamos SELECT SCOPE_IDENTITY() para recuperar el ID autogenerado
                     string query = @"INSERT INTO VacacionesHabilitacionesEspeciales 
                             (UsuarioID, MotivoSolicitud, FechaSolicitud, EstatusJefe, EstatusRH, Completada)
-                            VALUES (@UsuarioID, @Motivo, GETDATE(), 'Pendiente', 'Pendiente', 0)";
+                            VALUES (@UsuarioID, @Motivo, GETDATE(), 'Pendiente', 'Pendiente', 0);
+                            SELECT SCOPE_IDENTITY();";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -2035,8 +2033,12 @@ ORDER BY b.FechaSolicitud DESC;";
 
                         if (conn.State != ConnectionState.Open) await conn.OpenAsync();
 
-                        await cmd.ExecuteNonQueryAsync();
-                        await NotificarJefeSolicitudHabilitacionAsync(usuarioId);
+                        // Ejecutamos con ExecuteScalarAsync para obtener el nuevo ID
+                        var resultId = await cmd.ExecuteScalarAsync();
+                        int nuevaHabilitacionId = Convert.ToInt32(resultId);
+
+                        // CORRECCIÓN: Ahora sí pasamos el ID de la habilitación correcto
+                        await NotificarJefeSolicitudHabilitacionAsync(nuevaHabilitacionId);
                     }
                 }
 
@@ -2044,6 +2046,7 @@ ORDER BY b.FechaSolicitud DESC;";
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error en SolicitarHabilitacion");
                 return Json(new { success = false, message = "Error de Base de Datos: " + ex.Message });
             }
         }
@@ -2253,6 +2256,7 @@ ORDER BY b.FechaSolicitud DESC;";
         }
 
         //Metodos para notificar sobre vacaciones adelantadas :// 1. Notificar al Jefe que un empleado pidió habilitar adelantadas
+        // 1. Notificar al Jefe que un empleado pidió habilitar adelantadas (VISTA MEJORADA)
         private async Task NotificarJefeSolicitudHabilitacionAsync(int habilitacionId)
         {
             try
@@ -2261,7 +2265,12 @@ ORDER BY b.FechaSolicitud DESC;";
                 {
                     conn.Open();
                     var sql = @"
-                SELECT (p.Nombre + ' ' + p.ApellidoPaterno) as Empleado, h.MotivoSolicitud, pj.PersonaID as JefeID
+                SELECT 
+                    p.NumeroEmpleado,
+                    (p.ApellidoPaterno + ' ' + p.ApellidoMaterno + ' ' + p.Nombre) as Empleado, 
+                    h.MotivoSolicitud, 
+                    pj.PersonaID as JefeID,
+                    (pj.Nombre + ' ' + pj.ApellidoPaterno) as NombreJefe
                 FROM VacacionesHabilitacionesEspeciales h
                 INNER JOIN Usuarios u ON h.UsuarioID = u.UsuarioID
                 INNER JOIN Persona p ON u.PersonaID = p.PersonaID
@@ -2275,32 +2284,93 @@ ORDER BY b.FechaSolicitud DESC;";
                         {
                             if (rd.Read())
                             {
-                                var asunto = "Nueva solicitud de habilitación de vacaciones adelantadas";
-                                var html = $@"<h2>Solicitud de Habilitación</h2>
-                                      <p>El colaborador <b>{rd["Empleado"]}</b> solicita habilitar vacaciones adelantadas.</p>
-                                      <p><b>Motivo:</b> {rd["MotivoSolicitud"]}</p>
-                                      <p>Ingresa a la Intranet para autorizar o rechazar esta petición operativa.</p>";
+                                int jefeId = (int)rd["JefeID"];
+                                var nombreJefe = rd["NombreJefe"]?.ToString() ?? "Jefe Inmediato";
+                                var empleado = rd["Empleado"]?.ToString() ?? "Colaborador";
+                                var numEmp = rd["NumeroEmpleado"]?.ToString() ?? "";
+                                var motivo = rd["MotivoSolicitud"]?.ToString() ?? "";
 
-                                await _notif.EnviarABccPersonasAsync(new List<int> { (int)rd["JefeID"] }, asunto, html);
+                                var asunto = $"Solicitud de habilitación de vacaciones adelantadas - {empleado}";
+
+                                var html = $@"
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+  <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+    <div style='padding:20px; background:#0d6efd; color:#fff; text-align:center;'>
+      <h2 style='margin:0;'>Nueva Solicitud de Habilitación Especial</h2>
+    </div>
+    <div style='padding:20px; color:#333;'>
+      <p>Hola <strong>{System.Net.WebUtility.HtmlEncode(nombreJefe)}</strong>,</p>
+      <p>El colaborador <strong>{System.Net.WebUtility.HtmlEncode(empleado)}</strong> ({System.Net.WebUtility.HtmlEncode(numEmp)}) ha solicitado tu autorización para poder pedir vacaciones de manera anticipada/adelantada.</p>
+
+      <div style='background:#f8f9fa; border-left:4px solid #0d6efd; padding:12px 14px; border-radius:6px; margin:14px 0;'>
+        <p style='margin:0 0 6px;'><strong>Folio de Petición:</strong> {habilitacionId}</p>
+        <p style='margin:0;'><strong>Justificación del Colaborador:</strong> {System.Net.WebUtility.HtmlEncode(motivo)}</p>
+      </div>
+
+      <p>Por favor ingresa a la Intranet, sección <strong>Vacaciones Pendientes de mi Equipo</strong> para evaluar la viabilidad operativa y autorizar o rechazar esta petición.</p>
+      <p>https://intranet.nsgroup.com.mx/</p>
+      <p style='color:#666; font-size:12px; margin-top:18px;'>Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.</p>
+    </div>
+  </div>
+</body>
+</html>";
+
+                                await _notif.EnviarABccPersonasAsync(new List<int> { jefeId }, asunto, html);
                             }
                         }
                     }
                 }
             }
-            catch (Exception ex) { _logger.LogError(ex, "Error notificar jefe habilitacion"); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al notificar al jefe sobre la habilitación {0}", habilitacionId);
+            }
         }
 
         // 2. Notificar a RRHH que el Jefe ya dio el visto bueno
+        // 2. Notificar a RRHH que el Jefe ya dio el visto bueno (CON DATOS COMPLETOS)
         private async Task NotificarRH_JefeAutorizoHabilitacionAsync(int habilitacionId)
         {
             try
             {
                 var rhPersonaIds = new List<int>();
+                string nombreEmpleado = "Colaborador";
+                string numEmp = "";
+                string motivo = "";
+
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     await conn.OpenAsync();
 
-                    // SQL Corregido: NombreDepartamento en lugar de Nombre
+                    // 1. Obtener los datos de la habilitación y del empleado involucrado
+                    var sqlDatos = @"
+                SELECT 
+                    p.NumeroEmpleado,
+                    (p.ApellidoPaterno + ' ' + p.ApellidoMaterno + ' ' + p.Nombre) AS Empleado,
+                    h.MotivoSolicitud
+                FROM VacacionesHabilitacionesEspeciales h
+                INNER JOIN Usuarios u ON h.UsuarioID = u.UsuarioID
+                INNER JOIN Persona p ON u.PersonaID = p.PersonaID
+                WHERE h.HabilitacionID = @HabilitacionID;";
+
+                    using (var cmdDatos = new SqlCommand(sqlDatos, conn))
+                    {
+                        cmdDatos.Parameters.AddWithValue("@HabilitacionID", habilitacionId);
+                        using (var rdDatos = await cmdDatos.ExecuteReaderAsync())
+                        {
+                            if (await rdDatos.ReadAsync())
+                            {
+                                numEmp = rdDatos["NumeroEmpleado"]?.ToString() ?? "";
+                                nombreEmpleado = rdDatos["Empleado"]?.ToString() ?? "Colaborador";
+                                motivo = rdDatos["MotivoSolicitud"]?.ToString() ?? "";
+                            }
+                        }
+                    }
+
+                    // 2. Obtener todos los PersonaID que pertenecen a RH para enviarles el correo
                     var sqlRH = @"SELECT DISTINCT u.PersonaID 
                           FROM Usuarios u 
                           INNER JOIN EmpleadoDepartamentos ed ON ed.UsuarioID = u.UsuarioID AND ed.Activo = 1
@@ -2308,34 +2378,53 @@ ORDER BY b.FechaSolicitud DESC;";
                           WHERE (UPPER(d.NombreDepartamento) LIKE '%RECURSOS HUMANOS%' OR UPPER(d.NombreDepartamento) LIKE 'RH%')
                             AND u.PersonaID IS NOT NULL;";
 
-                    using (var cmd = new SqlCommand(sqlRH, conn))
-                    using (var rd = await cmd.ExecuteReaderAsync())
+                    using (var cmdRH = new SqlCommand(sqlRH, conn))
+                    using (var rdRH = await cmdRH.ExecuteReaderAsync())
                     {
-                        while (await rd.ReadAsync())
+                        while (await rdRH.ReadAsync())
                         {
-                            rhPersonaIds.Add(rd.GetInt32(0));
+                            rhPersonaIds.Add(rdRH.GetInt32(0));
                         }
                     }
 
+                    // 3. Si hay personal de RH, enviar el correo con el formato profesional de la empresa
                     if (rhPersonaIds.Count > 0)
                     {
-                        var asunto = "Habilitación Especial: Turno de RRHH";
+                        var asunto = $"Habilitación Especial: Turno de RRHH - Folio {habilitacionId} ({numEmp})";
+
                         var html = $@"
-                    <div style='font-family: Arial; border: 1px solid #ddd; padding: 20px; border-radius: 10px;'>
-                        <h2 style='color: #1a237e;'>Validación de RRHH Pendiente</h2>
-                        <p>Hola equipo de Recursos Humanos,</p>
-                        <p>Se les informa que un jefe inmediato ha <b>autorizado</b> un motivo para habilitar vacaciones adelantadas.</p>
-                        <p>Por favor, ingresen a la Bandeja de RH en la Intranet para realizar la validación final y activar el switch del colaborador.</p>
-                        <hr>
-                        <p style='font-size: 0.8em; color: #666;'>Este es un mensaje automático de Proyecto Matrix.</p>
-                    </div>";
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+  <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+    <div style='padding:20px; background:#1a237e; color:#fff; text-align:center;'>
+      <h2 style='margin:0;'>Validación de Vacaciones Adelantadas</h2>
+    </div>
+    <div style='padding:20px; color:#333;'>
+      <p>Hola equipo de Recursos Humanos,</p>
+      <p>Se les informa que un jefe inmediato ha <strong>autorizado </strong> el motivo de un colaborador para solicitar vacaciones de forma adelantada.</p>
+
+      <div style='background:#f8f9fa; border-left:4px solid #1a237e; padding:12px 14px; border-radius:6px; margin:14px 0;'>
+        <p style='margin:0 0 6px;'><strong>Folio de Habilitación:</strong> {habilitacionId}</p>
+        <p style='margin:0 0 6px;'><strong>Colaborador:</strong> {System.Net.WebUtility.HtmlEncode(numEmp)} - {System.Net.WebUtility.HtmlEncode(nombreEmpleado)}</p>
+        <p style='margin:0;'><strong>Motivo expuesto:</strong> {System.Net.WebUtility.HtmlEncode(motivo)}</p>
+      </div>
+
+      <p>Por favor, ingresen a la <strong>Bandeja de RH</strong> en la Intranet para realizar la validación final y activar de manera oficial el switch del colaborador.</p>
+      <p>https://intranet.nsgroup.com.mx/</p>
+      <p style='color:#666; font-size:12px; margin-top:18px;'>Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.</p>
+    </div>
+  </div>
+</body>
+</html>";
 
                         await _notif.EnviarABccPersonasAsync(rhPersonaIds, asunto, html);
                         _logger.LogInformation("Notificación enviada a {0} personas de RH para la habilitación {1}", rhPersonaIds.Count, habilitacionId);
                     }
                     else
                     {
-                        _logger.LogWarning("No se encontraron personas en el departamento de Recursos Humanos para enviar la notificación.");
+                        _logger.LogWarning("No se encontraron personas en el departamento de Recursos Humanos para enviar la habilitación {0}.", habilitacionId);
                     }
                 }
             }

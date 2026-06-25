@@ -20,7 +20,7 @@
                 <div class="brand-logo">
                     <img src="~/Imagenes/logoAzul.jpeg" alt="Logo de la empresa" />
                 </div>
-                
+
                 <p class="brand-subtitle">Acceso seguro al sistema</p>
             </div>
 
@@ -68,12 +68,19 @@
                 <button type="submit" class="btn-login" id="loginBtn">
                     <span class="btn-text">Acceder al Sistema</span>
                 </button>
+                <div class="text-center mt-3">
+                    <a asp-controller="Login"
+                       asp-action="RecuperarPassword"
+                       class="forgot-password-link">
+                        ¿Olvidaste tu contraseña?
+                    </a>
+                </div>
             </form>
 
             <div class="footer-section">
                 <p class="footer-text">
                     <i class="fas fa-copyright me-1"></i>
-                    @DateTime.Now.Year NSGroup. Todos los derechos reservados. 
+                    @DateTime.Now.Year NSGroup. Todos los derechos reservados.
                 </p>
             </div>
         </main>
@@ -245,7 +252,7 @@
             document.head.appendChild(style);
         });
     </script>
-  
+
 
 </body>
 </html>

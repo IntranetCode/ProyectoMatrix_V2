@@ -1,0 +1,1226 @@
+@model ProyectoMatrix.ViewModels.Formularios.FormularioPlantillaViewModel
+
+@{
+    Layout = null;
+
+    var esEdicion = Model.IdFormulario > 0;
+    ViewData["Title"] = esEdicion ? "Editar plantilla" : "Crear plantilla";
+
+    var origenModulo = Context.Request.Query["origenModulo"].ToString();
+
+    if (string.IsNullOrWhiteSpace(origenModulo))
+    {
+        origenModulo = Model.Categoria ?? "Transporte";
+    }
+
+    var cancelarUrl = origenModulo.Equals("Guias", StringComparison.OrdinalIgnoreCase)
+        ? "/Logistica/Guias"
+        : "/Logistica/Transporte";
+
+    var formAction = esEdicion
+        ? $"/Logistica/Formularios/Editar/{Model.IdFormulario}?origenModulo={Uri.EscapeDataString(origenModulo)}"
+        : $"/Logistica/Formularios/Crear?origenModulo={Uri.EscapeDataString(origenModulo)}";
+
+    var titulo = esEdicion ? "Editar plantilla" : "Crear plantilla";
+    var subtitulo = "Construye una plantilla clara para que el usuario final solo tenga que presionar Usar y llenar su petición.";
+
+    var campos = Model.Campos != null && Model.Campos.Count > 0
+        ? Model.Campos
+        : new List<ProyectoMatrix.ViewModels.Formularios.FormularioCampoViewModel>
+        {
+            new ProyectoMatrix.ViewModels.Formularios.FormularioCampoViewModel
+            {
+                Tipo = "texto",
+                Copiable = true,
+                Obligatorio = false
+            }
+        };
+
+    var categoriaActual = string.IsNullOrWhiteSpace(Model.Categoria) ? origenModulo : Model.Categoria;
+    if (string.IsNullOrWhiteSpace(categoriaActual))
+    {
+        categoriaActual = "Ambos";
+    }
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"]</title>
+    <style>
+        :root {
+            --navy: #062b57;
+            --navy-2: #073b78;
+            --orange: #e85d04;
+            --blue: #2563eb;
+            --sky: #0ea5e9;
+            --danger: #dc2626;
+            --muted: #64748b;
+            --text: #0f172a;
+            --line: #dbe4f0;
+            --soft-line: #e8eef6;
+            --bg: #eef3f9;
+            --card: #ffffff;
+            --chip: #f1f5f9;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .page {
+            min-height: 100vh;
+            padding: 26px 28px 32px;
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            border-radius: 22px;
+            background: linear-gradient(135deg, var(--navy), var(--navy-2));
+            color: #ffffff;
+            padding: 34px 36px;
+            margin-bottom: 24px;
+            box-shadow: 0 18px 40px rgba(6, 43, 87, .16);
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            right: 32px;
+            top: 24px;
+            width: 78px;
+            height: 78px;
+            border-radius: 24px;
+            background: rgba(255,255,255,.13);
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-size: 31px;
+            font-weight: 900;
+            letter-spacing: -.04em;
+        }
+
+        .hero p {
+            max-width: 760px;
+            margin: 10px 0 0;
+            color: rgba(255,255,255,.88);
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .builder-shell {
+            display: grid;
+            grid-template-columns: 275px minmax(0, 1fr) 74px;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .sidebar-card,
+        .form-card,
+        .question-card,
+        .toolbar-card {
+            background: var(--card);
+            border: 1px solid var(--soft-line);
+            box-shadow: 0 12px 30px rgba(15, 23, 42, .06);
+        }
+
+        .sidebar-card {
+            position: sticky;
+            top: 18px;
+            border-radius: 20px;
+            padding: 20px;
+        }
+
+        .sidebar-card h3 {
+            margin: 0 0 8px;
+            font-size: 17px;
+            font-weight: 900;
+            letter-spacing: -.02em;
+        }
+
+        .sidebar-card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .flow-step {
+            display: grid;
+            grid-template-columns: 30px 1fr;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .flow-step-number {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff3e8;
+            color: #b45309;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .flow-step strong {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 3px;
+        }
+
+        .flow-step span {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .quick-preview {
+            margin-top: 18px;
+            border-top: 1px solid var(--soft-line);
+            padding-top: 16px;
+        }
+
+        .quick-preview-title {
+            font-size: 12px;
+            font-weight: 900;
+            color: #334155;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            margin-bottom: 10px;
+        }
+
+        .preview-mini {
+            border: 1px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 12px;
+            background: #f8fafc;
+        }
+
+        .preview-mini-name {
+            font-size: 14px;
+            font-weight: 900;
+            margin-bottom: 4px;
+        }
+
+        .preview-mini-desc {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .builder-main {
+            min-width: 0;
+        }
+
+        .validation {
+            margin-bottom: 16px;
+            border: 1px solid #fecaca;
+            background: #fff1f2;
+            color: #991b1b;
+            border-radius: 16px;
+            padding: 13px 16px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .form-card {
+            border-radius: 20px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .form-card-accent {
+            height: 10px;
+            background: linear-gradient(90deg, var(--orange), #fb923c);
+        }
+
+        .form-card-body {
+            padding: 24px;
+        }
+
+        .form-title-input {
+            width: 100%;
+            border: 0;
+            border-bottom: 2px solid #e2e8f0;
+            border-radius: 0;
+            padding: 8px 0 10px;
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: -.03em;
+            background: transparent;
+        }
+
+        .form-title-input:focus {
+            outline: none;
+            border-color: var(--orange);
+            box-shadow: none;
+        }
+
+        .form-description-input {
+            margin-top: 14px;
+            min-height: 58px;
+            border: 0;
+            border-bottom: 1px solid #e2e8f0;
+            border-radius: 0;
+            padding: 8px 0;
+            font-size: 14px;
+            resize: vertical;
+            background: transparent;
+        }
+
+        .form-description-input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: none;
+        }
+
+        .meta-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        label {
+            font-size: 12px;
+            color: #334155;
+            font-weight: 900;
+        }
+
+        .label-muted {
+            color: var(--muted);
+            font-weight: 800;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 11px 12px;
+            background: #ffffff;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        textarea {
+            min-height: 76px;
+            resize: vertical;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .13);
+        }
+
+        .settings-card {
+            border-radius: 20px;
+            margin-bottom: 16px;
+            background: #ffffff;
+            border: 1px solid var(--soft-line);
+            box-shadow: 0 12px 30px rgba(15, 23, 42, .04);
+        }
+
+        .settings-card summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 18px 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .settings-card summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .settings-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .settings-title strong {
+            font-size: 17px;
+            font-weight: 900;
+        }
+
+        .settings-title span {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .settings-toggle {
+            min-width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 900;
+        }
+
+        .settings-card[open] .settings-toggle {
+            transform: rotate(180deg);
+        }
+
+        .official-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            padding: 0 22px 22px;
+        }
+
+        .question-card {
+            border-radius: 18px;
+            margin-bottom: 14px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .question-card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            background: var(--blue);
+            opacity: 0;
+            transition: opacity .18s ease;
+        }
+
+        .question-card:focus-within::before {
+            opacity: 1;
+        }
+
+        .question-inner {
+            padding: 20px 20px 16px;
+        }
+
+        .question-top {
+            display: grid;
+            grid-template-columns: 1fr 260px;
+            gap: 14px;
+            align-items: start;
+        }
+
+        .question-label {
+            border: 0;
+            border-bottom: 2px solid #e2e8f0;
+            border-radius: 0;
+            padding: 10px 0;
+            font-size: 17px;
+            font-weight: 800;
+            background: transparent;
+        }
+
+        .question-label:focus {
+            box-shadow: none;
+            border-color: var(--blue);
+        }
+
+        .question-type {
+            background: #f8fafc;
+        }
+
+        .question-preview {
+            margin-top: 16px;
+            padding: 13px 14px;
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 13px;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .question-preview strong {
+            display: block;
+            color: #334155;
+            margin-bottom: 4px;
+        }
+
+        .options-panel,
+        .table-info-panel {
+            display: none;
+            margin-top: 14px;
+        }
+
+        .question-card[data-tipo="select"] .options-panel {
+            display: block;
+        }
+
+        .question-card[data-tipo="tabla_destinos"] .table-info-panel,
+        .question-card[data-tipo="tabla_plan_embarque"] .table-info-panel {
+            display: block;
+        }
+
+        .helper-text {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .question-footer {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid #edf2f7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .footer-left,
+        .footer-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .toggle-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #334155;
+            font-weight: 900;
+        }
+
+        .toggle-select {
+            width: auto;
+            min-width: 80px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: #f8fafc;
+            font-size: 12px;
+        }
+
+        details.advanced-options {
+            position: relative;
+        }
+
+        details.advanced-options summary {
+            cursor: pointer;
+            list-style: none;
+            border: 1px solid #dbe4f0;
+            background: #ffffff;
+            padding: 8px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 900;
+            color: #475569;
+        }
+
+        details.advanced-options summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .advanced-body {
+            margin-top: 10px;
+            padding: 12px;
+            border: 1px solid #dbe4f0;
+            background: #ffffff;
+            border-radius: 14px;
+            min-width: 420px;
+        }
+
+        .advanced-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all .18s ease;
+        }
+
+        .btn-primary {
+            background: var(--orange);
+            color: #ffffff;
+            border-color: var(--orange);
+            box-shadow: 0 10px 20px rgba(232, 93, 4, .20);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 26px rgba(232, 93, 4, .24);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #334155;
+            border-color: #e5e7eb;
+        }
+
+        .btn-outline {
+            background: #ffffff;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+
+        .btn-danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border-color: #fecaca;
+        }
+
+        .btn-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            padding: 0;
+            font-size: 19px;
+        }
+
+        .toolbar-card {
+            position: sticky;
+            top: 18px;
+            border-radius: 18px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toolbar-card .btn-icon {
+            background: #ffffff;
+            border: 1px solid #dbe4f0;
+            color: #334155;
+        }
+
+        .toolbar-card .btn-icon:hover {
+            background: #eff6ff;
+            color: var(--blue);
+            border-color: #bfdbfe;
+        }
+
+        .bottom-actions {
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+            margin-top: 16px;
+            background: rgba(238, 243, 249, .90);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid #dbe4f0;
+            padding: 14px 0 0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .empty-state {
+            border: 1px dashed #cbd5e1;
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 22px;
+            text-align: center;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @@media (max-width: 1200px) {
+            .builder-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar-card,
+            .toolbar-card,
+            .bottom-actions {
+                position: static;
+            }
+
+            .toolbar-card {
+                flex-direction: row;
+                justify-content: flex-start;
+                order: -1;
+            }
+        }
+
+        @@media (max-width: 800px) {
+            .page {
+                padding: 18px;
+            }
+
+            .hero {
+                padding: 26px 22px;
+            }
+
+            .hero h1 {
+                font-size: 25px;
+            }
+
+            .meta-row,
+            .official-grid,
+            .question-top,
+            .advanced-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .advanced-body {
+                min-width: 0;
+            }
+
+            .question-footer {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .bottom-actions {
+                justify-content: stretch;
+            }
+
+            .bottom-actions .btn {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <section class="hero">
+            <h1>@titulo</h1>
+            <p>@subtitulo</p>
+        </section>
+
+        <div class="builder-shell">
+            <aside class="sidebar-card">
+                <h3>Constructor de plantilla</h3>
+                <p>Funciona parecido a Google Forms: crea una tarjeta por cada campo y deja las opciones técnicas en avanzado.</p>
+
+                <div class="flow-step">
+                    <div class="flow-step-number">1</div>
+                    <div>
+                        <strong>Nombre y uso</strong>
+                        <span>Define cómo aparecerá la plantilla en el catálogo y si aplica a Transporte, Guías o ambos.</span>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-step-number">2</div>
+                    <div>
+                        <strong>Encabezado oficial</strong>
+                        <span>Guarda área, elaborado por, liberado por, versión, fecha, página y código del formato.</span>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-step-number">3</div>
+                    <div>
+                        <strong>Campos de captura</strong>
+                        <span>Agrega los espacios que el usuario debe llenar al presionar Usar.</span>
+                    </div>
+                </div>
+
+                <div class="quick-preview">
+                    <div class="quick-preview-title">Vista rápida</div>
+                    <div class="preview-mini">
+                        <div id="previewNombre" class="preview-mini-name">@(string.IsNullOrWhiteSpace(Model.Nombre) ? "Nombre de la plantilla" : Model.Nombre)</div>
+                        <div id="previewDescripcion" class="preview-mini-desc">@(string.IsNullOrWhiteSpace(Model.Descripcion) ? "La descripción aparecerá aquí." : Model.Descripcion)</div>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="builder-main">
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="validation">
+                        Revisa la información capturada. Hay campos pendientes o con errores.
+                    </div>
+                }
+
+                <form action="@formAction" method="post" id="formCrearFormulario">
+                    @Html.AntiForgeryToken()
+
+                    <input type="hidden" name="IdFormulario" value="@Model.IdFormulario" />
+                    <input type="hidden" name="Modulo" value="Logistica" />
+                    <input type="hidden" name="Activo" value="true" />
+                    <input type="hidden" name="EsPlantillaBase" value="false" />
+
+                    <section class="form-card">
+                        <div class="form-card-accent"></div>
+                        <div class="form-card-body">
+                            <input id="inputNombrePlantilla"
+                                   class="form-title-input"
+                                   name="Nombre"
+                                   value="@Model.Nombre"
+                                   placeholder="Nombre de la plantilla"
+                                   required />
+
+                            <textarea id="inputDescripcionPlantilla"
+                                      class="form-description-input"
+                                      name="Descripcion"
+                                      placeholder="Descripción breve para que el usuario sepa cuándo usarla">@Model.Descripcion</textarea>
+
+                            <div class="meta-row">
+                                <div class="field-group">
+                                    <label>¿Dónde se usará?</label>
+                                    <select name="Categoria" required>
+                                        <option value="Transporte" selected="@(categoriaActual == "Transporte")">Transporte</option>
+                                        <option value="Guias" selected="@(categoriaActual == "Guias")">Guías</option>
+                                        <option value="Ambos" selected="@(categoriaActual == "Ambos")">Ambos</option>
+                                    </select>
+                                </div>
+
+                                <div class="field-group">
+                                    <label class="label-muted">Cómo lo verá el usuario</label>
+                                    <input value="Catálogo de formularios → Usar → Captura de petición" readonly />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <details class="settings-card" open>
+                        <summary>
+                            <div class="settings-title">
+                                <strong>Datos oficiales del formato</strong>
+                                <span>Estos datos se usan para el encabezado del PDF o formato oficial.</span>
+                            </div>
+                            <span class="settings-toggle">⌄</span>
+                        </summary>
+
+                        <div class="official-grid">
+                            <div class="field-group">
+                                <label>Área</label>
+                                <input name="DatosOficiales.Area"
+                                       value="@Model.DatosOficiales.Area"
+                                       placeholder="Ej. Logística" />
+                            </div>
+
+                            <div class="field-group">
+                                <label>Elaborado por</label>
+                                <input name="DatosOficiales.ElaboradoPor"
+                                       value="@Model.DatosOficiales.ElaboradoPor"
+                                       placeholder="Ej. Ing. Axel Delgado" />
+                            </div>
+
+                            <div class="field-group">
+                                <label>Liberado por</label>
+                                <input name="DatosOficiales.LiberadoPor"
+                                       value="@Model.DatosOficiales.LiberadoPor"
+                                       placeholder="Ej. Lic. Pedro Bello" />
+                            </div>
+
+                            <div class="field-group">
+                                <label>Versión</label>
+                                <input name="DatosOficiales.Version"
+                                       value="@Model.DatosOficiales.Version"
+                                       placeholder="Ej. 03-2025" />
+                            </div>
+
+                            <div class="field-group">
+                                <label>Fecha de emisión</label>
+                                <input name="DatosOficiales.FechaEmision"
+                                       value="@Model.DatosOficiales.FechaEmision"
+                                       placeholder="Ej. 17/09/2025" />
+                            </div>
+
+                            <div class="field-group">
+                                <label>Página</label>
+                                <input name="DatosOficiales.Pagina"
+                                       value="@(string.IsNullOrWhiteSpace(Model.DatosOficiales.Pagina) ? "1 de 1" : Model.DatosOficiales.Pagina)"
+                                       placeholder="Ej. 1 de 1" />
+                            </div>
+
+                            <div class="field-group">
+                                <label>Código</label>
+                                <input name="DatosOficiales.Codigo"
+                                       value="@Model.DatosOficiales.Codigo"
+                                       placeholder="Ej. F-19-06" />
+                            </div>
+                        </div>
+                    </details>
+
+                    <div id="camposContainer">
+                        @for (int i = 0; i < campos.Count; i++)
+                        {
+                            var campo = campos[i];
+                            var opcionesTexto = !string.IsNullOrWhiteSpace(campo.OpcionesTexto)
+                                ? campo.OpcionesTexto
+                                : string.Join(Environment.NewLine, campo.Opciones ?? new List<string>());
+
+                            <section class="question-card" data-tipo="@campo.Tipo">
+                                <div class="question-inner">
+                                    <div class="question-top">
+                                        <div class="field-group">
+                                            <label>Campo @(i + 1)</label>
+                                            <input class="question-label"
+                                                   name="Campos[@i].Etiqueta"
+                                                   value="@campo.Etiqueta"
+                                                   placeholder="Nombre del dato a capturar" />
+                                        </div>
+
+                                        <div class="field-group">
+                                            <label>Tipo de dato</label>
+                                            <select class="question-type" name="Campos[@i].Tipo" onchange="actualizarTipoCampo(this)">
+                                                <option value="texto" selected="@(campo.Tipo == "texto")">Texto corto</option>
+                                                <option value="textarea" selected="@(campo.Tipo == "textarea")">Texto largo</option>
+                                                <option value="numero" selected="@(campo.Tipo == "numero")">Número</option>
+                                                <option value="fecha" selected="@(campo.Tipo == "fecha")">Fecha</option>
+                                                <option value="select" selected="@(campo.Tipo == "select")">Lista desplegable</option>
+                                                <option value="tabla_destinos" selected="@(campo.Tipo == "tabla_destinos")">Tabla de destinos</option>
+                                                <option value="tabla_plan_embarque" selected="@(campo.Tipo == "tabla_plan_embarque")">Tabla plan de embarque</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="question-preview">
+                                        <strong>Vista previa</strong>
+                                        <span class="preview-question-text">@(string.IsNullOrWhiteSpace(campo.Etiqueta) ? "El usuario llenará aquí este dato." : campo.Etiqueta)</span>
+                                    </div>
+
+                                    <div class="options-panel">
+                                        <div class="field-group">
+                                            <label>Opciones de la lista</label>
+                                            <textarea name="Campos[@i].OpcionesTexto"
+                                                      placeholder="Escribe una opción por línea">@opcionesTexto</textarea>
+                                            <div class="helper-text">Ejemplo: Urgente, Normal, Programado. Cada renglón será una opción.</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="table-info-panel">
+                                        <div class="helper-text">
+                                            Este tipo crea una tabla dinámica al momento de usar la plantilla. No necesitas capturar columnas aquí.
+                                        </div>
+                                    </div>
+
+                                    <div class="question-footer">
+                                        <div class="footer-left">
+                                            <div class="toggle-group">
+                                                <span>Obligatorio</span>
+                                                <select class="toggle-select" name="Campos[@i].Obligatorio">
+                                                    <option value="false" selected="@(!campo.Obligatorio)">No</option>
+                                                    <option value="true" selected="@campo.Obligatorio">Sí</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="footer-right">
+                                            <details class="advanced-options">
+                                                <summary>Opciones avanzadas</summary>
+                                                <div class="advanced-body">
+                                                    <div class="advanced-grid">
+                                                        <div class="field-group">
+                                                            <label>Clave interna</label>
+                                                            <input name="Campos[@i].Clave"
+                                                                   value="@campo.Clave"
+                                                                   placeholder="Se genera automáticamente si lo dejas vacío" />
+                                                        </div>
+
+                                                        <div class="field-group">
+                                                            <label>Texto de ayuda</label>
+                                                            <input name="Campos[@i].Placeholder"
+                                                                   value="@campo.Placeholder"
+                                                                   placeholder="Ej. Indica el tipo de muestra" />
+                                                        </div>
+
+                                                        <div class="field-group">
+                                                            <label>Reutilizar al copiar</label>
+                                                            <select name="Campos[@i].Copiable">
+                                                                <option value="true" selected="@campo.Copiable">Sí</option>
+                                                                <option value="false" selected="@(!campo.Copiable)">No</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </details>
+
+                                            <button type="button" class="btn btn-danger" onclick="eliminarCampo(this)">
+                                                Quitar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        }
+                    </div>
+
+                    <div class="bottom-actions">
+                        <a class="btn btn-secondary" href="@cancelarUrl">Cancelar</a>
+                        <button type="button" class="btn btn-outline" onclick="agregarCampo()">Agregar campo</button>
+                        <button type="submit" class="btn btn-primary">
+                            @(esEdicion ? "Guardar cambios" : "Guardar plantilla")
+                        </button>
+                    </div>
+                </form>
+            </main>
+
+            <aside class="toolbar-card" aria-label="Herramientas del formulario">
+                <button type="button" class="btn btn-icon" title="Agregar campo" onclick="agregarCampo()">+</button>
+                <button type="button" class="btn btn-icon" title="Ir al encabezado oficial" onclick="irAConfiguracion()">⚙</button>
+                <button type="button" class="btn btn-icon" title="Guardar plantilla" onclick="document.getElementById('formCrearFormulario').requestSubmit()">✓</button>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        function crearPreguntaHtml(index) {
+            return `
+                <section class="question-card" data-tipo="texto">
+                    <div class="question-inner">
+                        <div class="question-top">
+                            <div class="field-group">
+                                <label>Campo ${index + 1}</label>
+                                <input class="question-label"
+                                       name="Campos[${index}].Etiqueta"
+                                       placeholder="Nombre del dato a capturar" />
+                            </div>
+
+                            <div class="field-group">
+                                <label>Tipo de dato</label>
+                                <select class="question-type" name="Campos[${index}].Tipo" onchange="actualizarTipoCampo(this)">
+                                    <option value="texto">Texto corto</option>
+                                    <option value="textarea">Texto largo</option>
+                                    <option value="numero">Número</option>
+                                    <option value="fecha">Fecha</option>
+                                    <option value="select">Lista desplegable</option>
+                                    <option value="tabla_destinos">Tabla de destinos</option>
+                                    <option value="tabla_plan_embarque">Tabla plan de embarque</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="question-preview">
+                            <strong>Vista previa</strong>
+                            <span class="preview-question-text">El usuario llenará aquí este dato.</span>
+                        </div>
+
+                        <div class="options-panel">
+                            <div class="field-group">
+                                <label>Opciones de la lista</label>
+                                <textarea name="Campos[${index}].OpcionesTexto" placeholder="Escribe una opción por línea"></textarea>
+                                <div class="helper-text">Ejemplo: Urgente, Normal, Programado. Cada renglón será una opción.</div>
+                            </div>
+                        </div>
+
+                        <div class="table-info-panel">
+                            <div class="helper-text">
+                                Este tipo crea una tabla dinámica al momento de usar la plantilla. No necesitas capturar columnas aquí.
+                            </div>
+                        </div>
+
+                        <div class="question-footer">
+                            <div class="footer-left">
+                                <div class="toggle-group">
+                                    <span>Obligatorio</span>
+                                    <select class="toggle-select" name="Campos[${index}].Obligatorio">
+                                        <option value="false" selected>No</option>
+                                        <option value="true">Sí</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="footer-right">
+                                <details class="advanced-options">
+                                    <summary>Opciones avanzadas</summary>
+                                    <div class="advanced-body">
+                                        <div class="advanced-grid">
+                                            <div class="field-group">
+                                                <label>Clave interna</label>
+                                                <input name="Campos[${index}].Clave" placeholder="Se genera automáticamente si lo dejas vacío" />
+                                            </div>
+
+                                            <div class="field-group">
+                                                <label>Texto de ayuda</label>
+                                                <input name="Campos[${index}].Placeholder" placeholder="Ej. Indica el tipo de muestra" />
+                                            </div>
+
+                                            <div class="field-group">
+                                                <label>Reutilizar al copiar</label>
+                                                <select name="Campos[${index}].Copiable">
+                                                    <option value="true" selected>Sí</option>
+                                                    <option value="false">No</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </details>
+
+                                <button type="button" class="btn btn-danger" onclick="eliminarCampo(this)">Quitar</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>`;
+        }
+
+        function agregarCampo() {
+            const container = document.getElementById('camposContainer');
+            const index = container.querySelectorAll('.question-card').length;
+            container.insertAdjacentHTML('beforeend', crearPreguntaHtml(index));
+            reindexarCampos();
+
+            const nuevaPregunta = container.querySelectorAll('.question-card')[index];
+            if (nuevaPregunta) {
+                nuevaPregunta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const input = nuevaPregunta.querySelector('.question-label');
+                if (input) input.focus();
+            }
+        }
+
+        function eliminarCampo(button) {
+            const container = document.getElementById('camposContainer');
+            const total = container.querySelectorAll('.question-card').length;
+
+            if (total <= 1) {
+                const card = button.closest('.question-card');
+                card.querySelectorAll('input, textarea').forEach(input => input.value = '');
+                card.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+                card.dataset.tipo = 'texto';
+                actualizarVistaPregunta(card);
+                return;
+            }
+
+            button.closest('.question-card').remove();
+            reindexarCampos();
+        }
+
+        function actualizarTipoCampo(select) {
+            const card = select.closest('.question-card');
+            card.dataset.tipo = select.value || 'texto';
+            actualizarVistaPregunta(card);
+        }
+
+        function actualizarVistaPregunta(card) {
+            const etiqueta = card.querySelector('.question-label');
+            const preview = card.querySelector('.preview-question-text');
+            const tipo = card.querySelector('.question-type');
+
+            if (preview) {
+                const dato = etiqueta && etiqueta.value.trim()
+                    ? etiqueta.value.trim()
+                    : 'El usuario llenará aquí este dato.';
+
+                let ayudaTipo = '';
+                switch (tipo ? tipo.value : 'texto') {
+                    case 'textarea':
+                        ayudaTipo = ' Dato de texto largo.';
+                        break;
+                    case 'numero':
+                        ayudaTipo = ' Dato numérico.';
+                        break;
+                    case 'fecha':
+                        ayudaTipo = ' Selector de fecha.';
+                        break;
+                    case 'select':
+                        ayudaTipo = ' Lista desplegable.';
+                        break;
+                    case 'tabla_destinos':
+                        ayudaTipo = ' Tabla dinámica de destinos.';
+                        break;
+                    case 'tabla_plan_embarque':
+                        ayudaTipo = ' Tabla dinámica de plan de embarque.';
+                        break;
+                    default:
+                        ayudaTipo = ' Dato de texto corto.';
+                        break;
+                }
+
+                preview.textContent = dato + ayudaTipo;
+            }
+        }
+
+        function reindexarCampos() {
+            document.querySelectorAll('#camposContainer .question-card').forEach((card, index) => {
+                const label = card.querySelector('.field-group > label');
+                if (label) label.textContent = `Campo ${index + 1}`;
+
+                card.querySelectorAll('input, select, textarea').forEach(input => {
+                    if (input.name) {
+                        input.name = input.name.replace(/Campos\[\d+\]/, `Campos[${index}]`);
+                    }
+                });
+
+                actualizarVistaPregunta(card);
+            });
+        }
+
+        function irAConfiguracion() {
+            const settings = document.querySelector('.settings-card');
+            if (settings) {
+                settings.open = true;
+                settings.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function actualizarPreviewPrincipal() {
+            const nombre = document.getElementById('inputNombrePlantilla');
+            const descripcion = document.getElementById('inputDescripcionPlantilla');
+            const previewNombre = document.getElementById('previewNombre');
+            const previewDescripcion = document.getElementById('previewDescripcion');
+
+            if (previewNombre && nombre) {
+                previewNombre.textContent = nombre.value.trim() || 'Nombre de la plantilla';
+            }
+
+            if (previewDescripcion && descripcion) {
+                previewDescripcion.textContent = descripcion.value.trim() || 'La descripción aparecerá aquí.';
+            }
+        }
+
+        document.addEventListener('input', function (event) {
+            if (event.target.matches('.question-label')) {
+                actualizarVistaPregunta(event.target.closest('.question-card'));
+            }
+
+            if (event.target.id === 'inputNombrePlantilla' || event.target.id === 'inputDescripcionPlantilla') {
+                actualizarPreviewPrincipal();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('details.advanced-options').forEach(details => {
+                details.open = false;
+            });
+            document.querySelectorAll('.question-card .question-type').forEach(actualizarTipoCampo);
+            actualizarPreviewPrincipal();
+            reindexarCampos();
+        });
+    </script>
+</body>
+</html>
