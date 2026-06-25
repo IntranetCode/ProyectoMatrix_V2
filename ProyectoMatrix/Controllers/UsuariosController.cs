@@ -329,6 +329,11 @@ namespace ProyectoMatrix.Controllers
                 {
                     await MarcarCambioPasswordObligatorioAsync(usuarioCreado.UsuarioID);
 
+                    await ActualizarClaveEmpleadoNominaDirectaAsync(
+                        usuarioCreado.UsuarioID,
+                        viewModel.ClaveEmpleadoNomina
+                    );
+
                     var empresaIdParaDepartamento = viewModel.EmpresasIDs?.FirstOrDefault();
                     await GuardarDepartamentoUsuarioAsync(
                         usuarioCreado.UsuarioID,
@@ -564,7 +569,12 @@ namespace ProyectoMatrix.Controllers
                 };
 
                 await _usuarioService.ActualizarAsync(usuarioEditadoDto);
-                
+
+                await ActualizarClaveEmpleadoNominaDirectaAsync(
+                    viewModel.UsuarioID!.Value,
+                    viewModel.ClaveEmpleadoNomina
+                );
+
                 var empresaIdParaDepartamento = viewModel.EmpresasIDs?.FirstOrDefault();
 
                 await GuardarDepartamentoUsuarioAsync(
@@ -1557,5 +1567,33 @@ ORDER BY m.MenuID;";
             return metrica.VariablesConfiguradas.Any(v => v.VariableID == variableId.Value);
         }
 
+        private async Task ActualizarClaveEmpleadoNominaDirectaAsync(int usuarioId, string? claveEmpleadoNomina)
+        {
+            var personaId = await _context.Usuarios
+                .AsNoTracking()
+                .Where(u => u.UsuarioID == usuarioId)
+                .Select(u => u.PersonaID)
+                .FirstOrDefaultAsync();
+
+            if (personaId <= 0)
+            {
+                return;
+            }
+
+            var persona = await _context.Personas
+                .FirstOrDefaultAsync(p => p.PersonaID == personaId);
+
+            if (persona == null)
+            {
+                return;
+            }
+
+            persona.ClaveEmpleadoNomina = string.IsNullOrWhiteSpace(claveEmpleadoNomina)
+                ? null
+                : claveEmpleadoNomina.Trim();
+
+            await _context.SaveChangesAsync();
+        }
     }
+    
 }

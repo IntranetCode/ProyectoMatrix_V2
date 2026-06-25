@@ -445,6 +445,63 @@
     }
 
 
+
+
+    /* Departamento con icono integrado y compatible con Select2 */
+    .departamento-input-group {
+        flex-wrap: nowrap;
+    }
+
+    .departamento-icon {
+        width: 46px;
+        justify-content: center;
+        border: 2px solid var(--pm-border);
+        border-right: 0;
+        border-radius: 10px 0 0 10px;
+        background: #ffffff;
+        color: #ff6d00;
+    }
+
+    .departamento-select {
+        border-left: 0 !important;
+        border-radius: 0 10px 10px 0 !important;
+    }
+
+    .departamento-input-group .select2-container {
+        flex: 1 1 auto;
+        width: 1% !important;
+        min-width: 0;
+    }
+
+    .departamento-input-group .select2-container--bootstrap-5 .select2-selection {
+        min-height: 43px;
+        border: 2px solid var(--pm-border);
+        border-left: 0;
+        border-radius: 0 10px 10px 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .departamento-input-group .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+        padding-left: .9rem;
+        color: var(--pm-text);
+    }
+
+    .departamento-input-group .select2-container--bootstrap-5 .select2-selection--single .select2-selection__placeholder {
+        color: var(--pm-text-muted);
+    }
+
+    .departamento-input-group .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+    .departamento-input-group .select2-container--bootstrap-5.select2-container--open .select2-selection {
+        border-color: #ff6d00;
+        box-shadow: 0 0 0 .2rem rgba(255, 109, 0, .15);
+    }
+
+    .departamento-input-group:focus-within .departamento-icon {
+        border-color: #ff6d00;
+        color: #1a237e;
+    }
+
     /* Password fields sin controles nativos del navegador.
        Usamos type="text" + máscara visual para evitar el ojo/popup nativo de Edge dentro del modal. */
     .pm-secret-field.pm-secret-masked {
@@ -594,7 +651,7 @@
                         </div>
                         <div class="col-md-4">
                             <label asp-for="ClaveEmpleadoNomina" class="form-label-modern">Clave Nómina</label>
-                            <input asp-for="ClaveEmpleadoNomina" class="form-control form-control-modern" placeholder="Clave interna" />
+                            <input asp-for="ClaveEmpleadoNomina" type="text" class="form-control form-control-modern" placeholder="Ej: NSE00033" autocomplete="off" />
                         </div>
                         <div class="col-md-4">
                             <label asp-for="FechaIngreso" class="form-label-modern">Fecha de Ingreso</label>
@@ -620,15 +677,15 @@
                         <div class="col-md-12 mb-3">
                             <label asp-for="DepartamentoID" class="form-label-modern">Departamento</label>
 
-                            <div style="position: relative;">
-                                <i class="fas fa-sitemap text-primary"
-                                style="position:absolute; left:10px; top:50%; transform:translateY(-50%); z-index:10; pointer-events:none;"></i>
+                            <div class="input-group departamento-input-group">
+                                <span class="input-group-text departamento-icon">
+                                    <i class="fas fa-building"></i>
+                                </span>
 
                                 <select asp-for="DepartamentoID"
                                         id="selectDepartamento"
                                         name="DepartamentoID"
-                                        class="form-select form-control-modern"
-                                        style="padding-left: 32px;">
+                                        class="form-select form-control-modern departamento-select">
                                     <option value="">-- Seleccione un Departamento --</option>
 
                                     @foreach (var depto in departamentos)
@@ -1066,6 +1123,7 @@
                                 Enviar la nueva contraseña por correo si el usuario tiene correo registrado
                             </label>
                         </div>
+                    </div>
 
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
