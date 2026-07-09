@@ -53,13 +53,13 @@
         {
             <a asp-action="CrearSolicitud" class="btn btn-primary">Solicitar vacaciones</a>
         }
-        else
+       @* else
         {
-            @* Si NO tiene saldo y NO tiene permiso, botón de excepción *@
+            Si NO tiene saldo y NO tiene permiso, botón de excepción 
             <button type="button" class="btn btn-warning" onclick="abrirModalExcepcion()">
                 <i class="fas fa-lock-open me-1"></i> Solicitar habilitación de adelantadas
             </button>
-        }
+        }*@
 
 
         @if (ViewBag.EsJefeInmediato == true)
@@ -89,7 +89,7 @@
         }
     </div>
 
-    @*  Modal de Justificación  *@
+    @*  Modal de Justificación  
     <div class="modal fade" id="modalSolicitarAdelantadas" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -108,7 +108,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div>*@
 
 </div>
 
