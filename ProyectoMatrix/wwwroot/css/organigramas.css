@@ -1,0 +1,414 @@
+﻿/* ==========================================================
+   ORGANIGRAMAS - UI MODULE
+   ========================================================== */
+
+:root {
+    --org-bg: #f5f7fb;
+    --org-card: #ffffff;
+    --org-dark: #111827;
+    --org-muted: #6b7280;
+    --org-border: #e5e7eb;
+    --org-primary: #2563eb;
+    --org-primary-soft: #eff6ff;
+    --org-success-soft: #ecfdf5;
+    --org-danger-soft: #fef2f2;
+    --org-shadow: 0 12px 30px rgba(15, 23, 42, .08);
+    --org-shadow-sm: 0 6px 18px rgba(15, 23, 42, .06);
+    --org-radius: 1.25rem;
+}
+
+.organigramas-page,
+.organigrama-form-page {
+    background: radial-gradient(circle at top left, rgba(37, 99, 235, .08), transparent 28rem), radial-gradient(circle at top right, rgba(17, 24, 39, .07), transparent 24rem), var(--org-bg);
+    min-height: calc(100vh - 70px);
+}
+
+/* ==========================================================
+   HEADER / HERO
+   ========================================================== */
+
+.org-hero {
+    background: linear-gradient(135deg, #111827 0%, #1f2937 50%, #2563eb 100%);
+    color: #fff;
+    border-radius: var(--org-radius);
+    box-shadow: var(--org-shadow);
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+    .org-hero::after {
+        content: "";
+        position: absolute;
+        right: -60px;
+        top: -60px;
+        width: 220px;
+        height: 220px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .08);
+    }
+
+.org-hero-title {
+    font-weight: 800;
+    letter-spacing: -.04em;
+    margin-bottom: .25rem;
+}
+
+.org-hero-text {
+    color: rgba(255, 255, 255, .78);
+    margin-bottom: 0;
+}
+
+.org-icon-box {
+    width: 58px;
+    height: 58px;
+    border-radius: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+    backdrop-filter: blur(10px);
+}
+
+/* ==========================================================
+   CARDS
+   ========================================================== */
+
+.org-card {
+    background: var(--org-card);
+    border: 1px solid rgba(229, 231, 235, .85);
+    border-radius: var(--org-radius);
+    box-shadow: var(--org-shadow-sm);
+}
+
+    .org-card:hover {
+        box-shadow: var(--org-shadow);
+    }
+
+.org-card-header {
+    padding: 1.15rem 1.35rem;
+    border-bottom: 1px solid var(--org-border);
+    background: #fff;
+    border-top-left-radius: var(--org-radius);
+    border-top-right-radius: var(--org-radius);
+}
+
+.org-card-title {
+    font-weight: 800;
+    margin-bottom: .15rem;
+    color: var(--org-dark);
+}
+
+.org-card-subtitle {
+    color: var(--org-muted);
+    font-size: .875rem;
+}
+
+/* ==========================================================
+   STATS
+   ========================================================== */
+
+.org-stat {
+    padding: 1.25rem;
+}
+
+.org-stat-label {
+    color: var(--org-muted);
+    font-size: .75rem;
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: .06em;
+}
+
+.org-stat-value {
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 850;
+    color: var(--org-dark);
+}
+
+.org-stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--org-primary-soft);
+    color: var(--org-primary);
+}
+
+/* ==========================================================
+   TABLE
+   ========================================================== */
+
+.org-table {
+    margin-bottom: 0;
+}
+
+    .org-table thead th {
+        background: #f9fafb;
+        color: #374151;
+        font-size: .78rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        font-weight: 800;
+        border-bottom: 1px solid var(--org-border);
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .org-table tbody td {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        border-color: #eef2f7;
+    }
+
+    .org-table tbody tr {
+        transition: all .16s ease;
+    }
+
+        .org-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+.org-file-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f3f4f6;
+}
+
+.org-file-title {
+    font-weight: 800;
+    color: var(--org-dark);
+}
+
+.org-file-desc {
+    color: var(--org-muted);
+    font-size: .86rem;
+}
+
+.org-badge {
+    border-radius: 999px;
+    padding: .45rem .8rem;
+    font-size: .75rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+}
+
+/* ==========================================================
+   BUTTONS
+   ========================================================== */
+
+.org-btn-primary {
+    background: var(--org-dark);
+    border-color: var(--org-dark);
+    color: #fff;
+    border-radius: .9rem;
+    font-weight: 700;
+    box-shadow: 0 10px 18px rgba(17, 24, 39, .16);
+}
+
+    .org-btn-primary:hover {
+        background: #030712;
+        border-color: #030712;
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+.org-btn-soft {
+    border-radius: .8rem;
+    font-weight: 700;
+}
+
+.org-actions {
+    display: inline-flex;
+    gap: .4rem;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+/* ==========================================================
+   EMPTY STATE
+   ========================================================== */
+
+.org-empty {
+    padding: 4rem 1.5rem;
+    text-align: center;
+}
+
+.org-empty-icon {
+    width: 92px;
+    height: 92px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f3f4f6;
+    color: #9ca3af;
+    margin-bottom: 1rem;
+}
+
+/* ==========================================================
+   FORMS
+   ========================================================== */
+
+.org-form-control,
+.organigrama-form-page .form-control {
+    border-radius: .95rem;
+    border-color: var(--org-border);
+}
+
+    .org-form-control:focus,
+    .organigrama-form-page .form-control:focus {
+        border-color: var(--org-primary);
+        box-shadow: 0 0 0 .25rem rgba(37, 99, 235, .12);
+    }
+
+.org-upload-box {
+    border: 1.5px dashed #cbd5e1;
+    background: #f8fafc;
+    border-radius: 1.25rem;
+    padding: 1.35rem;
+    transition: all .16s ease;
+}
+
+    .org-upload-box:hover {
+        border-color: var(--org-primary);
+        background: #eff6ff;
+    }
+
+.org-upload-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 999px;
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--org-primary);
+    box-shadow: var(--org-shadow-sm);
+}
+
+/* ==========================================================
+   EMPRESA CHECKS
+   ========================================================== */
+
+.empresa-check-list {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    max-height: 460px;
+    overflow-y: auto;
+    padding-right: .35rem;
+}
+
+.empresa-check-item {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    border: 1px solid var(--org-border);
+    border-radius: 1rem;
+    padding: .9rem 1rem;
+    cursor: pointer;
+    background: #fff;
+    transition: all .16s ease;
+}
+
+    .empresa-check-item:hover {
+        background: #f8fafc;
+        border-color: #bfdbfe;
+        transform: translateY(-1px);
+    }
+
+    .empresa-check-item .form-check-input {
+        margin-top: 0;
+    }
+
+        .empresa-check-item .form-check-input:checked {
+            background-color: var(--org-primary);
+            border-color: var(--org-primary);
+        }
+
+.empresa-check-text {
+    font-weight: 700;
+    color: var(--org-dark);
+}
+
+/* ==========================================================
+   MODAL IFRAME
+   ========================================================== */
+
+.org-modal .modal-content {
+    border: 0;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
+}
+
+.org-modal .modal-header {
+    background: linear-gradient(135deg, #111827, #1f2937);
+    color: #fff;
+    border-bottom: 0;
+}
+
+.org-modal .modal-footer {
+    border-top: 1px solid var(--org-border);
+}
+
+.org-iframe {
+    width: 100%;
+    height: 78vh;
+    border: 0;
+    background: #fff;
+}
+
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+@media (max-width: 768px) {
+    .org-hero {
+        padding: 1.25rem;
+    }
+
+    .org-hero-title {
+        font-size: 1.45rem;
+    }
+
+    .org-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+        .org-actions .btn,
+        .org-actions form,
+        .org-actions form button {
+            width: 100%;
+        }
+
+    .org-table thead {
+        display: none;
+    }
+
+    .org-table tbody tr {
+        display: block;
+        padding: 1rem;
+        border-bottom: 1px solid var(--org-border);
+    }
+
+    .org-table tbody td {
+        display: block;
+        border: 0;
+        padding: .45rem 0;
+    }
+
+        .org-table tbody td.text-end {
+            text-align: left !important;
+        }
+}

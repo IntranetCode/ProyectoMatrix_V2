@@ -1,0 +1,404 @@
+﻿@model ProyectoMatrix.Models.OrganigramasIndexVm
+
+@{
+    ViewData["Title"] = "Organigramas";
+    Layout = "_LayoutComunicados";
+}
+
+<link rel="stylesheet" href="~/css/organigramas.css" asp-append-version="true" />
+
+<div class="container-fluid py-4 organigramas-page">
+
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-4 bg-dark text-white d-flex align-items-center justify-content-center"
+                     style="width: 56px; height: 56px;">
+                    <i class="fa-solid fa-sitemap fa-xl"></i>
+                </div>
+
+                <div>
+                    <h2 class="mb-1 fw-bold">Organigramas</h2>
+                    <p class="text-muted mb-0">
+                        Consulta los organigramas disponibles para tu empresa.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 d-flex justify-content-lg-end align-items-center mt-3 mt-lg-0">
+            @if (Model.PuedeCrear)
+            {
+                <a asp-action="Crear"
+                   asp-controller="Organigramas"
+                   class="btn btn-dark btn-lg shadow-sm">
+                    <i class="fa-solid fa-plus me-2"></i>
+                    Nuevo Organigrama
+                </a>
+            }
+        </div>
+    </div>
+
+    @if (TempData["Ok"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
+            <i class="fa-solid fa-circle-check me-2"></i>
+            @TempData["Ok"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0" role="alert">
+            <i class="fa-solid fa-triangle-exclamation me-2"></i>
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.AlertaSistema))
+    {
+        <div class="alert alert-warning shadow-sm border-0">
+            <i class="fa-solid fa-circle-info me-2"></i>
+            @Model.AlertaSistema
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small text-uppercase fw-semibold">
+                                Disponibles
+                            </div>
+                            <div class="fs-2 fw-bold">
+                                @(Model.Organigramas?.Count ?? 0)
+                            </div>
+                        </div>
+
+                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center"
+                             style="width: 48px; height: 48px;">
+                            <i class="fa-solid fa-folder-open text-dark"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.EsEditor)
+        {
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-muted small text-uppercase fw-semibold">
+                                    Perfil
+                                </div>
+                                <div class="fs-5 fw-bold">
+                                    Modo editor
+                                </div>
+                            </div>
+
+                            <span class="badge rounded-pill bg-dark px-3 py-2">
+                                Override activo
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">
+                        Formatos permitidos
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="badge rounded-pill bg-secondary">PDF</span>
+                        <span class="badge rounded-pill bg-secondary">PNG</span>
+                        <span class="badge rounded-pill bg-secondary">JPG</span>
+                        <span class="badge rounded-pill bg-secondary">JPEG</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Organigramas == null || !Model.Organigramas.Any())
+    {
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body text-center py-5">
+                <div class="rounded-circle bg-light mx-auto mb-3 d-flex align-items-center justify-content-center"
+                     style="width: 86px; height: 86px;">
+                    <i class="fa-solid fa-sitemap fa-3x text-muted"></i>
+                </div>
+
+                <h5 class="mb-2 fw-bold">No hay organigramas disponibles</h5>
+
+                <p class="text-muted mb-0">
+                    Aún no existen organigramas asignados para tu empresa.
+                </p>
+
+                @if (Model.PuedeCrear)
+                {
+                    <div class="mt-4">
+                        <a asp-action="Crear"
+                           asp-controller="Organigramas"
+                           class="btn btn-dark">
+                            <i class="fa-solid fa-plus me-2"></i>
+                            Crear primer organigrama
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-white border-0 py-3 px-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 fw-bold">Listado de organigramas</h5>
+                        <small class="text-muted">
+                            Archivos asignados por empresa.
+                        </small>
+                    </div>
+
+                    @if (Model.EsEditor)
+                    {
+                        <span class="badge bg-dark rounded-pill px-3 py-2">
+                            <i class="fa-solid fa-user-gear me-1"></i>
+                            Modo editor
+                        </span>
+                    }
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Organigrama</th>
+                            <th>Formato</th>
+                            <th>Empresas asignadas</th>
+                            <th>Fecha de carga</th>
+                            <th class="text-end pe-4">Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var item in Model.Organigramas)
+                        {
+                            var extension = item.Extension?.ToLowerInvariant() ?? "";
+                            var archivoUrl = Url.Action("Archivo", "Organigramas", new { id = item.OrganigramaID });
+
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3 rounded-3 bg-light d-flex align-items-center justify-content-center"
+                                             style="width: 48px; height: 48px;">
+                                            @if (item.EsPdf)
+                                            {
+                                                <i class="fa-solid fa-file-pdf fa-xl text-danger"></i>
+                                            }
+                                            else if (item.EsImagen)
+                                            {
+                                                <i class="fa-solid fa-file-image fa-xl text-primary"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="fa-solid fa-file fa-xl text-muted"></i>
+                                            }
+                                        </div>
+
+                                        <div>
+                                            <div class="fw-bold">
+                                                @item.Titulo
+                                            </div>
+
+                                            @if (!string.IsNullOrWhiteSpace(item.Descripcion))
+                                            {
+                                                <small class="text-muted">
+                                                    @item.Descripcion
+                                                </small>
+                                            }
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="badge rounded-pill bg-secondary text-uppercase px-3 py-2">
+                                        @extension
+                                    </span>
+                                </td>
+
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(item.EmpresasAsignadas))
+                                    {
+                                        <span class="text-dark">@item.EmpresasAsignadas</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Sin empresas asignadas</span>
+                                    }
+                                </td>
+
+                                <td>
+                                    <span class="text-muted">
+                                        @item.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+                                    </span>
+                                </td>
+
+                                <td class="text-end pe-4">
+                                    <div class="btn-group" role="group">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-dark btn-ver-organigrama"
+                                                data-url="@archivoUrl"
+                                                data-titulo="@item.Titulo">
+                                            <i class="fa-solid fa-eye me-1"></i>
+                                            Ver
+                                        </button>
+
+                                        @if (Model.PuedeEditar)
+                                        {
+                                            <a asp-action="Editar"
+                                               asp-controller="Organigramas"
+                                               asp-route-id="@item.OrganigramaID"
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fa-solid fa-pen me-1"></i>
+                                                Editar
+                                            </a>
+                                        }
+
+                                        @if (Model.PuedeEliminar)
+                                        {
+                                            <form asp-action="Eliminar"
+                                                  asp-controller="Organigramas"
+                                                  asp-route-id="@item.OrganigramaID"
+                                                  method="post"
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('¿Seguro que deseas eliminar este organigrama?');">
+
+                                                @Html.AntiForgeryToken()
+
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    <i class="fa-solid fa-trash me-1"></i>
+                                                    Eliminar
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal de vista previa -->
+<div class="modal fade"
+     id="modalOrganigrama"
+     tabindex="-1"
+     aria-labelledby="modalOrganigramaLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 rounded-4 overflow-hidden">
+
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" id="modalOrganigramaLabel">
+                    Vista de organigrama
+                </h5>
+
+                <button type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"
+                        aria-label="Cerrar"></button>
+            </div>
+
+            <div class="modal-body p-0 bg-light">
+                <iframe id="iframeOrganigrama"
+                        src=""
+                        style="width: 100%; height: 78vh; border: 0; background: #fff;"
+                        title="Vista de organigrama">
+                </iframe>
+            </div>
+
+            <div class="modal-footer bg-white">
+                <button type="button"
+                        class="btn btn-dark"
+                        data-bs-dismiss="modal">
+                    Cerrar
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .organigramas-page .card {
+        transition: all .2s ease-in-out;
+    }
+
+    .organigramas-page .table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .organigramas-page .btn-group form .btn {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modalElement = document.getElementById('modalOrganigrama');
+        const iframe = document.getElementById('iframeOrganigrama');
+        const tituloModal = document.getElementById('modalOrganigramaLabel');
+
+        let modalInstance = null;
+
+        if (window.bootstrap && bootstrap.Modal) {
+            modalInstance = new bootstrap.Modal(modalElement);
+        }
+
+        document.querySelectorAll('.btn-ver-organigrama').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const url = this.getAttribute('data-url');
+                const titulo = this.getAttribute('data-titulo') || 'Vista de organigrama';
+
+                tituloModal.textContent = titulo;
+                iframe.src = url + '#toolbar=0&navpanes=0&scrollbar=1';
+
+                if (modalInstance) {
+                    modalInstance.show();
+                } else if (window.jQuery) {
+                    $('#modalOrganigrama').modal('show');
+                }
+            });
+        });
+
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            iframe.src = '';
+            tituloModal.textContent = 'Vista de organigrama';
+        });
+
+        if (window.jQuery) {
+            $('#modalOrganigrama').on('hidden.bs.modal', function () {
+                iframe.src = '';
+                tituloModal.textContent = 'Vista de organigrama';
+            });
+        }
+    });
+</script>
