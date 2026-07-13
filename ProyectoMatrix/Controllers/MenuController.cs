@@ -239,6 +239,7 @@ ORDER BY m.MenuID;";
                 var s when s.Contains("internacional") => "fa-plane-departure",
                 var s when s.Contains("guias") => "fa-map-location-dot",
                 var s when s.Contains("directorio") => "fa-address-book",
+                var s when s.Contains("organigrama") => "fa-sitemap",
 
 
                 _ => "fa-cogs"
@@ -282,6 +283,7 @@ ORDER BY m.MenuID;";
                 var x when x.Contains("internacional") => "Solicitudes y gestión de compras internacionales",
                 var x when x.Contains("transporte") => "Gestión logística y entregas",
                 var x when x.Contains("directorio") => "Directorio de usuarios",
+                var x when x.Contains("organigrama") => "Organigramas por empresa",
 
                 _ => $"Accede a {nombreMenu}"
             };

@@ -7,69 +7,65 @@
 
 <link rel="stylesheet" href="~/css/organigramas.css" asp-append-version="true" />
 
-<div class="container-fluid py-4 organigrama-form-page">
+<div class="organigrama-form-page">
+    <div class="org-shell">
 
-    <div class="row mb-4">
-        <div class="col-lg-8">
-            <div class="d-flex align-items-center gap-3">
-                <div class="rounded-4 bg-dark text-white d-flex align-items-center justify-content-center"
-                     style="width: 56px; height: 56px;">
-                    <i class="fa-solid fa-sitemap fa-xl"></i>
+        <section class="org-hero">
+            <div class="org-hero-content">
+                <div class="org-hero-left">
+                    <div class="org-icon-box">
+                        <i class="fa-solid fa-sitemap fa-xl"></i>
+                    </div>
+
+                    <div>
+                        <h1 class="org-hero-title">Nuevo Organigrama</h1>
+                        <p class="org-hero-text">
+                            Sube un archivo y define qué empresas podrán consultarlo.
+                        </p>
+                    </div>
                 </div>
 
-                <div>
-                    <h2 class="mb-1 fw-bold">Nuevo Organigrama</h2>
-                    <p class="text-muted mb-0">
-                        Sube un archivo PDF o imagen y selecciona las empresas que podrán verlo.
-                    </p>
-                </div>
+                <a asp-action="Index"
+                   asp-controller="Organigramas"
+                   class="btn org-main-btn">
+                    <i class="fa-solid fa-arrow-left me-2"></i>
+                    Regresar
+                </a>
             </div>
-        </div>
+        </section>
 
-        <div class="col-lg-4 d-flex justify-content-lg-end align-items-center mt-3 mt-lg-0">
-            <a asp-action="Index"
-               asp-controller="Organigramas"
-               class="btn btn-outline-secondary btn-lg">
-                <i class="fa-solid fa-arrow-left me-2"></i>
-                Regresar
-            </a>
-        </div>
-    </div>
+        <form asp-action="Crear"
+              asp-controller="Organigramas"
+              method="post"
+              enctype="multipart/form-data">
 
-    <form asp-action="Crear"
-          asp-controller="Organigramas"
-          method="post"
-          enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
 
-        @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger shadow-sm border-0"></div>
 
-        <div asp-validation-summary="ModelOnly" class="alert alert-danger shadow-sm border-0"></div>
+            <div class="org-form-grid">
 
-        <div class="row g-4">
-
-            <div class="col-lg-8">
-
-                <div class="card border-0 shadow-sm rounded-4 mb-4">
-                    <div class="card-header bg-white border-0 px-4 py-3">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center"
-                                 style="width: 42px; height: 42px;">
-                                <i class="fa-solid fa-file-lines text-dark"></i>
-                            </div>
+                <section class="org-form-panel">
+                    <div class="org-form-panel-header">
+                        <div class="org-panel-heading">
+                            <span class="org-panel-icon">
+                                <i class="fa-solid fa-file-lines"></i>
+                            </span>
 
                             <div>
-                                <h5 class="mb-0 fw-bold">Información del organigrama</h5>
-                                <small class="text-muted">
-                                    Datos principales que verá el usuario final.
-                                </small>
+                                <div class="org-panel-eyebrow">Captura principal</div>
+                                <h2 class="org-panel-title">Información del organigrama</h2>
+                                <p class="org-panel-subtitle">
+                                    Estos datos serán visibles para los usuarios finales.
+                                </p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="card-body px-4 pb-4">
+                    <div class="org-form-panel-body">
 
-                        <div class="mb-4">
-                            <label asp-for="Titulo" class="form-label fw-semibold">
+                        <div class="org-field">
+                            <label asp-for="Titulo" class="org-label">
                                 Título
                             </label>
 
@@ -80,8 +76,8 @@
                             <span asp-validation-for="Titulo" class="text-danger small"></span>
                         </div>
 
-                        <div class="mb-4">
-                            <label asp-for="Descripcion" class="form-label fw-semibold">
+                        <div class="org-field">
+                            <label asp-for="Descripcion" class="org-label">
                                 Descripción
                             </label>
 
@@ -93,17 +89,16 @@
                             <span asp-validation-for="Descripcion" class="text-danger small"></span>
                         </div>
 
-                        <div class="mb-0">
-                            <label asp-for="Archivo" class="form-label fw-semibold">
+                        <div class="org-field">
+                            <label asp-for="Archivo" class="org-label">
                                 Archivo
                             </label>
 
-                            <div class="border rounded-4 p-4 bg-light">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="rounded-circle bg-white d-flex align-items-center justify-content-center shadow-sm"
-                                         style="width: 52px; height: 52px;">
-                                        <i class="fa-solid fa-cloud-arrow-up fa-lg text-dark"></i>
-                                    </div>
+                            <div class="org-upload-box">
+                                <div class="org-upload-content">
+                                    <span class="org-upload-icon">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    </span>
 
                                     <div class="flex-grow-1">
                                         <input asp-for="Archivo"
@@ -122,144 +117,101 @@
                         </div>
 
                     </div>
-                </div>
+                </section>
 
-            </div>
+                <aside>
+                    <section class="org-side-panel mb-3">
+                        <div class="org-side-panel-header dark">
+                            <div class="org-panel-heading">
+                                <span class="org-panel-icon">
+                                    <i class="fa-solid fa-building"></i>
+                                </span>
 
-            <div class="col-lg-4">
-
-                <div class="card border-0 shadow-sm rounded-4 mb-4">
-                    <div class="card-header bg-dark text-white border-0 px-4 py-3">
-                        <h5 class="mb-0 fw-bold">
-                            <i class="fa-solid fa-building me-2"></i>
-                            Empresas asignadas
-                        </h5>
-                    </div>
-
-                    <div class="card-body px-4 pb-4">
-
-                        <p class="text-muted small mb-3">
-                            Selecciona una o varias empresas. Los usuarios solo verán organigramas asignados a su empresa.
-                        </p>
-
-                        <span asp-validation-for="EmpresasSeleccionadas"
-                              class="text-danger small d-block mb-2"></span>
-
-                        @if (Model.Empresas != null && Model.Empresas.Any())
-                        {
-                            <div class="empresa-check-list">
-                                @foreach (var empresa in Model.Empresas)
-                                {
-                                    var empresaId = Convert.ToInt32(empresa.Value);
-                                    var estaSeleccionada = Model.EmpresasSeleccionadas.Contains(empresaId);
-
-                                    <label class="empresa-check-item">
-                                        @if (estaSeleccionada)
-                                        {
-                                            <input class="form-check-input"
-                                                   type="checkbox"
-                                                   name="EmpresasSeleccionadas"
-                                                   value="@empresa.Value"
-                                                   checked />
-                                        }
-                                        else
-                                        {
-                                            <input class="form-check-input"
-                                                   type="checkbox"
-                                                   name="EmpresasSeleccionadas"
-                                                   value="@empresa.Value" />
-                                        }
-
-                                        <span class="empresa-check-text">
-                                            @empresa.Text
-                                        </span>
-                                    </label>
-                                }
+                                <div>
+                                    <div class="org-panel-eyebrow">Control de acceso</div>
+                                    <h2 class="org-panel-title">Empresas asignadas</h2>
+                                    <p class="org-panel-subtitle">
+                                        Selecciona quién podrá ver este archivo.
+                                    </p>
+                                </div>
                             </div>
-                        }
-                        else
-                        {
-                            <div class="alert alert-warning mb-0">
-                                No hay empresas activas disponibles.
-                            </div>
-                        }
+                        </div>
 
-                    </div>
-                </div>
+                        <div class="org-side-panel-body">
+                            <span asp-validation-for="EmpresasSeleccionadas"
+                                  class="text-danger small d-block mb-2"></span>
 
-                <div class="card border-0 shadow-sm rounded-4">
-                    <div class="card-body">
-                        <h6 class="fw-bold mb-2">
-                            <i class="fa-solid fa-circle-info me-2"></i>
+                            @if (Model.Empresas != null && Model.Empresas.Any())
+                            {
+                                <div class="empresa-check-list">
+                                    @foreach (var empresa in Model.Empresas)
+                                    {
+                                        var empresaId = Convert.ToInt32(empresa.Value);
+                                        var estaSeleccionada = Model.EmpresasSeleccionadas.Contains(empresaId);
+
+                                        <label class="empresa-check-item">
+                                            @if (estaSeleccionada)
+                                            {
+                                                <input class="form-check-input"
+                                                       type="checkbox"
+                                                       name="EmpresasSeleccionadas"
+                                                       value="@empresa.Value"
+                                                       checked />
+                                            }
+                                            else
+                                            {
+                                                <input class="form-check-input"
+                                                       type="checkbox"
+                                                       name="EmpresasSeleccionadas"
+                                                       value="@empresa.Value" />
+                                            }
+
+                                            <span class="empresa-check-text">
+                                                @empresa.Text
+                                            </span>
+                                        </label>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning mb-0">
+                                    No hay empresas activas disponibles.
+                                </div>
+                            }
+                        </div>
+                    </section>
+
+                    <section class="org-help-card">
+                        <h3 class="org-help-title">
+                            <i class="fa-solid fa-circle-info text-warning"></i>
                             Recomendación
-                        </h6>
+                        </h3>
 
-                        <p class="text-muted small mb-0">
+                        <p class="org-help-text">
                             Para organigramas compartidos, selecciona todas las empresas que cohabitan bajo el mismo esquema.
                         </p>
-                    </div>
-                </div>
+                    </section>
+                </aside>
 
             </div>
 
-        </div>
+            <div class="org-form-actions">
+                <a asp-action="Index"
+                   asp-controller="Organigramas"
+                   class="org-secondary-btn">
+                    Cancelar
+                </a>
 
-        <div class="d-flex justify-content-end gap-2 mt-4">
-            <a asp-action="Index"
-               asp-controller="Organigramas"
-               class="btn btn-outline-secondary btn-lg">
-                Cancelar
-            </a>
+                <button type="submit" class="btn org-main-btn">
+                    <i class="fa-solid fa-save me-2"></i>
+                    Guardar Organigrama
+                </button>
+            </div>
 
-            <button type="submit" class="btn btn-dark btn-lg shadow-sm">
-                <i class="fa-solid fa-save me-2"></i>
-                Guardar Organigrama
-            </button>
-        </div>
-
-    </form>
+        </form>
+    </div>
 </div>
-
-<style>
-    .organigrama-form-page .card {
-        transition: all .2s ease-in-out;
-    }
-
-    .organigrama-form-page .form-control {
-        border-radius: .85rem;
-    }
-
-    .empresa-check-list {
-        display: flex;
-        flex-direction: column;
-        gap: .75rem;
-        max-height: 420px;
-        overflow-y: auto;
-        padding-right: .25rem;
-    }
-
-    .empresa-check-item {
-        display: flex;
-        align-items: center;
-        gap: .75rem;
-        border: 1px solid #e5e7eb;
-        border-radius: 1rem;
-        padding: .85rem 1rem;
-        cursor: pointer;
-        background: #fff;
-        transition: all .15s ease-in-out;
-    }
-
-        .empresa-check-item:hover {
-            background: #f8fafc;
-            border-color: #cbd5e1;
-        }
-
-    .empresa-check-text {
-        font-weight: 600;
-        color: #111827;
-    }
-</style>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
