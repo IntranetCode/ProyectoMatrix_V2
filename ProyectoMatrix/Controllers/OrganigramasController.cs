@@ -12,9 +12,6 @@ namespace ProyectoMatrix.Controllers
         private readonly ILogger<OrganigramasController> _logger;
         private readonly IWebHostEnvironment _env;
 
-        // SubMenuID que ya creaste para "Ver Organigrama"
-        // En tu captura aparece como 1034.
-        private const int SubMenuOrganigramasID = 1034;
 
         private const long MaxFileBytes = 20 * 1024 * 1024; // 20 MB
 
@@ -686,6 +683,73 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
+        [HttpGet]
+        public async Task<IActionResult> Visor(int id)
+        {
+            var usuarioId = ObtenerUsuarioId();
+
+            if (!usuarioId.HasValue)
+                return RedirectToAction("Login", "Login");
+
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var esEditor = await UsuarioTieneOverrideOrganigramasAsync(conn, usuarioId.Value);
+            var empresasUsuario = await ObtenerEmpresasActivasUsuarioAsync(conn, usuarioId.Value);
+
+            var puedeVer = await UsuarioPuedeVerOrganigramaAsync(
+                conn,
+                id,
+                empresasUsuario,
+                esEditor
+            );
+
+            if (!puedeVer)
+                return Forbid();
+
+            OrganigramaViewerVm? vm = null;
+
+            using (var cmd = new SqlCommand(@"
+        SELECT
+            OrganigramaID,
+            Titulo,
+            Extension,
+            MimeType
+        FROM dbo.Organigramas
+        WHERE OrganigramaID = @OrganigramaID
+          AND Activo = 1;
+    ", conn))
+            {
+                cmd.Parameters.AddWithValue("@OrganigramaID", id);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+
+                if (await rd.ReadAsync())
+                {
+                    vm = new OrganigramaViewerVm
+                    {
+                        OrganigramaID = ReadInt(rd, "OrganigramaID"),
+                        Titulo = ReadString(rd, "Titulo"),
+                        Extension = ReadString(rd, "Extension"),
+                        MimeType = ReadString(rd, "MimeType"),
+
+                        // IMPORTANTE:
+                        // URL relativa para evitar problemas con localhost, https, Dev Tunnels o proxy.
+                        ArchivoUrl = Url.Action(
+                            nameof(Archivo),
+                            "Organigramas",
+                            new { id }
+                        ) ?? string.Empty
+                    };
+                }
+            }
+
+            if (vm == null)
+                return NotFound();
+
+            return View("Visor", vm);
+        }
+
         // ==========================================================
         // CONSULTAS PRIVADAS
         // ==========================================================
@@ -842,14 +906,20 @@ namespace ProyectoMatrix.Controllers
         {
             using var cmd = new SqlCommand(@"
                 SELECT COUNT(1)
-                FROM dbo.PermisosUsuarioOverride
-                WHERE UsuarioID = @UsuarioID
-                  AND SubMenuID = @SubMenuID
-                  AND Decision = 1;
+                FROM dbo.PermisosUsuarioOverride PUO
+                INNER JOIN dbo.SubMenus SM
+                    ON SM.SubMenuID = PUO.SubMenuID
+                WHERE PUO.UsuarioID = @UsuarioID
+                    AND PUO.Decision = 1
+                    AND SM.Activo = 1
+                    AND (
+                        SM.UrlEnlace = '/Organigramas/Index'
+                        OR SM.UrlEnlace = '/Organigrama/Index'
+                        OR SM.Nombre LIKE '%Organigrama%'
+                    );
             ", conn);
 
             cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
-            cmd.Parameters.AddWithValue("@SubMenuID", SubMenuOrganigramasID);
 
             var total = Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
 

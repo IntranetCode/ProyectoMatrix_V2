@@ -71,6 +71,7 @@
                         <div class="org-kpi-label">Disponibles</div>
                         <div class="org-kpi-value">@(Model.Organigramas?.Count ?? 0)</div>
                     </div>
+
                     <div class="org-kpi-icon">
                         <i class="fa-solid fa-folder-open"></i>
                     </div>
@@ -81,6 +82,7 @@
                         <div class="org-kpi-label">Perfil</div>
                         <div class="org-kpi-text">Modo editor</div>
                     </div>
+
                     <span class="org-editor-pill">Override activo</span>
                 </div>
 
@@ -132,32 +134,24 @@
                 @foreach (var item in Model.Organigramas)
                 {
                     var extension = item.Extension?.ToLowerInvariant() ?? "";
-                    var archivoUrl = Url.Action("Archivo", "Organigramas", new { id = item.OrganigramaID }) ?? "#";
-                    var previewUrl = item.EsPdf
-                        ? $"{archivoUrl}#toolbar=0&navpanes=0&scrollbar=0&page=1&view=FitH"
-                        : archivoUrl;
+                    var viewerUrl = Url.Action("Visor", "Organigramas", new { id = item.OrganigramaID }) ?? "#";
 
                     <article class="org-doc-card">
                         <div class="org-doc-preview">
-                            @if (item.EsPdf)
-                            {
-                                <iframe class="org-doc-preview-frame"
-                                        src="@previewUrl"
-                                        title="Previsualización de @item.Titulo">
-                                </iframe>
-                            }
-                            else if (item.EsImagen)
-                            {
-                                <img class="org-doc-preview-img"
-                                     src="@archivoUrl"
-                                     alt="@item.Titulo" />
-                            }
-                            else
-                            {
-                                <div class="org-doc-preview-fallback">
+                            <div class="org-doc-preview-fallback">
+                                @if (item.EsPdf)
+                                {
+                                    <i class="fa-solid fa-file-pdf text-danger"></i>
+                                }
+                                else if (item.EsImagen)
+                                {
+                                    <i class="fa-solid fa-file-image text-primary"></i>
+                                }
+                                else
+                                {
                                     <i class="fa-solid fa-file text-muted"></i>
-                                </div>
-                            }
+                                }
+                            </div>
                         </div>
 
                         <div class="org-doc-body">
@@ -195,10 +189,10 @@
 
                             <button type="button"
                                     class="org-doc-action btn-ver-organigrama"
-                                    data-url="@archivoUrl"
+                                    data-viewer-url="@viewerUrl"
                                     data-titulo="@item.Titulo">
                                 <i class="fa-solid fa-eye"></i>
-                                Ver organigrama
+                                <span>Ver organigrama</span>
                             </button>
                         </div>
                     </article>
@@ -245,7 +239,7 @@
                             @foreach (var item in Model.Organigramas)
                             {
                                 var extension = item.Extension?.ToLowerInvariant() ?? "";
-                                var archivoUrl = Url.Action("Archivo", "Organigramas", new { id = item.OrganigramaID });
+                                var viewerUrl = Url.Action("Visor", "Organigramas", new { id = item.OrganigramaID }) ?? "#";
 
                                 <tr>
                                     <td>
@@ -312,7 +306,7 @@
                                         <div class="org-actions">
                                             <button type="button"
                                                     class="btn-ver-organigrama"
-                                                    data-url="@archivoUrl"
+                                                    data-viewer-url="@viewerUrl"
                                                     data-titulo="@item.Titulo"
                                                     title="Ver organigrama">
                                                 <i class="fa-solid fa-eye"></i>
@@ -393,10 +387,31 @@
             </div>
 
             <div class="modal-body">
-                <iframe id="iframeOrganigrama"
+                <div id="visorPlaceholder" class="org-viewer-placeholder">
+                    <div class="org-viewer-icon">
+                        <i class="fa-solid fa-file-lines"></i>
+                    </div>
+
+                    <h5 class="org-viewer-title">
+                        Vista previa no cargada
+                    </h5>
+
+                    <p class="org-viewer-text">
+                        Para mejorar el rendimiento, el visor se cargará solo cuando lo solicites.
+                    </p>
+
+                    <button type="button"
+                            id="btnCargarVistaPrevia"
+                            class="btn org-main-btn">
+                        <i class="fa-solid fa-play me-2"></i>
+                        Cargar visor
+                    </button>
+                </div>
+
+                <iframe id="iframeViewerOrganigrama"
                         src=""
-                        class="org-iframe"
-                        title="Vista de organigrama">
+                        class="org-iframe d-none"
+                        title="Visor de organigrama">
                 </iframe>
             </div>
 
@@ -415,10 +430,13 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const modalElement = document.getElementById('modalOrganigrama');
-        const iframe = document.getElementById('iframeOrganigrama');
+        const iframeViewer = document.getElementById('iframeViewerOrganigrama');
         const tituloModal = document.getElementById('modalOrganigramaLabel');
+        const placeholder = document.getElementById('visorPlaceholder');
+        const btnCargar = document.getElementById('btnCargarVistaPrevia');
 
         let modalInstance = null;
+        let viewerUrlActual = '';
 
         if (window.bootstrap && bootstrap.Modal) {
             modalInstance = new bootstrap.Modal(modalElement);
@@ -426,11 +444,15 @@
 
         document.querySelectorAll('.btn-ver-organigrama').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                const url = this.getAttribute('data-url');
+                const viewerUrl = this.getAttribute('data-viewer-url');
                 const titulo = this.getAttribute('data-titulo') || 'Vista de organigrama';
 
+                viewerUrlActual = viewerUrl || '';
                 tituloModal.textContent = titulo;
-                iframe.src = url + '#toolbar=0&navpanes=0&scrollbar=1';
+
+                iframeViewer.src = '';
+                iframeViewer.classList.add('d-none');
+                placeholder.classList.remove('d-none');
 
                 if (modalInstance) {
                     modalInstance.show();
@@ -440,15 +462,31 @@
             });
         });
 
+        btnCargar.addEventListener('click', function () {
+            if (!viewerUrlActual) {
+                return;
+            }
+
+            placeholder.classList.add('d-none');
+            iframeViewer.classList.remove('d-none');
+            iframeViewer.src = viewerUrlActual;
+        });
+
         modalElement.addEventListener('hidden.bs.modal', function () {
-            iframe.src = '';
+            iframeViewer.src = '';
+            iframeViewer.classList.add('d-none');
+            placeholder.classList.remove('d-none');
             tituloModal.textContent = 'Vista de organigrama';
+            viewerUrlActual = '';
         });
 
         if (window.jQuery) {
             $('#modalOrganigrama').on('hidden.bs.modal', function () {
-                iframe.src = '';
+                iframeViewer.src = '';
+                iframeViewer.classList.add('d-none');
+                placeholder.classList.remove('d-none');
                 tituloModal.textContent = 'Vista de organigrama';
+                viewerUrlActual = '';
             });
         }
     });

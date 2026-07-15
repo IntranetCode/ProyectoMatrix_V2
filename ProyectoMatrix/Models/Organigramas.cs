@@ -71,4 +71,50 @@ namespace ProyectoMatrix.Models
 
         public string? ExtensionActual { get; set; }
     }
+
+    public class OrganigramaViewerVm
+    {
+        public int OrganigramaID { get; set; }
+
+        public string Titulo { get; set; } = string.Empty;
+
+        public string Extension { get; set; } = string.Empty;
+
+        public string MimeType { get; set; } = string.Empty;
+
+        public string ArchivoUrl { get; set; } = string.Empty;
+
+        public string ExtensionNormalizada
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(Extension))
+                    return string.Empty;
+
+                return Extension
+                    .Trim()
+                    .TrimStart('.')
+                    .ToLowerInvariant();
+            }
+        }
+
+        public bool EsPdf
+        {
+            get
+            {
+                return ExtensionNormalizada == "pdf";
+            }
+        }
+
+        public bool EsImagen
+        {
+            get
+            {
+                return ExtensionNormalizada == "png"
+                    || ExtensionNormalizada == "jpg"
+                    || ExtensionNormalizada == "jpeg";
+            }
+        }
+    }
+
 }
