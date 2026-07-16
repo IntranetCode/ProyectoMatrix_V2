@@ -193,12 +193,22 @@
 
     
     @{
+        /*
+         * FLUJO ACTUAL:
+         * 1  = Pendiente de cotización (se muestra en la tabla superior)
+         * 2  = Cotizaciones cargadas (se muestra en "En Seguimiento")
+         * 10 = Cerrada (se muestra en "Finalizadas")
+         *
+         * Los estados 3 al 9 se conservan en seguimiento únicamente
+         * para consultar solicitudes históricas del proceso anterior.
+         * Los estados 11 y 12 se conservan como finalizaciones extraordinarias.
+         */
         var seguimiento = Model.Historico
-        .Where(x => new[] { 2, 3, 4, 5, 6, 8 }.Contains(x.EstatusID))
+        .Where(x => new[] { 2, 3, 4, 5, 6, 7, 8, 9 }.Contains(x.EstatusID))
         .ToList();
 
         var finalizadas = Model.Historico
-        .Where(x => new[] { 9, 10, 11 }.Contains(x.EstatusID))
+        .Where(x => new[] { 10, 11, 12 }.Contains(x.EstatusID))
         .ToList();
     }
     
@@ -334,9 +344,13 @@
                                         <td>
 
                                             @{
-                                                string badge = item.EstatusID == 10
-                                                ? "bg-success"
-                                                : "bg-danger";
+                                                string badge = item.EstatusID switch
+                                                {
+                                                    10 => "bg-success",
+                                                    11 => "bg-danger",
+                                                    12 => "bg-secondary",
+                                                    _ => "bg-secondary"
+                                                };
                                             }
 
                                             <span class="badge @badge">

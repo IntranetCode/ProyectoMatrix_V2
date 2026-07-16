@@ -131,7 +131,7 @@
                                                                                         : "No capturado")
                                         </span>
                                     </div>
-
+                                    @*
                                     <div class="col-md-6">
                                         <label class="small font-weight-bold text-muted uppercase d-block">
                                             Estatus presupuestal inicial
@@ -152,6 +152,7 @@
                                             </span>
                                         }
                                     </div>
+                                    *@
                                 </div>
 
                                 @if (Model.FueraPresupuestoUsuario)
@@ -410,7 +411,27 @@
                     </div>
                 }
 
-                @if (!esRechazada && !esCancelada)
+                @*
+                    El seguimiento operativo anterior se conserva para consultar
+                    solicitudes históricas que sí pasaron por O.C., proveedor,
+                    almacén o entrega. Las solicitudes nuevas usan 1 -> 2 -> 10.
+                *@
+                @if (
+                    !esRechazada
+                    && !esCancelada
+                    && (
+                        (Model.EstatusID >= 3 && Model.EstatusID <= 9)
+                        || (
+                            Model.EstatusID == 10
+                            && (
+                                Model.TieneOC
+                                || Model.OCEnviadaProveedor
+                                || Model.RecibidaEnAlmacen
+                                || Model.EntregadaUsuario
+                            )
+                        )
+                    )
+                )
             {
                 <div class="card shadow mb-4 border-left-primary">
                     <div class="card-header py-3 bg-info text-white">
@@ -741,7 +762,7 @@
                                         @if (cot.FueSeleccionadaPorUsuario)
                                         {
                                                 <span class="badge badge-primary">
-                                                    Dictaminada por Compras
+                                                    Cotización seleccionada
                                                 </span>
                                         }
                                     </div>
@@ -756,7 +777,7 @@
                                     {
                                         <div class="alert alert-primary mt-2 mb-2">
                                             <i class="fas fa-check-circle mr-1"></i>
-                                                Esta cotización fue dictaminada por Compras para proceder.
+                                                Esta cotización fue seleccionada para cerrar la solicitud.
                                         </div>
                                     }
 
@@ -802,47 +823,42 @@
                                             Ver archivo
                                         </button>
 
-                                        @if (Model.EsCompras
-                                                                        && (Model.EstatusID == 2 || Model.EstatusID == 3)
-                                                                        && (!Model.CotizacionSeleccionadaID.HasValue
-                                                                        || Model.CotizacionSeleccionadaID.Value != cot.CotizacionID))
+                                        @if (
+                                            Model.EsCompras
+                                            && Model.EstatusID == 2
+                                            && !Model.CotizacionSeleccionadaID.HasValue
+                                        )
                                         {
                                             <form asp-action="SeleccionarCotizacion"
                                                   method="post"
-                                                  class="mt-2">
+                                                  class="mt-2"
+                                                  onsubmit="return confirm('¿Confirmas que deseas seleccionar esta cotización y cerrar la solicitud?');">
 
                                                 @Html.AntiForgeryToken()
 
-                                                <input type="hidden" name="solicitudId" value="@Model.SolicitudID" />
-                                                <input type="hidden" name="cotizacionId" value="@cot.CotizacionID" />
+                                                <input type="hidden"
+                                                       name="solicitudId"
+                                                       value="@Model.SolicitudID" />
+
+                                                <input type="hidden"
+                                                       name="cotizacionId"
+                                                       value="@cot.CotizacionID" />
 
                                                 <div class="form-group">
                                                     <textarea name="comentarios"
-                                                  class="form-control"
-                                                  rows="2"
-                                                  placeholder="Comentario de Compras"></textarea>
+                                                              class="form-control"
+                                                              rows="2"
+                                                              maxlength="500"
+                                                              placeholder="Comentario de Compras"></textarea>
                                                 </div>
 
-                                                @if (Model.CotizacionSeleccionadaID.HasValue)
-                                                {
-                                                    <div class="form-group">
-                                                        <textarea name="motivoCambio"
-                                                  class="form-control"
-                                                  rows="2"
-                                                  required
-                                                  placeholder="Motivo obligatorio del cambio de cotización"></textarea>
-                                                    </div>
-                                                }
-
-                                            <button type="submit"
-                                                    class="btn btn-success btn-sm btn-block">
-                                                @(Model.CotizacionSeleccionadaID.HasValue
-                                                                                        ? "Cambiar a esta cotización"
-                                                                                        : "Dictaminar esta cotización")
-                                    </button>
-                                </form>
-                                                                
-                                                                }
+                                                <button type="submit"
+                                                        class="btn btn-success btn-sm btn-block">
+                                                    <i class="fas fa-check-circle mr-1"></i>
+                                                    Seleccionar cotización y cerrar compra
+                                                </button>
+                                            </form>
+                                        }
 
   
                                 </div>
@@ -1001,6 +1017,12 @@
     {
         <div class="alert alert-warning">
             Compras aún no ha cargado cotizaciones para esta solicitud.
+        </div>
+    }
+    else if (Model.EstatusID == 10)
+    {
+        <div class="alert alert-success">
+            La solicitud está cerrada. La cotización seleccionada se muestra en esta sección.
         </div>
     }
     else

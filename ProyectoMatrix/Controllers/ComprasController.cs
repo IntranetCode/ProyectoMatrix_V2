@@ -1,5 +1,6 @@
 ﻿using ClosedXML.Excel;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Data.SqlClient;
 using ProyectoMatrix.Helpers;
 using ProyectoMatrix.Models;
@@ -17,6 +18,11 @@ namespace ProyectoMatrix.Controllers
         private readonly ServicioNotificaciones _notif;
         private readonly RutaNas _rutaNas;          // Usamos solo ObtenerNombreCarpetaProyecto
         private readonly ISftpStorage _sftp;
+
+        // Empresas especiales para el módulo de Compras.
+        private const int EmpresaNsEquipoId = 2;
+        private const int EmpresaNsFortId = 4;
+
        // private const int DepartamentoEmpresaComprasIdNSE = 8;
 
         public ComprasController(IConfiguration configuration, ILogger<ComprasController> logger, ServicioNotificaciones notif, RutaNas rutaNas, ISftpStorage sftp)
@@ -28,6 +34,106 @@ namespace ProyectoMatrix.Controllers
             _rutaNas = rutaNas;
 
 
+        }
+
+
+        /// <summary>
+        /// Obtiene las empresas que el usuario puede utilizar al crear una solicitud.
+        /// NS FORT solo se agrega cuando el usuario pertenece activamente a
+        /// NS EQUIPO E IMPLEMENTOS.
+        /// </summary>
+        private async Task<List<SelectListItem>> ObtenerEmpresasPermitidasParaSolicitudAsync(
+            SqlConnection conn,
+            int usuarioId)
+        {
+            var empresas = new List<SelectListItem>();
+
+            const string sql = @"
+SELECT
+    E.EmpresaID,
+    E.Nombre
+FROM Empresas AS E
+WHERE E.Activa = 1
+  AND
+  (
+      (
+          E.EmpresaID <> @EmpresaNsFortId
+          AND EXISTS
+          (
+              SELECT 1
+              FROM UsuariosEmpresas AS UE
+              WHERE UE.UsuarioID = @UsuarioID
+                AND UE.EmpresaID = E.EmpresaID
+                AND UE.Activo = 1
+          )
+      )
+      OR
+      (
+          E.EmpresaID = @EmpresaNsFortId
+          AND EXISTS
+          (
+              SELECT 1
+              FROM UsuariosEmpresas AS UEEquipo
+              INNER JOIN Empresas AS EEquipo
+                  ON EEquipo.EmpresaID = UEEquipo.EmpresaID
+              WHERE UEEquipo.UsuarioID = @UsuarioID
+                AND UEEquipo.EmpresaID = @EmpresaNsEquipoId
+                AND UEEquipo.Activo = 1
+                AND EEquipo.Activa = 1
+          )
+      )
+  )
+ORDER BY
+    CASE
+        WHEN E.EmpresaID = @EmpresaNsEquipoId THEN 0
+        WHEN E.EmpresaID = @EmpresaNsFortId THEN 1
+        ELSE 2
+    END,
+    E.Nombre;";
+
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                cmd.Parameters.AddWithValue("@EmpresaNsEquipoId", EmpresaNsEquipoId);
+                cmd.Parameters.AddWithValue("@EmpresaNsFortId", EmpresaNsFortId);
+
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        empresas.Add(new SelectListItem
+                        {
+                            Value = reader["EmpresaID"].ToString(),
+                            Text = reader["Nombre"]?.ToString() ?? string.Empty
+                        });
+                    }
+                }
+            }
+
+            return empresas;
+        }
+
+        /// <summary>
+        /// NS FORT comparte compradores con NS EQUIPO E IMPLEMENTOS.
+        /// </summary>
+        private static int ObtenerEmpresaCompradoresId(int empresaSolicitudId)
+        {
+            return empresaSolicitudId == EmpresaNsFortId
+                ? EmpresaNsEquipoId
+                : empresaSolicitudId;
+        }
+
+        /// <summary>
+        /// Determina si una empresa de solicitud pertenece a la bandeja operativa
+        /// de la empresa activa del usuario de Compras.
+        /// </summary>
+        private static bool EmpresaSolicitudPermitidaEnBandeja(
+            int empresaActivaId,
+            int empresaSolicitudId)
+        {
+            return empresaSolicitudId == empresaActivaId
+                || (empresaActivaId == EmpresaNsEquipoId
+                    && empresaSolicitudId == EmpresaNsFortId);
         }
 
 
@@ -117,6 +223,140 @@ WHERE ED.UsuarioID = @UsuarioID
                     }
                 }
 
+                string puestoNormalizado = (puesto ?? "").Trim().ToUpperInvariant();
+
+                bool esDireccionCompras =
+                    puestoNormalizado.Contains("DIRECCION COMPRAS") ||
+                    puestoNormalizado.Contains("DIRECCIÓN COMPRAS") ||
+                    puestoNormalizado.Contains("DIRECTOR DE COMPRAS") ||
+                    puestoNormalizado.Contains("DIRECTORA DE COMPRAS");
+
+                if (esDireccionCompras)
+                {
+                    /*
+                     * FLUJO ACTUAL 1 -> 2 -> 10
+                     *
+                     * La pantalla Index solamente necesita:
+                     * - Total de solicitudes críticas activas.
+                     * - Datos generales de los estados 1, 2 y 10.
+                     *
+                     * El procedimiento sp_Compras_DataDashBoard conserva
+                     * dos resultsets para mantener compatibilidad:
+                     * 1) Heatmap de estados activos 1 y 2.
+                     * 2) Dona de estados 1, 2 y 10.
+                     */
+
+                    string sqlCriticos = @"
+SELECT COUNT(*)
+FROM Compras_Solicitud AS S
+OUTER APPLY
+(
+    SELECT MAX(H.FechaMovimiento) AS FechaUltimoMovimiento
+    FROM Compras_Historico_Pasos AS H
+    WHERE H.SolicitudID = S.SolicitudID
+) AS Ultimo
+WHERE S.UrgenciaID = 4
+  AND S.EstatusID IN (1, 2)
+  AND DATEDIFF(
+        HOUR,
+        ISNULL(Ultimo.FechaUltimoMovimiento, S.FechaCreacion),
+        GETDATE()
+      ) > 24;";
+
+                    using (var cmdCriticos = new SqlCommand(sqlCriticos, conn))
+                    {
+                        stats.CriticosVencidos =
+                            Convert.ToInt32(await cmdCriticos.ExecuteScalarAsync());
+                    }
+
+                    using (var cmdDashboard =
+                           new SqlCommand("sp_Compras_DataDashBoard", conn))
+                    {
+                        cmdDashboard.CommandType = CommandType.StoredProcedure;
+
+                        using (var reader = await cmdDashboard.ExecuteReaderAsync())
+                        {
+                            var promediosActivos = new List<double>();
+
+                            // Resultset 1: estados activos 1 y 2.
+                            while (await reader.ReadAsync())
+                            {
+                                string departamento =
+                                    reader["NombreDepartamento"]?.ToString()
+                                    ?? "Compras";
+
+                                string estatus =
+                                    reader["Estatus"]?.ToString()
+                                    ?? "Sin estatus";
+
+                                int promedioHoras =
+                                    reader["PromedioHorasEstancado"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToInt32(
+                                            reader["PromedioHorasEstancado"]
+                                        );
+
+                                var serie = stats.HeatmapData
+                                    .FirstOrDefault(x => x.name == departamento);
+
+                                if (serie == null)
+                                {
+                                    serie = new HeatmapSeries
+                                    {
+                                        name = departamento
+                                    };
+
+                                    stats.HeatmapData.Add(serie);
+                                }
+
+                                serie.data.Add(new HeatmapDataPoint
+                                {
+                                    x = estatus,
+                                    y = promedioHoras
+                                });
+
+                                promediosActivos.Add(promedioHoras);
+                            }
+
+                            stats.PromedioTotal = promediosActivos.Any()
+                                ? promediosActivos.Average()
+                                : 0;
+
+                            // Resultset 2: estados 1, 2 y 10.
+                            if (await reader.NextResultAsync())
+                            {
+                                while (await reader.ReadAsync())
+                                {
+                                    stats.DonaEtiquetas.Add(
+                                        reader["Estatus"]?.ToString()
+                                        ?? "Sin estatus"
+                                    );
+
+                                    stats.DonaValores.Add(
+                                        reader["Total"] == DBNull.Value
+                                            ? 0
+                                            : Convert.ToDecimal(reader["Total"])
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+                #region CODIGO LEGADO - ESTADISTICAS DEL PROCESO ANTERIOR
+
+                /*
+                 * Este bloque calculaba tiempos de:
+                 * - Control Presupuestal.
+                 * - Orden de compra.
+                 * - Proveedor.
+                 * - Almacén.
+                 *
+                 * Se conserva completo como referencia histórica,
+                 * pero ya no se compila en el flujo simplificado.
+                 */
+
+#if false
                 if (puesto == "DIRECCION COMPRAS")
                 {
                     string sqlStats = @"
@@ -286,6 +526,9 @@ WHERE S.EstatusID NOT IN (11, 12)";
                         }
                     }
                 }
+#endif
+
+                #endregion
             }
 
             model.MisCompras = solicitudes;
@@ -302,55 +545,38 @@ WHERE S.EstatusID NOT IN (11, 12)";
         public async Task<IActionResult> NuevaSolicitud()
         {
             int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0) return Unauthorized();
+            if (usuarioId == 0)
+                return Unauthorized();
 
             using (var conn = new SqlConnection(_connectionString))
             {
                 await conn.OpenAsync();
 
-                var empresas = new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
+                ViewBag.Empresas =
+                    await ObtenerEmpresasPermitidasParaSolicitudAsync(
+                        conn,
+                        usuarioId
+                    );
 
-                string sqlEmpresas = @"
-            SELECT E.EmpresaID, E.Nombre
-            FROM UsuariosEmpresas UE
-            INNER JOIN Empresas E ON UE.EmpresaID = E.EmpresaID
-            WHERE UE.UsuarioID = @UsuarioID
-              AND UE.Activo = 1
-              AND E.Activa = 1
-            ORDER BY E.Nombre";
+                var urgencias = new List<SelectListItem>();
 
-                using (var cmd = new SqlCommand(sqlEmpresas, conn))
+                const string sqlUrgencias = @"
+SELECT
+    UrgenciaID,
+    Descripcion
+FROM Cat_Urgencia
+ORDER BY UrgenciaID;";
+
+                using (var cmdUrgencias = new SqlCommand(sqlUrgencias, conn))
+                using (var readerUrgencias = await cmdUrgencias.ExecuteReaderAsync())
                 {
-                    cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
-
-                    using (var reader = await cmd.ExecuteReaderAsync())
+                    while (await readerUrgencias.ReadAsync())
                     {
-                        while (await reader.ReadAsync())
+                        urgencias.Add(new SelectListItem
                         {
-                            empresas.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
-                            {
-                                Value = reader["EmpresaID"].ToString(),
-                                Text = reader["Nombre"].ToString()
-                            });
-                        }
-                    }
-                }
-
-                ViewBag.Empresas = empresas;
-
-                var urgencias = new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-
-                string sqlUrg = "SELECT UrgenciaID, Descripcion FROM Cat_Urgencia";
-
-                using (var cmdU = new SqlCommand(sqlUrg, conn))
-                using (var readerU = await cmdU.ExecuteReaderAsync())
-                {
-                    while (await readerU.ReadAsync())
-                    {
-                        urgencias.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
-                        {
-                            Value = readerU["UrgenciaID"].ToString(),
-                            Text = readerU["Descripcion"].ToString()
+                            Value = readerUrgencias["UrgenciaID"].ToString(),
+                            Text = readerUrgencias["Descripcion"]?.ToString()
+                                ?? string.Empty
                         });
                     }
                 }
@@ -383,15 +609,21 @@ WHERE S.EstatusID NOT IN (11, 12)";
                 ModelState.AddModelError("NombreProyecto", "Debes capturar el nombre del proyecto.");
             }
 
-            if (!model.MontoPresupuestoSolicitado.HasValue || model.MontoPresupuestoSolicitado.Value <= 0)
+            // El presupuesto ahora es opcional. Si se captura, debe ser mayor a cero.
+            if (model.MontoPresupuestoSolicitado.HasValue
+                && model.MontoPresupuestoSolicitado.Value <= 0)
             {
                 ModelState.AddModelError(
                     "MontoPresupuestoSolicitado",
-                    "Debes capturar el presupuesto aproximado o solicitado para esta compra."
+                    "El presupuesto debe ser mayor a cero o dejarse como opcional."
                 );
             }
 
-           
+            // Sin monto no puede marcarse como compra fuera de presupuesto.
+            if (!model.MontoPresupuestoSolicitado.HasValue)
+            {
+                model.FueraPresupuestoUsuario = false;
+            }
 
             if (!ModelState.IsValid)
             {
@@ -455,8 +687,16 @@ SELECT SCOPE_IDENTITY();";
                                 cmd.Parameters.AddWithValue("@trans", (object)model.TransporteID ?? DBNull.Value);
                                 cmd.Parameters.AddWithValue("@com", (object)model.Comentarios ?? DBNull.Value);
                                 cmd.Parameters.AddWithValue("@puesto", puestoAsignado);
-                                cmd.Parameters.AddWithValue("@MontoPresupuestoSolicitado", model.MontoPresupuestoSolicitado.Value);
-                                cmd.Parameters.AddWithValue("@FueraPresupuestoUsuario", model.FueraPresupuestoUsuario);
+                                cmd.Parameters.AddWithValue(
+                                    "@MontoPresupuestoSolicitado",
+                                    (object?)model.MontoPresupuestoSolicitado ?? DBNull.Value
+                                );
+
+                                cmd.Parameters.AddWithValue(
+                                    "@FueraPresupuestoUsuario",
+                                    model.MontoPresupuestoSolicitado.HasValue
+                                        && model.FueraPresupuestoUsuario
+                                );
 
                                 nuevaSolicitudId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
@@ -661,33 +901,44 @@ WHERE DetalleID = @DetalleID";
         }
 
 
-        //metodo pricado para obtener a un comprador 
+        // Método privado para obtener al comprador con menor carga.
+        // Las solicitudes de NS FORT se atienden con compradores de NS EQUIPO.
         private async Task<int?> ObtenerCompradorConMenosCargaAsync(
-      SqlConnection conn,
-      SqlTransaction trans,
-      string puestoComprador,
-      int empresaId)
+            SqlConnection conn,
+            SqlTransaction trans,
+            string puestoComprador,
+            int empresaId)
         {
-            string sql = @"
-        SELECT TOP 1 U.UsuarioID
-        FROM Usuarios U
-        INNER JOIN Persona P ON U.PersonaID = P.PersonaID
-        INNER JOIN UsuariosEmpresas UE 
-            ON U.UsuarioID = UE.UsuarioID
-           AND UE.Activo = 1
-           AND UE.EmpresaID = @EmpresaID
-        LEFT JOIN Compras_Solicitud S
-            ON S.CompradorAsignadoUsuarioID = U.UsuarioID
-           AND S.EstatusID = 1
-        WHERE P.EsColaboradorActivo = 1
-          AND UPPER(P.Puesto) = UPPER(@Puesto)
-        GROUP BY U.UsuarioID
-        ORDER BY COUNT(S.SolicitudID) ASC, U.UsuarioID ASC";
+            int empresaCompradoresId = ObtenerEmpresaCompradoresId(empresaId);
+
+            const string sql = @"
+SELECT TOP 1
+    U.UsuarioID
+FROM Usuarios AS U
+INNER JOIN Persona AS P
+    ON U.PersonaID = P.PersonaID
+INNER JOIN UsuariosEmpresas AS UE
+    ON U.UsuarioID = UE.UsuarioID
+   AND UE.Activo = 1
+   AND UE.EmpresaID = @EmpresaCompradoresID
+LEFT JOIN Compras_Solicitud AS S
+    ON S.CompradorAsignadoUsuarioID = U.UsuarioID
+   AND S.EstatusID IN (1, 2)
+WHERE P.EsColaboradorActivo = 1
+  AND UPPER(LTRIM(RTRIM(P.Puesto))) =
+      UPPER(LTRIM(RTRIM(@Puesto)))
+GROUP BY U.UsuarioID
+ORDER BY
+    COUNT(S.SolicitudID) ASC,
+    U.UsuarioID ASC;";
 
             using (var cmd = new SqlCommand(sql, conn, trans))
             {
                 cmd.Parameters.AddWithValue("@Puesto", puestoComprador);
-                cmd.Parameters.AddWithValue("@EmpresaID", empresaId);
+                cmd.Parameters.AddWithValue(
+                    "@EmpresaCompradoresID",
+                    empresaCompradoresId
+                );
 
                 var result = await cmd.ExecuteScalarAsync();
 
@@ -698,26 +949,54 @@ WHERE DetalleID = @DetalleID";
         }
 
         private async Task<bool> UsuarioTieneEmpresaAsync(
-    SqlConnection conn,
-    SqlTransaction trans,
-    int usuarioId,
-    int empresaId)
+            SqlConnection conn,
+            SqlTransaction trans,
+            int usuarioId,
+            int empresaId)
         {
-            string sql = @"
-        SELECT COUNT(*)
-        FROM UsuariosEmpresas UE
-        INNER JOIN Empresas E ON UE.EmpresaID = E.EmpresaID
-        WHERE UE.UsuarioID = @UsuarioID
-          AND UE.EmpresaID = @EmpresaID
-          AND UE.Activo = 1
-          AND E.Activa = 1";
+            const string sql = @"
+SELECT COUNT(*)
+FROM Empresas AS EDestino
+WHERE EDestino.EmpresaID = @EmpresaID
+  AND EDestino.Activa = 1
+  AND
+  (
+      (
+          @EmpresaID <> @EmpresaNsFortId
+          AND EXISTS
+          (
+              SELECT 1
+              FROM UsuariosEmpresas AS UE
+              WHERE UE.UsuarioID = @UsuarioID
+                AND UE.EmpresaID = @EmpresaID
+                AND UE.Activo = 1
+          )
+      )
+      OR
+      (
+          @EmpresaID = @EmpresaNsFortId
+          AND EXISTS
+          (
+              SELECT 1
+              FROM UsuariosEmpresas AS UEEquipo
+              INNER JOIN Empresas AS EEquipo
+                  ON EEquipo.EmpresaID = UEEquipo.EmpresaID
+              WHERE UEEquipo.UsuarioID = @UsuarioID
+                AND UEEquipo.EmpresaID = @EmpresaNsEquipoId
+                AND UEEquipo.Activo = 1
+                AND EEquipo.Activa = 1
+          )
+      )
+  );";
 
             using (var cmd = new SqlCommand(sql, conn, trans))
             {
                 cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
                 cmd.Parameters.AddWithValue("@EmpresaID", empresaId);
+                cmd.Parameters.AddWithValue("@EmpresaNsEquipoId", EmpresaNsEquipoId);
+                cmd.Parameters.AddWithValue("@EmpresaNsFortId", EmpresaNsFortId);
 
-                int total = (int)await cmd.ExecuteScalarAsync();
+                int total = Convert.ToInt32(await cmd.ExecuteScalarAsync());
                 return total > 0;
             }
         }
@@ -1108,47 +1387,31 @@ WHERE U.UsuarioID = @UsuarioID";
             {
                 await conn.OpenAsync();
 
-                var empresas = new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
+                ViewBag.Empresas =
+                    await ObtenerEmpresasPermitidasParaSolicitudAsync(
+                        conn,
+                        usuarioId
+                    );
 
-                string sqlEmpresas = @"
-            SELECT E.EmpresaID, E.Nombre
-            FROM UsuariosEmpresas UE
-            INNER JOIN Empresas E ON UE.EmpresaID = E.EmpresaID
-            WHERE UE.UsuarioID = @UsuarioID
-              AND UE.Activo = 1
-              AND E.Activa = 1
-            ORDER BY E.Nombre";
+                var urgencias = new List<SelectListItem>();
 
-                using (var cmd = new SqlCommand(sqlEmpresas, conn))
+                const string sqlUrgencias = @"
+SELECT
+    UrgenciaID,
+    Descripcion
+FROM Cat_Urgencia
+ORDER BY UrgenciaID;";
+
+                using (var cmd = new SqlCommand(sqlUrgencias, conn))
+                using (var reader = await cmd.ExecuteReaderAsync())
                 {
-                    cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
-
-                    using (var rd = await cmd.ExecuteReaderAsync())
+                    while (await reader.ReadAsync())
                     {
-                        while (await rd.ReadAsync())
+                        urgencias.Add(new SelectListItem
                         {
-                            empresas.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
-                            {
-                                Value = rd["EmpresaID"].ToString(),
-                                Text = rd["Nombre"].ToString()
-                            });
-                        }
-                    }
-                }
-
-                ViewBag.Empresas = empresas;
-
-                var urgencias = new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-
-                using (var cmd = new SqlCommand("SELECT UrgenciaID, Descripcion FROM Cat_Urgencia", conn))
-                using (var rd = await cmd.ExecuteReaderAsync())
-                {
-                    while (await rd.ReadAsync())
-                    {
-                        urgencias.Add(new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
-                        {
-                            Value = rd["UrgenciaID"].ToString(),
-                            Text = rd["Descripcion"].ToString()
+                            Value = reader["UrgenciaID"].ToString(),
+                            Text = reader["Descripcion"]?.ToString()
+                                ?? string.Empty
                         });
                     }
                 }
@@ -1168,79 +1431,119 @@ WHERE U.UsuarioID = @UsuarioID";
         public async Task<IActionResult> BandejaCompras()
         {
             int usuarioId = ObtenerUsuarioIdActual();
-            if (usuarioId == 0) return Unauthorized();
+            if (usuarioId == 0)
+                return Unauthorized();
 
             var vm = new BandejaComprasDashboardVm();
 
             using (var conn = new SqlConnection(_connectionString))
             {
                 await conn.OpenAsync();
+
                 bool perteneceCompras =
-    await UsuarioPerteneceADepartamentoAsync(
-        conn,
-        usuarioId,
-        "COMPRAS"
-    );
+                    await UsuarioPerteneceADepartamentoAsync(
+                        conn,
+                        usuarioId,
+                        "COMPRAS"
+                    );
 
                 if (!perteneceCompras)
                     return Forbid();
 
-                int? empresaActivaId = await ObtenerEmpresaActivaUsuarioAsync(conn, usuarioId);
+                int? empresaActivaId =
+                    await ObtenerEmpresaActivaUsuarioAsync(conn, usuarioId);
 
                 if (!empresaActivaId.HasValue)
                     return Forbid();
 
+                bool incluirNsFort =
+                    empresaActivaId.Value == EmpresaNsEquipoId;
 
-                string puesto = "";
+                int empresaCompradoresId =
+                    ObtenerEmpresaCompradoresId(empresaActivaId.Value);
+
+                string puesto = string.Empty;
 
                 using (var cmdP = new SqlCommand(@"
-            SELECT P.Puesto 
-            FROM Persona P
-            INNER JOIN Usuarios U ON P.PersonaID = U.PersonaID 
-            WHERE U.UsuarioID = @Uid", conn))
+SELECT P.Puesto
+FROM Persona AS P
+INNER JOIN Usuarios AS U
+    ON P.PersonaID = U.PersonaID
+WHERE U.UsuarioID = @Uid;", conn))
                 {
                     cmdP.Parameters.AddWithValue("@Uid", usuarioId);
-                    puesto = (await cmdP.ExecuteScalarAsync())?.ToString() ?? "";
+                    puesto = (await cmdP.ExecuteScalarAsync())?.ToString()
+                        ?? string.Empty;
                 }
 
-                vm.EsDireccionCompras = puesto == "DIRECCION COMPRAS";
+                string puestoNormalizado = puesto.Trim().ToUpperInvariant();
 
-                string filtroTipo = "";
+                vm.EsDireccionCompras =
+                    puestoNormalizado == "DIRECCION COMPRAS"
+                    || puestoNormalizado == "DIRECCIÓN COMPRAS";
 
-                if (puesto == "COMPRADOR NACIONAL")
+                string filtroTipo = string.Empty;
+
+                if (puestoNormalizado == "COMPRADOR NACIONAL")
                     filtroTipo = " AND S.TipoCompra = 'Nacional'";
-                else if (puesto == "COMPRADOR INTERNACIONAL")
+                else if (puestoNormalizado == "COMPRADOR INTERNACIONAL")
                     filtroTipo = " AND S.TipoCompra = 'Internacional'";
 
+                string filtroEmpresaSolicitud = @"
+  AND
+  (
+      S.EmpresaID = @EmpresaID
+      OR
+      (
+          @IncluirNsFort = 1
+          AND S.EmpresaID = @EmpresaNsFortId
+      )
+  )";
+
                 string sqlPendientes = $@"
-            SELECT S.SolicitudID,S.CompradorAsignadoUsuarioID, S.Folio, 
-                   (P.Nombre + ' ' + P.ApellidoPaterno) AS Solicitante,
-                   ISNULL(D.NombreDepartamento, 'Sin departamento') AS Departamento,
-                   S.TipoCompra,
-                   U.Descripcion AS Urgencia,
-                   S.FechaCreacion,
-                   E.Nombre AS Estatus
-            FROM Compras_Solicitud S
-            INNER JOIN Usuarios US ON S.UsuarioID = US.UsuarioID
-            INNER JOIN Persona P ON US.PersonaID = P.PersonaID
-            LEFT JOIN EmpleadoDepartamentos ED ON US.UsuarioID = ED.UsuarioID AND ED.Activo = 1
-            LEFT JOIN Departamentos D ON ED.DepartamentoID = D.DepartamentoID
-            INNER JOIN Cat_Urgencia U ON S.UrgenciaID = U.UrgenciaID
-            INNER JOIN Cat_EstatusCompra E ON S.EstatusID = E.EstatusID
-           WHERE S.EstatusID = 1
-  AND S.EmpresaID = @EmpresaID
-  AND (
-                    @EsDireccion = 1
-                    OR S.CompradorAsignadoUsuarioID = @UsuarioID
-                  )
-            {filtroTipo}
-            ORDER BY S.FechaCreacion ASC";
+SELECT
+    S.SolicitudID,
+    S.CompradorAsignadoUsuarioID,
+    S.Folio,
+    P.Nombre + ' ' + P.ApellidoPaterno AS Solicitante,
+    ISNULL(D.NombreDepartamento, 'Sin departamento') AS Departamento,
+    S.TipoCompra,
+    U.Descripcion AS Urgencia,
+    S.FechaCreacion,
+    E.Nombre AS Estatus
+FROM Compras_Solicitud AS S
+INNER JOIN Usuarios AS US
+    ON S.UsuarioID = US.UsuarioID
+INNER JOIN Persona AS P
+    ON US.PersonaID = P.PersonaID
+LEFT JOIN EmpleadoDepartamentos AS ED
+    ON US.UsuarioID = ED.UsuarioID
+   AND ED.Activo = 1
+LEFT JOIN Departamentos AS D
+    ON ED.DepartamentoID = D.DepartamentoID
+INNER JOIN Cat_Urgencia AS U
+    ON S.UrgenciaID = U.UrgenciaID
+INNER JOIN Cat_EstatusCompra AS E
+    ON S.EstatusID = E.EstatusID
+WHERE S.EstatusID = 1
+{filtroEmpresaSolicitud}
+  AND
+  (
+      @EsDireccion = 1
+      OR S.CompradorAsignadoUsuarioID = @UsuarioID
+  )
+{filtroTipo}
+ORDER BY S.FechaCreacion ASC;";
 
                 using (var cmd = new SqlCommand(sqlPendientes, conn))
                 {
-                    cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
-                    cmd.Parameters.AddWithValue("@EsDireccion", vm.EsDireccionCompras ? 1 : 0);
-                    cmd.Parameters.AddWithValue("@EmpresaID", empresaActivaId.Value);
+                    AgregarParametrosBandejaEmpresa(
+                        cmd,
+                        usuarioId,
+                        vm.EsDireccionCompras,
+                        empresaActivaId.Value,
+                        incluirNsFort
+                    );
 
                     using (var reader = await cmd.ExecuteReaderAsync())
                     {
@@ -1249,56 +1552,79 @@ WHERE U.UsuarioID = @UsuarioID";
                             vm.Pendientes.Add(new BandejaComprasVm
                             {
                                 SolicitudID = (int)reader["SolicitudID"],
-                                Folio = reader["Folio"].ToString(),
+                                Folio = reader["Folio"]?.ToString() ?? string.Empty,
                                 CompradorAsignadoUsuarioID =
-    reader["CompradorAsignadoUsuarioID"] == DBNull.Value
-        ? null
-        : (int?)reader["CompradorAsignadoUsuarioID"],
-                                Solicitante = reader["Solicitante"].ToString(),
-                                Departamento = reader["Departamento"].ToString(),
-                                TipoCompra = reader["TipoCompra"].ToString(),
-                                Urgencia = reader["Urgencia"].ToString(),
+                                    reader["CompradorAsignadoUsuarioID"] == DBNull.Value
+                                        ? null
+                                        : (int?)Convert.ToInt32(
+                                            reader["CompradorAsignadoUsuarioID"]
+                                        ),
+                                Solicitante = reader["Solicitante"]?.ToString()
+                                    ?? string.Empty,
+                                Departamento = reader["Departamento"]?.ToString()
+                                    ?? string.Empty,
+                                TipoCompra = reader["TipoCompra"]?.ToString()
+                                    ?? string.Empty,
+                                Urgencia = reader["Urgencia"]?.ToString()
+                                    ?? string.Empty,
                                 FechaCreacion = (DateTime)reader["FechaCreacion"],
-                                Estatus = reader["Estatus"].ToString()
-
+                                Estatus = reader["Estatus"]?.ToString()
+                                    ?? string.Empty
                             });
                         }
                     }
                 }
 
                 string sqlHistorico = $@"
-            SELECT S.SolicitudID, S.Folio,S.EstatusID,
-                   (P.Nombre + ' ' + P.ApellidoPaterno) AS Solicitante,
-                   ISNULL(D.NombreDepartamento, 'Sin departamento') AS Departamento,
-                   S.TipoCompra,
-                   U.Descripcion AS Urgencia,
-                   E.Nombre AS Estatus,
-                   ISNULL(C.MontoTotal, 0) AS MontoTotal,
-                   S.FechaCreacion,
-                   C.FechaEnvioAlUsuario AS FechaCotizacion
-            FROM Compras_Solicitud S
-            INNER JOIN Usuarios US ON S.UsuarioID = US.UsuarioID
-            INNER JOIN Persona P ON US.PersonaID = P.PersonaID
-            LEFT JOIN EmpleadoDepartamentos ED ON US.UsuarioID = ED.UsuarioID AND ED.Activo = 1
-            LEFT JOIN Departamentos D ON ED.DepartamentoID = D.DepartamentoID
-            INNER JOIN Cat_Urgencia U ON S.UrgenciaID = U.UrgenciaID
-            INNER JOIN Cat_EstatusCompra E ON S.EstatusID = E.EstatusID
-            LEFT JOIN Compras_Cotizaciones C 
+SELECT
+    S.SolicitudID,
+    S.Folio,
+    S.EstatusID,
+    P.Nombre + ' ' + P.ApellidoPaterno AS Solicitante,
+    ISNULL(D.NombreDepartamento, 'Sin departamento') AS Departamento,
+    S.TipoCompra,
+    U.Descripcion AS Urgencia,
+    E.Nombre AS Estatus,
+    ISNULL(C.MontoTotal, 0) AS MontoTotal,
+    S.FechaCreacion,
+    C.FechaEnvioAlUsuario AS FechaCotizacion
+FROM Compras_Solicitud AS S
+INNER JOIN Usuarios AS US
+    ON S.UsuarioID = US.UsuarioID
+INNER JOIN Persona AS P
+    ON US.PersonaID = P.PersonaID
+LEFT JOIN EmpleadoDepartamentos AS ED
+    ON US.UsuarioID = ED.UsuarioID
+   AND ED.Activo = 1
+LEFT JOIN Departamentos AS D
+    ON ED.DepartamentoID = D.DepartamentoID
+INNER JOIN Cat_Urgencia AS U
+    ON S.UrgenciaID = U.UrgenciaID
+INNER JOIN Cat_EstatusCompra AS E
+    ON S.EstatusID = E.EstatusID
+LEFT JOIN Compras_Cotizaciones AS C
     ON S.CotizacionSeleccionadaID = C.CotizacionID
-          WHERE S.EstatusID >= 2
-  AND S.EmpresaID = @EmpresaID
-  AND (
-                    @EsDireccion = 1
-                    OR S.CompradorAsignadoUsuarioID = @UsuarioID
-                  )
-            {filtroTipo}
-            ORDER BY C.FechaEnvioAlUsuario DESC, S.FechaCreacion DESC";
+WHERE S.EstatusID >= 2
+{filtroEmpresaSolicitud}
+  AND
+  (
+      @EsDireccion = 1
+      OR S.CompradorAsignadoUsuarioID = @UsuarioID
+  )
+{filtroTipo}
+ORDER BY
+    C.FechaEnvioAlUsuario DESC,
+    S.FechaCreacion DESC;";
 
                 using (var cmd = new SqlCommand(sqlHistorico, conn))
                 {
-                    cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
-                    cmd.Parameters.AddWithValue("@EsDireccion", vm.EsDireccionCompras ? 1 : 0);
-                    cmd.Parameters.AddWithValue("@EmpresaID", empresaActivaId.Value);
+                    AgregarParametrosBandejaEmpresa(
+                        cmd,
+                        usuarioId,
+                        vm.EsDireccionCompras,
+                        empresaActivaId.Value,
+                        incluirNsFort
+                    );
 
                     using (var reader = await cmd.ExecuteReaderAsync())
                     {
@@ -1307,18 +1633,24 @@ WHERE U.UsuarioID = @UsuarioID";
                             vm.Historico.Add(new HistoricoComprasVm
                             {
                                 SolicitudID = (int)reader["SolicitudID"],
-                                Folio = reader["Folio"].ToString(),
+                                Folio = reader["Folio"]?.ToString() ?? string.Empty,
                                 EstatusID = (int)reader["EstatusID"],
-                                Solicitante = reader["Solicitante"].ToString(),
-                                Departamento = reader["Departamento"].ToString(),
-                                TipoCompra = reader["TipoCompra"].ToString(),
-                                Urgencia = reader["Urgencia"].ToString(),
-                                Estatus = reader["Estatus"].ToString(),
+                                Solicitante = reader["Solicitante"]?.ToString()
+                                    ?? string.Empty,
+                                Departamento = reader["Departamento"]?.ToString()
+                                    ?? string.Empty,
+                                TipoCompra = reader["TipoCompra"]?.ToString()
+                                    ?? string.Empty,
+                                Urgencia = reader["Urgencia"]?.ToString()
+                                    ?? string.Empty,
+                                Estatus = reader["Estatus"]?.ToString()
+                                    ?? string.Empty,
                                 MontoTotal = Convert.ToDecimal(reader["MontoTotal"]),
                                 FechaCreacion = (DateTime)reader["FechaCreacion"],
-                                FechaCotizacion = reader["FechaCotizacion"] == DBNull.Value
-                                    ? null
-                                    : (DateTime?)reader["FechaCotizacion"]
+                                FechaCotizacion =
+                                    reader["FechaCotizacion"] == DBNull.Value
+                                        ? null
+                                        : (DateTime?)reader["FechaCotizacion"]
                             });
                         }
                     }
@@ -1326,49 +1658,63 @@ WHERE U.UsuarioID = @UsuarioID";
 
                 if (vm.EsDireccionCompras)
                 {
-                    string sqlCargaCompradores = @"
-    SELECT 
-        U.UsuarioID,
-        (P.Nombre + ' ' + P.ApellidoPaterno) AS NombreCompleto,
-        P.Puesto,
-
-        SUM(CASE WHEN S.EstatusID = 1 THEN 1 ELSE 0 END) AS Pendientes,
-
-        SUM(CASE WHEN S.EstatusID >= 2 THEN 1 ELSE 0 END) AS Cotizadas,
-
-        COUNT(S.SolicitudID) AS TotalAsignadas
-
-    FROM Usuarios U
-
-    INNER JOIN Persona P 
-        ON U.PersonaID = P.PersonaID
-
-    INNER JOIN UsuariosEmpresas UE
-        ON U.UsuarioID = UE.UsuarioID
-       AND UE.Activo = 1
-       AND UE.EmpresaID = @EmpresaID
-
-    LEFT JOIN Compras_Solicitud S 
-        ON S.CompradorAsignadoUsuarioID = U.UsuarioID
-       AND S.EmpresaID = @EmpresaID
-
-    WHERE P.EsColaboradorActivo = 1
-      AND UPPER(P.Puesto) IN ('COMPRADOR NACIONAL', 'COMPRADOR INTERNACIONAL')
-
-    GROUP BY 
-        U.UsuarioID,
-        P.Nombre,
-        P.ApellidoPaterno,
-        P.Puesto
-
-    ORDER BY 
-        P.Puesto,
-        Pendientes ASC,
-        NombreCompleto ASC";
+                    const string sqlCargaCompradores = @"
+SELECT
+    U.UsuarioID,
+    P.Nombre + ' ' + P.ApellidoPaterno AS NombreCompleto,
+    P.Puesto,
+    SUM(CASE WHEN S.EstatusID = 1 THEN 1 ELSE 0 END) AS Pendientes,
+    SUM(CASE WHEN S.EstatusID >= 2 THEN 1 ELSE 0 END) AS Cotizadas,
+    COUNT(S.SolicitudID) AS TotalAsignadas
+FROM Usuarios AS U
+INNER JOIN Persona AS P
+    ON U.PersonaID = P.PersonaID
+INNER JOIN UsuariosEmpresas AS UE
+    ON U.UsuarioID = UE.UsuarioID
+   AND UE.Activo = 1
+   AND UE.EmpresaID = @EmpresaCompradoresID
+LEFT JOIN Compras_Solicitud AS S
+    ON S.CompradorAsignadoUsuarioID = U.UsuarioID
+   AND
+   (
+       S.EmpresaID = @EmpresaID
+       OR
+       (
+           @IncluirNsFort = 1
+           AND S.EmpresaID = @EmpresaNsFortId
+       )
+   )
+WHERE P.EsColaboradorActivo = 1
+  AND UPPER(P.Puesto) IN
+      ('COMPRADOR NACIONAL', 'COMPRADOR INTERNACIONAL')
+GROUP BY
+    U.UsuarioID,
+    P.Nombre,
+    P.ApellidoPaterno,
+    P.Puesto
+ORDER BY
+    P.Puesto,
+    Pendientes ASC,
+    NombreCompleto ASC;";
 
                     using (var cmdCarga = new SqlCommand(sqlCargaCompradores, conn))
                     {
-                        cmdCarga.Parameters.AddWithValue("@EmpresaID", empresaActivaId.Value);
+                        cmdCarga.Parameters.AddWithValue(
+                            "@EmpresaCompradoresID",
+                            empresaCompradoresId
+                        );
+                        cmdCarga.Parameters.AddWithValue(
+                            "@EmpresaID",
+                            empresaActivaId.Value
+                        );
+                        cmdCarga.Parameters.AddWithValue(
+                            "@IncluirNsFort",
+                            incluirNsFort ? 1 : 0
+                        );
+                        cmdCarga.Parameters.AddWithValue(
+                            "@EmpresaNsFortId",
+                            EmpresaNsFortId
+                        );
 
                         using (var reader = await cmdCarga.ExecuteReaderAsync())
                         {
@@ -1377,54 +1723,62 @@ WHERE U.UsuarioID = @UsuarioID";
                                 vm.CargaCompradores.Add(new CompradorCargaVm
                                 {
                                     UsuarioID = (int)reader["UsuarioID"],
-                                    NombreCompleto = reader["NombreCompleto"].ToString(),
-                                    Puesto = reader["Puesto"].ToString(),
+                                    NombreCompleto = reader["NombreCompleto"]?.ToString()
+                                        ?? string.Empty,
+                                    Puesto = reader["Puesto"]?.ToString()
+                                        ?? string.Empty,
                                     Pendientes = Convert.ToInt32(reader["Pendientes"]),
                                     Cotizadas = Convert.ToInt32(reader["Cotizadas"]),
-                                    TotalAsignadas = Convert.ToInt32(reader["TotalAsignadas"])
+                                    TotalAsignadas = Convert.ToInt32(
+                                        reader["TotalAsignadas"]
+                                    )
                                 });
                             }
                         }
                     }
 
-                    string sqlCompradores = @"
-    SELECT 
-        U.UsuarioID,
-        (P.Nombre + ' ' + P.ApellidoPaterno) AS NombreCompleto,
-        P.Puesto
-
-    FROM Usuarios U
-
-    INNER JOIN Persona P 
-        ON U.PersonaID = P.PersonaID
-
-    INNER JOIN UsuariosEmpresas UE
-        ON U.UsuarioID = UE.UsuarioID
-       AND UE.Activo = 1
-       AND UE.EmpresaID = @EmpresaID
-
-    WHERE P.EsColaboradorActivo = 1
-      AND UPPER(P.Puesto) IN ('COMPRADOR NACIONAL', 'COMPRADOR INTERNACIONAL')
-
-    ORDER BY 
-        P.Puesto,
-        P.Nombre,
-        P.ApellidoPaterno";
+                    const string sqlCompradores = @"
+SELECT
+    U.UsuarioID,
+    P.Nombre + ' ' + P.ApellidoPaterno AS NombreCompleto,
+    P.Puesto
+FROM Usuarios AS U
+INNER JOIN Persona AS P
+    ON U.PersonaID = P.PersonaID
+INNER JOIN UsuariosEmpresas AS UE
+    ON U.UsuarioID = UE.UsuarioID
+   AND UE.Activo = 1
+   AND UE.EmpresaID = @EmpresaCompradoresID
+WHERE P.EsColaboradorActivo = 1
+  AND UPPER(P.Puesto) IN
+      ('COMPRADOR NACIONAL', 'COMPRADOR INTERNACIONAL')
+ORDER BY
+    P.Puesto,
+    P.Nombre,
+    P.ApellidoPaterno;";
 
                     using (var cmdCompradores = new SqlCommand(sqlCompradores, conn))
                     {
-                        cmdCompradores.Parameters.AddWithValue("@EmpresaID", empresaActivaId.Value);
+                        cmdCompradores.Parameters.AddWithValue(
+                            "@EmpresaCompradoresID",
+                            empresaCompradoresId
+                        );
 
                         using (var reader = await cmdCompradores.ExecuteReaderAsync())
                         {
                             while (await reader.ReadAsync())
                             {
-                                vm.CompradoresDisponibles.Add(new CompradorSelectVm
-                                {
-                                    UsuarioID = (int)reader["UsuarioID"],
-                                    NombreCompleto = reader["NombreCompleto"].ToString(),
-                                    Puesto = reader["Puesto"].ToString()
-                                });
+                                vm.CompradoresDisponibles.Add(
+                                    new CompradorSelectVm
+                                    {
+                                        UsuarioID = (int)reader["UsuarioID"],
+                                        NombreCompleto =
+                                            reader["NombreCompleto"]?.ToString()
+                                            ?? string.Empty,
+                                        Puesto = reader["Puesto"]?.ToString()
+                                            ?? string.Empty
+                                    }
+                                );
                             }
                         }
                     }
@@ -1432,14 +1786,34 @@ WHERE U.UsuarioID = @UsuarioID";
             }
 
             vm.TotalPendientes = vm.Pendientes.Count;
-            vm.TotalCotizadas = vm.Historico.Count(x => x.FechaCotizacion != null);
+            vm.TotalCotizadas = vm.Historico.Count(
+                x => x.FechaCotizacion != null
+            );
             vm.TotalAtendidas = vm.Historico.Count;
             vm.MontoCotizado = vm.Historico.Sum(x => x.MontoTotal);
 
             return View(vm);
         }
 
-
+        private static void AgregarParametrosBandejaEmpresa(
+            SqlCommand cmd,
+            int usuarioId,
+            bool esDireccionCompras,
+            int empresaActivaId,
+            bool incluirNsFort)
+        {
+            cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+            cmd.Parameters.AddWithValue(
+                "@EsDireccion",
+                esDireccionCompras ? 1 : 0
+            );
+            cmd.Parameters.AddWithValue("@EmpresaID", empresaActivaId);
+            cmd.Parameters.AddWithValue(
+                "@IncluirNsFort",
+                incluirNsFort ? 1 : 0
+            );
+            cmd.Parameters.AddWithValue("@EmpresaNsFortId", EmpresaNsFortId);
+        }
 
 
         [HttpPost("ProcesarCotizacion")]
@@ -1612,9 +1986,16 @@ VALUES
                                 }
                             }
 
+                            /*
+                             * NUEVO FLUJO SOLICITADO:
+                             * al terminar de cargar las cotizaciones, la solicitud
+                             * se cierra inmediatamente y el progreso pasa al 100 %.
+                             *
+                             * Estado 1 -> Estado 10
+                             */
                             string sqlUpdate = @"
 UPDATE Compras_Solicitud
-SET EstatusID = 2,
+SET EstatusID = 10,
     FechaCotizacion = GETDATE()
 WHERE SolicitudID = @SolicitudID
   AND EstatusID = 1";
@@ -1633,11 +2014,21 @@ WHERE SolicitudID = @SolicitudID
                                 }
                             }
 
+                            /*
+                             * Se registran los dos hitos del proceso en el historial:
+                             * 2  = Cotizaciones cargadas
+                             * 10 = Cerrada
+                             *
+                             * Ambos movimientos se generan en la misma operacion porque
+                             * la regla actual indica que la carga de cotizaciones finaliza
+                             * automáticamente la solicitud.
+                             */
                             string sqlHist = @"
 INSERT INTO Compras_Historico_Pasos
 (SolicitudID, EstatusID, FechaMovimiento, UsuarioResponsable)
 VALUES
-(@SolicitudID, 2, GETDATE(), @Responsable)";
+(@SolicitudID, 2, GETDATE(), @Responsable),
+(@SolicitudID, 10, DATEADD(MILLISECOND, 1, GETDATE()), @Responsable)";
 
                             using (var cmdHist = new SqlCommand(sqlHist, conn, trans))
                             {
@@ -1650,7 +2041,9 @@ VALUES
 
                             await NotificarSolicitante_CotizacionesListasAsync(SolicitudID);
 
-                            TempData["Mensaje"] = "Cotizaciones guardadas correctamente. Ahora selecciona la cotización que procede.";
+                            TempData["Mensaje"] =
+                                "Cotizaciones guardadas correctamente. " +
+                                "La solicitud fue cerrada y el progreso se actualizo al 100 %.";
                             return RedirectToAction("Detalle", new { id = SolicitudID });
                         }
                         catch (Exception ex)
@@ -1847,127 +2240,260 @@ WHERE S.SolicitudID = @id
 
         [HttpPost("AsignarComprador")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AsignarComprador(int solicitudId, int compradorUsuarioId)
+        public async Task<IActionResult> AsignarComprador(
+            int solicitudId,
+            int compradorUsuarioId)
         {
             int usuarioDireccionId = ObtenerUsuarioIdActual();
-            if (usuarioDireccionId == 0) return Unauthorized();
+            if (usuarioDireccionId == 0)
+                return Unauthorized();
 
             using (var conn = new SqlConnection(_connectionString))
             {
                 await conn.OpenAsync();
 
-                int? empresaActivaId = await ObtenerEmpresaActivaUsuarioAsync(conn, usuarioDireccionId);
+                int? empresaActivaId =
+                    await ObtenerEmpresaActivaUsuarioAsync(
+                        conn,
+                        usuarioDireccionId
+                    );
 
                 if (!empresaActivaId.HasValue)
                     return Forbid();
 
-                string puesto = "";
+                string puesto = string.Empty;
 
                 using (var cmdPuesto = new SqlCommand(@"
-            SELECT P.Puesto
-            FROM Usuarios U
-            INNER JOIN Persona P ON U.PersonaID = P.PersonaID
-            WHERE U.UsuarioID = @UsuarioID", conn))
+SELECT P.Puesto
+FROM Usuarios AS U
+INNER JOIN Persona AS P
+    ON U.PersonaID = P.PersonaID
+WHERE U.UsuarioID = @UsuarioID;", conn))
                 {
-                    cmdPuesto.Parameters.AddWithValue("@UsuarioID", usuarioDireccionId);
-                    puesto = (await cmdPuesto.ExecuteScalarAsync())?.ToString() ?? "";
+                    cmdPuesto.Parameters.AddWithValue(
+                        "@UsuarioID",
+                        usuarioDireccionId
+                    );
+
+                    puesto = (await cmdPuesto.ExecuteScalarAsync())?.ToString()
+                        ?? string.Empty;
                 }
 
-                if (puesto != "DIRECCION COMPRAS")
+                string puestoNormalizado = puesto.Trim().ToUpperInvariant();
+
+                bool esDireccionCompras =
+                    puestoNormalizado == "DIRECCION COMPRAS"
+                    || puestoNormalizado == "DIRECCIÓN COMPRAS";
+
+                if (!esDireccionCompras)
                     return Forbid();
 
                 using (var trans = conn.BeginTransaction())
                 {
                     try
                     {
-                        string sqlValidarComprador = @"
-    SELECT COUNT(*)
-    FROM Usuarios U
-    INNER JOIN Persona P ON U.PersonaID = P.PersonaID
-    INNER JOIN UsuariosEmpresas UE
-        ON U.UsuarioID = UE.UsuarioID
-       AND UE.Activo = 1
-       AND UE.EmpresaID = @EmpresaID
-    WHERE U.UsuarioID = @CompradorID
-      AND P.EsColaboradorActivo = 1
-      AND UPPER(P.Puesto) IN ('COMPRADOR NACIONAL', 'COMPRADOR INTERNACIONAL')";
+                        int empresaSolicitudId;
+                        int? anteriorId;
 
+                        const string sqlSolicitud = @"
+SELECT
+    EmpresaID,
+    CompradorAsignadoUsuarioID
+FROM Compras_Solicitud
+WHERE SolicitudID = @SolicitudID;";
 
-                        using (var cmdValidar = new SqlCommand(sqlValidarComprador, conn, trans))
+                        using (var cmdSolicitud =
+                               new SqlCommand(sqlSolicitud, conn, trans))
                         {
-                            cmdValidar.Parameters.AddWithValue("@CompradorID", compradorUsuarioId);
-                            cmdValidar.Parameters.AddWithValue("@EmpresaID", empresaActivaId.Value);
+                            cmdSolicitud.Parameters.AddWithValue(
+                                "@SolicitudID",
+                                solicitudId
+                            );
 
-                            int existe = (int)await cmdValidar.ExecuteScalarAsync();
+                            using (var reader =
+                                   await cmdSolicitud.ExecuteReaderAsync())
+                            {
+                                if (!await reader.ReadAsync())
+                                {
+                                    trans.Rollback();
+                                    TempData["Error"] =
+                                        "No se encontró la solicitud.";
+                                    return RedirectToAction("BandejaCompras");
+                                }
+
+                                empresaSolicitudId =
+                                    Convert.ToInt32(reader["EmpresaID"]);
+
+                                anteriorId =
+                                    reader["CompradorAsignadoUsuarioID"]
+                                        == DBNull.Value
+                                            ? null
+                                            : Convert.ToInt32(
+                                                reader[
+                                                    "CompradorAsignadoUsuarioID"
+                                                ]
+                                            );
+                            }
+                        }
+
+                        if (!EmpresaSolicitudPermitidaEnBandeja(
+                                empresaActivaId.Value,
+                                empresaSolicitudId
+                            ))
+                        {
+                            trans.Rollback();
+                            return Forbid();
+                        }
+
+                        int empresaCompradoresId =
+                            ObtenerEmpresaCompradoresId(empresaSolicitudId);
+
+                        const string sqlValidarComprador = @"
+SELECT COUNT(*)
+FROM Usuarios AS U
+INNER JOIN Persona AS P
+    ON U.PersonaID = P.PersonaID
+INNER JOIN UsuariosEmpresas AS UE
+    ON U.UsuarioID = UE.UsuarioID
+   AND UE.Activo = 1
+   AND UE.EmpresaID = @EmpresaCompradoresID
+WHERE U.UsuarioID = @CompradorID
+  AND P.EsColaboradorActivo = 1
+  AND UPPER(P.Puesto) IN
+      ('COMPRADOR NACIONAL', 'COMPRADOR INTERNACIONAL');";
+
+                        using (var cmdValidar =
+                               new SqlCommand(
+                                   sqlValidarComprador,
+                                   conn,
+                                   trans
+                               ))
+                        {
+                            cmdValidar.Parameters.AddWithValue(
+                                "@CompradorID",
+                                compradorUsuarioId
+                            );
+                            cmdValidar.Parameters.AddWithValue(
+                                "@EmpresaCompradoresID",
+                                empresaCompradoresId
+                            );
+
+                            int existe = Convert.ToInt32(
+                                await cmdValidar.ExecuteScalarAsync()
+                            );
 
                             if (existe == 0)
                             {
                                 trans.Rollback();
-                                TempData["Error"] = "El usuario seleccionado no pertenece al departamento de Compras.";
+                                TempData["Error"] =
+                                    "El comprador seleccionado no pertenece a la empresa operativa de Compras.";
                                 return RedirectToAction("BandejaCompras");
                             }
                         }
 
-                        int? anteriorId = null;
+                        const string sqlUpdate = @"
+UPDATE Compras_Solicitud
+SET CompradorAsignadoUsuarioID = @NuevoCompradorID,
+    FechaAsignacionComprador = GETDATE(),
+    UsuarioAsignoCompradorID = @DireccionID
+WHERE SolicitudID = @SolicitudID
+  AND EmpresaID = @EmpresaSolicitudID;";
 
-                        using (var cmdAnterior = new SqlCommand(@"
-                    SELECT CompradorAsignadoUsuarioID
-                    FROM Compras_Solicitud
-                    WHERE SolicitudID = @SolicitudID", conn, trans))
+                        using (var cmdUpdate =
+                               new SqlCommand(sqlUpdate, conn, trans))
                         {
-                            cmdAnterior.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            cmdUpdate.Parameters.AddWithValue(
+                                "@NuevoCompradorID",
+                                compradorUsuarioId
+                            );
+                            cmdUpdate.Parameters.AddWithValue(
+                                "@DireccionID",
+                                usuarioDireccionId
+                            );
+                            cmdUpdate.Parameters.AddWithValue(
+                                "@SolicitudID",
+                                solicitudId
+                            );
+                            cmdUpdate.Parameters.AddWithValue(
+                                "@EmpresaSolicitudID",
+                                empresaSolicitudId
+                            );
 
-                            var result = await cmdAnterior.ExecuteScalarAsync();
+                            int filas = await cmdUpdate.ExecuteNonQueryAsync();
 
-                            if (result != null && result != DBNull.Value)
-                                anteriorId = Convert.ToInt32(result);
+                            if (filas == 0)
+                            {
+                                trans.Rollback();
+                                TempData["Error"] =
+                                    "No se pudo actualizar la asignación.";
+                                return RedirectToAction("BandejaCompras");
+                            }
                         }
-                        string sqlUpdate = @"
-    UPDATE Compras_Solicitud
-    SET CompradorAsignadoUsuarioID = @NuevoCompradorID,
-        FechaAsignacionComprador = GETDATE(),
-        UsuarioAsignoCompradorID = @DireccionID
-    WHERE SolicitudID = @SolicitudID
-      AND EmpresaID = @EmpresaID";
 
-                        using (var cmdUpdate = new SqlCommand(sqlUpdate, conn, trans))
+                        const string sqlHist = @"
+INSERT INTO Compras_Asignaciones_Historico
+(
+    SolicitudID,
+    UsuarioAsignadoAnteriorID,
+    UsuarioAsignadoNuevoID,
+    UsuarioDireccionID,
+    FechaAsignacion,
+    Comentario
+)
+VALUES
+(
+    @SolicitudID,
+    @AnteriorID,
+    @NuevoID,
+    @DireccionID,
+    GETDATE(),
+    @Comentario
+);";
+
+                        using (var cmdHist =
+                               new SqlCommand(sqlHist, conn, trans))
                         {
-                            cmdUpdate.Parameters.AddWithValue("@NuevoCompradorID", compradorUsuarioId);
-                            cmdUpdate.Parameters.AddWithValue("@DireccionID", usuarioDireccionId);
-                            cmdUpdate.Parameters.AddWithValue("@SolicitudID", solicitudId);
-                            cmdUpdate.Parameters.AddWithValue("@EmpresaID", empresaActivaId.Value);
-
-                            await cmdUpdate.ExecuteNonQueryAsync();
-                        }
-
-                        string sqlHist = @"
-                    INSERT INTO Compras_Asignaciones_Historico
-                    (SolicitudID, UsuarioAsignadoAnteriorID, UsuarioAsignadoNuevoID, UsuarioDireccionID, FechaAsignacion, Comentario)
-                    VALUES
-                    (@SolicitudID, @AnteriorID, @NuevoID, @DireccionID, GETDATE(), @Comentario)";
-
-                        using (var cmdHist = new SqlCommand(sqlHist, conn, trans))
-                        {
-                            cmdHist.Parameters.AddWithValue("@SolicitudID", solicitudId);
-                            cmdHist.Parameters.AddWithValue("@AnteriorID", (object)anteriorId ?? DBNull.Value);
-                            cmdHist.Parameters.AddWithValue("@NuevoID", compradorUsuarioId);
-                            cmdHist.Parameters.AddWithValue("@DireccionID", usuarioDireccionId);
-                            cmdHist.Parameters.AddWithValue("@Comentario", "Asignación manual desde Dirección Compras");
+                            cmdHist.Parameters.AddWithValue(
+                                "@SolicitudID",
+                                solicitudId
+                            );
+                            cmdHist.Parameters.AddWithValue(
+                                "@AnteriorID",
+                                (object?)anteriorId ?? DBNull.Value
+                            );
+                            cmdHist.Parameters.AddWithValue(
+                                "@NuevoID",
+                                compradorUsuarioId
+                            );
+                            cmdHist.Parameters.AddWithValue(
+                                "@DireccionID",
+                                usuarioDireccionId
+                            );
+                            cmdHist.Parameters.AddWithValue(
+                                "@Comentario",
+                                "Asignación manual desde Dirección Compras"
+                            );
 
                             await cmdHist.ExecuteNonQueryAsync();
                         }
 
                         trans.Commit();
 
-                        TempData["Mensaje"] = "Comprador asignado correctamente.";
+                        TempData["Mensaje"] =
+                            "Comprador asignado correctamente.";
                         return RedirectToAction("BandejaCompras");
                     }
                     catch (Exception ex)
                     {
                         trans.Rollback();
 
-                        _logger.LogError(ex, "Error al reasignar comprador");
-                        TempData["Error"] = "No se pudo reasignar comprador.";
+                        _logger.LogError(
+                            ex,
+                            "Error al reasignar comprador"
+                        );
+
+                        TempData["Error"] =
+                            "No se pudo reasignar comprador.";
 
                         return RedirectToAction("BandejaCompras");
                     }
@@ -2465,6 +2991,15 @@ ORDER BY S.FechaDictamen DESC";
             catch (Exception ex) { _logger.LogError(ex, "Error al notificar rechazo"); }
         }
 
+        #region CODIGO LEGADO - DASHBOARD DIRECCION
+
+        /*
+         * Accion deshabilitada por simplificacion del modulo Compras.
+         * No cuenta con una vista asociada y no tiene referencias activas.
+         * Se conserva completa como codigo historico.
+         */
+
+#if false
         //METODO PARA LLOS GRAFICOS
         [HttpGet]
         public async Task<IActionResult> DashboardDireccion()
@@ -2513,23 +3048,38 @@ ORDER BY S.FechaDictamen DESC";
             return View(vm);
         }
 
+#endif
+
+        #endregion
+
         //HELPERS PARA OBTENER EMPRESAS DEL USUARIO
         private async Task<int?> ObtenerEmpresaActivaUsuarioAsync(
-    SqlConnection conn,
-    int usuarioId)
+            SqlConnection conn,
+            int usuarioId)
         {
-            string sql = @"
-        SELECT TOP 1 UE.EmpresaID
-        FROM UsuariosEmpresas UE
-        INNER JOIN Empresas E ON UE.EmpresaID = E.EmpresaID
-        WHERE UE.UsuarioID = @UsuarioID
-          AND UE.Activo = 1
-          AND E.Activa = 1
-        ORDER BY UE.EmpresaID";
+            const string sql = @"
+SELECT TOP 1
+    UE.EmpresaID
+FROM UsuariosEmpresas AS UE
+INNER JOIN Empresas AS E
+    ON UE.EmpresaID = E.EmpresaID
+WHERE UE.UsuarioID = @UsuarioID
+  AND UE.Activo = 1
+  AND E.Activa = 1
+ORDER BY
+    CASE
+        WHEN UE.EmpresaID = @EmpresaNsEquipoId THEN 0
+        ELSE 1
+    END,
+    UE.EmpresaID;";
 
             using (var cmd = new SqlCommand(sql, conn))
             {
                 cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
+                cmd.Parameters.AddWithValue(
+                    "@EmpresaNsEquipoId",
+                    EmpresaNsEquipoId
+                );
 
                 var result = await cmd.ExecuteScalarAsync();
 
@@ -3676,6 +4226,15 @@ WHERE ED.UsuarioID = @UsuarioID
         }
 
 
+        #region CODIGO LEGADO - SELECCION DE COTIZACION CON PROCESO PRESUPUESTAL
+
+        /*
+         * Metodo anterior del flujo completo.
+         * Permitía seleccionar o cambiar una cotizacion y enviaba la solicitud
+         * del estado 2 al estado 3. Se conserva completo como referencia.
+         */
+
+#if false
         [HttpPost("SeleccionarCotizacion")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SeleccionarCotizacion(
@@ -3935,6 +4494,259 @@ VALUES
                 }
             }     
         }
+
+#endif
+
+        #endregion
+
+        #region FLUJO ACTUAL - SELECCIONAR COTIZACION Y CERRAR COMPRA
+
+        [HttpPost("SeleccionarCotizacion")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SeleccionarCotizacion(
+            int solicitudId,
+            int cotizacionId,
+            string? comentarios,
+            string? motivoCambio)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+
+            if (usuarioId == 0)
+                return Unauthorized();
+
+            if (solicitudId <= 0 || cotizacionId <= 0)
+            {
+                TempData["Error"] = "No se recibio correctamente la solicitud o la cotizacion.";
+                return RedirectToAction("Detalle", new { id = solicitudId });
+            }
+
+            comentarios = comentarios?.Trim();
+
+            // El parametro se conserva para mantener compatibilidad con el formulario anterior.
+            // En el flujo actual no se permite cambiar una cotizacion despues del cierre.
+            motivoCambio = motivoCambio?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(comentarios) && comentarios.Length > 500)
+            {
+                TempData["Error"] = "El comentario no puede superar los 500 caracteres.";
+                return RedirectToAction("Detalle", new { id = solicitudId });
+            }
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+
+                bool perteneceCompras =
+                    await UsuarioPerteneceADepartamentoAsync(
+                        conn,
+                        usuarioId,
+                        "COMPRAS"
+                    );
+
+                if (!perteneceCompras)
+                    return Forbid();
+
+                using (var trans = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        // La solicitud debe estar en Cotizaciones cargadas y no tener
+                        // una cotizacion seleccionada previamente.
+                        string sqlValidarSolicitud = @"
+SELECT COUNT(*)
+FROM Compras_Solicitud
+WHERE SolicitudID = @SolicitudID
+  AND EstatusID = 2
+  AND CotizacionSeleccionadaID IS NULL;";
+
+                        using (var cmdValidarSolicitud =
+                               new SqlCommand(sqlValidarSolicitud, conn, trans))
+                        {
+                            cmdValidarSolicitud.Parameters.AddWithValue(
+                                "@SolicitudID",
+                                solicitudId
+                            );
+
+                            int solicitudValida = Convert.ToInt32(
+                                await cmdValidarSolicitud.ExecuteScalarAsync()
+                            );
+
+                            if (solicitudValida == 0)
+                            {
+                                trans.Rollback();
+
+                                TempData["Error"] =
+                                    "La solicitud ya no esta disponible para seleccionar una cotizacion. " +
+                                    "Debe encontrarse en el estado Cotizaciones cargadas.";
+
+                                return RedirectToAction(
+                                    "Detalle",
+                                    new { id = solicitudId }
+                                );
+                            }
+                        }
+
+                        // La cotizacion debe pertenecer a la misma solicitud.
+                        string sqlValidarCotizacion = @"
+SELECT COUNT(*)
+FROM Compras_Cotizaciones
+WHERE SolicitudID = @SolicitudID
+  AND CotizacionID = @CotizacionID;";
+
+                        using (var cmdValidarCotizacion =
+                               new SqlCommand(sqlValidarCotizacion, conn, trans))
+                        {
+                            cmdValidarCotizacion.Parameters.AddWithValue(
+                                "@SolicitudID",
+                                solicitudId
+                            );
+
+                            cmdValidarCotizacion.Parameters.AddWithValue(
+                                "@CotizacionID",
+                                cotizacionId
+                            );
+
+                            int cotizacionValida = Convert.ToInt32(
+                                await cmdValidarCotizacion.ExecuteScalarAsync()
+                            );
+
+                            if (cotizacionValida == 0)
+                            {
+                                trans.Rollback();
+
+                                TempData["Error"] =
+                                    "La cotizacion seleccionada no pertenece a esta solicitud.";
+
+                                return RedirectToAction(
+                                    "Detalle",
+                                    new { id = solicitudId }
+                                );
+                            }
+                        }
+
+                        // Nuevo flujo: estado 2 -> estado 10.
+                        string sqlActualizarSolicitud = @"
+UPDATE Compras_Solicitud
+SET CotizacionSeleccionadaID = @CotizacionID,
+    FechaSeleccionCotizacion = GETDATE(),
+    UsuarioSeleccionCotizacionID = @UsuarioID,
+    ComentariosSeleccionUsuario = @Comentarios,
+    EstatusID = 10
+WHERE SolicitudID = @SolicitudID
+  AND EstatusID = 2
+  AND CotizacionSeleccionadaID IS NULL;";
+
+                        using (var cmdActualizar =
+                               new SqlCommand(sqlActualizarSolicitud, conn, trans))
+                        {
+                            cmdActualizar.Parameters.AddWithValue(
+                                "@CotizacionID",
+                                cotizacionId
+                            );
+
+                            cmdActualizar.Parameters.AddWithValue(
+                                "@UsuarioID",
+                                usuarioId
+                            );
+
+                            cmdActualizar.Parameters.AddWithValue(
+                                "@Comentarios",
+                                (object?)comentarios ?? DBNull.Value
+                            );
+
+                            cmdActualizar.Parameters.AddWithValue(
+                                "@SolicitudID",
+                                solicitudId
+                            );
+
+                            int filasActualizadas =
+                                await cmdActualizar.ExecuteNonQueryAsync();
+
+                            if (filasActualizadas == 0)
+                            {
+                                trans.Rollback();
+
+                                TempData["Error"] =
+                                    "No se pudo cerrar la solicitud. " +
+                                    "Es posible que haya sido modificada por otro usuario.";
+
+                                return RedirectToAction(
+                                    "Detalle",
+                                    new { id = solicitudId }
+                                );
+                            }
+                        }
+
+                        // Registrar el cierre en el historial dentro de la misma transaccion.
+                        string sqlHistorico = @"
+INSERT INTO Compras_Historico_Pasos
+(
+    SolicitudID,
+    EstatusID,
+    FechaMovimiento,
+    UsuarioResponsable
+)
+VALUES
+(
+    @SolicitudID,
+    10,
+    GETDATE(),
+    @Responsable
+);";
+
+                        using (var cmdHistorico =
+                               new SqlCommand(sqlHistorico, conn, trans))
+                        {
+                            cmdHistorico.Parameters.AddWithValue(
+                                "@SolicitudID",
+                                solicitudId
+                            );
+
+                            cmdHistorico.Parameters.AddWithValue(
+                                "@Responsable",
+                                User.Identity?.Name ?? "Sistema"
+                            );
+
+                            await cmdHistorico.ExecuteNonQueryAsync();
+                        }
+
+                        trans.Commit();
+
+                        // El correo se envia despues de confirmar la transaccion.
+                        await NotificarSolicitante_CompraCerradaAsync(solicitudId);
+
+                        TempData["Mensaje"] =
+                            "Cotizacion seleccionada correctamente. " +
+                            "La solicitud de compra ha sido cerrada.";
+
+                        return RedirectToAction(
+                            "Detalle",
+                            new { id = solicitudId }
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        trans.Rollback();
+
+                        _logger.LogError(
+                            ex,
+                            "Error al seleccionar cotizacion y cerrar la solicitud {SolicitudID}",
+                            solicitudId
+                        );
+
+                        TempData["Error"] =
+                            "No se pudo seleccionar la cotizacion ni cerrar la solicitud.";
+
+                        return RedirectToAction(
+                            "Detalle",
+                            new { id = solicitudId }
+                        );
+                    }
+                }
+            }
+        }
+
+        #endregion
 
         //METODOS PARA LA CONFIRMACION  DE DOCUMENTOS
 
@@ -4243,7 +5055,7 @@ WHERE S.SolicitudID = @SolicitudID";
                 string folio = rd["Folio"]?.ToString() ?? $"COM-{solicitudId.ToString().PadLeft(5, '0')}";
                 string solicitante = rd["Solicitante"]?.ToString() ?? "Solicitante";
 
-                string asunto = $"Cotizaciones cargadas por Compras - {folio}";
+                string asunto = $"Cotizaciones cargadas y solicitud cerrada - {folio}";
 
                 string html = $@"
 <!DOCTYPE html>
@@ -4252,20 +5064,20 @@ WHERE S.SolicitudID = @SolicitudID";
 <body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
   <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
     <div style='padding:20px; background:#f97316; color:#fff; text-align:center;'>
-      <h2 style='margin:0;'>Cotizaciones cargadas</h2>
+      <h2 style='margin:0;'>Cotizaciones cargadas y proceso finalizado</h2>
     </div>
 
     <div style='padding:20px; color:#333;'>
       <p>Hola <strong>{System.Net.WebUtility.HtmlEncode(solicitante)}</strong>,</p>
 
-     <p>Compras ha cargado cotizaciones para tu solicitud.</p>
-<p>Estas cotizaciones serán revisadas por Compras para dictaminar cuál procede.</p>
+      <p>Compras ha cargado las cotizaciones correspondientes a tu solicitud.</p>
+      <p>De acuerdo con el flujo actual, la solicitud quedó cerrada automáticamente y su progreso llegó al 100 %.</p>
 
       <div style='background:#fff7ed; border-left:4px solid #f97316; padding:12px 14px; border-radius:6px; margin:14px 0;'>
         <p style='margin:0;'><strong>Folio:</strong> {System.Net.WebUtility.HtmlEncode(folio)}</p>
       </div>
 
-      <p>Ingresa a la Intranet, módulo <strong>Compras</strong>, si deseas consultar las cotizaciones cargadas.</p>
+      <p>Ingresa a la Intranet, módulo <strong>Compras</strong>, si deseas consultar las cotizaciones y el detalle de la solicitud cerrada.</p>
       <p>https://intranet.nsgroup.com.mx/</p>
 
       <p style='color:#666; font-size:12px; margin-top:18px;'>
@@ -5009,13 +5821,13 @@ WHERE S.SolicitudID = @SolicitudID";
 
 
 
-        //METODO PARA EXPORTAR A EXEL+
+        //METODO PARA EXPORTAR EL SEGUIMIENTO A EXCEL
         [HttpGet("ExportarSeguimientoExcel")]
         public async Task<IActionResult> ExportarSeguimientoExcel(
-    int? estatus,
-    string? departamento,
-    string? comprador,
-    bool? soloRetrasadas)
+            int? estatus,
+            string? departamento,
+            string? comprador,
+            bool? soloRetrasadas)
         {
             int usuarioId = ObtenerUsuarioIdActual();
 
@@ -5090,19 +5902,61 @@ WHERE U.UsuarioID = @UsuarioID";
                                         ? null
                                         : (DateTime?)reader["FechaUltimoMovimiento"],
 
-                                DiasEnEstatus = Convert.ToInt32(reader["DiasEnEstatus"]),
-                                DiasCotizando = Convert.ToInt32(reader["DiasCotizando"]),
-                                MontoCotizado = Convert.ToDecimal(reader["MontoCotizado"]),
-                                DiasPermitidos = Convert.ToInt32(reader["DiasPermitidos"]),
-                                DiasHabilesTranscurridos = Convert.ToInt32(reader["DiasHabilesTranscurridos"]),
+                                DiasEnEstatus =
+                                    reader["DiasEnEstatus"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToInt32(reader["DiasEnEstatus"]),
+
+                                DiasCotizando =
+                                    reader["DiasCotizando"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToInt32(reader["DiasCotizando"]),
+
+                                MontoCotizado =
+                                    reader["MontoCotizado"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToDecimal(reader["MontoCotizado"]),
+
+                                DiasPermitidos =
+                                    reader["DiasPermitidos"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToInt32(reader["DiasPermitidos"]),
+
+                                DiasHabilesTranscurridos =
+                                    reader["DiasHabilesTranscurridos"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToInt32(reader["DiasHabilesTranscurridos"]),
+
                                 SemaforoTexto = reader["SemaforoTexto"].ToString(),
 
-                                DiasCompras = reader["DiasCompras"] == DBNull.Value ? 0 : Convert.ToInt32(reader["DiasCompras"]),
-                                DiasPresupuesto = reader["DiasPresupuesto"] == DBNull.Value ? 0 : Convert.ToInt32(reader["DiasPresupuesto"]),
-                                DiasOC = reader["DiasOC"] == DBNull.Value ? 0 : Convert.ToInt32(reader["DiasOC"]),
-                                DiasProveedor = reader["DiasProveedor"] == DBNull.Value ? 0 : Convert.ToInt32(reader["DiasProveedor"]),
-                                DiasAlmacen = reader["DiasAlmacen"] == DBNull.Value ? 0 : Convert.ToInt32(reader["DiasAlmacen"])
-                                
+                                // En el flujo actual representa el tiempo total
+                                // desde la creacion hasta el cierre o hasta hoy.
+                                DiasCompras =
+                                    reader["DiasCompras"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToInt32(reader["DiasCompras"]),
+
+                                // Se conservan para solicitudes historicas y para
+                                // mantener compatibilidad con el procedimiento.
+                                DiasPresupuesto =
+                                    reader["DiasPresupuesto"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToInt32(reader["DiasPresupuesto"]),
+
+                                DiasOC =
+                                    reader["DiasOC"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToInt32(reader["DiasOC"]),
+
+                                DiasProveedor =
+                                    reader["DiasProveedor"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToInt32(reader["DiasProveedor"]),
+
+                                DiasAlmacen =
+                                    reader["DiasAlmacen"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToInt32(reader["DiasAlmacen"])
                             });
                         }
                     }
@@ -5121,7 +5975,11 @@ WHERE U.UsuarioID = @UsuarioID";
                 solicitudes = solicitudes
                     .Where(x =>
                         x.Departamento != null &&
-                        x.Departamento.Contains(departamento, StringComparison.OrdinalIgnoreCase))
+                        x.Departamento.Contains(
+                            departamento,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    )
                     .ToList();
             }
 
@@ -5130,7 +5988,11 @@ WHERE U.UsuarioID = @UsuarioID";
                 solicitudes = solicitudes
                     .Where(x =>
                         x.CompradorAsignado != null &&
-                        x.CompradorAsignado.Contains(comprador, StringComparison.OrdinalIgnoreCase))
+                        x.CompradorAsignado.Contains(
+                            comprador,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    )
                     .ToList();
             }
 
@@ -5143,29 +6005,66 @@ WHERE U.UsuarioID = @UsuarioID";
 
             using (var workbook = new XLWorkbook())
             {
-                var ws = workbook.Worksheets.Add("Seguimiento");
+                var ws = workbook.Worksheets.Add("Seguimiento Compras");
 
+                /*
+                 * COLUMNAS DEL FLUJO ACTUAL
+                 *
+                 * 1 -> Solicitada / Pendiente de cotizacion
+                 * 2 -> Cotizaciones cargadas
+                 * 10 -> Cerrada
+                 */
                 string[] headers =
                 {
-            "Folio",
-            "Fecha creación",
-            "Solicitante",
-            "Departamento",
-            "Empresa",
-            "Tipo compra",
-            "Comprador asignado",
-            "Estatus",
-            "Urgencia",
-            "Días transcurridos",
-            "Días permitidos",
-            "Semáforo",
-            "Monto cotizado",
-            "Días Compras",
-            "Días Presupuesto",
-            "Días O.C.",
-            "Días Proveedor",
-            "Días Almacén"
-        };
+                    "Folio",
+                    "Fecha creación",
+                    "Solicitante",
+                    "Departamento",
+                    "Empresa",
+                    "Tipo compra",
+                    "Comprador asignado",
+                    "Estatus",
+                    "Urgencia",
+                    "Último movimiento",
+                    "Días en estatus",
+                    "Días para cotizar",
+                    "Días totales transcurridos",
+                    "Días permitidos",
+                    "Semáforo",
+                    "Monto cotizado",
+                    "Días totales del proceso"
+                };
+
+#if false
+                /*
+                 * CODIGO LEGADO - COLUMNAS DEL PROCESO ANTERIOR
+                 *
+                 * Se conserva como referencia. Ya no se muestran en el Excel
+                 * porque las nuevas solicitudes no pasan por Presupuestos,
+                 * O.C., Proveedor ni Almacen.
+                 */
+                string[] headersProcesoAnterior =
+                {
+                    "Folio",
+                    "Fecha creación",
+                    "Solicitante",
+                    "Departamento",
+                    "Empresa",
+                    "Tipo compra",
+                    "Comprador asignado",
+                    "Estatus",
+                    "Urgencia",
+                    "Días transcurridos",
+                    "Días permitidos",
+                    "Semáforo",
+                    "Monto cotizado",
+                    "Días Compras",
+                    "Días Presupuesto",
+                    "Días O.C.",
+                    "Días Proveedor",
+                    "Días Almacén"
+                };
+#endif
 
                 for (int i = 0; i < headers.Length; i++)
                 {
@@ -5185,39 +6084,79 @@ WHERE U.UsuarioID = @UsuarioID";
                     ws.Cell(row, 7).Value = item.CompradorAsignado;
                     ws.Cell(row, 8).Value = item.Estatus;
                     ws.Cell(row, 9).Value = item.Urgencia;
-                    ws.Cell(row, 10).Value = item.DiasHabilesTranscurridos;
-                    ws.Cell(row, 11).Value = item.DiasPermitidos;
-                    ws.Cell(row, 12).Value = item.SemaforoTexto;
-                    ws.Cell(row, 13).Value = item.MontoCotizado;
-                    ws.Cell(row, 14).Value = item.DiasCompras;
-                    ws.Cell(row, 15).Value = item.DiasPresupuesto;
-                    ws.Cell(row, 16).Value = item.DiasOC;
-                    ws.Cell(row, 17).Value = item.DiasProveedor;
-                    ws.Cell(row, 18).Value = item.DiasAlmacen;
-                  
+
+                    if (item.FechaUltimoMovimiento.HasValue)
+                    {
+                        ws.Cell(row, 10).Value = item.FechaUltimoMovimiento.Value;
+                    }
+                    else
+                    {
+                        ws.Cell(row, 10).Value = "Sin movimientos";
+                    }
+
+                    ws.Cell(row, 11).Value = item.DiasEnEstatus;
+                    ws.Cell(row, 12).Value = item.DiasCotizando;
+                    ws.Cell(row, 13).Value = item.DiasHabilesTranscurridos;
+                    ws.Cell(row, 14).Value = item.DiasPermitidos;
+                    ws.Cell(row, 15).Value = item.SemaforoTexto;
+                    ws.Cell(row, 16).Value = item.MontoCotizado;
+                    ws.Cell(row, 17).Value = item.DiasCompras;
+
+#if false
+                    /*
+                     * CODIGO LEGADO - ESCRITURA DE METRICAS ANTERIORES
+                     *
+                     * ws.Cell(row, 14).Value = item.DiasCompras;
+                     * ws.Cell(row, 15).Value = item.DiasPresupuesto;
+                     * ws.Cell(row, 16).Value = item.DiasOC;
+                     * ws.Cell(row, 17).Value = item.DiasProveedor;
+                     * ws.Cell(row, 18).Value = item.DiasAlmacen;
+                     */
+#endif
 
                     row++;
                 }
 
-                var rango = ws.Range(1, 1, Math.Max(row - 1, 1), headers.Length);
-                rango.CreateTable();
+                int ultimaFila = Math.Max(row - 1, 1);
+                int ultimaColumna = headers.Length;
+
+                var rango = ws.Range(1, 1, ultimaFila, ultimaColumna);
+                rango.CreateTable("TablaSeguimientoCompras");
 
                 ws.Row(1).Style.Font.Bold = true;
                 ws.Row(1).Style.Fill.BackgroundColor = XLColor.FromHtml("#0f172a");
                 ws.Row(1).Style.Font.FontColor = XLColor.White;
+                ws.Row(1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                ws.Row(1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                ws.Row(1).Style.Alignment.WrapText = true;
 
-                ws.Column(2).Style.DateFormat.Format = "dd/MM/yyyy";
-                ws.Column(13).Style.NumberFormat.Format = "$#,##0.00";
+                ws.Column(2).Style.DateFormat.Format = "dd/MM/yyyy HH:mm";
+                ws.Column(10).Style.DateFormat.Format = "dd/MM/yyyy HH:mm";
+                ws.Column(16).Style.NumberFormat.Format = "$#,##0.00";
+
+                ws.Columns(11, 14).Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
+
+                ws.Column(17).Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
 
                 ws.SheetView.FreezeRows(1);
                 ws.Columns().AdjustToContents();
+
+                // Evita columnas excesivamente anchas por textos largos.
+                foreach (var column in ws.ColumnsUsed())
+                {
+                    if (column.Width > 45)
+                        column.Width = 45;
+                }
 
                 using (var stream = new MemoryStream())
                 {
                     workbook.SaveAs(stream);
                     var contenido = stream.ToArray();
 
-                    string nombreArchivo = $"Seguimiento_Compras_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+                    string nombreArchivo =
+                        $"Seguimiento_Compras_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
 
                     return File(
                         contenido,
@@ -5558,6 +6497,164 @@ VALUES
                 }
             }
         }
+
+
+        #region NOTIFICACION - COMPRA CERRADA
+
+        private async Task NotificarSolicitante_CompraCerradaAsync(int solicitudId)
+        {
+            try
+            {
+                int personaId;
+                string folio;
+                string solicitante;
+                string proveedor;
+                decimal monto;
+                string comentarios;
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    string sql = @"
+SELECT
+    ISNULL(
+        S.Folio,
+        'COM-' + RIGHT('00000' + CAST(S.SolicitudID AS VARCHAR(10)), 5)
+    ) AS Folio,
+    P.PersonaID,
+    P.Nombre + ' ' + P.ApellidoPaterno AS Solicitante,
+    C.Proveedor,
+    C.MontoTotal,
+    S.ComentariosSeleccionUsuario
+FROM Compras_Solicitud S
+INNER JOIN Usuarios U
+    ON S.UsuarioID = U.UsuarioID
+INNER JOIN Persona P
+    ON U.PersonaID = P.PersonaID
+INNER JOIN Compras_Cotizaciones C
+    ON S.CotizacionSeleccionadaID = C.CotizacionID
+WHERE S.SolicitudID = @SolicitudID
+  AND S.EstatusID = 10;";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue(
+                            "@SolicitudID",
+                            solicitudId
+                        );
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (!await reader.ReadAsync())
+                                return;
+
+                            personaId = Convert.ToInt32(reader["PersonaID"]);
+
+                            folio = reader["Folio"]?.ToString()
+                                ?? $"COM-{solicitudId.ToString().PadLeft(5, '0')}";
+
+                            solicitante = reader["Solicitante"]?.ToString()
+                                ?? "Solicitante";
+
+                            proveedor = reader["Proveedor"] == DBNull.Value
+                                ? "No especificado"
+                                : reader["Proveedor"]?.ToString() ?? "No especificado";
+
+                            monto = reader["MontoTotal"] == DBNull.Value
+                                ? 0
+                                : Convert.ToDecimal(reader["MontoTotal"]);
+
+                            comentarios = reader["ComentariosSeleccionUsuario"] == DBNull.Value
+                                ? ""
+                                : reader["ComentariosSeleccionUsuario"]?.ToString() ?? "";
+                        }
+                    }
+                }
+
+                string comentariosHtml = string.IsNullOrWhiteSpace(comentarios)
+                    ? ""
+                    : $@"
+<p>
+    <strong>Comentarios de Compras:</strong>
+    {System.Net.WebUtility.HtmlEncode(comentarios)}
+</p>";
+
+                string asunto = $"Solicitud de compra cerrada - {folio}";
+
+                string html = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+</head>
+<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+    <div style='max-width:650px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+        <div style='padding:20px; background:#16a34a; color:#ffffff; text-align:center;'>
+            <h2 style='margin:0;'>Solicitud de compra cerrada</h2>
+        </div>
+
+        <div style='padding:20px; color:#333333;'>
+            <p>
+                Hola <strong>{System.Net.WebUtility.HtmlEncode(solicitante)}</strong>,
+            </p>
+
+            <p>
+                Compras selecciono la cotizacion procedente y finalizo el proceso de tu solicitud.
+            </p>
+
+            <div style='background:#f0fdf4; border-left:4px solid #16a34a; padding:12px 14px; border-radius:6px; margin:14px 0;'>
+                <p style='margin:0 0 6px;'>
+                    <strong>Folio:</strong>
+                    {System.Net.WebUtility.HtmlEncode(folio)}
+                </p>
+
+                <p style='margin:0 0 6px;'>
+                    <strong>Proveedor seleccionado:</strong>
+                    {System.Net.WebUtility.HtmlEncode(proveedor)}
+                </p>
+
+                <p style='margin:0;'>
+                    <strong>Monto:</strong>
+                    {monto:C}
+                </p>
+            </div>
+
+            {comentariosHtml}
+
+            <p>
+                Puedes consultar la cotizacion seleccionada desde el modulo de
+                <strong>Compras</strong> en la Intranet.
+            </p>
+
+            <p>https://intranet.nsgroup.com.mx/</p>
+
+            <p style='color:#666666; font-size:12px; margin-top:18px;'>
+                Mensaje generado automaticamente por la Intranet NS Group.
+                No respondas a este correo.
+            </p>
+        </div>
+    </div>
+</body>
+</html>";
+
+                await _notif.EnviarABccPersonasAsync(
+                    new List<int> { personaId },
+                    asunto,
+                    html
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error enviando correo de cierre de compra. SolicitudID={SolicitudID}",
+                    solicitudId
+                );
+            }
+        }
+
+        #endregion
 
         //METODO PARA SOLICITAR DOCUMENTOS
 
