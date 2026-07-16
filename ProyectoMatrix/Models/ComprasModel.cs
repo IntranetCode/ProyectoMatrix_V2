@@ -54,15 +54,21 @@
         public string Estatus { get; set; }
         public int EstatusID { get; set; } // Nuevo: Para lógica de colores
 
-        // Propiedad calculada para la barra de progreso
+        // Flujo actual: 1 -> 2 -> 10.
+        // Los estados 3 al 9 se conservan para mostrar correctamente
+        // las solicitudes históricas del proceso anterior.
         public int Porcentaje
         {
             get
             {
                 return EstatusID switch
                 {
-                    1 => 10,
-                    2 => 25,
+                    // Flujo actual
+                    1 => 33,
+                    2 => 66,
+                    10 => 100,
+
+                    // Flujo histórico
                     3 => 40,
                     4 => 55,
                     5 => 70,
@@ -70,7 +76,8 @@
                     7 => 82,
                     8 => 85,
                     9 => 90,
-                    10 => 100,
+
+                    // Estados extraordinarios
                     11 => 100,
                     12 => 100,
                     _ => 0
@@ -80,16 +87,23 @@
 
         public string ColorProgreso => EstatusID switch
         {
+            // Flujo actual
+            1 => "bg-primary",
+            2 => "bg-info",
             10 => "bg-success",
-            11 => "bg-danger",
-            12 => "bg-secondary",
-            8 => "bg-warning",
-            9 => "bg-warning",
+
+            // Flujo histórico
+            3 => "bg-info",
+            4 => "bg-info",
             5 => "bg-primary",
             6 => "bg-primary",
             7 => "bg-primary",
-            3 => "bg-info",
-            4 => "bg-info",
+            8 => "bg-warning",
+            9 => "bg-warning",
+
+            // Estados extraordinarios
+            11 => "bg-danger",
+            12 => "bg-secondary",
             _ => "bg-primary"
         };
     }
@@ -230,46 +244,56 @@
 
         public string? ArchivoReferenciaPath { get; set; }
 
+        // Flujo actual: 1 -> 2 -> 10.
+        // Los estados anteriores permanecen disponibles para consultar
+        // correctamente los expedientes históricos.
         public int Porcentaje
         {
             get
             {
                 return EstatusID switch
                 {
-                    1 => 10,   // Solicitada / Pendiente de cotización
-                    2 => 25,   // Cotizaciones cargadas
-                    3 => 40,   // Pendiente documentación usuario
-                    4 => 55,   // En Control Presupuestal
-                    5 => 70,   // Autorizada para O.C.
-                    6 => 80,   // O.C. generada
-                    7 => 82,   // O.C. enviada al proveedor
-                    8 => 85,   // Pendiente recepción almacén
-                    9 => 90,   // Pendiente entrega usuario
-                    10 => 100, // Cerrada
-                    11 => 100, // Rechazada por Control Presupuestal
-                    12 => 100, // Cancelada
+                    // Flujo actual
+                    1 => 33,
+                    2 => 66,
+                    10 => 100,
+
+                    // Flujo histórico
+                    3 => 40,
+                    4 => 55,
+                    5 => 70,
+                    6 => 80,
+                    7 => 82,
+                    8 => 85,
+                    9 => 90,
+
+                    // Estados extraordinarios
+                    11 => 100,
+                    12 => 100,
                     _ => 0
                 };
             }
         }
 
-        // Color de la barra según estatus
         public string ColorProgreso => EstatusID switch
         {
-            10 => "bg-success",   // Cerrada
-            11 => "bg-danger",    // Rechazada por Control Presupuestal
-            12 => "bg-secondary", // Cancelada
+            // Flujo actual
+            1 => "bg-primary",
+            2 => "bg-info",
+            10 => "bg-success",
 
-            8 => "bg-warning",    // Pendiente recepción almacén
-            9 => "bg-warning",    // Pendiente entrega usuario
-
+            // Flujo histórico
+            3 => "bg-info",
+            4 => "bg-info",
             5 => "bg-primary",
             6 => "bg-primary",
             7 => "bg-primary",
+            8 => "bg-warning",
+            9 => "bg-warning",
 
-            3 => "bg-info",
-            4 => "bg-info",
-
+            // Estados extraordinarios
+            11 => "bg-danger",
+            12 => "bg-secondary",
             _ => "bg-primary"
         };
 

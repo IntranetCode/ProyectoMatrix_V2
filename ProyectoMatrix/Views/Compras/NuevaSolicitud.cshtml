@@ -3,6 +3,15 @@
 @{
     ViewData["Title"] = "Nueva Solicitud de Compra";
     Layout = "_LayoutComunicados";
+
+    // Conserva la selección cuando el formulario regresa por un error de validación.
+    bool presupuestoOpcionalInicial =
+        Context.Request.HasFormContentType
+        && string.Equals(
+            Context.Request.Form["PresupuestoOpcional"].ToString(),
+            "true",
+            StringComparison.OrdinalIgnoreCase
+        );
 }
 
 <div class="container-fluid">
@@ -85,24 +94,43 @@
         </div>
 
 
-        @*Seccion de datos para presupuesto*@
+        @* Sección de datos para presupuesto *@
 
-        <div class="card shadow mb-4 border-left-warning">
-            <div class="card-header py-3">
+        <div class="card shadow mb-4 border-left-warning" id="cardPresupuesto">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-warning">
                     <i class="fas fa-coins mr-2"></i>
                     Presupuesto de la compra
                 </h6>
+
+                <button type="button"
+                        id="btnPresupuestoOpcional"
+                        class="btn btn-outline-warning btn-sm">
+                    <i class="fas fa-toggle-off mr-1"></i>
+                    Hacer presupuesto opcional
+                </button>
             </div>
 
             <div class="card-body">
+                <input type="hidden"
+                       name="PresupuestoOpcional"
+                       id="hfPresupuestoOpcional"
+                       value="@(presupuestoOpcionalInicial ? "true" : "false")" />
 
-                <div class="form-group">
+                <div id="mensajePresupuestoOpcional"
+                     class="alert alert-info small"
+                     style="display:none;">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    El presupuesto se guardará sin monto. Puedes volver a activarlo con el botón superior.
+                </div>
+
+                <div class="form-group" id="grupoMontoPresupuesto">
                     <label asp-for="MontoPresupuestoSolicitado" class="small font-weight-bold">
                         Presupuesto aproximado o solicitado
                     </label>
 
                     <input asp-for="MontoPresupuestoSolicitado"
+                           id="txtMontoPresupuesto"
                            type="number"
                            step="0.01"
                            min="0.01"
@@ -118,7 +146,7 @@
                     </small>
                 </div>
 
-                <div class="form-check mb-3">
+                <div class="form-check mb-3" id="grupoFueraPresupuesto">
                     <input asp-for="FueraPresupuestoUsuario"
                            class="form-check-input"
                            type="checkbox"
@@ -469,12 +497,21 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
+            const btnPresupuestoOpcional = document.getElementById("btnPresupuestoOpcional");
+            const hfPresupuestoOpcional = document.getElementById("hfPresupuestoOpcional");
+            const inputMontoPresupuesto = document.getElementById("txtMontoPresupuesto");
+            const grupoMontoPresupuesto = document.getElementById("grupoMontoPresupuesto");
+            const grupoFueraPresupuesto = document.getElementById("grupoFueraPresupuesto");
+            const mensajePresupuestoOpcional = document.getElementById("mensajePresupuestoOpcional");
             const chkFueraPresupuesto = document.getElementById("chkFueraPresupuesto");
             const bloqueDesviacion = document.getElementById("bloqueDesviacion");
             const inputArchivoDesviacion = document.getElementById("ArchivoDesviacion");
 
+            let presupuestoOpcional =
+                (hfPresupuestoOpcional?.value || "false").toLowerCase() === "true";
+
             function toggleDesviacion() {
-                const fuera = chkFueraPresupuesto.checked;
+                const fuera = !presupuestoOpcional && chkFueraPresupuesto.checked;
 
                 bloqueDesviacion.style.display = fuera ? "block" : "none";
 
@@ -487,8 +524,47 @@
                 }
             }
 
+            function actualizarModoPresupuesto() {
+                hfPresupuestoOpcional.value = presupuestoOpcional ? "true" : "false";
+
+                inputMontoPresupuesto.disabled = presupuestoOpcional;
+                inputMontoPresupuesto.required = !presupuestoOpcional;
+                chkFueraPresupuesto.disabled = presupuestoOpcional;
+
+                if (presupuestoOpcional) {
+                    inputMontoPresupuesto.value = "";
+                    chkFueraPresupuesto.checked = false;
+
+                    grupoMontoPresupuesto.classList.add("presupuesto-deshabilitado");
+                    grupoFueraPresupuesto.classList.add("presupuesto-deshabilitado");
+                    mensajePresupuestoOpcional.style.display = "block";
+
+                    btnPresupuestoOpcional.classList.remove("btn-outline-warning");
+                    btnPresupuestoOpcional.classList.add("btn-warning");
+                    btnPresupuestoOpcional.innerHTML =
+                        '<i class="fas fa-toggle-on mr-1"></i> Capturar presupuesto';
+                } else {
+                    grupoMontoPresupuesto.classList.remove("presupuesto-deshabilitado");
+                    grupoFueraPresupuesto.classList.remove("presupuesto-deshabilitado");
+                    mensajePresupuestoOpcional.style.display = "none";
+
+                    btnPresupuestoOpcional.classList.remove("btn-warning");
+                    btnPresupuestoOpcional.classList.add("btn-outline-warning");
+                    btnPresupuestoOpcional.innerHTML =
+                        '<i class="fas fa-toggle-off mr-1"></i> Hacer presupuesto opcional';
+                }
+
+                toggleDesviacion();
+            }
+
+            btnPresupuestoOpcional.addEventListener("click", function () {
+                presupuestoOpcional = !presupuestoOpcional;
+                actualizarModoPresupuesto();
+            });
+
             chkFueraPresupuesto.addEventListener("change", toggleDesviacion);
-            toggleDesviacion();
+
+            actualizarModoPresupuesto();
         });
     </script>
 
@@ -865,6 +941,14 @@
 
     .text-right.pb-5 {
         margin-top: 1rem;
+    }
+
+    .presupuesto-deshabilitado {
+        opacity: 0.55;
+    }
+
+    #btnPresupuestoOpcional {
+        white-space: nowrap;
     }
 
 

@@ -56,6 +56,11 @@
                 </a>
             }
 
+            @*
+                CÓDIGO LEGADO:
+                Acceso a Control Presupuestal deshabilitado por la simplificación
+                del flujo de Compras. Se conserva sin modificar el diseño original.
+
             @if (esPresupuestos)
             {
                 <a asp-action="BandejaPresupuestos" class="btn btn-ns-cyan">
@@ -63,6 +68,7 @@
                     Validar Presupuestos
                 </a>
             }
+            *@
 
             @if (esDireccion)
             {
@@ -72,6 +78,11 @@
                 </a>
             }
 
+            @*
+                CÓDIGO LEGADO:
+                Acceso a Almacén deshabilitado por la simplificación
+                del flujo de Compras. Se conserva sin modificar el diseño original.
+
             @if (esAlmacen)
             {
                 <a asp-action="BandejaAlmacen" class="btn btn-ns-purple">
@@ -79,6 +90,7 @@
                     Bandeja Almacén
                 </a>
             }
+            *@
 
             
 
@@ -119,6 +131,12 @@
 
         </div>
 
+        @*
+            CÓDIGO LEGADO:
+            Gráficas de Cuellos de Botella y Estatus General ocultas
+            por la simplificación del módulo Compras.
+            Se conserva el código completo para poder reactivarlo después.
+
         <div class="row mb-4">
 
             <div class="col-lg-4 mb-4">
@@ -152,6 +170,7 @@
             </div>
 
         </div>
+        *@
     }
 
     <div class="ns-card mb-5">
@@ -250,6 +269,11 @@
     </div>
 
 </div>
+
+@*
+    CÓDIGO LEGADO:
+    Scripts de ApexCharts para las gráficas ocultas.
+    Se conservan completos sin ejecutarse.
 
 @section Scripts {
 
@@ -468,6 +492,8 @@
     }
 
 }
+
+*@
 
 <style>
     .compras-page {

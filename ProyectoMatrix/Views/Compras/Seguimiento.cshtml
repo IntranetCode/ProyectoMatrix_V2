@@ -96,18 +96,24 @@
 
                        <select name="estatus" class="form-select">
     <option value="">Todos</option>
-    <option value="1">Solicitada / Pendiente de cotización</option>
-    <option value="2">Cotizaciones cargadas</option>
-    <option value="3">Pendiente documentación usuario</option>
-    <option value="4">En Control Presupuestal</option>
-    <option value="5">Autorizada para O.C.</option>
-    <option value="6">O.C. generada</option>
-    <option value="7">O.C. enviada al proveedor</option>
-    <option value="8">Pendiente recepción almacén</option>
-    <option value="9">Pendiente entrega usuario</option>
-    <option value="10">Cerrada</option>
-    <option value="11">Rechazada por Control Presupuestal</option>
-    <option value="12">Cancelada</option>
+
+    <optgroup label="Flujo actual">
+        <option value="1">Solicitada / Pendiente de cotización</option>
+        <option value="2">Cotizaciones cargadas</option>
+        <option value="10">Cerrada</option>
+    </optgroup>
+
+    <optgroup label="Proceso anterior / histórico">
+        <option value="3">Pendiente documentación usuario</option>
+        <option value="4">En Control Presupuestal</option>
+        <option value="5">Autorizada para O.C.</option>
+        <option value="6">O.C. generada</option>
+        <option value="7">O.C. enviada al proveedor</option>
+        <option value="8">Pendiente recepción almacén</option>
+        <option value="9">Pendiente entrega usuario</option>
+        <option value="11">Rechazada por Control Presupuestal</option>
+        <option value="12">Cancelada</option>
+    </optgroup>
 </select>
                     </div>
 
@@ -252,9 +258,10 @@
                                             data-folio="@item.Folio"
                                             data-solicitante="@item.Solicitante"
                                             data-comprador="@(string.IsNullOrWhiteSpace(item.CompradorAsignado) ? "Sin asignar" : item.CompradorAsignado)"
+                                            data-cotizando="@item.DiasCotizando"
                                             data-compras="@item.DiasCompras"
                                             data-presupuesto="@item.DiasPresupuesto"
-             data-oc="@item.DiasOC"
+                                            data-oc="@item.DiasOC"
                                             data-proveedor="@item.DiasProveedor"
                                             data-almacen="@item.DiasAlmacen"
                                             >
@@ -419,29 +426,39 @@
                     <tbody>
 
                         <tr>
-                            <td>Compras (Cotizando)</td>
-                            <td id="mdCompras"></td>
+                            <td>Compras (Carga de cotizaciones)</td>
+                            <td id="mdCotizando"></td>
                         </tr>
 
                         <tr>
+                            <td>Compras (Tiempo total del proceso)</td>
+                            <td id="mdCompras"></td>
+                        </tr>
+
+                        @*
+                            Las siguientes filas se conservan para mostrar el
+                            detalle de solicitudes históricas del proceso anterior.
+                            JavaScript las oculta cuando todos sus valores son cero.
+                        *@
+                        <tr class="fila-proceso-anterior">
                             <td>Control Presupuestal</td>
                             <td id="mdPresupuesto"></td>
                         </tr>
 
-                        <tr>
+                        <tr class="fila-proceso-anterior">
                             <td>Compras generando O.C.</td>
                             <td id="mdOC"></td>
                         </tr>
 
-                        <tr>
+                        <tr class="fila-proceso-anterior">
                             <td>En espera del proveedor</td>
                             <td id="mdProveedor"></td>
                         </tr>
 
-                        <tr>
+                        <tr class="fila-proceso-anterior">
                             <td>Recepción en almacén</td>
                             <td id="mdAlmacen"></td>
-                        </tr>                       
+                        </tr>
 
                     </tbody>
 
@@ -479,6 +496,7 @@
 
                 btn.addEventListener('click', function () {
 
+                    const cotizando = parseInt(btn.dataset.cotizando || '0');
                     const compras = parseInt(btn.dataset.compras || '0');
                     const presupuesto = parseInt(btn.dataset.presupuesto || '0');
                     const oc = parseInt(btn.dataset.oc || '0');
@@ -495,6 +513,9 @@
                     document.getElementById('mdComprador').innerText =
                         btn.dataset.comprador || 'Sin asignar';
 
+                    document.getElementById('mdCotizando').innerText =
+                        cotizando;
+
                     document.getElementById('mdCompras').innerText =
                         compras;
 
@@ -510,9 +531,16 @@
                     document.getElementById('mdAlmacen').innerText =
                         almacen;
 
-                    
+                    const tieneProcesoAnterior =
+                        presupuesto > 0 || oc > 0 || proveedor > 0 || almacen > 0;
+
+                    document.querySelectorAll('.fila-proceso-anterior')
+                        .forEach(function (fila) {
+                            fila.style.display = tieneProcesoAnterior ? '' : 'none';
+                        });
+
                     document.getElementById('mdTotal').innerText =
-                        compras + presupuesto + oc + proveedor + almacen ;
+                        compras;
 
                 });
 
