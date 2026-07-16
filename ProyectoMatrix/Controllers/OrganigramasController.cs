@@ -2,7 +2,11 @@
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Data.SqlClient;
 using ProyectoMatrix.Models;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Processing;
 using System.Security.Claims;
+using PDFtoImage;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -12,8 +16,10 @@ namespace ProyectoMatrix.Controllers
         private readonly ILogger<OrganigramasController> _logger;
         private readonly IWebHostEnvironment _env;
 
+        private const long MaxFileBytes = 60 * 1024 * 1024; // 60 MB
 
-        private const long MaxFileBytes = 20 * 1024 * 1024; // 20 MB
+        private const int PreviewMaxSize = 2600;
+        private const int PreviewQuality = 78;
 
         private static readonly string[] ExtensionesPermitidas =
         {
@@ -135,11 +141,13 @@ namespace ProyectoMatrix.Controllers
 
         // ==========================================================
         // CREAR - POST
-        // Guarda archivo y asigna empresas seleccionadas.
+        // Guarda archivo original privado y genera preview ligero.
         // ==========================================================
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RequestSizeLimit(MaxFileBytes)]
+        [RequestFormLimits(MultipartBodyLengthLimit = MaxFileBytes)]
         public async Task<IActionResult> Crear(OrganigramaEditorVm vm)
         {
             var usuarioId = ObtenerUsuarioId();
@@ -161,7 +169,7 @@ namespace ProyectoMatrix.Controllers
                 ModelState.AddModelError(nameof(vm.Archivo), "Debe seleccionar un archivo.");
 
             if (vm.Archivo != null && vm.Archivo.Length > MaxFileBytes)
-                ModelState.AddModelError(nameof(vm.Archivo), "El archivo no debe superar 20 MB.");
+                ModelState.AddModelError(nameof(vm.Archivo), "El archivo no debe superar 60 MB.");
 
             if (vm.EmpresasSeleccionadas == null || !vm.EmpresasSeleccionadas.Any())
                 ModelState.AddModelError(nameof(vm.EmpresasSeleccionadas), "Debe seleccionar al menos una empresa.");
@@ -203,12 +211,12 @@ namespace ProyectoMatrix.Controllers
                 await vm.Archivo!.CopyToAsync(stream);
             }
 
+            int organigramaId = 0;
+
             using var tx = conn.BeginTransaction();
 
             try
             {
-                int organigramaId;
-
                 using (var cmd = new SqlCommand(@"
                     INSERT INTO dbo.Organigramas
                     (
@@ -278,6 +286,35 @@ namespace ProyectoMatrix.Controllers
 
                 tx.Commit();
 
+                if (EsExtensionImagen(extension) || EsExtensionPdf(extension))
+                {
+                    try
+                    {
+                        if (EsExtensionImagen(extension))
+                        {
+                            await CrearPreviewImagenAsync(
+                                rutaFisica,
+                                organigramaId
+                            );
+                        }
+                        else if (EsExtensionPdf(extension))
+                        {
+                            await CrearPreviewPdfAsync(
+                                rutaFisica,
+                                organigramaId
+                            );
+                        }
+                    }
+                    catch (Exception previewEx)
+                    {
+                        _logger.LogError(
+                            previewEx,
+                            "El organigrama se creó, pero no se pudo generar la vista previa. OrganigramaID: {OrganigramaID}",
+                            organigramaId
+                        );
+                    }
+                }
+
                 TempData["Ok"] = "Organigrama creado correctamente.";
                 return RedirectToAction(nameof(Index));
             }
@@ -288,6 +325,9 @@ namespace ProyectoMatrix.Controllers
                 if (System.IO.File.Exists(rutaFisica))
                     System.IO.File.Delete(rutaFisica);
 
+                if (organigramaId > 0)
+                    EliminarPreviewSiExiste(organigramaId);
+
                 _logger.LogError(ex, "Error creando organigrama.");
 
                 ModelState.AddModelError(string.Empty, "No se pudo crear el organigrama.");
@@ -297,7 +337,8 @@ namespace ProyectoMatrix.Controllers
 
         // ==========================================================
         // ARCHIVO
-        // Sirve PDF o imagen solo si el usuario tiene acceso.
+        // Sirve el archivo original solo si el usuario tiene acceso.
+        // Este endpoint ya no debería usarse para vista previa normal.
         // ==========================================================
 
         [HttpGet]
@@ -307,6 +348,9 @@ namespace ProyectoMatrix.Controllers
 
             if (!usuarioId.HasValue)
                 return RedirectToAction("Login", "Login");
+
+            if (id <= 0)
+                return NotFound();
 
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
@@ -360,7 +404,92 @@ namespace ProyectoMatrix.Controllers
 
             Response.Headers["Content-Disposition"] = $"inline; filename=\"{archivoOriginal}\"";
 
-            return PhysicalFile(rutaFisica, mimeType);
+            var result = PhysicalFile(rutaFisica, mimeType ?? "application/octet-stream");
+            result.EnableRangeProcessing = true;
+
+            return result;
+        }
+
+        // ==========================================================
+        // PREVIEW
+        // Sirve una imagen JPG ligera generada desde el archivo original.
+        // Compatible con /Organigramas/Preview/8
+        // ==========================================================
+
+        [HttpGet("/Organigramas/Preview/{id:int}")]
+        public async Task<IActionResult> Preview(int id)
+        {
+            var usuarioId = ObtenerUsuarioId();
+
+            if (!usuarioId.HasValue)
+                return RedirectToAction("Login", "Login");
+
+            if (id <= 0)
+                return NotFound("El OrganigramaID no es válido.");
+
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var esEditor = await UsuarioTieneOverrideOrganigramasAsync(conn, usuarioId.Value);
+            var empresasUsuario = await ObtenerEmpresasActivasUsuarioAsync(conn, usuarioId.Value);
+
+            var puedeVer = await UsuarioPuedeVerOrganigramaAsync(
+                conn,
+                id,
+                empresasUsuario,
+                esEditor
+            );
+
+            if (!puedeVer)
+                return Forbid();
+
+            var rutaPreview = ObtenerRutaPreview(id);
+
+            if (!System.IO.File.Exists(rutaPreview))
+            {
+                bool generado = false;
+
+                try
+                {
+                    generado = await IntentarGenerarPreviewDesdeOriginalAsync(conn, id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "No se pudo generar la vista previa del organigrama. OrganigramaID: {OrganigramaID}",
+                        id
+                    );
+
+                    return NotFound("No se pudo generar la vista previa del organigrama.");
+                }
+
+                if (!generado || !System.IO.File.Exists(rutaPreview))
+                    return NotFound("No se encontró la vista previa del organigrama.");
+            }
+
+            Response.Headers.CacheControl = "no-cache";
+
+            var result = PhysicalFile(rutaPreview, "image/jpeg");
+            result.EnableRangeProcessing = true;
+
+            return result;
+        }
+
+        // ==========================================================
+        // VISOR
+        // Compatibilidad temporal:
+        // Si alguna vista vieja llama /Organigramas/Visor/{id},
+        // redirige al preview ligero.
+        // ==========================================================
+
+        [HttpGet("/Organigramas/Visor/{id:int}")]
+        public IActionResult Visor(int id)
+        {
+            if (id <= 0)
+                return NotFound("El OrganigramaID no es válido.");
+
+            return RedirectToAction(nameof(Preview), new { id });
         }
 
         // ==========================================================
@@ -374,6 +503,9 @@ namespace ProyectoMatrix.Controllers
 
             if (!usuarioId.HasValue)
                 return RedirectToAction("Login", "Login");
+
+            if (id <= 0)
+                return NotFound();
 
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
@@ -399,6 +531,8 @@ namespace ProyectoMatrix.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RequestSizeLimit(MaxFileBytes)]
+        [RequestFormLimits(MultipartBodyLengthLimit = MaxFileBytes)]
         public async Task<IActionResult> Editar(OrganigramaEditorVm vm)
         {
             var usuarioId = ObtenerUsuarioId();
@@ -427,7 +561,7 @@ namespace ProyectoMatrix.Controllers
             if (vm.Archivo != null && vm.Archivo.Length > 0)
             {
                 if (vm.Archivo.Length > MaxFileBytes)
-                    ModelState.AddModelError(nameof(vm.Archivo), "El archivo no debe superar 20 MB.");
+                    ModelState.AddModelError(nameof(vm.Archivo), "El archivo no debe superar 60 MB.");
 
                 extension = Path.GetExtension(vm.Archivo.FileName).ToLowerInvariant();
 
@@ -489,21 +623,21 @@ namespace ProyectoMatrix.Controllers
                 if (tieneArchivoNuevo)
                 {
                     using var cmd = new SqlCommand(@"
-                UPDATE dbo.Organigramas
-                SET
-                    Titulo = @Titulo,
-                    Descripcion = @Descripcion,
-                    ArchivoOriginal = @ArchivoOriginal,
-                    ArchivoGuardado = @ArchivoGuardado,
-                    RutaRelativa = @RutaRelativa,
-                    Extension = @Extension,
-                    MimeType = @MimeType,
-                    TamanioBytes = @TamanioBytes,
-                    FechaModificacion = SYSDATETIME(),
-                    ModificadoPorUsuarioID = @UsuarioID
-                WHERE OrganigramaID = @OrganigramaID
-                  AND Activo = 1;
-            ", conn, tx);
+                        UPDATE dbo.Organigramas
+                        SET
+                            Titulo = @Titulo,
+                            Descripcion = @Descripcion,
+                            ArchivoOriginal = @ArchivoOriginal,
+                            ArchivoGuardado = @ArchivoGuardado,
+                            RutaRelativa = @RutaRelativa,
+                            Extension = @Extension,
+                            MimeType = @MimeType,
+                            TamanioBytes = @TamanioBytes,
+                            FechaModificacion = SYSDATETIME(),
+                            ModificadoPorUsuarioID = @UsuarioID
+                        WHERE OrganigramaID = @OrganigramaID
+                          AND Activo = 1;
+                    ", conn, tx);
 
                     cmd.Parameters.AddWithValue("@OrganigramaID", vm.OrganigramaID);
                     cmd.Parameters.AddWithValue("@Titulo", vm.Titulo.Trim());
@@ -513,7 +647,7 @@ namespace ProyectoMatrix.Controllers
                     cmd.Parameters.AddWithValue("@RutaRelativa", rutaRelativaNueva!);
                     cmd.Parameters.AddWithValue("@Extension", extensionSinPunto!);
                     cmd.Parameters.AddWithValue("@MimeType", mimeTypeNuevo!);
-                    cmd.Parameters.AddWithValue("@TamanioBytes", vm.Archivo.Length);
+                    cmd.Parameters.AddWithValue("@TamanioBytes", vm.Archivo!.Length);
                     cmd.Parameters.AddWithValue("@UsuarioID", usuarioId.Value);
 
                     await cmd.ExecuteNonQueryAsync();
@@ -521,15 +655,15 @@ namespace ProyectoMatrix.Controllers
                 else
                 {
                     using var cmd = new SqlCommand(@"
-                UPDATE dbo.Organigramas
-                SET
-                    Titulo = @Titulo,
-                    Descripcion = @Descripcion,
-                    FechaModificacion = SYSDATETIME(),
-                    ModificadoPorUsuarioID = @UsuarioID
-                WHERE OrganigramaID = @OrganigramaID
-                  AND Activo = 1;
-            ", conn, tx);
+                        UPDATE dbo.Organigramas
+                        SET
+                            Titulo = @Titulo,
+                            Descripcion = @Descripcion,
+                            FechaModificacion = SYSDATETIME(),
+                            ModificadoPorUsuarioID = @UsuarioID
+                        WHERE OrganigramaID = @OrganigramaID
+                          AND Activo = 1;
+                    ", conn, tx);
 
                     cmd.Parameters.AddWithValue("@OrganigramaID", vm.OrganigramaID);
                     cmd.Parameters.AddWithValue("@Titulo", vm.Titulo.Trim());
@@ -540,11 +674,11 @@ namespace ProyectoMatrix.Controllers
                 }
 
                 using (var cmd = new SqlCommand(@"
-            UPDATE dbo.OrganigramaEmpresas
-            SET Activo = 0
-            WHERE OrganigramaID = @OrganigramaID
-              AND Activo = 1;
-        ", conn, tx))
+                    UPDATE dbo.OrganigramaEmpresas
+                    SET Activo = 0
+                    WHERE OrganigramaID = @OrganigramaID
+                      AND Activo = 1;
+                ", conn, tx))
                 {
                     cmd.Parameters.AddWithValue("@OrganigramaID", vm.OrganigramaID);
                     await cmd.ExecuteNonQueryAsync();
@@ -553,39 +687,39 @@ namespace ProyectoMatrix.Controllers
                 foreach (var empresaId in empresasSeleccionadas)
                 {
                     using var cmd = new SqlCommand(@"
-                IF EXISTS (
-                    SELECT 1
-                    FROM dbo.OrganigramaEmpresas
-                    WHERE OrganigramaID = @OrganigramaID
-                      AND EmpresaID = @EmpresaID
-                )
-                BEGIN
-                    UPDATE dbo.OrganigramaEmpresas
-                    SET
-                        Activo = 1,
-                        FechaAsignacion = SYSDATETIME(),
-                        AsignadoPorUsuarioID = @UsuarioID
-                    WHERE OrganigramaID = @OrganigramaID
-                      AND EmpresaID = @EmpresaID;
-                END
-                ELSE
-                BEGIN
-                    INSERT INTO dbo.OrganigramaEmpresas
-                    (
-                        OrganigramaID,
-                        EmpresaID,
-                        Activo,
-                        AsignadoPorUsuarioID
-                    )
-                    VALUES
-                    (
-                        @OrganigramaID,
-                        @EmpresaID,
-                        1,
-                        @UsuarioID
-                    );
-                END
-            ", conn, tx);
+                        IF EXISTS (
+                            SELECT 1
+                            FROM dbo.OrganigramaEmpresas
+                            WHERE OrganigramaID = @OrganigramaID
+                              AND EmpresaID = @EmpresaID
+                        )
+                        BEGIN
+                            UPDATE dbo.OrganigramaEmpresas
+                            SET
+                                Activo = 1,
+                                FechaAsignacion = SYSDATETIME(),
+                                AsignadoPorUsuarioID = @UsuarioID
+                            WHERE OrganigramaID = @OrganigramaID
+                              AND EmpresaID = @EmpresaID;
+                        END
+                        ELSE
+                        BEGIN
+                            INSERT INTO dbo.OrganigramaEmpresas
+                            (
+                                OrganigramaID,
+                                EmpresaID,
+                                Activo,
+                                AsignadoPorUsuarioID
+                            )
+                            VALUES
+                            (
+                                @OrganigramaID,
+                                @EmpresaID,
+                                1,
+                                @UsuarioID
+                            );
+                        END
+                    ", conn, tx);
 
                     cmd.Parameters.AddWithValue("@OrganigramaID", vm.OrganigramaID);
                     cmd.Parameters.AddWithValue("@EmpresaID", empresaId);
@@ -595,6 +729,39 @@ namespace ProyectoMatrix.Controllers
                 }
 
                 tx.Commit();
+
+                if (tieneArchivoNuevo)
+                {
+                    try
+                    {
+                        if (EsExtensionImagen(extension))
+                        {
+                            await CrearPreviewImagenAsync(
+                                rutaFisicaNueva!,
+                                vm.OrganigramaID
+                            );
+                        }
+                        else if (EsExtensionPdf(extension))
+                        {
+                            await CrearPreviewPdfAsync(
+                                rutaFisicaNueva!,
+                                vm.OrganigramaID
+                            );
+                        }
+                        else
+                        {
+                            EliminarPreviewSiExiste(vm.OrganigramaID);
+                        }
+                    }
+                    catch (Exception previewEx)
+                    {
+                        _logger.LogError(
+                            previewEx,
+                            "El organigrama se actualizó, pero no se pudo generar la vista previa. OrganigramaID: {OrganigramaID}",
+                            vm.OrganigramaID
+                        );
+                    }
+                }
 
                 TempData["Ok"] = "Organigrama actualizado correctamente.";
                 return RedirectToAction(nameof(Index));
@@ -615,7 +782,7 @@ namespace ProyectoMatrix.Controllers
 
         // ==========================================================
         // ELIMINAR
-        // Baja lógica. No borra el archivo físico por seguridad.
+        // Baja lógica. También elimina preview ligero si existe.
         // ==========================================================
 
         [HttpPost]
@@ -626,6 +793,9 @@ namespace ProyectoMatrix.Controllers
 
             if (!usuarioId.HasValue)
                 return RedirectToAction("Login", "Login");
+
+            if (id <= 0)
+                return NotFound();
 
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
@@ -669,6 +839,19 @@ namespace ProyectoMatrix.Controllers
 
                 tx.Commit();
 
+                try
+                {
+                    EliminarPreviewSiExiste(id);
+                }
+                catch (Exception previewEx)
+                {
+                    _logger.LogError(
+                        previewEx,
+                        "El organigrama se eliminó lógicamente, pero no se pudo borrar el preview. OrganigramaID: {OrganigramaID}",
+                        id
+                    );
+                }
+
                 TempData["Ok"] = "Organigrama eliminado correctamente.";
                 return RedirectToAction(nameof(Index));
             }
@@ -683,8 +866,14 @@ namespace ProyectoMatrix.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> Visor(int id)
+        // ==========================================================
+        // REGENERAR PREVIEWS
+        // Acción temporal para generar previews de organigramas existentes.
+        // Incluye imágenes y PDF.
+        // ==========================================================
+
+        [HttpGet("/Organigramas/RegenerarPreviews")]
+        public async Task<IActionResult> RegenerarPreviews()
         {
             var usuarioId = ObtenerUsuarioId();
 
@@ -695,59 +884,86 @@ namespace ProyectoMatrix.Controllers
             await conn.OpenAsync();
 
             var esEditor = await UsuarioTieneOverrideOrganigramasAsync(conn, usuarioId.Value);
-            var empresasUsuario = await ObtenerEmpresasActivasUsuarioAsync(conn, usuarioId.Value);
 
-            var puedeVer = await UsuarioPuedeVerOrganigramaAsync(
-                conn,
-                id,
-                empresasUsuario,
-                esEditor
-            );
-
-            if (!puedeVer)
+            if (!esEditor)
                 return Forbid();
 
-            OrganigramaViewerVm? vm = null;
+            var generados = 0;
+            var omitidos = 0;
+            var errores = 0;
 
-            using (var cmd = new SqlCommand(@"
-        SELECT
-            OrganigramaID,
-            Titulo,
-            Extension,
-            MimeType
-        FROM dbo.Organigramas
-        WHERE OrganigramaID = @OrganigramaID
-          AND Activo = 1;
-    ", conn))
+            using var cmd = new SqlCommand(@"
+                SELECT
+                    OrganigramaID,
+                    RutaRelativa,
+                    Extension
+                FROM dbo.Organigramas
+                WHERE Activo = 1;
+            ", conn);
+
+            using var rd = await cmd.ExecuteReaderAsync();
+
+            while (await rd.ReadAsync())
             {
-                cmd.Parameters.AddWithValue("@OrganigramaID", id);
+                var organigramaId = ReadInt(rd, "OrganigramaID");
+                var rutaRelativa = ReadString(rd, "RutaRelativa");
+                var extension = ReadString(rd, "Extension");
 
-                using var rd = await cmd.ExecuteReaderAsync();
+                var esImagen = EsExtensionImagen(extension);
+                var esPdf = EsExtensionPdf(extension);
 
-                if (await rd.ReadAsync())
+                if (!esImagen && !esPdf)
                 {
-                    vm = new OrganigramaViewerVm
-                    {
-                        OrganigramaID = ReadInt(rd, "OrganigramaID"),
-                        Titulo = ReadString(rd, "Titulo"),
-                        Extension = ReadString(rd, "Extension"),
-                        MimeType = ReadString(rd, "MimeType"),
+                    omitidos++;
+                    continue;
+                }
 
-                        // IMPORTANTE:
-                        // URL relativa para evitar problemas con localhost, https, Dev Tunnels o proxy.
-                        ArchivoUrl = Url.Action(
-                            nameof(Archivo),
-                            "Organigramas",
-                            new { id }
-                        ) ?? string.Empty
-                    };
+                var rutaFisica = Path.Combine(
+                    _env.ContentRootPath,
+                    rutaRelativa.Replace("/", Path.DirectorySeparatorChar.ToString())
+                );
+
+                if (!System.IO.File.Exists(rutaFisica))
+                {
+                    errores++;
+                    continue;
+                }
+
+                try
+                {
+                    if (esImagen)
+                    {
+                        await CrearPreviewImagenAsync(
+                            rutaFisica,
+                            organigramaId
+                        );
+                    }
+                    else if (esPdf)
+                    {
+                        await CrearPreviewPdfAsync(
+                            rutaFisica,
+                            organigramaId
+                        );
+                    }
+
+                    generados++;
+                }
+                catch (Exception ex)
+                {
+                    errores++;
+
+                    _logger.LogError(
+                        ex,
+                        "No se pudo regenerar preview para OrganigramaID: {OrganigramaID}",
+                        organigramaId
+                    );
                 }
             }
 
-            if (vm == null)
-                return NotFound();
-
-            return View("Visor", vm);
+            return Content(
+                $"Previews generados: {generados}. Omitidos: {omitidos}. Errores: {errores}.",
+                "text/plain"
+            );
         }
 
         // ==========================================================
@@ -1036,22 +1252,22 @@ namespace ProyectoMatrix.Controllers
         }
 
         private async Task<OrganigramaEditorVm?> CargarOrganigramaParaEditarAsync(
-    SqlConnection conn,
-    int organigramaId)
+            SqlConnection conn,
+            int organigramaId)
         {
             OrganigramaEditorVm? vm = null;
 
             using (var cmd = new SqlCommand(@"
-        SELECT
-            OrganigramaID,
-            Titulo,
-            Descripcion,
-            ArchivoOriginal,
-            Extension
-        FROM dbo.Organigramas
-        WHERE OrganigramaID = @OrganigramaID
-          AND Activo = 1;
-    ", conn))
+                SELECT
+                    OrganigramaID,
+                    Titulo,
+                    Descripcion,
+                    ArchivoOriginal,
+                    Extension
+                FROM dbo.Organigramas
+                WHERE OrganigramaID = @OrganigramaID
+                  AND Activo = 1;
+            ", conn))
             {
                 cmd.Parameters.AddWithValue("@OrganigramaID", organigramaId);
 
@@ -1074,11 +1290,11 @@ namespace ProyectoMatrix.Controllers
                 return null;
 
             using (var cmd = new SqlCommand(@"
-        SELECT EmpresaID
-        FROM dbo.OrganigramaEmpresas
-        WHERE OrganigramaID = @OrganigramaID
-          AND Activo = 1;
-    ", conn))
+                SELECT EmpresaID
+                FROM dbo.OrganigramaEmpresas
+                WHERE OrganigramaID = @OrganigramaID
+                  AND Activo = 1;
+            ", conn))
             {
                 cmd.Parameters.AddWithValue("@OrganigramaID", organigramaId);
 
@@ -1096,17 +1312,206 @@ namespace ProyectoMatrix.Controllers
             int organigramaId)
         {
             using var cmd = new SqlCommand(@"
-        SELECT COUNT(1)
-        FROM dbo.Organigramas
-        WHERE OrganigramaID = @OrganigramaID
-          AND Activo = 1;
-    ", conn);
+                SELECT COUNT(1)
+                FROM dbo.Organigramas
+                WHERE OrganigramaID = @OrganigramaID
+                  AND Activo = 1;
+            ", conn);
 
             cmd.Parameters.AddWithValue("@OrganigramaID", organigramaId);
 
             var total = Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
 
             return total > 0;
+        }
+
+        // ==========================================================
+        // HELPERS DE PREVIEW
+        // ==========================================================
+
+        private async Task<bool> IntentarGenerarPreviewDesdeOriginalAsync(
+            SqlConnection conn,
+            int organigramaId)
+        {
+            string? rutaRelativa = null;
+            string? extension = null;
+
+            using (var cmd = new SqlCommand(@"
+                SELECT
+                    RutaRelativa,
+                    Extension
+                FROM dbo.Organigramas
+                WHERE OrganigramaID = @OrganigramaID
+                  AND Activo = 1;
+            ", conn))
+            {
+                cmd.Parameters.AddWithValue("@OrganigramaID", organigramaId);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+
+                if (!await rd.ReadAsync())
+                    return false;
+
+                rutaRelativa = ReadString(rd, "RutaRelativa");
+                extension = ReadString(rd, "Extension");
+            }
+
+            if (string.IsNullOrWhiteSpace(rutaRelativa))
+                return false;
+
+            var rutaFisicaOriginal = Path.Combine(
+                _env.ContentRootPath,
+                rutaRelativa.Replace("/", Path.DirectorySeparatorChar.ToString())
+            );
+
+            if (!System.IO.File.Exists(rutaFisicaOriginal))
+                return false;
+
+            if (EsExtensionImagen(extension ?? string.Empty))
+            {
+                await CrearPreviewImagenAsync(
+                    rutaFisicaOriginal,
+                    organigramaId
+                );
+
+                return true;
+            }
+
+            if (EsExtensionPdf(extension ?? string.Empty))
+            {
+                await CrearPreviewPdfAsync(
+                    rutaFisicaOriginal,
+                    organigramaId
+                );
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool EsExtensionImagen(string extension)
+        {
+            if (string.IsNullOrWhiteSpace(extension))
+                return false;
+
+            extension = extension.Trim().ToLowerInvariant();
+
+            if (!extension.StartsWith("."))
+                extension = "." + extension;
+
+            return extension == ".png"
+                || extension == ".jpg"
+                || extension == ".jpeg";
+        }
+
+        private static bool EsExtensionPdf(string extension)
+        {
+            if (string.IsNullOrWhiteSpace(extension))
+                return false;
+
+            extension = extension.Trim().ToLowerInvariant();
+
+            if (!extension.StartsWith("."))
+                extension = "." + extension;
+
+            return extension == ".pdf";
+        }
+
+        private string ObtenerCarpetaPreviews()
+        {
+            return Path.Combine(
+                _env.ContentRootPath,
+                "App_Data",
+                "organigramas",
+                "previews"
+            );
+        }
+
+        private string ObtenerRutaPreview(int organigramaId)
+        {
+            return Path.Combine(
+                ObtenerCarpetaPreviews(),
+                $"{organigramaId}.jpg"
+            );
+        }
+
+        private void EliminarPreviewSiExiste(int organigramaId)
+        {
+            var rutaPreview = ObtenerRutaPreview(organigramaId);
+
+            if (System.IO.File.Exists(rutaPreview))
+                System.IO.File.Delete(rutaPreview);
+        }
+
+        private async Task CrearPreviewImagenAsync(
+            string rutaFisicaOriginal,
+            int organigramaId)
+        {
+            var carpetaPreviews = ObtenerCarpetaPreviews();
+
+            Directory.CreateDirectory(carpetaPreviews);
+
+            var rutaPreview = ObtenerRutaPreview(organigramaId);
+
+            using var imagen = await Image.LoadAsync(rutaFisicaOriginal);
+
+            imagen.Mutate(x => x.AutoOrient());
+
+            imagen.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Size = new SixLabors.ImageSharp.Size(PreviewMaxSize, PreviewMaxSize),
+                Mode = ResizeMode.Max
+            }));
+
+            await imagen.SaveAsJpegAsync(
+                rutaPreview,
+                new JpegEncoder
+                {
+                    Quality = PreviewQuality
+                }
+            );
+        }
+
+        private async Task CrearPreviewPdfAsync(
+            string rutaFisicaPdf,
+            int organigramaId)
+        {
+            var carpetaPreviews = ObtenerCarpetaPreviews();
+
+            Directory.CreateDirectory(carpetaPreviews);
+
+            var rutaPreview = ObtenerRutaPreview(organigramaId);
+
+            if (System.IO.File.Exists(rutaPreview))
+                System.IO.File.Delete(rutaPreview);
+
+            await Task.Run(() =>
+            {
+                using var pdfStream = System.IO.File.Open(
+                    rutaFisicaPdf,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read
+                );
+
+                var options = new RenderOptions(
+                    Dpi: 180,
+                    Width: PreviewMaxSize,
+                    Height: null,
+                    WithAspectRatio: true
+                );
+
+                Conversion.SaveJpeg(
+                    rutaPreview,
+                    pdfStream,
+                    0,
+                    options: options
+                );
+            });
+
+            if (!System.IO.File.Exists(rutaPreview))
+                throw new InvalidOperationException("PDFtoImage no generó el archivo JPG de vista previa.");
         }
     }
 }

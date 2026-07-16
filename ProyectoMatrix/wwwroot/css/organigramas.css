@@ -1247,3 +1247,35 @@ body {
     display: block;
     background: #ffffff;
 }
+
+/* ==========================================================
+   PREVIEW OPTIMIZADO - NO CARGA ARCHIVO ORIGINAL
+   ========================================================== */
+
+.org-preview-shell {
+    height: 78vh;
+    overflow: auto;
+    background: #e5e7eb;
+    padding: 18px;
+}
+
+.org-preview-shell-fit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.org-preview-img {
+    display: block;
+    background: #ffffff;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, .18);
+    user-select: none;
+}
+
+.org-preview-zoom-label {
+    min-width: 72px;
+    text-align: center;
+    color: #334155;
+    font-size: .85rem;
+    font-weight: 900;
+}

@@ -1,0 +1,505 @@
+﻿@model ProyectoMatrix.Models.OrganigramaViewerVm
+
+@{
+    Layout = null;
+
+    var archivoUrl = Model.ArchivoUrl;
+    var titulo = Model.Titulo;
+    var extension = Model.ExtensionNormalizada;
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>@titulo</title>
+
+    <style>
+            html,
+            body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                overflow: hidden;
+                background: #e5e7eb;
+                font-family: "Segoe UI", Arial, sans-serif;
+            }
+
+            .visor-page {
+                width: 100%;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                background: #e5e7eb;
+            }
+
+            .visor-toolbar {
+                min-height: 56px;
+                background: #f8fafc;
+                border-bottom: 1px solid #dbe3ee;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 10px 14px;
+                box-sizing: border-box;
+                flex-shrink: 0;
+            }
+
+            .visor-tools {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+
+            .visor-btn {
+                border: 1px solid #cbd5e1;
+                background: #ffffff;
+                color: #0f172a;
+                min-height: 34px;
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-size: 13px;
+                font-weight: 800;
+                cursor: pointer;
+            }
+
+                .visor-btn:hover {
+                    background: #eef2ff;
+                    border-color: #94a3b8;
+                }
+
+            .visor-label {
+                min-width: 84px;
+                text-align: center;
+                color: #334155;
+                font-weight: 900;
+                font-size: 13px;
+            }
+
+            .visor-stage {
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow: auto;
+                background: #e5e7eb;
+                padding: 18px;
+                box-sizing: border-box;
+            }
+
+            .visor-stage-fit {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .visor-image {
+                display: block;
+                background: #ffffff;
+                box-shadow: 0 18px 42px rgba(15, 23, 42, .18);
+                user-select: none;
+            }
+
+                .visor-image.fit {
+                    max-width: 100%;
+                    max-height: calc(100vh - 96px);
+                    width: auto;
+                    height: auto;
+                }
+
+            .pdf-wrap {
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
+            }
+
+            .pdf-canvas {
+                background: #ffffff;
+                box-shadow: 0 18px 42px rgba(15, 23, 42, .18);
+            }
+
+            .visor-message {
+                height: 100%;
+                min-height: 260px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #334155;
+                font-weight: 900;
+                text-align: center;
+                padding: 24px;
+                box-sizing: border-box;
+            }
+
+            .visor-error-box {
+                background: #ffffff;
+                border: 1px solid #fecaca;
+                color: #991b1b;
+                border-radius: 12px;
+                padding: 18px 22px;
+                max-width: 680px;
+                box-shadow: 0 12px 28px rgba(15, 23, 42, .08);
+                line-height: 1.45;
+            }
+
+            .visor-info-box {
+                background: #ffffff;
+                border: 1px solid #dbe3ee;
+                color: #334155;
+                border-radius: 12px;
+                padding: 18px 22px;
+                max-width: 680px;
+                box-shadow: 0 12px 28px rgba(15, 23, 42, .08);
+                line-height: 1.45;
+            }
+
+            .fallback-frame {
+                width: 100%;
+                height: calc(100vh - 56px);
+                border: 0;
+                background: #ffffff;
+            }
+
+            .d-none {
+                display: none !important;
+            }
+    </style>
+</head>
+
+<body>
+    <div class="visor-page">
+
+        <div class="visor-toolbar">
+            <div class="visor-tools">
+                <button type="button" id="btnZoomOut" class="visor-btn">-</button>
+
+                <span id="zoomLabel" class="visor-label">Ajustado</span>
+
+                <button type="button" id="btnZoomIn" class="visor-btn">+</button>
+
+                <button type="button" id="btnFit" class="visor-btn">Ajustar</button>
+            </div>
+
+            @if (Model.EsPdf)
+            {
+                <div class="visor-tools">
+                    <button type="button" id="btnPrevPage" class="visor-btn">Anterior</button>
+
+                    <span id="pageLabel" class="visor-label">1 / 1</span>
+
+                    <button type="button" id="btnNextPage" class="visor-btn">Siguiente</button>
+                </div>
+            }
+        </div>
+
+        @if (Model.EsImagen)
+        {
+            <div id="imageStage" class="visor-stage visor-stage-fit">
+                <img id="imgViewer"
+                     class="visor-image fit"
+                     src="@archivoUrl"
+                     alt="@titulo" />
+            </div>
+        }
+        else if (Model.EsPdf)
+        {
+            <div id="pdfStage" class="visor-stage">
+                <div id="pdfLoading" class="visor-message">
+                    <div class="visor-info-box">
+                        Cargando PDF...
+                    </div>
+                </div>
+
+                <div id="pdfError" class="visor-message d-none">
+                    <div class="visor-error-box">
+                        No se pudo cargar con PDF.js.
+                        <br />
+                        Se usará el visor nativo como respaldo.
+                    </div>
+                </div>
+
+                <div class="pdf-wrap">
+                    <canvas id="pdfCanvas" class="pdf-canvas d-none"></canvas>
+                </div>
+
+                <iframe id="fallbackPdfFrame"
+                        class="fallback-frame d-none"
+                        src="">
+                </iframe>
+            </div>
+        }
+        else
+        {
+            <div class="visor-message">
+                <div class="visor-error-box">
+                    Formato no compatible para visor.
+                    <br />
+                    Extensión detectada: <strong>@extension</strong>
+                    <br />
+                    URL archivo: <strong>@archivoUrl</strong>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (Model.EsPdf)
+    {
+        <script src="~/lib/pdfjs/pdf.min.js"></script>
+    }
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+        const archivoUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(archivoUrl));
+        const extension = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(extension));
+
+        const btnZoomOut = document.getElementById('btnZoomOut');
+        const btnZoomIn = document.getElementById('btnZoomIn');
+        const btnFit = document.getElementById('btnFit');
+        const zoomLabel = document.getElementById('zoomLabel');
+
+        let zoom = 1;
+        let modoFit = true;
+
+        function esImagen() {
+        return extension === 'png' || extension === 'jpg' || extension === 'jpeg';
+        }
+
+        function esPdf() {
+        return extension === 'pdf';
+        }
+
+        function actualizarZoomLabel() {
+        zoomLabel.textContent = modoFit
+        ? 'Ajustado'
+        : Math.round(zoom * 100) + '%';
+        }
+
+        if (esImagen()) {
+        const imageStage = document.getElementById('imageStage');
+        const imgViewer = document.getElementById('imgViewer');
+
+        function ajustarImagen() {
+        modoFit = true;
+        zoom = 1;
+
+        imageStage.classList.add('visor-stage-fit');
+        imgViewer.classList.add('fit');
+
+        imgViewer.style.width = 'auto';
+        imgViewer.style.height = 'auto';
+        imgViewer.style.maxWidth = '100%';
+        imgViewer.style.maxHeight = 'calc(100vh - 96px)';
+
+        actualizarZoomLabel();
+        }
+
+        function aplicarZoomImagen() {
+        modoFit = false;
+
+        imageStage.classList.remove('visor-stage-fit');
+        imgViewer.classList.remove('fit');
+
+        imgViewer.style.maxWidth = 'none';
+        imgViewer.style.maxHeight = 'none';
+        imgViewer.style.width = (100 * zoom) + '%';
+        imgViewer.style.height = 'auto';
+
+        actualizarZoomLabel();
+        }
+
+        btnZoomOut.addEventListener('click', function () {
+        zoom = modoFit ? 0.75 : Math.max(0.1, zoom - 0.25);
+        aplicarZoomImagen();
+        });
+
+        btnZoomIn.addEventListener('click', function () {
+        zoom = modoFit ? 1.5 : Math.min(12, zoom + 0.5);
+        aplicarZoomImagen();
+        });
+
+        btnFit.addEventListener('click', function () {
+        ajustarImagen();
+        });
+
+        imgViewer.addEventListener('load', function () {
+        ajustarImagen();
+        });
+
+        imgViewer.addEventListener('error', function () {
+        imageStage.innerHTML =
+        '<div class="visor-message"><div class="visor-error-box">No se pudo cargar la imagen.<br />URL: ' + archivoUrl + '</div></div>';
+        });
+        }
+
+        if (esPdf()) {
+        const pdfStage = document.getElementById('pdfStage');
+        const pdfLoading = document.getElementById('pdfLoading');
+        const pdfError = document.getElementById('pdfError');
+        const pdfCanvas = document.getElementById('pdfCanvas');
+        const fallbackPdfFrame = document.getElementById('fallbackPdfFrame');
+
+        const pageLabel = document.getElementById('pageLabel');
+        const btnPrevPage = document.getElementById('btnPrevPage');
+        const btnNextPage = document.getElementById('btnNextPage');
+
+        let pdfDoc = null;
+        let pageNum = 1;
+        let totalPages = 1;
+        let rendering = false;
+        let pendingRender = false;
+
+        function mostrarFallbackPdf() {
+        pdfLoading.classList.add('d-none');
+        pdfCanvas.classList.add('d-none');
+        pdfError.classList.add('d-none');
+
+        fallbackPdfFrame.src = archivoUrl + '#toolbar=1&navpanes=0&scrollbar=1';
+        fallbackPdfFrame.classList.remove('d-none');
+
+        zoomLabel.textContent = 'Nativo';
+        }
+
+        if (!window.pdfjsLib) {
+        mostrarFallbackPdf();
+        return;
+        }
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/lib/pdfjs/pdf.worker.min.js';
+
+        function calcularEscalaFit(viewport) {
+        const availableWidth = Math.max(300, pdfStage.clientWidth - 48);
+        const availableHeight = Math.max(300, pdfStage.clientHeight - 48);
+
+        const scaleX = availableWidth / viewport.width;
+        const scaleY = availableHeight / viewport.height;
+
+        return Math.min(scaleX, scaleY);
+        }
+
+        async function renderPage(num) {
+        if (!pdfDoc) {
+        return;
+        }
+
+        if (rendering) {
+        pendingRender = true;
+        return;
+        }
+
+        rendering = true;
+
+        try {
+        const page = await pdfDoc.getPage(num);
+        const baseViewport = page.getViewport({ scale: 1 });
+
+        const scale = modoFit
+        ? calcularEscalaFit(baseViewport)
+        : zoom;
+
+        const viewport = page.getViewport({ scale: scale });
+        const context = pdfCanvas.getContext('2d');
+
+        pdfCanvas.width = viewport.width;
+        pdfCanvas.height = viewport.height;
+
+        pdfCanvas.classList.remove('d-none');
+        fallbackPdfFrame.classList.add('d-none');
+
+        await page.render({
+        canvasContext: context,
+        viewport: viewport
+        }).promise;
+
+        pageLabel.textContent = pageNum + ' / ' + totalPages;
+        actualizarZoomLabel();
+        } catch (error) {
+        console.error(error);
+        mostrarFallbackPdf();
+        }
+
+        rendering = false;
+
+        if (pendingRender) {
+        pendingRender = false;
+        await renderPage(pageNum);
+        }
+        }
+
+        async function cargarPdf() {
+        try {
+        pdfLoading.classList.remove('d-none');
+
+        pdfDoc = await pdfjsLib.getDocument(archivoUrl).promise;
+        totalPages = pdfDoc.numPages;
+        pageNum = 1;
+
+        pdfLoading.classList.add('d-none');
+
+        await renderPage(pageNum);
+        } catch (error) {
+        console.error(error);
+        mostrarFallbackPdf();
+        }
+        }
+
+        btnZoomOut.addEventListener('click', async function () {
+        if (!pdfDoc) {
+        return;
+        }
+
+        modoFit = false;
+        zoom = Math.max(0.1, zoom - 0.25);
+        await renderPage(pageNum);
+        });
+
+        btnZoomIn.addEventListener('click', async function () {
+        if (!pdfDoc) {
+        return;
+        }
+
+        modoFit = false;
+        zoom = Math.min(12, zoom + 0.5);
+        await renderPage(pageNum);
+        });
+
+        btnFit.addEventListener('click', async function () {
+        if (!pdfDoc) {
+        mostrarFallbackPdf();
+        return;
+        }
+
+        modoFit = true;
+        zoom = 1;
+        await renderPage(pageNum);
+        });
+
+        btnPrevPage.addEventListener('click', async function () {
+        if (!pdfDoc || pageNum <= 1) {
+        return;
+        }
+
+        pageNum--;
+        await renderPage(pageNum);
+        });
+
+        btnNextPage.addEventListener('click', async function () {
+        if (!pdfDoc || pageNum >= totalPages) {
+        return;
+        }
+
+        pageNum++;
+        await renderPage(pageNum);
+        });
+
+        window.addEventListener('resize', async function () {
+        if (modoFit && pdfDoc) {
+        await renderPage(pageNum);
+        }
+        });
+
+        cargarPdf();
+        }
+        });
+    </script>
+</body>
+</html>
