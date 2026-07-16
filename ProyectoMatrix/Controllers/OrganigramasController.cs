@@ -6,7 +6,6 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
 using System.Security.Claims;
-using PDFtoImage;
 
 namespace ProyectoMatrix.Controllers
 {
@@ -286,24 +285,14 @@ namespace ProyectoMatrix.Controllers
 
                 tx.Commit();
 
-                if (EsExtensionImagen(extension) || EsExtensionPdf(extension))
+                if (EsExtensionImagen(extension))
                 {
                     try
                     {
-                        if (EsExtensionImagen(extension))
-                        {
-                            await CrearPreviewImagenAsync(
-                                rutaFisica,
-                                organigramaId
-                            );
-                        }
-                        else if (EsExtensionPdf(extension))
-                        {
-                            await CrearPreviewPdfAsync(
-                                rutaFisica,
-                                organigramaId
-                            );
-                        }
+                        await CrearPreviewImagenAsync(
+                            rutaFisica,
+                            organigramaId
+                        );
                     }
                     catch (Exception previewEx)
                     {
@@ -313,6 +302,10 @@ namespace ProyectoMatrix.Controllers
                             organigramaId
                         );
                     }
+                }
+                else
+                {
+                    EliminarPreviewSiExiste(organigramaId);
                 }
 
                 TempData["Ok"] = "Organigrama creado correctamente.";
@@ -410,6 +403,12 @@ namespace ProyectoMatrix.Controllers
             return result;
         }
 
+        [HttpGet("/Organigramas/Archivo/{id:int}")]
+        public Task<IActionResult> ArchivoPorRuta(int id)
+        {
+            return Archivo(id);
+        }
+
         // ==========================================================
         // PREVIEW
         // Sirve una imagen JPG ligera generada desde el archivo original.
@@ -484,12 +483,38 @@ namespace ProyectoMatrix.Controllers
         // ==========================================================
 
         [HttpGet("/Organigramas/Visor/{id:int}")]
-        public IActionResult Visor(int id)
+        public async Task<IActionResult> Visor(int id)
         {
+            var usuarioId = ObtenerUsuarioId();
+
+            if (!usuarioId.HasValue)
+                return RedirectToAction("Login", "Login");
+
             if (id <= 0)
                 return NotFound("El OrganigramaID no es válido.");
 
-            return RedirectToAction(nameof(Preview), new { id });
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var esEditor = await UsuarioTieneOverrideOrganigramasAsync(conn, usuarioId.Value);
+            var empresasUsuario = await ObtenerEmpresasActivasUsuarioAsync(conn, usuarioId.Value);
+
+            var puedeVer = await UsuarioPuedeVerOrganigramaAsync(
+                conn,
+                id,
+                empresasUsuario,
+                esEditor
+            );
+
+            if (!puedeVer)
+                return Forbid();
+
+            var extension = await ObtenerExtensionOrganigramaAsync(conn, id);
+
+            if (EsExtensionImagen(extension))
+                return RedirectToAction(nameof(Preview), new { id });
+
+            return RedirectToAction(nameof(Archivo), new { id });
         }
 
         // ==========================================================
@@ -741,13 +766,6 @@ namespace ProyectoMatrix.Controllers
                                 vm.OrganigramaID
                             );
                         }
-                        else if (EsExtensionPdf(extension))
-                        {
-                            await CrearPreviewPdfAsync(
-                                rutaFisicaNueva!,
-                                vm.OrganigramaID
-                            );
-                        }
                         else
                         {
                             EliminarPreviewSiExiste(vm.OrganigramaID);
@@ -868,8 +886,8 @@ namespace ProyectoMatrix.Controllers
 
         // ==========================================================
         // REGENERAR PREVIEWS
-        // Acción temporal para generar previews de organigramas existentes.
-        // Incluye imágenes y PDF.
+        // Acción temporal para generar previews solo de imágenes existentes.
+        // Los PDF se cargan por Archivo/iframe y no generan preview.
         // ==========================================================
 
         [HttpGet("/Organigramas/RegenerarPreviews")]
@@ -909,10 +927,7 @@ namespace ProyectoMatrix.Controllers
                 var rutaRelativa = ReadString(rd, "RutaRelativa");
                 var extension = ReadString(rd, "Extension");
 
-                var esImagen = EsExtensionImagen(extension);
-                var esPdf = EsExtensionPdf(extension);
-
-                if (!esImagen && !esPdf)
+                if (!EsExtensionImagen(extension))
                 {
                     omitidos++;
                     continue;
@@ -931,20 +946,10 @@ namespace ProyectoMatrix.Controllers
 
                 try
                 {
-                    if (esImagen)
-                    {
-                        await CrearPreviewImagenAsync(
-                            rutaFisica,
-                            organigramaId
-                        );
-                    }
-                    else if (esPdf)
-                    {
-                        await CrearPreviewPdfAsync(
-                            rutaFisica,
-                            organigramaId
-                        );
-                    }
+                    await CrearPreviewImagenAsync(
+                        rutaFisica,
+                        organigramaId
+                    );
 
                     generados++;
                 }
@@ -1189,6 +1194,26 @@ namespace ProyectoMatrix.Controllers
             return total > 0;
         }
 
+        private async Task<string> ObtenerExtensionOrganigramaAsync(
+            SqlConnection conn,
+            int organigramaId)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT Extension
+                FROM dbo.Organigramas
+                WHERE OrganigramaID = @OrganigramaID
+                  AND Activo = 1;
+            ", conn);
+
+            cmd.Parameters.AddWithValue("@OrganigramaID", organigramaId);
+
+            var result = await cmd.ExecuteScalarAsync();
+
+            return result == null || result == DBNull.Value
+                ? string.Empty
+                : Convert.ToString(result) ?? string.Empty;
+        }
+
         private async Task<List<int>> ObtenerEmpresasActivasUsuarioAsync(
             SqlConnection conn,
             int usuarioId)
@@ -1359,6 +1384,9 @@ namespace ProyectoMatrix.Controllers
             if (string.IsNullOrWhiteSpace(rutaRelativa))
                 return false;
 
+            if (!EsExtensionImagen(extension ?? string.Empty))
+                return false;
+
             var rutaFisicaOriginal = Path.Combine(
                 _env.ContentRootPath,
                 rutaRelativa.Replace("/", Path.DirectorySeparatorChar.ToString())
@@ -1367,27 +1395,12 @@ namespace ProyectoMatrix.Controllers
             if (!System.IO.File.Exists(rutaFisicaOriginal))
                 return false;
 
-            if (EsExtensionImagen(extension ?? string.Empty))
-            {
-                await CrearPreviewImagenAsync(
-                    rutaFisicaOriginal,
-                    organigramaId
-                );
+            await CrearPreviewImagenAsync(
+                rutaFisicaOriginal,
+                organigramaId
+            );
 
-                return true;
-            }
-
-            if (EsExtensionPdf(extension ?? string.Empty))
-            {
-                await CrearPreviewPdfAsync(
-                    rutaFisicaOriginal,
-                    organigramaId
-                );
-
-                return true;
-            }
-
-            return false;
+            return true;
         }
 
         private static bool EsExtensionImagen(string extension)
@@ -1403,19 +1416,6 @@ namespace ProyectoMatrix.Controllers
             return extension == ".png"
                 || extension == ".jpg"
                 || extension == ".jpeg";
-        }
-
-        private static bool EsExtensionPdf(string extension)
-        {
-            if (string.IsNullOrWhiteSpace(extension))
-                return false;
-
-            extension = extension.Trim().ToLowerInvariant();
-
-            if (!extension.StartsWith("."))
-                extension = "." + extension;
-
-            return extension == ".pdf";
         }
 
         private string ObtenerCarpetaPreviews()
@@ -1473,45 +1473,5 @@ namespace ProyectoMatrix.Controllers
             );
         }
 
-        private async Task CrearPreviewPdfAsync(
-            string rutaFisicaPdf,
-            int organigramaId)
-        {
-            var carpetaPreviews = ObtenerCarpetaPreviews();
-
-            Directory.CreateDirectory(carpetaPreviews);
-
-            var rutaPreview = ObtenerRutaPreview(organigramaId);
-
-            if (System.IO.File.Exists(rutaPreview))
-                System.IO.File.Delete(rutaPreview);
-
-            await Task.Run(() =>
-            {
-                using var pdfStream = System.IO.File.Open(
-                    rutaFisicaPdf,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read
-                );
-
-                var options = new RenderOptions(
-                    Dpi: 180,
-                    Width: PreviewMaxSize,
-                    Height: null,
-                    WithAspectRatio: true
-                );
-
-                Conversion.SaveJpeg(
-                    rutaPreview,
-                    pdfStream,
-                    0,
-                    options: options
-                );
-            });
-
-            if (!System.IO.File.Exists(rutaPreview))
-                throw new InvalidOperationException("PDFtoImage no generó el archivo JPG de vista previa.");
-        }
     }
 }

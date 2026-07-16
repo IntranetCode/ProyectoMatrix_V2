@@ -7,6 +7,44 @@
 
 <link rel="stylesheet" href="~/css/organigramas.css" asp-append-version="true" />
 
+<style>
+    .org-iframe {
+        width: 100%;
+        height: 78vh;
+        border: 0;
+        display: block;
+        background: #ffffff;
+    }
+
+    .org-preview-shell {
+        height: 78vh;
+        overflow: auto;
+        background: #e5e7eb;
+        padding: 18px;
+    }
+
+    .org-preview-shell-fit {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .org-preview-img {
+        display: block;
+        background: #ffffff;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, .18);
+        user-select: none;
+    }
+
+    .org-preview-zoom-label {
+        min-width: 72px;
+        text-align: center;
+        color: #334155;
+        font-size: .85rem;
+        font-weight: 900;
+    }
+</style>
+
 <div class="organigramas-page">
     <div class="org-shell">
 
@@ -135,6 +173,9 @@
                 {
                     var extension = item.Extension?.ToLowerInvariant() ?? "";
                     var previewUrl = Url.Action("Preview", "Organigramas", new { id = item.OrganigramaID }) ?? "#";
+                    var archivoUrl = Url.Action("Archivo", "Organigramas", new { id = item.OrganigramaID }) ?? "#";
+                    var urlVisor = item.EsPdf ? archivoUrl : previewUrl;
+                    var esPdfData = item.EsPdf ? "true" : "false";
 
                     <article class="org-doc-card">
                         <div class="org-doc-preview">
@@ -189,7 +230,8 @@
 
                             <button type="button"
                                     class="org-doc-action btn-ver-organigrama"
-                                    data-preview-url="@previewUrl"
+                                    data-url="@urlVisor"
+                                    data-es-pdf="@esPdfData"
                                     data-titulo="@item.Titulo">
                                 <i class="fa-solid fa-eye"></i>
                                 <span>Ver organigrama</span>
@@ -240,6 +282,9 @@
                             {
                                 var extension = item.Extension?.ToLowerInvariant() ?? "";
                                 var previewUrl = Url.Action("Preview", "Organigramas", new { id = item.OrganigramaID }) ?? "#";
+                                var archivoUrl = Url.Action("Archivo", "Organigramas", new { id = item.OrganigramaID }) ?? "#";
+                                var urlVisor = item.EsPdf ? archivoUrl : previewUrl;
+                                var esPdfData = item.EsPdf ? "true" : "false";
 
                                 <tr>
                                     <td>
@@ -306,7 +351,8 @@
                                         <div class="org-actions">
                                             <button type="button"
                                                     class="btn-ver-organigrama"
-                                                    data-preview-url="@previewUrl"
+                                                    data-url="@urlVisor"
+                                                    data-es-pdf="@esPdfData"
                                                     data-titulo="@item.Titulo"
                                                     title="Ver organigrama">
                                                 <i class="fa-solid fa-eye"></i>
@@ -386,21 +432,7 @@
                         aria-label="Cerrar"></button>
             </div>
 
-            <div class="modal-body">
-                <div id="previewLoading" class="org-viewer-placeholder d-none">
-                    <div class="org-viewer-icon">
-                        <i class="fa-solid fa-spinner fa-spin"></i>
-                    </div>
-
-                    <h5 class="org-viewer-title">
-                        Cargando vista previa
-                    </h5>
-
-                    <p class="org-viewer-text">
-                        Estamos cargando una versión optimizada del organigrama.
-                    </p>
-                </div>
-
+            <div class="modal-body p-0">
                 <div id="previewError" class="org-viewer-placeholder d-none">
                     <div class="org-viewer-icon">
                         <i class="fa-solid fa-circle-exclamation"></i>
@@ -411,9 +443,15 @@
                     </h5>
 
                     <p class="org-viewer-text">
-                        Este organigrama todavía no tiene una vista previa optimizada generada.
+                        No se pudo cargar el organigrama seleccionado.
                     </p>
                 </div>
+
+                <iframe id="iframeOrganigrama"
+                        src=""
+                        class="org-iframe d-none"
+                        title="Vista de organigrama">
+                </iframe>
 
                 <div id="previewShell" class="org-preview-shell d-none">
                     <img id="imgPreviewOrganigrama"
@@ -462,7 +500,7 @@
         const modalElement = document.getElementById('modalOrganigrama');
         const tituloModal = document.getElementById('modalOrganigramaLabel');
 
-        const previewLoading = document.getElementById('previewLoading');
+        const iframe = document.getElementById('iframeOrganigrama');
         const previewError = document.getElementById('previewError');
         const previewShell = document.getElementById('previewShell');
         const imgPreview = document.getElementById('imgPreviewOrganigrama');
@@ -473,7 +511,6 @@
         const zoomLabel = document.getElementById('previewZoomLabel');
 
         let modalInstance = null;
-        let previewUrlActual = '';
         let zoom = 1;
         let modoFit = true;
 
@@ -482,28 +519,22 @@
         }
 
         function mostrarControles(mostrar) {
-            if (mostrar) {
-                btnFit.classList.remove('d-none');
-                btnZoomOut.classList.remove('d-none');
-                btnZoomIn.classList.remove('d-none');
-                zoomLabel.classList.remove('d-none');
-            } else {
-                btnFit.classList.add('d-none');
-                btnZoomOut.classList.add('d-none');
-                btnZoomIn.classList.add('d-none');
-                zoomLabel.classList.add('d-none');
-            }
+            btnFit.classList.toggle('d-none', !mostrar);
+            btnZoomOut.classList.toggle('d-none', !mostrar);
+            btnZoomIn.classList.toggle('d-none', !mostrar);
+            zoomLabel.classList.toggle('d-none', !mostrar);
         }
 
-        function limpiarPreview() {
+        function limpiarVisor() {
+            iframe.src = '';
+            iframe.classList.add('d-none');
+
             imgPreview.onload = null;
             imgPreview.onerror = null;
             imgPreview.src = '';
 
-            previewLoading.classList.add('d-none');
             previewError.classList.add('d-none');
             previewShell.classList.add('d-none');
-
             previewShell.classList.remove('org-preview-shell-fit');
 
             zoom = 1;
@@ -547,46 +578,44 @@
 
         document.querySelectorAll('.btn-ver-organigrama').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                const previewUrl = this.getAttribute('data-preview-url');
+                const url = this.getAttribute('data-url');
+                const esPdf = this.getAttribute('data-es-pdf') === 'true';
                 const titulo = this.getAttribute('data-titulo') || 'Vista de organigrama';
 
-                previewUrlActual = previewUrl || '';
                 tituloModal.textContent = titulo;
+                limpiarVisor();
 
-                limpiarPreview();
+                if (!url || url === '#') {
+                    previewError.classList.remove('d-none');
+                    mostrarControles(false);
+                } else if (esPdf) {
+                    iframe.classList.remove('d-none');
+                    iframe.src = url + '#toolbar=1&navpanes=0&scrollbar=1&view=FitH';
+                    mostrarControles(false);
+                } else {
+                    previewShell.classList.remove('d-none');
 
-                previewLoading.classList.remove('d-none');
+                    imgPreview.onload = function () {
+                        previewError.classList.add('d-none');
+                        ajustarPreview();
+                        mostrarControles(true);
+                    };
+
+                    imgPreview.onerror = function () {
+                        previewShell.classList.add('d-none');
+                        previewError.classList.remove('d-none');
+                        mostrarControles(false);
+                    };
+
+                    const separador = url.indexOf('?') >= 0 ? '&' : '?';
+                    imgPreview.src = url + separador + 'v=' + new Date().getTime();
+                }
 
                 if (modalInstance) {
                     modalInstance.show();
                 } else if (window.jQuery) {
                     $('#modalOrganigrama').modal('show');
                 }
-
-                if (!previewUrlActual || previewUrlActual === '#') {
-                    previewLoading.classList.add('d-none');
-                    previewError.classList.remove('d-none');
-                    return;
-                }
-
-                imgPreview.onload = function () {
-                    previewLoading.classList.add('d-none');
-                    previewError.classList.add('d-none');
-                    previewShell.classList.remove('d-none');
-
-                    ajustarPreview();
-                    mostrarControles(true);
-                };
-
-                imgPreview.onerror = function () {
-                    previewLoading.classList.add('d-none');
-                    previewShell.classList.add('d-none');
-                    previewError.classList.remove('d-none');
-                    mostrarControles(false);
-                };
-
-                const separador = previewUrlActual.indexOf('?') >= 0 ? '&' : '?';
-                imgPreview.src = previewUrlActual + separador + 'v=' + new Date().getTime();
             });
         });
 
@@ -605,16 +634,14 @@
         });
 
         modalElement.addEventListener('hidden.bs.modal', function () {
-            limpiarPreview();
+            limpiarVisor();
             tituloModal.textContent = 'Vista de organigrama';
-            previewUrlActual = '';
         });
 
         if (window.jQuery) {
             $('#modalOrganigrama').on('hidden.bs.modal', function () {
-                limpiarPreview();
+                limpiarVisor();
                 tituloModal.textContent = 'Vista de organigrama';
-                previewUrlActual = '';
             });
         }
     });
