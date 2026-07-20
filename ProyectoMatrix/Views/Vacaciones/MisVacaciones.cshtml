@@ -1,115 +1,338 @@
 ﻿@model ProyectoMatrix.Models.MisVacacionesVm
-
+@using System.Globalization
 
 @{
     ViewData["Title"] = "Mis vacaciones";
     Layout = "_LayoutComunicados";
 
-    // Datos básicos (tomados del primer registro si existe)
-    var fechaIngreso = Model?.Solicitudes?.FirstOrDefault()?.FechaIngreso;
-
-    // Estados: ajústalos si tus textos exactos son otros
-    var solicitadas = Model?.Solicitudes?
-        .Where(s => (s.EstadoAutorizacion ?? "").Trim().ToLower() != "rechazada"
-                 && (s.EstadoRecursosHumanos ?? "").Trim().ToLower() != "rechazada"
-                 && (s.EstadoAutorizacion ?? "").Trim().ToLower() != "autorizada")
+    var solicitudes = Model?.Solicitudes?
         .OrderByDescending(s => s.FechaSolicitud)
-        .ToList() ?? new List<ProyectoMatrix.Models.VacacionesSolicitudItemVm>();
+        .ThenByDescending(s => s.SolicitudVacacionesID)
+        .ToList()
+        ?? new List<ProyectoMatrix.Models.VacacionesSolicitudItemVm>();
 
-    var autorizadas = Model?.Solicitudes?
-         .Where(s => (s.EstadoAutorizacion ?? "").Trim().ToLower() == "autorizada"
-                  && ((s.EstadoRecursosHumanos ?? "").Trim().ToLower() == "autorizada"
-                   || (s.EstadoRecursosHumanos ?? "").Trim().ToLower() == "registrado"))
-         .OrderByDescending(s => s.FechaSolicitud)
-         .ToList() ?? new List<ProyectoMatrix.Models.VacacionesSolicitudItemVm>();
+    string CategoriaSolicitud(ProyectoMatrix.Models.VacacionesSolicitudItemVm solicitud)
+    {
+        var estadoJefe = (solicitud.EstadoAutorizacion ?? "").Trim();
+        var estadoRh = (solicitud.EstadoRecursosHumanos ?? "").Trim();
 
-    var rechazadas = Model?.Solicitudes?
-        .Where(s => (s.EstadoAutorizacion ?? "").Trim().ToLower() == "rechazada"
-                 || (s.EstadoRecursosHumanos ?? "").Trim().ToLower() == "rechazada"
-                 || (s.EstadoRecursosHumanos ?? "").Trim().ToLower() == "cancelada")
-        .OrderByDescending(s => s.FechaSolicitud)
-        .ToList() ?? new List<ProyectoMatrix.Models.VacacionesSolicitudItemVm>();
+        if (estadoRh.Equals("Cancelada", StringComparison.OrdinalIgnoreCase))
+            return "rechazada";
+
+        if (estadoJefe.Equals("Rechazada", StringComparison.OrdinalIgnoreCase)
+            || estadoRh.Equals("Rechazada", StringComparison.OrdinalIgnoreCase))
+            return "rechazada";
+
+        if (estadoJefe.Equals("Autorizada", StringComparison.OrdinalIgnoreCase))
+            return "aprobada";
+
+        return "pendiente";
+    }
+
+    var totalSolicitudes = solicitudes.Count;
+    var totalPendientes = solicitudes.Count(s => CategoriaSolicitud(s) == "pendiente");
+    var totalAprobadas = solicitudes.Count(s => CategoriaSolicitud(s) == "aprobada");
+    var totalRechazadas = solicitudes.Count(s => CategoriaSolicitud(s) == "rechazada");
+
+    var aniosDisponibles = solicitudes
+        .Select(s => s.FechaInicio.Year)
+        .Distinct()
+        .OrderByDescending(anio => anio)
+        .ToList();
+
+    var diasDisponiblesFiltro = solicitudes
+        .Select(s => s.DiasSolicitados)
+        .Distinct()
+        .OrderBy(dias => dias)
+        .ToList();
 }
+<link href="~/css/vacaciones-modern.css" rel="stylesheet" />
+
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <link href="~/css/stylesVacacionesMV.css" rel="stylesheet" />
 
+<style>
+    .vac-filter-shell {
+    background: #fff;
+    border: 1px solid #e7ebf3;
+    border-radius: 18px;
+    box-shadow: 0 12px 30px rgba(23, 43, 92, .08);
+    overflow: hidden;
+    }
+
+    .vac-filter-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+    }
+
+    .vac-summary-card {
+    border: 1px solid #e6eaf2;
+    border-radius: 14px;
+    background: #fff;
+    padding: 15px 16px;
+    cursor: pointer;
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+    text-align: left;
+    }
+
+    .vac-summary-card:hover,
+    .vac-summary-card.active {
+    transform: translateY(-2px);
+    box-shadow: 0 9px 22px rgba(23, 43, 92, .11);
+    border-color: #182f8f;
+    }
+
+    .vac-summary-card .vac-card-label {
+    color: #68728a;
+    font-size: .77rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    }
+
+    .vac-summary-card .vac-card-value {
+    color: #112b82;
+    font-size: 1.65rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-top: 5px;
+    }
+
+    .vac-summary-card.pending .vac-card-value {
+    color: #a66a00;
+    }
+
+    .vac-summary-card.approved .vac-card-value {
+    color: #157347;
+    }
+
+    .vac-summary-card.rejected .vac-card-value {
+    color: #bb2d3b;
+    }
+
+    .vac-filter-toolbar {
+    padding: 18px;
+    background: #f8f9fd;
+    border-bottom: 1px solid #e7ebf3;
+    }
+
+    .vac-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.7fr) minmax(150px, .7fr) minmax(170px, .8fr) auto;
+    gap: 12px;
+    align-items: end;
+    }
+
+    .vac-filter-label {
+    display: block;
+    color: #4f5d78;
+    font-size: .76rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: .035em;
+    }
+
+    .vac-filter-control {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #ccd3e1;
+    border-radius: 10px;
+    background: #fff;
+    padding: 9px 12px;
+    color: #1c2740;
+    outline: none;
+    transition: border-color .15s ease, box-shadow .15s ease;
+    }
+
+    .vac-filter-control:focus {
+    border-color: #19358f;
+    box-shadow: 0 0 0 3px rgba(25, 53, 143, .12);
+    }
+
+    .vac-results-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 15px 18px;
+    border-bottom: 1px solid #edf0f6;
+    background: #fff;
+    }
+
+    .vac-results-header strong {
+    color: #172f88;
+    }
+
+    .vac-results-meta {
+    color: #667085;
+    font-size: .9rem;
+    }
+
+    .vac-history-table {
+    margin-bottom: 0;
+    min-width: 980px;
+    }
+
+    .vac-history-table thead th {
+    background: #162f8b;
+    color: #fff;
+    border: 0;
+    font-size: .76rem;
+    letter-spacing: .025em;
+    padding: 14px 12px;
+    text-transform: uppercase;
+    vertical-align: middle;
+    }
+
+    .vac-history-table tbody td {
+    border-color: #eef1f6;
+    padding: 14px 12px;
+    vertical-align: middle;
+    }
+
+    .vac-history-table tbody tr:hover {
+    background: #f8faff;
+    }
+
+    .vac-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 800;
+    padding: 6px 10px;
+    white-space: nowrap;
+    }
+
+    .vac-status-badge.pending {
+    background: #fff4d6;
+    color: #8d5c00;
+    }
+
+    .vac-status-badge.approved {
+    background: #dff6e9;
+    color: #106b3f;
+    }
+
+    .vac-status-badge.rejected {
+    background: #fde5e7;
+    color: #a62331;
+    }
+
+    .vac-status-badge.cancelled {
+    background: #eceff4;
+    color: #566176;
+    }
+
+    .vac-status-badge.registered {
+    background: #e3ecff;
+    color: #173d96;
+    }
+
+    .vac-status-badge.waiting-rh {
+    background: #f1e8ff;
+    color: #6a3ca0;
+    }
+
+    .vac-empty-state {
+    padding: 42px 20px;
+    text-align: center;
+    color: #657086;
+    }
+
+    .vac-empty-state i {
+    display: block;
+    color: #a8b1c4;
+    font-size: 2rem;
+    margin-bottom: 10px;
+    }
+
+    .vac-btn-reset {
+    min-height: 44px;
+    white-space: nowrap;
+    border-radius: 10px;
+    }
+
+    @@media (max-width: 991.98px) {
+    .vac-filter-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .vac-filter-grid {
+    grid-template-columns: 1fr 1fr;
+    }
+    }
+
+    @@media (max-width: 575.98px) {
+    .vac-filter-summary {
+    grid-template-columns: 1fr 1fr;
+    }
+
+    .vac-filter-grid {
+    grid-template-columns: 1fr;
+    }
+
+    .vac-results-header {
+    align-items: flex-start;
+    flex-direction: column;
+    }
+    }
+</style>
 
 <h2>Mis vacaciones</h2>
 
 @if (TempData["MensajeVacaciones"] != null)
 {
-    <div class="alert alert-success">
-        @TempData["MensajeVacaciones"]
-    </div>
+    <div class="alert alert-success">@TempData["MensajeVacaciones"]</div>
+}
+
+@if (TempData["ErrorVacaciones"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorVacaciones"]</div>
 }
 
 <div class="mb-3">
-    <div class="mb-3">
-        @* Si tiene saldo o ya tiene permiso de adelantadas, botón normal *@
-        @if (Model.ResumenActual != null && (Model.ResumenActual.DiasDisponibles > 0 || ViewBag.PermiteAdelantadas == true))
-        {
-            <a asp-action="CrearSolicitud" class="btn btn-primary">Solicitar vacaciones</a>
-        }
-       @* else
-        {
-            Si NO tiene saldo y NO tiene permiso, botón de excepción 
-            <button type="button" class="btn btn-warning" onclick="abrirModalExcepcion()">
-                <i class="fas fa-lock-open me-1"></i> Solicitar habilitación de adelantadas
-            </button>
-        }*@
+    @if (Model?.ResumenActual != null
+         && (Model.ResumenActual.DiasDisponibles > 0 || ViewBag.PermiteAdelantadas == true))
+    {
+        <a asp-action="CrearSolicitud" class="btn btn-primary">Solicitar vacaciones</a>
+    }
 
+    @if (ViewBag.EsJefeInmediato == true)
+    {
+        <a asp-action="SolicitudesPendientesJefe" class="btn btn-outline-secondary ms-2">
+            Solicitudes de mi equipo
+        </a>
 
-        @if (ViewBag.EsJefeInmediato == true)
-        {
-            <a asp-action="SolicitudesPendientesJefe" class="btn btn-outline-secondary ms-2">
-                Solicitudes de mi equipo
-            </a>
+        <a asp-action="CrearSolicitudEquipo" class="btn btn-dark ms-2">
+            <i class="fas fa-user-plus me-1"></i> Registrar vacaciones de un colaborador
+        </a>
 
+        <button type="button"
+                class="btn btn-secondary"
+                onclick="window.history.back();">
+            <i class="fas fa-arrow-left"></i>
+            Regresar
+        </button>
 
-            <a asp-action="CrearSolicitudEquipo" class="btn btn-dark">
-                <i class="fas fa-user-plus me-1"></i> Registrar Vacaciones de un Colaborador
-            </a>
+    }
 
-        }
+    @if (ViewBag.EsUsuarioRH == true)
+    {
+        <a asp-action="SolicitudesPendientesRH" class="btn btn-outline-warning ms-2">
+            Solicitudes para registro RH
+        </a>
 
-        @if (ViewBag.EsUsuarioRH == true)
-        {
-            <a asp-action="SolicitudesPendientesRH" class="btn btn-outline-warning ms-2">
-                Solicitudes para registro RH
-            </a>
-
-            <a asp-action="BandejaRH" asp-route-filtro="por_registrar" class="btn btn-outline-info ms-2">
-                Bandeja RH (consulta + saldo)
-            </a>
-
-
-        }
-    </div>
-
-    @*  Modal de Justificación  
-    <div class="modal fade" id="modalSolicitarAdelantadas" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title font-weight-bold">Justificación de Vacaciones Adelantadas</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="small text-muted">Explica detalladamente por qué necesitas que se te habiliten vacaciones antes de cumplir tu aniversario.</p>
-                    <textarea id="txtMotivoAdelantadas" class="form-control" rows="4" placeholder="Escribe aquí tu motivo..."></textarea>
-                    <input type="hidden" id="hdnUsuarioID" value="@Model.UsuarioID" />
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-warning" onclick="enviarSolicitudHabilitacion()">Enviar a Jefe y RH</button>
-                </div>
-            </div>
-        </div>
-    </div>*@
-
+        <a asp-action="BandejaRH" class="btn btn-outline-info ms-2">
+            Bandeja RH
+        </a>
+    }
 </div>
 
 @if (!string.IsNullOrEmpty(ViewBag.Error as string))
@@ -127,14 +350,13 @@
                 <div class="col-md-3">
                     <div class="text-muted small">Fecha de ingreso</div>
                     <div class="fw-semibold">
-                        @(fechaIngreso.HasValue? fechaIngreso.Value.ToString("dd/MM/yyyy") : "—")
+                        @Model.ResumenActual.Anio
                     </div>
                 </div>
 
                 <div class="col-md-9">
                     @if (Model.ResumenActual != null)
                     {
-                        @* Cambiamos a row-cols-lg-6 para que quepan los 6 bloques en una sola línea en pantallas grandes *@
                         <div class="row g-3 row-cols-2 row-cols-sm-3 row-cols-lg-6 text-center">
                             <div class="col">
                                 <div class="text-muted small">Año</div>
@@ -148,42 +370,27 @@
                                 <div class="text-muted small">Tomados</div>
                                 <div class="fw-semibold fs-5">@Model.ResumenActual.DiasTomados</div>
                             </div>
-
-                            @if (Model.ResumenActual.DiasDeuda > 0)
-                            {
-                                <div class="col">
-                                    <div class="text-danger small fw-bold">Adelantados</div>
-                                    <div class="fw-semibold text-danger fs-5">@Model.ResumenActual.DiasDeuda</div>
+                            <div class="col">
+                                <div class="@(Model.ResumenActual.DiasDeuda > 0 ? "text-danger" : "text-muted") small fw-bold">
+                                    Adelantados
                                 </div>
-                            }
-                            else
-                            {
-                                <div class="col">
-                                    <div class="text-muted small">Adelantados</div>
-                                    <div class="fw-semibold fs-5">0</div>
+                                <div class="fw-semibold fs-5 @(Model.ResumenActual.DiasDeuda > 0 ? "text-danger" : "")">
+                                    @Model.ResumenActual.DiasDeuda
                                 </div>
-                            }
-
-                            @* Resaltamos los días extra con un tono verde corporativo suave si tiene días asignados *@
-                            @if (Model.ResumenActual.DiasExtra > 0)
-                            {
-                                <div class="col">
-                                    <div class="text-success small fw-bold">Días Extra</div>
-                                    <div class="fw-semibold text-success fs-5">+@Model.ResumenActual.DiasExtra</div>
+                            </div>
+                            <div class="col">
+                                <div class="@(Model.ResumenActual.DiasExtra > 0 ? "text-success" : "text-muted") small fw-bold">
+                                    Días extra
                                 </div>
-                            }
-                            else
-                            {
-                                <div class="col">
-                                    <div class="text-muted small">Días Extra</div>
-                                    <div class="fw-semibold fs-5">0</div>
+                                <div class="fw-semibold fs-5 @(Model.ResumenActual.DiasExtra > 0 ? "text-success" : "")">
+                                    @(Model.ResumenActual.DiasExtra > 0 ? $"+{Model.ResumenActual.DiasExtra}" : "0")
                                 </div>
-                            }
-
+                            </div>
                             <div class="col">
                                 <div class="text-muted small">Disponibles</div>
-                                @* Tu estilo CSS naranja para resaltar la columna más importante *@
-                                <div class="fw-bold fs-5 text-primary" style="color: #ff6d00 !important;">@Model.ResumenActual.DiasDisponibles</div>
+                                <div class="fw-bold fs-5" style="color:#ff6d00;">
+                                    @Model.ResumenActual.DiasDisponibles
+                                </div>
                             </div>
                         </div>
                     }
@@ -196,54 +403,330 @@
         </div>
     </div>
 
-    <!-- HISTORIAL POR SECCIONES  -->
+    <div class="vac-filter-summary" aria-label="Filtros rápidos por estado">
+        <button type="button" class="vac-summary-card active" data-status-filter="todas">
+            <span class="vac-card-label">Todas las solicitudes</span>
+            <span class="vac-card-value">@totalSolicitudes</span>
+        </button>
+        <button type="button" class="vac-summary-card pending" data-status-filter="pendiente">
+            <span class="vac-card-label">Pendientes</span>
+            <span class="vac-card-value">@totalPendientes</span>
+        </button>
+        <button type="button" class="vac-summary-card approved" data-status-filter="aprobada">
+            <span class="vac-card-label">Aprobadas</span>
+            <span class="vac-card-value">@totalAprobadas</span>
+        </button>
+        <button type="button" class="vac-summary-card rejected" data-status-filter="rechazada">
+            <span class="vac-card-label">Rechazadas / canceladas</span>
+            <span class="vac-card-value">@totalRechazadas</span>
+        </button>
+    </div>
 
-    <h5 class="mt-3">Vacaciones solicitadas</h5>
-    @Html.Partial("_TablaSolicitudesVacaciones", solicitadas)
+    <div class="vac-filter-shell">
+        <div class="vac-filter-toolbar">
+            <div class="vac-filter-grid">
+                <div>
+                    <label class="vac-filter-label" for="filtroVacacionesTexto">Buscar vacaciones</label>
+                    <input id="filtroVacacionesTexto"
+                           type="search"
+                           class="vac-filter-control"
+                           placeholder="Folio, periodo o estado..."
+                           autocomplete="off" />
+                </div>
 
-    <h5 class="mt-4">Vacaciones autorizadas (historial)</h5>
-    @Html.Partial("_TablaSolicitudesVacaciones", autorizadas)
+                <div>
+                    <label class="vac-filter-label" for="filtroVacacionesAnio">Año del periodo</label>
+                    <select id="filtroVacacionesAnio" class="vac-filter-control">
+                        <option value="">Todos los años</option>
+                        @foreach (var anio in aniosDisponibles)
+                        {
+                            <option value="@anio">@anio</option>
+                        }
+                    </select>
+                </div>
 
-    <h5 class="mt-4">Vacaciones rechazadas (historial)</h5>
-    @Html.Partial("_TablaSolicitudesVacaciones", rechazadas)
+                <div>
+                    <label class="vac-filter-label" for="filtroVacacionesDias">Días de la solicitud</label>
+                    <select id="filtroVacacionesDias" class="vac-filter-control">
+                        <option value="">Cualquier cantidad</option>
+                        @foreach (var dias in diasDisponiblesFiltro)
+                        {
+                            <option value="@dias.ToString(CultureInfo.InvariantCulture)">
+                                @dias.ToString("0.##") @(dias == 1 ? "día" : "días")
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div>
+                    <button type="button" id="limpiarFiltrosVacaciones" class="btn btn-outline-secondary vac-btn-reset">
+                        <i class="fas fa-undo-alt me-1"></i> Limpiar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="vac-results-header">
+            <div>
+                <strong>Historial de vacaciones</strong>
+                <div class="vac-results-meta">Consulta todas tus solicitudes desde una sola tabla.</div>
+            </div>
+            <div class="vac-results-meta">
+                Mostrando <strong id="cantidadVacacionesVisible">@totalSolicitudes</strong> de @totalSolicitudes
+                · <strong id="diasVacacionesVisibles">@solicitudes.Sum(s => s.DiasSolicitados).ToString("0.##")</strong> días
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table align-middle vac-history-table" id="tablaHistorialVacaciones">
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th>Fecha solicitud</th>
+                        <th>Periodo</th>
+                        <th>Días</th>
+                        <th>Anticipada</th>
+                        <th>Estado jefe</th>
+                        <th>Estado RH</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in solicitudes)
+                    {
+                        var categoria = CategoriaSolicitud(s);
+                        var estadoJefe = (s.EstadoAutorizacion ?? "").Trim();
+                        var estadoRh = (s.EstadoRecursosHumanos ?? "").Trim();
+                        var origen = (s.Origen ?? "").Trim();
+
+                        var cancelada = estadoRh.Equals("Cancelada", StringComparison.OrdinalIgnoreCase);
+                        var registrada = estadoRh.Equals("Registrado", StringComparison.OrdinalIgnoreCase);
+
+                        var puedeEditarCancelar =
+                            categoria == "pendiente"
+                            && (string.IsNullOrWhiteSpace(estadoRh)
+                                || estadoRh.Equals("SinRegistrar", StringComparison.OrdinalIgnoreCase)
+                                || estadoRh.Equals("Pendiente", StringComparison.OrdinalIgnoreCase))
+                            && origen.Equals("Colaborador", StringComparison.OrdinalIgnoreCase);
+
+                        var textoBusqueda = $"{s.SolicitudVacacionesID} {s.FechaInicio:dd/MM/yyyy} {s.FechaFin:dd/MM/yyyy} {estadoJefe} {estadoRh} {categoria}";
+
+                        <tr class="vac-request-row"
+                            data-status="@categoria"
+                            data-year="@s.FechaInicio.Year"
+                            data-days="@s.DiasSolicitados.ToString(CultureInfo.InvariantCulture)"
+                            data-search="@textoBusqueda.ToLowerInvariant()">
+                            <td class="fw-bold text-primary">@s.SolicitudVacacionesID</td>
+                            <td>@s.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <div class="fw-semibold">@s.FechaInicio.ToString("dd/MM/yyyy")</div>
+                                <div class="text-muted small">al @s.FechaFin.ToString("dd/MM/yyyy")</div>
+                            </td>
+                            <td class="fw-semibold">@s.DiasSolicitados.ToString("0.##")</td>
+                            <td>@(s.EsAnticipada ? "Sí" : "No")</td>
+                            <td>
+                                @if (categoria == "pendiente")
+                                {
+                                    <span class="vac-status-badge pending"><i class="fas fa-clock"></i> Pendiente</span>
+                                }
+                                else if (categoria == "aprobada")
+                                {
+                                    <span class="vac-status-badge approved"><i class="fas fa-check-circle"></i> Autorizada</span>
+                                }
+                                else if (cancelada)
+                                {
+                                    <span class="vac-status-badge cancelled"><i class="fas fa-ban"></i> Cancelada</span>
+                                }
+                                else
+                                {
+                                    <span class="vac-status-badge rejected"><i class="fas fa-times-circle"></i> Rechazada</span>
+                                }
+                            </td>
+                            <td>
+                                @if (registrada)
+                                {
+                                    <span class="vac-status-badge registered"><i class="fas fa-file-signature"></i> Registrado</span>
+                                }
+                                else if (categoria == "aprobada")
+                                {
+                                    <span class="vac-status-badge waiting-rh"><i class="fas fa-hourglass-half"></i> Por registrar</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">@(string.IsNullOrWhiteSpace(estadoRh) ? "SinRegistrar" : estadoRh)</span>
+                                }
+                            </td>
+                            <td class="text-center text-nowrap">
+                                @if (puedeEditarCancelar)
+                                {
+                                    <a asp-controller="Vacaciones"
+                                       asp-action="EditarSolicitud"
+                                       asp-route-id="@s.SolicitudVacacionesID"
+                                       class="btn btn-sm btn-outline-primary me-1"
+                                       title="Editar solicitud">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </a>
+
+                                    <form asp-controller="Vacaciones"
+                                          asp-action="CancelarSolicitud"
+                                          method="post"
+                                          class="d-inline formulario-cancelar">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
+                                        <input type="hidden" name="motivo" class="motivo-cancelacion" />
+
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger"
+                                                onclick="confirmarCancelacion(this, @s.SolicitudVacacionesID)"
+                                                title="Cancelar solicitud">
+                                            <i class="fas fa-times-circle"></i> Cancelar
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">Sin acciones</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+
+                    <tr id="filaSinResultadosVacaciones" class="@(totalSolicitudes == 0 ? "" : "d-none")">
+                        <td colspan="8">
+                            <div class="vac-empty-state">
+                                <i class="fas fa-search"></i>
+                                <strong>No se encontraron solicitudes</strong>
+                                <div>Prueba cambiando el año, los días o el estado seleccionado.</div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 }
 
 @section Scripts {
     <script>
-        function abrirModalExcepcion() {
-            $('#modalSolicitarAdelantadas').modal('show');
+        document.addEventListener('DOMContentLoaded', function () {
+        const filas = Array.from(document.querySelectorAll('.vac-request-row'));
+        const tarjetasEstado = Array.from(document.querySelectorAll('[data-status-filter]'));
+        const filtroTexto = document.getElementById('filtroVacacionesTexto');
+        const filtroAnio = document.getElementById('filtroVacacionesAnio');
+        const filtroDias = document.getElementById('filtroVacacionesDias');
+        const botonLimpiar = document.getElementById('limpiarFiltrosVacaciones');
+        const filaSinResultados = document.getElementById('filaSinResultadosVacaciones');
+        const cantidadVisible = document.getElementById('cantidadVacacionesVisible');
+        const diasVisibles = document.getElementById('diasVacacionesVisibles');
+
+        let estadoSeleccionado = 'todas';
+
+        function normalizar(valor) {
+        return (valor || '')
+        .toString()
+        .toLocaleLowerCase('es-MX')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
         }
 
-                function enviarSolicitudHabilitacion() {
-            const motivo = $('#txtMotivoAdelantadas').val();
-            const usuarioId = $('#hdnUsuarioID').val();
+        function aplicarFiltros() {
+        const texto = normalizar(filtroTexto?.value);
+        const anio = filtroAnio?.value || '';
+        const dias = filtroDias?.value || '';
 
-            // Validación básica de cliente
-            if (!motivo || motivo.trim().length < 15) {
+        let visibles = 0;
+        let sumaDias = 0;
 
-                Swal.fire({
-                    title: 'Atención',
-                    text: 'Por favor ingresa un motivo más descriptivo (mínimo 15 caracteres).',
-                    icon: 'warning',
-                    confirmButtonColor: '#ff6d00'
-                });
-                return;
-            }
+        filas.forEach(function (fila) {
+        const coincideEstado = estadoSeleccionado === 'todas'
+        || fila.dataset.status === estadoSeleccionado;
+        const coincideAnio = !anio || fila.dataset.year === anio;
+        const coincideDias = !dias || fila.dataset.days === dias;
+        const coincideTexto = !texto || normalizar(fila.dataset.search).includes(texto);
+        const mostrar = coincideEstado && coincideAnio && coincideDias && coincideTexto;
 
+        fila.classList.toggle('d-none', !mostrar);
 
-            const idNum = parseInt(usuarioId);
+        if (mostrar) {
+        visibles++;
+        sumaDias += Number.parseFloat(fila.dataset.days || '0') || 0;
+        }
+        });
 
-            $.post('@Url.Action("SolicitarHabilitacion", "Vacaciones")', { usuarioId: idNum, motivo: motivo }, function (res) {
-                if (res.success) {
-                    Swal.fire('Solicitud Enviada', 'Tu jefe y RH revisarán tu motivo.', 'success').then(() => {
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire('Error', res.message, 'error');
-                }
-            }).fail(function() {
-                Swal.fire('Error', 'No se pudo comunicar con el servidor.', 'error');
-            });
+        if (cantidadVisible) cantidadVisible.textContent = visibles.toString();
+        if (diasVisibles) {
+        diasVisibles.textContent = sumaDias.toLocaleString('es-MX', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+        });
+        }
+        if (filaSinResultados) filaSinResultados.classList.toggle('d-none', visibles > 0);
+        }
+
+        tarjetasEstado.forEach(function (tarjeta) {
+        tarjeta.addEventListener('click', function () {
+        tarjetasEstado.forEach(item => item.classList.remove('active'));
+        tarjeta.classList.add('active');
+        estadoSeleccionado = tarjeta.dataset.statusFilter || 'todas';
+        aplicarFiltros();
+        });
+        });
+
+        filtroTexto?.addEventListener('input', aplicarFiltros);
+        filtroAnio?.addEventListener('change', aplicarFiltros);
+        filtroDias?.addEventListener('change', aplicarFiltros);
+
+        botonLimpiar?.addEventListener('click', function () {
+        if (filtroTexto) filtroTexto.value = '';
+        if (filtroAnio) filtroAnio.value = '';
+        if (filtroDias) filtroDias.value = '';
+
+        estadoSeleccionado = 'todas';
+        tarjetasEstado.forEach(item => item.classList.toggle(
+        'active',
+        item.dataset.statusFilter === 'todas'
+        ));
+
+        aplicarFiltros();
+        });
+
+        aplicarFiltros();
+        });
+
+        async function confirmarCancelacion(boton, solicitudId) {
+        const formulario = boton.closest('form');
+        if (!formulario) return;
+
+        const resultado = await Swal.fire({
+        title: `Cancelar solicitud ${solicitudId}`,
+        text: 'La solicitud se retirará de los pendientes de tu jefe.',
+        icon: 'warning',
+        input: 'textarea',
+        inputLabel: 'Motivo de cancelación',
+        inputPlaceholder: 'Escribe brevemente por qué deseas cancelar la solicitud...',
+        inputAttributes: { maxlength: 500 },
+        showCancelButton: true,
+        confirmButtonText: 'Sí, cancelar solicitud',
+        cancelButtonText: 'Regresar',
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        reverseButtons: true,
+        preConfirm: (valor) => {
+        const motivo = (valor || '').trim();
+        if (motivo.length < 5) {
+        Swal.showValidationMessage('Escribe un motivo de al menos 5 caracteres.');
+        return false;
+        }
+        return motivo;
+        }
+        });
+
+        if (!resultado.isConfirmed) return;
+
+        const inputMotivo = formulario.querySelector('.motivo-cancelacion');
+        inputMotivo.value = resultado.value;
+        formulario.submit();
         }
     </script>
 }

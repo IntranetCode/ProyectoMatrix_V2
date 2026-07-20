@@ -4,13 +4,56 @@
     ViewData["Title"] = "Solicitudes de mi equipo";
     Layout = "_LayoutComunicados";
 }
+<link href="~/css/vacaciones-modern.css" rel="stylesheet" />
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 
 <link href="~/css/stylesVacacionesSPJ.css" rel="stylesheet" />
 
-<h2>Solicitudes de mi equipo</h2>
+<style>
+    .vacaciones-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.4rem;
+    }
+
+    .btn-regresar-vacaciones {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0b2f55;
+    font-weight: 800;
+    border-radius: 12px;
+    padding: .75rem 1.1rem;
+    text-decoration: none;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .08);
+    transition: all .18s ease-in-out;
+    }
+
+    .btn-regresar-vacaciones:hover {
+    transform: translateY(-1px);
+    color: #ffffff;
+    background: #0b4f8a;
+    border-color: #0b4f8a;
+    text-decoration: none;
+    }
+</style>
+
+<div class="vacaciones-page-header">
+    <h2 class="mb-0">Solicitudes de mi equipo</h2>
+
+    <a asp-action="MisVacaciones" class="btn-regresar-vacaciones">
+        <i class="fas fa-arrow-left"></i>
+        Regresar
+    </a>
+</div>
 
 @if (TempData["MensajeVacacionesJefe"] != null)
 {
@@ -202,30 +245,30 @@ else
     </table>
 }
 
-                    <script>
-                            function decidirHabilitacion(id, aprobado) {
-        const texto = aprobado ? "¿Aprobar este motivo para vacaciones adelantadas?" : "¿Rechazar esta solicitud?";
+<script>
+    function decidirHabilitacion(id, aprobado) {
+    const texto = aprobado ? "¿Aprobar este motivo para vacaciones adelantadas?" : "¿Rechazar esta solicitud?";
 
-        Swal.fire({
-            title: 'Confirmar Decisión',
-            text: texto,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: aprobado ? '#198754' : '#dc3545',
-            confirmButtonText: aprobado ? 'Sí, Aprobar' : 'Sí, Rechazar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.post('@Url.Action("DecidirHabilitacionJefe", "Vacaciones")', {
-                    habilitacionId: id,
-                    aprobado: aprobado
-                }, function (res) {
-                    if (res.success) {
-                        Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
-                    } else {
-                        Swal.fire('Error', res.message, 'error');
-                    }
-                });
-            }
-        });
+    Swal.fire({
+    title: 'Confirmar Decisión',
+    text: texto,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: aprobado ? '#198754' : '#dc3545',
+    confirmButtonText: aprobado ? 'Sí, Aprobar' : 'Sí, Rechazar'
+    }).then((result) => {
+    if (result.isConfirmed) {
+    $.post('@Url.Action("DecidirHabilitacionJefe", "Vacaciones")', {
+    habilitacionId: id,
+    aprobado: aprobado
+    }, function (res) {
+    if (res.success) {
+    Swal.fire('Éxito', res.message, 'success').then(() => location.reload());
+    } else {
+    Swal.fire('Error', res.message, 'error');
     }
-                    </script>
+    });
+    }
+    });
+    }
+</script>

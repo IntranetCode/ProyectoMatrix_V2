@@ -4,6 +4,8 @@
     ViewData["Title"] = "Solicitudes pendientes autorizadas";
     Layout = "_LayoutComunicados";
 }
+<link href="~/css/vacaciones-modern.css" rel="stylesheet" />
+
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -118,7 +120,7 @@ else
                         <td>@s.EstadoRecursosHumanos</td>
                         <td>
                             <div class="d-flex justify-content-center">
-                            
+
                                 <form asp-action="RegistrarComoRH" method="post" class="d-inline mr-1">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="solicitudId" value="@s.SolicitudVacacionesID" />
@@ -146,58 +148,58 @@ else
 @section Scripts {
     <script>
         function finalizarHabilitacion(id, aprobado) {
-            const titulo = aprobado ? '¿Confirmar habilitación final?' : '¿Rechazar solicitud?';
-            const msg = aprobado ? 'Esto activará el permiso en el perfil del usuario inmediatamente.' : 'El usuario no podrá solicitar vacaciones adelantadas.';
+        const titulo = aprobado ? '¿Confirmar habilitación final?' : '¿Rechazar solicitud?';
+        const msg = aprobado ? 'Esto activará el permiso en el perfil del usuario inmediatamente.' : 'El usuario no podrá solicitar vacaciones adelantadas.';
 
-            Swal.fire({
-                title: titulo,
-                text: msg,
-                icon: aprobado ? 'info' : 'warning',
-                showCancelButton: true,
-                confirmButtonText: aprobado ? 'Sí, habilitar' : 'Sí, denegar',
-                confirmButtonColor: aprobado ? '#0d6efd' : '#dc3545'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.post('@Url.Action("AprobarHabilitacionFinal", "Vacaciones")', {
-                        habilitacionId: id,
-                        aprobado: aprobado
-                    }, function (res) {
-                        if (res.success) {
-                            Swal.fire('Proceso Completado', 'El switch del usuario ha sido actualizado.', 'success')
-                                .then(() => location.reload());
-                        } else {
-                            Swal.fire('Error', res.message, 'error');
-                        }
-                    });
-                }
-            });
+        Swal.fire({
+        title: titulo,
+        text: msg,
+        icon: aprobado ? 'info' : 'warning',
+        showCancelButton: true,
+        confirmButtonText: aprobado ? 'Sí, habilitar' : 'Sí, denegar',
+        confirmButtonColor: aprobado ? '#0d6efd' : '#dc3545'
+        }).then((result) => {
+        if (result.isConfirmed) {
+        $.post('@Url.Action("AprobarHabilitacionFinal", "Vacaciones")', {
+        habilitacionId: id,
+        aprobado: aprobado
+        }, function (res) {
+        if (res.success) {
+        Swal.fire('Proceso Completado', 'El switch del usuario ha sido actualizado.', 'success')
+        .then(() => location.reload());
+        } else {
+        Swal.fire('Error', res.message, 'error');
+        }
+        });
+        }
+        });
         }
 
-                $(document).ready(function () {
-            $('.btn-confirmar-omitir').click(function (e) {
-                e.preventDefault(); // Detiene el envío del form
+        $(document).ready(function () {
+        $('.btn-confirmar-omitir').click(function (e) {
+        e.preventDefault(); // Detiene el envío del form
 
-                var form = $(this).closest('form'); // Selecciona el formulario padre
+        var form = $(this).closest('form'); // Selecciona el formulario padre
 
-                Swal.fire({
-                    title: '¿Ocultar solicitud?',
-                    text: "Esta acción descartará el registro en RH. No se afectarán los saldos del colaborador.",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#ff6b00', // Tu Naranja Corporativo
-                    cancelButtonColor: '#004a99',  // Tu Azul Corporativo
-                    confirmButtonText: '<i class="fas fa-eye-slash"></i> Sí, ocultar',
-                    cancelButtonText: 'Cancelar',
-                    reverseButtons: true, // Pone el botón de cancelar a la izquierda
-                    customClass: {
-                        popup: 'border-radius-15' // Opcional: para redondear bordes
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        form.submit(); // Si confirma, enviamos el formulario
-                    }
-                });
-            });
+        Swal.fire({
+        title: '¿Ocultar solicitud?',
+        text: "Esta acción descartará el registro en RH. No se afectarán los saldos del colaborador.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ff6b00', // Tu Naranja Corporativo
+        cancelButtonColor: '#004a99',  // Tu Azul Corporativo
+        confirmButtonText: '<i class="fas fa-eye-slash"></i> Sí, ocultar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true, // Pone el botón de cancelar a la izquierda
+        customClass: {
+        popup: 'border-radius-15' // Opcional: para redondear bordes
+        }
+        }).then((result) => {
+        if (result.isConfirmed) {
+        form.submit(); // Si confirma, enviamos el formulario
+        }
+        });
+        });
         });
     </script>
 }

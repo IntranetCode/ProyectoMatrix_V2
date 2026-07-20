@@ -1,38 +1,92 @@
 ﻿@model List<ProyectoMatrix.Models.VacacionesSolicitudItemVm>
 
-<table class="table table-sm table-striped align-middle">
-    <thead>
-        <tr>
-            <th>Folio</th>
-            <th>Fecha solicitud</th>
-            <th>Periodo</th>
-            <th>Días</th>
-            <th>Anticipada</th>
-            <th>Estado jefe</th>
-            <th>Estado RH</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (Model != null && Model.Any())
-        {
-            foreach (var s in Model)
+<link href="~/css/vacaciones-modern.css" rel="stylesheet" />
+<div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Folio</th>
+                <th>Fecha solicitud</th>
+                <th>Periodo</th>
+                <th>Días</th>
+                <th>Anticipada</th>
+                <th>Estado jefe</th>
+                <th>Estado RH</th>
+                <th class="text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                foreach (var s in Model)
+                {
+                    var estadoJefe = (s.EstadoAutorizacion ?? "").Trim();
+                    var estadoRH = (s.EstadoRecursosHumanos ?? "").Trim();
+                    var origen = (s.Origen ?? "").Trim();
+
+                    var puedeEditarCancelar =
+                        estadoJefe.Equals("Pendiente", StringComparison.OrdinalIgnoreCase)
+                        && (string.IsNullOrWhiteSpace(estadoRH)
+                            || estadoRH.Equals("SinRegistrar", StringComparison.OrdinalIgnoreCase)
+                            || estadoRH.Equals("Pendiente", StringComparison.OrdinalIgnoreCase))
+                        && origen.Equals("Colaborador", StringComparison.OrdinalIgnoreCase);
+
+                    <tr>
+                        <td>@s.SolicitudVacacionesID</td>
+                        <td>@s.FechaSolicitud.ToString("dd/MM/yyyy")</td>
+                        <td>
+                            @s.FechaInicio.ToString("dd/MM/yyyy") -
+                            @s.FechaFin.ToString("dd/MM/yyyy")
+                        </td>
+                        <td>@s.DiasSolicitados</td>
+                        <td>@(s.EsAnticipada ? "Sí" : "No")</td>
+                        <td>@s.EstadoAutorizacion</td>
+                        <td>@s.EstadoRecursosHumanos</td>
+                        <td class="text-center text-nowrap">
+                            @if (puedeEditarCancelar)
+                            {
+                                <a asp-controller="Vacaciones"
+                                   asp-action="EditarSolicitud"
+                                   asp-route-id="@s.SolicitudVacacionesID"
+                                   class="btn btn-sm btn-outline-primary me-1"
+                                   title="Editar solicitud">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+
+                                <form asp-controller="Vacaciones"
+                                      asp-action="CancelarSolicitud"
+                                      method="post"
+                                      class="d-inline formulario-cancelar">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden"
+                                           name="solicitudId"
+                                           value="@s.SolicitudVacacionesID" />
+                                    <input type="hidden"
+                                           name="motivo"
+                                           class="motivo-cancelacion" />
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger"
+                                            onclick="confirmarCancelacion(this, @s.SolicitudVacacionesID)"
+                                            title="Cancelar solicitud">
+                                        <i class="fas fa-times-circle"></i> Cancelar
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Sin acciones</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+            else
             {
                 <tr>
-                    <td>@s.SolicitudVacacionesID</td>
-                    <td>@s.FechaSolicitud.ToString("dd/MM/yyyy")</td>
-                    <td>@s.FechaInicio.ToString("dd/MM/yyyy") - @s.FechaFin.ToString("dd/MM/yyyy")</td>
-                    <td>@s.DiasSolicitados</td>
-                    <td>@(s.EsAnticipada ? "Sí" : "No")</td>
-                    <td>@s.EstadoAutorizacion</td>
-                    <td>@s.EstadoRecursosHumanos</td>
+                    <td colspan="8" class="text-muted">Sin registros.</td>
                 </tr>
             }
-        }
-        else
-        {
-            <tr>
-                <td colspan="7" class="text-muted">Sin registros.</td>
-            </tr>
-        }
-    </tbody>
-</table>
+        </tbody>
+    </table>
+</div>

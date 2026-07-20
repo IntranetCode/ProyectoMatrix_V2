@@ -22,7 +22,7 @@ namespace ProyectoMatrix.Models
     public class VacacionesSolicitudItemVm
     {
         public int SolicitudVacacionesID { get; set; }
-        public DateTime FechaSolicitud { get; set; } 
+        public DateTime FechaSolicitud { get; set; }
         public DateTime FechaInicio { get; set; }
         public DateTime FechaFin { get; set; }
         public DateTime FechaRegresoLabores { get; set; }
@@ -69,6 +69,30 @@ namespace ProyectoMatrix.Models
 
         // Solo para mostrar info al usuario
         public decimal DiasDisponiblesActuales { get; set; }
+    }
+
+
+    public class EditarSolicitudVacacionesVm
+    {
+        [Required]
+        public int SolicitudVacacionesID { get; set; }
+
+        [Required(ErrorMessage = "La fecha de inicio es obligatoria.")]
+        [DataType(DataType.Date)]
+        [Display(Name = "Fecha de inicio")]
+        public DateTime FechaInicio { get; set; }
+
+        [Required(ErrorMessage = "La fecha de fin es obligatoria.")]
+        [DataType(DataType.Date)]
+        [Display(Name = "Fecha de fin")]
+        public DateTime FechaFin { get; set; }
+
+        [StringLength(500, ErrorMessage = "Las observaciones no pueden exceder 500 caracteres.")]
+        [Display(Name = "Observaciones")]
+        public string? Observaciones { get; set; }
+
+        public decimal DiasDisponiblesActuales { get; set; }
+        public decimal DiasSolicitadosAnteriores { get; set; }
     }
 
 
@@ -201,7 +225,7 @@ namespace ProyectoMatrix.Models
         public List<VacacionesVistaExcelVm> VistaExcel { get; set; } = new();
 
 
-          public List<HabilitacionPendienteRHVm> HabilitacionesEspeciales { get; set; } = new();
+        public List<HabilitacionPendienteRHVm> HabilitacionesEspeciales { get; set; } = new();
     }
 
     public class SolicitudesPendientesJefePantallaVm

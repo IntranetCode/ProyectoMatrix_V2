@@ -3,41 +3,78 @@
     ViewData["Title"] = "Solicitar por el equipo";
     Layout = "_LayoutComunicados";
 }
+<link href="~/css/vacaciones-modern.css" rel="stylesheet" />
 
-<h2>Solicitar vacaciones por colaborador</h2>
 
-<div id="infoSaldo" class="alert alert-info d-none">
-    <strong>Saldo Disponible de <span id="nombreEmpleadoSel"></span>:</strong>
-    <span id="valorSaldo" class="fw-bold">0</span> días.
+
+<div class="vacaciones-page">
+    <h2>Solicitar vacaciones por colaborador</h2>
+
+    @if (!string.IsNullOrEmpty(ViewBag.Error as string))
+    {
+        <div class="alert alert-danger">@ViewBag.Error</div>
+    }
+
+    <div class="vac-hero-grid">
+        <section class="vac-panel">
+            <h5 class="mt-0 mb-2">Datos de la solicitud</h5>
+            <p class="text-muted mb-4">Selecciona a un integrante de tu equipo y captura el periodo de vacaciones.</p>
+
+            <div id="infoSaldo" class="alert alert-info d-none">
+                <strong>Saldo disponible de <span id="nombreEmpleadoSel"></span>:</strong>
+                <span id="valorSaldo" class="fw-bold">0</span> días.
+            </div>
+
+            <form asp-action="CrearSolicitudEquipo" method="post" id="formSolicitud">
+                @Html.AntiForgeryToken()
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Colaborador</label>
+                        <select asp-for="PersonaID" asp-items="Model.MiEquipo" class="form-select" id="selectPersona">
+                            <option value="">-- Seleccione un miembro del equipo --</option>
+                        </select>
+                        <span asp-validation-for="PersonaID" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="FechaInicio" class="form-label">Fecha de inicio</label>
+                        <input asp-for="FechaInicio" class="form-control" type="date" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="FechaFin" class="form-label">Fecha de fin</label>
+                        <input asp-for="FechaFin" class="form-control" type="date" />
+                    </div>
+
+                    <div class="col-12">
+                        <label asp-for="Observaciones" class="form-label">Motivo / observaciones</label>
+                        <textarea asp-for="Observaciones" class="form-control" rows="4" placeholder="Describe el motivo por el que se registra desde el perfil de jefe."></textarea>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap mt-4">
+                    <button type="submit" class="btn btn-primary" id="btnEnviar" disabled>
+                        <i class="fas fa-check-circle me-1"></i> Crear solicitud oficial
+                    </button>
+                    <a asp-action="SolicitudesPendientesJefe" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Regresar
+                    </a>
+                </div>
+            </form>
+        </section>
+
+        <aside class="vac-panel vac-panel-soft">
+            <h5 class="mt-0 mb-3">Validación rápida</h5>
+            <p class="text-muted">El botón se habilita cuando seleccionas a un colaborador y se obtiene su saldo disponible.</p>
+            <div class="d-grid gap-2">
+                <span class="badge bg-success-subtle text-start">Consulta de saldo en línea</span>
+                <span class="badge bg-warning-subtle text-start">Registro con origen JefeDirecto</span>
+                <span class="badge bg-success-subtle text-start">Bandeja de seguimiento</span>
+            </div>
+        </aside>
+    </div>
 </div>
-
-<form asp-action="CrearSolicitudEquipo" method="post" id="formSolicitud">
-    @Html.AntiForgeryToken()
-
-    <div class="mb-3">
-        <label class="form-label">Seleccionar Colaborador</label>
-        <select asp-for="PersonaID" asp-items="Model.MiEquipo" class="form-select" id="selectPersona">
-            <option value="">-- Seleccione un miembro del equipo --</option>
-        </select>
-        <span asp-validation-for="PersonaID" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="FechaInicio" class="form-label">Fecha de Inicio</label>
-        <input asp-for="FechaInicio" class="form-control" type="date" />
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="FechaFin" class="form-label">Fecha de Fin</label>
-        <input asp-for="FechaFin" class="form-control" type="date" />
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="Observaciones" class="form-label">Motivo/Observaciones</label>
-        <textarea asp-for="Observaciones" class="form-control" rows="3"></textarea>
-    </div>
-    <button type="submit" class="btn btn-primary" id="btnEnviar" disabled>Crear Solicitud Oficial</button>
-
 
 @section Scripts {
     <script>
@@ -51,15 +88,12 @@
                         if (res.success) {
                             $('#nombreEmpleadoSel').text(nombre);
                             $('#valorSaldo').text(res.saldo);
-                            $('#infoSaldo').removeClass('d-none');
+                            $('#infoSaldo').removeClass('d-none alert-warning alert-info')
+                                .addClass(res.saldo <= 0 ? 'alert-warning' : 'alert-info');
                             $('#btnEnviar').prop('disabled', false);
-
-                            // Opcional: Alerta visual si tiene 0 días
-                            if(res.saldo <= 0) {
-                                $('#infoSaldo').removeClass('alert-info').addClass('alert-warning');
-                            } else {
-                                $('#infoSaldo').removeClass('alert-warning').addClass('alert-info');
-                            }
+                        } else {
+                            $('#infoSaldo').removeClass('d-none alert-info').addClass('alert-warning').text(res.message || 'No se pudo obtener el saldo.');
+                            $('#btnEnviar').prop('disabled', true);
                         }
                     });
                 } else {
@@ -69,83 +103,7 @@
             });
         });
     </script>
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
 }
-    
-</form>
-
-<style>
-
-    .alert-info {
-        border-left: 8px solid #ff6d00 !important; /* Acento naranja igual a CrearSolicitud[cite: 5] */
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        color: #1a237e;
-    }
-
-    body {
-        background-color: #f8f9fa; /* Gris claro para dar profundidad */
-    }
-
-    h2 {
-        color: #2c3e50;
-        font-weight: 600;
-        margin-bottom: 1.5rem;
-        border-bottom: 2px solid #0056b3;
-        padding-bottom: 10px;
-    }
-
-    form {
-        background: #ffffff;
-        padding: 25px;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        max-width: 800px;
-    }
-
-    .form-label {
-        font-weight: bold;
-        color: #495057;
-    }
-
-    .form-control {
-        border: 1px solid #ced4da;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    }
-
-        .form-control:focus {
-            border-color: #0056b3;
-            box-shadow: 0 0 0 0.25rem rgba(0, 86, 179, 0.25);
-        }
-
-    .btn-primary {
-        background-color: #0056b3;
-        border-color: #004a99;
-        padding: 10px 20px;
-        font-weight: 500;
-    }
-
-        .btn-primary:hover {
-            background-color: #004494;
-            border-color: #003b80;
-        }
-
-    .btn-secondary {
-        background-color: #6c757d;
-        border-color: #6c757d;
-    }
-
-    .text-danger {
-        font-size: 0.875rem;
-        margin-top: 5px;
-        display: block;
-    }
-
-    /* Responsividad para móviles */
-    @@media (max-width: 576px) {
-        form
-
-    {
-        padding: 15px;
-    }
-
-    }
-</style>

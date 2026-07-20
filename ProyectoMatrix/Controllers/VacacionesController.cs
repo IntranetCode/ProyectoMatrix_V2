@@ -22,7 +22,7 @@ namespace ProyectoMatrix.Controllers
         public VacacionesController(IConfiguration configuration,
                                     ILogger<VacacionesController> logger, ServicioNotificaciones notif)
         {
-           
+
             _connectionString = configuration.GetConnectionString("DefaultConnection");
             _logger = logger;
             _notif = notif;
@@ -192,7 +192,7 @@ namespace ProyectoMatrix.Controllers
                     }
 
                     // Traer el saldo MÁS RECIENTE (último año generado)
-                  
+
 
                     // Valores por defecto
                     vm.FechaInicio = DateTime.Today;
@@ -227,7 +227,7 @@ namespace ProyectoMatrix.Controllers
                 ModelState.AddModelError(string.Empty, "La fecha de fin no puede ser menor que la fecha de inicio.");
             }
 
-           
+
 
             try
             {
@@ -261,7 +261,7 @@ namespace ProyectoMatrix.Controllers
                         ModelState.AddModelError(
                             string.Empty,
                             $"No tienes saldo suficiente para solicitar estas vacaciones. " +
-                            $"Días solicitados: {diasSolicitados}. Días disponibles: {diasDisponibles}. " 
+                            $"Días solicitados: {diasSolicitados}. Días disponibles: {diasDisponibles}. "
                         );
 
                         return View(model);
@@ -335,6 +335,864 @@ namespace ProyectoMatrix.Controllers
 
 
 
+
+
+
+        [HttpGet]
+        public IActionResult EditarSolicitud(int id)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+            if (usuarioId == 0)
+                return Unauthorized();
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    int personaId = ObtenerPersonaIdPorUsuario(conn, usuarioId);
+                    if (personaId == 0)
+                        return Forbid();
+
+                    using (var cmd = new SqlCommand(@"
+SELECT TOP 1
+    SolicitudVacacionesID,
+    FechaInicio,
+    FechaFin,
+    DiasSolicitados,
+    Observaciones,
+    EstadoAutorizacion,
+    EstadoRecursosHumanos,
+    Origen
+FROM VacacionesSolicitud
+WHERE SolicitudVacacionesID = @SolicitudID
+  AND PersonaID = @PersonaID;", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@SolicitudID", id);
+                        cmd.Parameters.AddWithValue("@PersonaID", personaId);
+
+                        using (var rd = cmd.ExecuteReader())
+                        {
+                            if (!rd.Read())
+                                return NotFound();
+
+                            string estadoJefe = rd["EstadoAutorizacion"]?.ToString() ?? "";
+                            string estadoRH = rd["EstadoRecursosHumanos"]?.ToString() ?? "";
+                            string origen = rd["Origen"]?.ToString() ?? "";
+
+                            if (!PuedeModificarSolicitud(estadoJefe, estadoRH, origen))
+                            {
+                                TempData["ErrorVacaciones"] =
+                                    "La solicitud ya no puede editarse porque fue procesada, cancelada o no fue creada por el colaborador.";
+                                return RedirectToAction("MisVacaciones");
+                            }
+
+                            var vm = new EditarSolicitudVacacionesVm
+                            {
+                                SolicitudVacacionesID = Convert.ToInt32(rd["SolicitudVacacionesID"]),
+                                FechaInicio = Convert.ToDateTime(rd["FechaInicio"]),
+                                FechaFin = Convert.ToDateTime(rd["FechaFin"]),
+                                DiasSolicitadosAnteriores = Convert.ToDecimal(rd["DiasSolicitados"]),
+                                Observaciones = rd["Observaciones"] == DBNull.Value
+                                    ? null
+                                    : rd["Observaciones"].ToString()
+                            };
+
+                            rd.Close();
+
+                            vm.DiasDisponiblesActuales = ObtenerDiasDisponibles(conn, personaId);
+                            ViewBag.PermiteAdelantadas = TienePermisoVacacionesAdelantadas(conn, usuarioId);
+
+                            return View(vm);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error cargando edición de solicitud {SolicitudID}", id);
+                TempData["ErrorVacaciones"] = "No fue posible cargar la solicitud para editarla.";
+                return RedirectToAction("MisVacaciones");
+            }
+        }
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditarSolicitud(EditarSolicitudVacacionesVm model)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+            if (usuarioId == 0)
+                return Unauthorized();
+
+            if (model.FechaFin.Date < model.FechaInicio.Date)
+            {
+                ModelState.AddModelError(string.Empty,
+                    "La fecha de fin no puede ser menor que la fecha de inicio.");
+            }
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    int personaId = ObtenerPersonaIdPorUsuario(conn, usuarioId);
+                    if (personaId == 0)
+                        return Forbid();
+
+                    model.DiasDisponiblesActuales = ObtenerDiasDisponibles(conn, personaId);
+                    ViewBag.PermiteAdelantadas = TienePermisoVacacionesAdelantadas(conn, usuarioId);
+
+                    if (!ModelState.IsValid)
+                        return View(model);
+
+                    DateTime fechaInicioAnterior;
+                    DateTime fechaFinAnterior;
+                    decimal diasAnteriores;
+                    decimal diasNuevos;
+
+                    using (var trans = conn.BeginTransaction(IsolationLevel.Serializable))
+                    {
+                        string estadoJefe;
+                        string estadoRH;
+                        string origen;
+
+                        using (var cmdActual = new SqlCommand(@"
+SELECT
+    FechaInicio,
+    FechaFin,
+    DiasSolicitados,
+    EstadoAutorizacion,
+    EstadoRecursosHumanos,
+    Origen
+FROM VacacionesSolicitud WITH (UPDLOCK, ROWLOCK)
+WHERE SolicitudVacacionesID = @SolicitudID
+  AND PersonaID = @PersonaID;", conn, trans))
+                        {
+                            cmdActual.Parameters.AddWithValue("@SolicitudID", model.SolicitudVacacionesID);
+                            cmdActual.Parameters.AddWithValue("@PersonaID", personaId);
+
+                            using (var rd = cmdActual.ExecuteReader())
+                            {
+                                if (!rd.Read())
+                                {
+                                    trans.Rollback();
+                                    return NotFound();
+                                }
+
+                                fechaInicioAnterior = Convert.ToDateTime(rd["FechaInicio"]);
+                                fechaFinAnterior = Convert.ToDateTime(rd["FechaFin"]);
+                                diasAnteriores = Convert.ToDecimal(rd["DiasSolicitados"]);
+                                estadoJefe = rd["EstadoAutorizacion"]?.ToString() ?? "";
+                                estadoRH = rd["EstadoRecursosHumanos"]?.ToString() ?? "";
+                                origen = rd["Origen"]?.ToString() ?? "";
+                            }
+                        }
+
+                        if (!PuedeModificarSolicitud(estadoJefe, estadoRH, origen))
+                        {
+                            trans.Rollback();
+                            TempData["ErrorVacaciones"] =
+                                "La solicitud cambió de estado y ya no puede editarse.";
+                            return RedirectToAction("MisVacaciones");
+                        }
+
+                        diasNuevos = ContarDiasHabiles(
+                            conn,
+                            model.FechaInicio.Date,
+                            model.FechaFin.Date,
+                            trans);
+
+                        if (diasNuevos <= 0)
+                        {
+                            trans.Rollback();
+                            ModelState.AddModelError(string.Empty,
+                                "El periodo seleccionado no contiene días hábiles.");
+                            return View(model);
+                        }
+
+                        decimal diasDisponibles = ObtenerDiasDisponibles(conn, personaId, trans);
+                        bool permiteAdelantadas = TienePermisoVacacionesAdelantadas(conn, usuarioId, trans);
+
+                        model.DiasDisponiblesActuales = diasDisponibles;
+                        ViewBag.PermiteAdelantadas = permiteAdelantadas;
+
+                        if (diasNuevos > diasDisponibles && !permiteAdelantadas)
+                        {
+                            trans.Rollback();
+                            ModelState.AddModelError(string.Empty,
+                                $"No tienes saldo suficiente. Días solicitados: {diasNuevos}. " +
+                                $"Días disponibles: {diasDisponibles}.");
+                            return View(model);
+                        }
+
+                        DateTime fechaRegreso = ObtenerSiguienteDiaHabil(
+                            conn,
+                            model.FechaFin.Date,
+                            trans);
+
+                        bool esAnticipada = diasNuevos > diasDisponibles;
+
+                        using (var cmdUpdate = new SqlCommand(@"
+UPDATE VacacionesSolicitud
+SET FechaInicio = @FechaInicio,
+    FechaFin = @FechaFin,
+    FechaRegresoLabores = @FechaRegresoLabores,
+    DiasSolicitados = @DiasSolicitados,
+    EsAnticipada = @EsAnticipada,
+    Observaciones = @Observaciones
+WHERE SolicitudVacacionesID = @SolicitudID
+  AND PersonaID = @PersonaID
+  AND EstadoAutorizacion = 'Pendiente'
+  AND ISNULL(EstadoRecursosHumanos, 'SinRegistrar') IN ('SinRegistrar', 'Pendiente')
+  AND Origen = 'Colaborador';", conn, trans))
+                        {
+                            cmdUpdate.Parameters.AddWithValue("@FechaInicio", model.FechaInicio.Date);
+                            cmdUpdate.Parameters.AddWithValue("@FechaFin", model.FechaFin.Date);
+                            cmdUpdate.Parameters.AddWithValue("@FechaRegresoLabores", fechaRegreso.Date);
+                            cmdUpdate.Parameters.AddWithValue("@DiasSolicitados", diasNuevos);
+                            cmdUpdate.Parameters.AddWithValue("@EsAnticipada", esAnticipada);
+                            cmdUpdate.Parameters.AddWithValue("@Observaciones",
+                                (object?)model.Observaciones?.Trim() ?? DBNull.Value);
+                            cmdUpdate.Parameters.AddWithValue("@SolicitudID", model.SolicitudVacacionesID);
+                            cmdUpdate.Parameters.AddWithValue("@PersonaID", personaId);
+
+                            int filas = cmdUpdate.ExecuteNonQuery();
+                            if (filas != 1)
+                            {
+                                trans.Rollback();
+                                TempData["ErrorVacaciones"] =
+                                    "No fue posible actualizar la solicitud porque su estado cambió.";
+                                return RedirectToAction("MisVacaciones");
+                            }
+                        }
+
+                        trans.Commit();
+                    }
+
+                    await NotificarJefeSolicitudModificadaAsync(
+                        model.SolicitudVacacionesID,
+                        fechaInicioAnterior,
+                        fechaFinAnterior,
+                        diasAnteriores);
+
+                    TempData["MensajeVacaciones"] =
+                        $"La solicitud {model.SolicitudVacacionesID} se actualizó correctamente y se notificó a tu jefe.";
+
+                    return RedirectToAction("MisVacaciones");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error editando solicitud de vacaciones {SolicitudID}",
+                    model.SolicitudVacacionesID);
+
+                ViewBag.Error = "No fue posible actualizar la solicitud: " + ex.Message;
+                return View(model);
+            }
+        }
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelarSolicitud(
+            int solicitudId,
+            string? motivo)
+        {
+            int usuarioId = ObtenerUsuarioIdActual();
+            if (usuarioId == 0)
+                return Unauthorized();
+
+            motivo = string.IsNullOrWhiteSpace(motivo)
+                ? "Sin motivo proporcionado."
+                : motivo.Trim();
+
+            if (motivo.Length > 500)
+                motivo = motivo.Substring(0, 500);
+
+            try
+            {
+                DateTime fechaInicioAnterior;
+                DateTime fechaFinAnterior;
+                decimal diasAnteriores;
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    int personaId = ObtenerPersonaIdPorUsuario(conn, usuarioId);
+                    if (personaId == 0)
+                        return Forbid();
+
+                    using (var trans = conn.BeginTransaction(IsolationLevel.Serializable))
+                    {
+                        string estadoJefe;
+                        string estadoRH;
+                        string origen;
+
+                        using (var cmdActual = new SqlCommand(@"
+SELECT
+    FechaInicio,
+    FechaFin,
+    DiasSolicitados,
+    EstadoAutorizacion,
+    EstadoRecursosHumanos,
+    Origen
+FROM VacacionesSolicitud WITH (UPDLOCK, ROWLOCK)
+WHERE SolicitudVacacionesID = @SolicitudID
+  AND PersonaID = @PersonaID;", conn, trans))
+                        {
+                            cmdActual.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            cmdActual.Parameters.AddWithValue("@PersonaID", personaId);
+
+                            using (var rd = cmdActual.ExecuteReader())
+                            {
+                                if (!rd.Read())
+                                {
+                                    trans.Rollback();
+                                    return NotFound();
+                                }
+
+                                fechaInicioAnterior = Convert.ToDateTime(rd["FechaInicio"]);
+                                fechaFinAnterior = Convert.ToDateTime(rd["FechaFin"]);
+                                diasAnteriores = Convert.ToDecimal(rd["DiasSolicitados"]);
+                                estadoJefe = rd["EstadoAutorizacion"]?.ToString() ?? "";
+                                estadoRH = rd["EstadoRecursosHumanos"]?.ToString() ?? "";
+                                origen = rd["Origen"]?.ToString() ?? "";
+                            }
+                        }
+
+                        if (!PuedeModificarSolicitud(estadoJefe, estadoRH, origen))
+                        {
+                            trans.Rollback();
+                            TempData["ErrorVacaciones"] =
+                                "La solicitud ya fue procesada y no puede cancelarse.";
+                            return RedirectToAction("MisVacaciones");
+                        }
+
+                        string notaCancelacion =
+                            $"[CANCELADA POR COLABORADOR {DateTime.Now:dd/MM/yyyy HH:mm}] Motivo: {motivo}";
+
+                        using (var cmdUpdate = new SqlCommand(@"
+UPDATE VacacionesSolicitud
+SET EstadoAutorizacion = 'Rechazada',
+    EstadoRecursosHumanos = 'Cancelada',
+    Observaciones = CASE
+        WHEN NULLIF(LTRIM(RTRIM(ISNULL(Observaciones, ''))), '') IS NULL
+            THEN @NotaCancelacion
+        ELSE Observaciones + CHAR(13) + CHAR(10) + @NotaCancelacion
+    END
+WHERE SolicitudVacacionesID = @SolicitudID
+  AND PersonaID = @PersonaID
+  AND EstadoAutorizacion = 'Pendiente'
+  AND ISNULL(EstadoRecursosHumanos, 'SinRegistrar') IN ('SinRegistrar', 'Pendiente')
+  AND Origen = 'Colaborador';", conn, trans))
+                        {
+                            cmdUpdate.Parameters.AddWithValue("@NotaCancelacion", notaCancelacion);
+                            cmdUpdate.Parameters.AddWithValue("@SolicitudID", solicitudId);
+                            cmdUpdate.Parameters.AddWithValue("@PersonaID", personaId);
+
+                            int filas = cmdUpdate.ExecuteNonQuery();
+                            if (filas != 1)
+                            {
+                                trans.Rollback();
+                                TempData["ErrorVacaciones"] =
+                                    "No fue posible cancelar la solicitud porque su estado cambió.";
+                                return RedirectToAction("MisVacaciones");
+                            }
+                        }
+
+                        trans.Commit();
+                    }
+                }
+
+                await NotificarJefeSolicitudCanceladaAsync(
+                    solicitudId,
+                    fechaInicioAnterior,
+                    fechaFinAnterior,
+                    diasAnteriores,
+                    motivo);
+
+                TempData["MensajeVacaciones"] =
+                    $"La solicitud {solicitudId} fue cancelada y se notificó a tu jefe.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error cancelando solicitud de vacaciones {SolicitudID}",
+                    solicitudId);
+
+                TempData["ErrorVacaciones"] =
+                    "No fue posible cancelar la solicitud: " + ex.Message;
+            }
+
+            return RedirectToAction("MisVacaciones");
+        }
+
+        //Metodo POST para BandejaRH que cancela las vacaciones registradas y regresa los dias disponibles
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelarVacacionesRegistradasRH(
+    int solicitudId,
+    string motivo)
+        {
+            int usuarioRhId = ObtenerUsuarioIdActual();
+            if (usuarioRhId == 0)
+                return Unauthorized();
+
+            motivo = (motivo ?? string.Empty).Trim();
+
+            if (motivo.Length < 10)
+            {
+                TempData["ErrorVacacionesRH"] =
+                    "El motivo de cancelación debe contener al menos 10 caracteres.";
+
+                return RedirectToAction(nameof(BandejaRH), new { tab = "registradas" });
+            }
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    if (!EsUsuarioRecursosHumanos(conn, usuarioRhId))
+                        return Forbid();
+
+                    using (var cmd = new SqlCommand(
+                        "dbo.sp_Vacaciones_CancelarRegistroRH",
+                        conn))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.Parameters.AddWithValue(
+                            "@SolicitudVacacionesID",
+                            solicitudId);
+                        cmd.Parameters.AddWithValue("@UsuarioRHID", usuarioRhId);
+                        cmd.Parameters.AddWithValue("@Motivo", motivo);
+
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+
+                // La devolución de saldo ya quedó confirmada en BD.
+                // El correo no debe romper el flujo si llegara a fallar.
+                await NotificarCancelacionVacacionesRHAsync(solicitudId, motivo);
+
+                TempData["MensajeVacacionesRH"] =
+                    $"La solicitud {solicitudId} fue cancelada y los días se devolvieron al colaborador.";
+            }
+            catch (SqlException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error SQL cancelando vacaciones registradas por RH. SolicitudID={SolicitudID}",
+                    solicitudId);
+
+                TempData["ErrorVacacionesRH"] = ex.Message;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error cancelando vacaciones registradas por RH. SolicitudID={SolicitudID}",
+                    solicitudId);
+
+                TempData["ErrorVacacionesRH"] =
+                    "No se pudo cancelar la solicitud: " + ex.Message;
+            }
+
+            return RedirectToAction(nameof(BandejaRH), new { tab = "registradas" });
+        }
+
+        private async Task NotificarCancelacionVacacionesRHAsync(
+            int solicitudId,
+            string motivo)
+        {
+            try
+            {
+                int personaColaboradorId = 0;
+                int? personaJefeId = null;
+                string nombreColaborador = "Colaborador";
+                string nombreJefe = "Jefe inmediato";
+                string numeroEmpleado = string.Empty;
+                DateTime fechaInicio = DateTime.Today;
+                DateTime fechaFin = DateTime.Today;
+                decimal dias = 0;
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    const string sql = @"
+SELECT
+    p.PersonaID AS PersonaColaboradorID,
+    p.NumeroEmpleado,
+    CONCAT(
+        ISNULL(p.ApellidoPaterno, ''), ' ',
+        ISNULL(p.ApellidoMaterno, ''), ' ',
+        ISNULL(p.Nombre, '')
+    ) AS NombreColaborador,
+    pj.PersonaID AS PersonaJefeID,
+    CONCAT(
+        ISNULL(pj.ApellidoPaterno, ''), ' ',
+        ISNULL(pj.ApellidoMaterno, ''), ' ',
+        ISNULL(pj.Nombre, '')
+    ) AS NombreJefe,
+    s.FechaInicio,
+    s.FechaFin,
+    s.DiasSolicitados
+FROM dbo.VacacionesSolicitud s
+INNER JOIN dbo.Persona p
+    ON p.PersonaID = s.PersonaID
+LEFT JOIN dbo.Persona pj
+    ON pj.PersonaID = p.JefeInmediatoPersonaID
+WHERE s.SolicitudVacacionesID = @SolicitudID;";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
+
+                        using (var rd = await cmd.ExecuteReaderAsync())
+                        {
+                            if (!await rd.ReadAsync())
+                                return;
+
+                            personaColaboradorId = Convert.ToInt32(
+                                rd["PersonaColaboradorID"]);
+
+                            personaJefeId = rd["PersonaJefeID"] == DBNull.Value
+                                ? null
+                                : Convert.ToInt32(rd["PersonaJefeID"]);
+
+                            numeroEmpleado = rd["NumeroEmpleado"]?.ToString() ?? "";
+                            nombreColaborador =
+                                rd["NombreColaborador"]?.ToString()?.Trim()
+                                ?? "Colaborador";
+                            nombreJefe =
+                                rd["NombreJefe"]?.ToString()?.Trim()
+                                ?? "Jefe inmediato";
+                            fechaInicio = Convert.ToDateTime(rd["FechaInicio"]);
+                            fechaFin = Convert.ToDateTime(rd["FechaFin"]);
+                            dias = Convert.ToDecimal(rd["DiasSolicitados"]);
+                        }
+                    }
+                }
+
+                var destinatarios = new List<int> { personaColaboradorId };
+                if (personaJefeId.HasValue)
+                    destinatarios.Add(personaJefeId.Value);
+
+                destinatarios = destinatarios.Distinct().ToList();
+
+                var asunto =
+                    $"Vacaciones canceladas por RH - Folio {solicitudId}";
+
+                var html = $@"
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+  <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+    <div style='padding:20px; background:#dc3545; color:#fff; text-align:center;'>
+      <h2 style='margin:0;'>Vacaciones canceladas por RH</h2>
+    </div>
+    <div style='padding:20px; color:#333;'>
+      <p>La solicitud de vacaciones del colaborador
+         <strong>{System.Net.WebUtility.HtmlEncode(nombreColaborador)}</strong>
+         ({System.Net.WebUtility.HtmlEncode(numeroEmpleado)}) fue cancelada por Recursos Humanos.</p>
+
+      <div style='background:#f8f9fa; border-left:4px solid #dc3545; padding:12px 14px; border-radius:6px; margin:14px 0;'>
+        <p style='margin:0 0 6px;'><strong>Folio:</strong> {solicitudId}</p>
+        <p style='margin:0 0 6px;'><strong>Periodo:</strong> {fechaInicio:dd/MM/yyyy} al {fechaFin:dd/MM/yyyy}</p>
+        <p style='margin:0 0 6px;'><strong>Días devueltos:</strong> {dias}</p>
+        <p style='margin:0;'><strong>Motivo:</strong> {System.Net.WebUtility.HtmlEncode(motivo)}</p>
+      </div>
+
+      <p>Los días fueron devueltos al saldo disponible del colaborador.</p>
+      <p>https://intranet.nsgroup.com.mx/</p>
+      <p style='color:#666; font-size:12px; margin-top:18px;'>Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.</p>
+    </div>
+  </div>
+</body>
+</html>";
+
+                await _notif.EnviarABccPersonasAsync(
+                    destinatarios,
+                    asunto,
+                    html);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error notificando cancelación RH. SolicitudID={SolicitudID}",
+                    solicitudId);
+            }
+        }
+
+
+        //Editar Vacaciones una vez Aprobadas
+
+        [HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> EditarVacacionesRegistradasRH(
+    int solicitudId,
+    DateTime fechaInicio,
+    DateTime fechaFin,
+    string motivo)
+{
+    int usuarioRhId = ObtenerUsuarioIdActual();
+    if (usuarioRhId == 0)
+        return Unauthorized();
+
+    motivo = (motivo ?? string.Empty).Trim();
+
+    if (fechaFin.Date < fechaInicio.Date)
+    {
+        TempData["ErrorVacacionesRH"] =
+            "La fecha final no puede ser menor que la fecha inicial.";
+
+        return RedirectToAction(nameof(BandejaRH), new { tab = "registradas" });
+    }
+
+    if (motivo.Length < 10)
+    {
+        TempData["ErrorVacacionesRH"] =
+            "El motivo de la edición debe contener al menos 10 caracteres.";
+
+        return RedirectToAction(nameof(BandejaRH), new { tab = "registradas" });
+    }
+
+    try
+    {
+        long edicionRhId;
+
+        using (var conn = new SqlConnection(_connectionString))
+        {
+            await conn.OpenAsync();
+
+            if (!EsUsuarioRecursosHumanos(conn, usuarioRhId))
+                return Forbid();
+
+            using (var cmd = new SqlCommand(
+                "dbo.sp_Vacaciones_EditarRegistroRH",
+                conn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+
+                cmd.Parameters.AddWithValue(
+                    "@SolicitudVacacionesID",
+                    solicitudId);
+                cmd.Parameters.AddWithValue("@UsuarioRHID", usuarioRhId);
+                cmd.Parameters.AddWithValue("@NuevaFechaInicio", fechaInicio.Date);
+                cmd.Parameters.AddWithValue("@NuevaFechaFin", fechaFin.Date);
+                cmd.Parameters.AddWithValue("@Motivo", motivo);
+
+                var outputEdicion = new SqlParameter(
+                    "@EdicionRHID",
+                    SqlDbType.BigInt)
+                {
+                    Direction = ParameterDirection.Output
+                };
+
+                cmd.Parameters.Add(outputEdicion);
+
+                await cmd.ExecuteNonQueryAsync();
+
+                edicionRhId = Convert.ToInt64(outputEdicion.Value);
+            }
+        }
+
+        // El ajuste de saldo ya fue confirmado en la base de datos.
+        // Si el correo falla, no se revierte la edición.
+        await NotificarEdicionVacacionesRHAsync(edicionRhId);
+
+        TempData["MensajeVacacionesRH"] =
+            $"La solicitud {solicitudId} fue actualizada correctamente. " +
+            "Los días no tomados se devolvieron al colaborador.";
+    }
+    catch (SqlException ex)
+    {
+        _logger.LogError(
+            ex,
+            "Error SQL editando vacaciones registradas por RH. SolicitudID={SolicitudID}",
+            solicitudId);
+
+        TempData["ErrorVacacionesRH"] = ex.Message;
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(
+            ex,
+            "Error editando vacaciones registradas por RH. SolicitudID={SolicitudID}",
+            solicitudId);
+
+        TempData["ErrorVacacionesRH"] =
+            "No se pudo editar la solicitud: " + ex.Message;
+    }
+
+    return RedirectToAction(nameof(BandejaRH), new { tab = "registradas" });
+}
+
+private async Task NotificarEdicionVacacionesRHAsync(long edicionRhId)
+{
+    try
+    {
+        int solicitudId = 0;
+        int personaColaboradorId = 0;
+        int? personaJefeId = null;
+        string numeroEmpleado = string.Empty;
+        string nombreColaborador = "Colaborador";
+        string nombreJefe = "Jefe inmediato";
+        DateTime fechaInicioAnterior = DateTime.Today;
+        DateTime fechaFinAnterior = DateTime.Today;
+        DateTime fechaInicioNueva = DateTime.Today;
+        DateTime fechaFinNueva = DateTime.Today;
+        decimal diasAnteriores = 0;
+        decimal diasNuevos = 0;
+        decimal diasDevueltos = 0;
+        string motivo = string.Empty;
+
+        using (var conn = new SqlConnection(_connectionString))
+        {
+            await conn.OpenAsync();
+
+            const string sql = @"
+SELECT
+    e.SolicitudVacacionesID,
+    e.FechaInicioAnterior,
+    e.FechaFinAnterior,
+    e.DiasAnteriores,
+    e.FechaInicioNueva,
+    e.FechaFinNueva,
+    e.DiasNuevos,
+    e.DiasDevueltos,
+    e.Motivo,
+    p.PersonaID AS PersonaColaboradorID,
+    p.NumeroEmpleado,
+    CONCAT(
+        ISNULL(p.ApellidoPaterno, ''), ' ',
+        ISNULL(p.ApellidoMaterno, ''), ' ',
+        ISNULL(p.Nombre, '')
+    ) AS NombreColaborador,
+    pj.PersonaID AS PersonaJefeID,
+    CONCAT(
+        ISNULL(pj.ApellidoPaterno, ''), ' ',
+        ISNULL(pj.ApellidoMaterno, ''), ' ',
+        ISNULL(pj.Nombre, '')
+    ) AS NombreJefe
+FROM dbo.VacacionesSolicitudEdicionRH e
+INNER JOIN dbo.VacacionesSolicitud s
+    ON s.SolicitudVacacionesID = e.SolicitudVacacionesID
+INNER JOIN dbo.Persona p
+    ON p.PersonaID = s.PersonaID
+LEFT JOIN dbo.Persona pj
+    ON pj.PersonaID = p.JefeInmediatoPersonaID
+WHERE e.EdicionRHID = @EdicionRHID;";
+
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@EdicionRHID", edicionRhId);
+
+                using (var rd = await cmd.ExecuteReaderAsync())
+                {
+                    if (!await rd.ReadAsync())
+                        return;
+
+                    solicitudId = Convert.ToInt32(rd["SolicitudVacacionesID"]);
+                    personaColaboradorId = Convert.ToInt32(
+                        rd["PersonaColaboradorID"]);
+                    personaJefeId = rd["PersonaJefeID"] == DBNull.Value
+                        ? null
+                        : Convert.ToInt32(rd["PersonaJefeID"]);
+
+                    numeroEmpleado = rd["NumeroEmpleado"]?.ToString() ?? "";
+                    nombreColaborador =
+                        rd["NombreColaborador"]?.ToString()?.Trim()
+                        ?? "Colaborador";
+                    nombreJefe =
+                        rd["NombreJefe"]?.ToString()?.Trim()
+                        ?? "Jefe inmediato";
+
+                    fechaInicioAnterior = Convert.ToDateTime(
+                        rd["FechaInicioAnterior"]);
+                    fechaFinAnterior = Convert.ToDateTime(
+                        rd["FechaFinAnterior"]);
+                    diasAnteriores = Convert.ToDecimal(rd["DiasAnteriores"]);
+                    fechaInicioNueva = Convert.ToDateTime(
+                        rd["FechaInicioNueva"]);
+                    fechaFinNueva = Convert.ToDateTime(
+                        rd["FechaFinNueva"]);
+                    diasNuevos = Convert.ToDecimal(rd["DiasNuevos"]);
+                    diasDevueltos = Convert.ToDecimal(rd["DiasDevueltos"]);
+                    motivo = rd["Motivo"]?.ToString() ?? "";
+                }
+            }
+        }
+
+        var destinatarios = new List<int> { personaColaboradorId };
+        if (personaJefeId.HasValue)
+            destinatarios.Add(personaJefeId.Value);
+
+        destinatarios = destinatarios.Distinct().ToList();
+
+        var asunto =
+            $"Vacaciones ajustadas por RH - Folio {solicitudId}";
+
+        var html = $@"
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+  <div style='max-width:680px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+    <div style='padding:20px; background:#0d6efd; color:#fff; text-align:center;'>
+      <h2 style='margin:0;'>Vacaciones ajustadas por Recursos Humanos</h2>
+    </div>
+    <div style='padding:20px; color:#333;'>
+      <p>
+        La solicitud del colaborador
+        <strong>{System.Net.WebUtility.HtmlEncode(nombreColaborador)}</strong>
+        ({System.Net.WebUtility.HtmlEncode(numeroEmpleado)}) fue actualizada por Recursos Humanos.
+      </p>
+
+      <div style='background:#fff3cd; border-left:4px solid #f0ad4e; padding:12px 14px; border-radius:6px; margin:14px 0;'>
+        <p style='margin:0 0 6px;'><strong>Folio:</strong> {solicitudId}</p>
+        <p style='margin:0 0 6px;'><strong>Periodo anterior:</strong> {fechaInicioAnterior:dd/MM/yyyy} al {fechaFinAnterior:dd/MM/yyyy}</p>
+        <p style='margin:0;'><strong>Días anteriores:</strong> {diasAnteriores}</p>
+      </div>
+
+      <div style='background:#eaf7ee; border-left:4px solid #198754; padding:12px 14px; border-radius:6px; margin:14px 0;'>
+        <p style='margin:0 0 6px;'><strong>Periodo corregido:</strong> {fechaInicioNueva:dd/MM/yyyy} al {fechaFinNueva:dd/MM/yyyy}</p>
+        <p style='margin:0 0 6px;'><strong>Días realmente tomados:</strong> {diasNuevos}</p>
+        <p style='margin:0;'><strong>Días devueltos al saldo:</strong> {diasDevueltos}</p>
+      </div>
+
+      <p><strong>Motivo:</strong> {System.Net.WebUtility.HtmlEncode(motivo)}</p>
+      <p>El saldo disponible del colaborador ya fue actualizado.</p>
+      <p>https://intranet.nsgroup.com.mx/</p>
+      <p style='color:#666; font-size:12px; margin-top:18px;'>Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.</p>
+    </div>
+  </div>
+</body>
+</html>";
+
+        await _notif.EnviarABccPersonasAsync(
+            destinatarios,
+            asunto,
+            html);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(
+            ex,
+            "Error notificando edición RH. EdicionRHID={EdicionRHID}",
+            edicionRhId);
+    }
+}
 
 
         [HttpGet]
@@ -600,6 +1458,234 @@ namespace ProyectoMatrix.Controllers
             {
                 _logger.LogError(ex, "Error en GuardarAjusteManual");
                 return Json(new { success = false, message = "Error: " + ex.Message });
+            }
+        }
+
+
+        private async Task NotificarJefeSolicitudModificadaAsync(
+            int solicitudId,
+            DateTime fechaInicioAnterior,
+            DateTime fechaFinAnterior,
+            decimal diasAnteriores)
+        {
+            try
+            {
+                int? personaJefeId = null;
+                string nombreJefe = "Jefe inmediato";
+                string nombreColaborador = "Colaborador";
+                string numeroEmpleado = "";
+                DateTime fechaInicioNueva = DateTime.Today;
+                DateTime fechaFinNueva = DateTime.Today;
+                decimal diasNuevos = 0m;
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    using (var cmd = new SqlCommand(@"
+SELECT
+    s.FechaInicio,
+    s.FechaFin,
+    s.DiasSolicitados,
+    p.NumeroEmpleado,
+    (p.ApellidoPaterno + ' ' + p.ApellidoMaterno + ' ' + p.Nombre) AS NombreColaborador,
+    pj.PersonaID AS PersonaJefeID,
+    (pj.ApellidoPaterno + ' ' + pj.ApellidoMaterno + ' ' + pj.Nombre) AS NombreJefe
+FROM VacacionesSolicitud s
+INNER JOIN Persona p ON p.PersonaID = s.PersonaID
+LEFT JOIN Persona pj ON pj.PersonaID = p.JefeInmediatoPersonaID
+WHERE s.SolicitudVacacionesID = @SolicitudID;", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
+
+                        using (var rd = await cmd.ExecuteReaderAsync())
+                        {
+                            if (!await rd.ReadAsync())
+                                return;
+
+                            if (rd["PersonaJefeID"] != DBNull.Value)
+                                personaJefeId = Convert.ToInt32(rd["PersonaJefeID"]);
+
+                            nombreJefe = rd["NombreJefe"]?.ToString() ?? nombreJefe;
+                            nombreColaborador = rd["NombreColaborador"]?.ToString() ?? nombreColaborador;
+                            numeroEmpleado = rd["NumeroEmpleado"]?.ToString() ?? "";
+                            fechaInicioNueva = Convert.ToDateTime(rd["FechaInicio"]);
+                            fechaFinNueva = Convert.ToDateTime(rd["FechaFin"]);
+                            diasNuevos = Convert.ToDecimal(rd["DiasSolicitados"]);
+                        }
+                    }
+                }
+
+                if (!personaJefeId.HasValue)
+                {
+                    _logger.LogWarning(
+                        "No se encontró jefe inmediato para notificar la modificación de la solicitud {SolicitudID}.",
+                        solicitudId);
+                    return;
+                }
+
+                var asunto =
+                    $"Solicitud de vacaciones modificada - {nombreColaborador} (folio {solicitudId})";
+
+                var html = $@"
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+  <div style='max-width:680px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+    <div style='padding:20px; background:#0d6efd; color:#fff; text-align:center;'>
+      <h2 style='margin:0;'>Solicitud de vacaciones modificada</h2>
+    </div>
+    <div style='padding:22px; color:#333;'>
+      <p>Hola <strong>{System.Net.WebUtility.HtmlEncode(nombreJefe)}</strong>,</p>
+      <p>
+        El colaborador <strong>{System.Net.WebUtility.HtmlEncode(nombreColaborador)}</strong>
+        ({System.Net.WebUtility.HtmlEncode(numeroEmpleado)}) modificó su solicitud de vacaciones
+        con folio <strong>{solicitudId}</strong>.
+      </p>
+
+      <table style='width:100%; border-collapse:collapse; margin:16px 0;'>
+        <thead>
+          <tr>
+            <th style='text-align:left; padding:10px; background:#f1f3f5;'>Dato</th>
+            <th style='text-align:left; padding:10px; background:#f1f3f5;'>Antes</th>
+            <th style='text-align:left; padding:10px; background:#f1f3f5;'>Ahora</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style='padding:10px; border-bottom:1px solid #dee2e6;'><strong>Periodo</strong></td>
+            <td style='padding:10px; border-bottom:1px solid #dee2e6;'>{fechaInicioAnterior:dd/MM/yyyy} al {fechaFinAnterior:dd/MM/yyyy}</td>
+            <td style='padding:10px; border-bottom:1px solid #dee2e6;'>{fechaInicioNueva:dd/MM/yyyy} al {fechaFinNueva:dd/MM/yyyy}</td>
+          </tr>
+          <tr>
+            <td style='padding:10px;'><strong>Días hábiles</strong></td>
+            <td style='padding:10px;'>{diasAnteriores}</td>
+            <td style='padding:10px;'>{diasNuevos}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>La solicitud continúa pendiente de tu autorización. Ingresa al módulo de <strong>Vacaciones</strong> para revisarla.</p>
+      <p>https://intranet.nsgroup.com.mx/</p>
+      <p style='color:#666; font-size:12px; margin-top:18px;'>Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.</p>
+    </div>
+  </div>
+</body>
+</html>";
+
+                await _notif.EnviarABccPersonasAsync(
+                    new List<int> { personaJefeId.Value },
+                    asunto,
+                    html);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error notificando al jefe la modificación de la solicitud {SolicitudID}.",
+                    solicitudId);
+            }
+        }
+
+
+        private async Task NotificarJefeSolicitudCanceladaAsync(
+            int solicitudId,
+            DateTime fechaInicio,
+            DateTime fechaFin,
+            decimal diasSolicitados,
+            string motivo)
+        {
+            try
+            {
+                int? personaJefeId = null;
+                string nombreJefe = "Jefe inmediato";
+                string nombreColaborador = "Colaborador";
+                string numeroEmpleado = "";
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    using (var cmd = new SqlCommand(@"
+SELECT
+    p.NumeroEmpleado,
+    (p.ApellidoPaterno + ' ' + p.ApellidoMaterno + ' ' + p.Nombre) AS NombreColaborador,
+    pj.PersonaID AS PersonaJefeID,
+    (pj.ApellidoPaterno + ' ' + pj.ApellidoMaterno + ' ' + pj.Nombre) AS NombreJefe
+FROM VacacionesSolicitud s
+INNER JOIN Persona p ON p.PersonaID = s.PersonaID
+LEFT JOIN Persona pj ON pj.PersonaID = p.JefeInmediatoPersonaID
+WHERE s.SolicitudVacacionesID = @SolicitudID;", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@SolicitudID", solicitudId);
+
+                        using (var rd = await cmd.ExecuteReaderAsync())
+                        {
+                            if (!await rd.ReadAsync())
+                                return;
+
+                            if (rd["PersonaJefeID"] != DBNull.Value)
+                                personaJefeId = Convert.ToInt32(rd["PersonaJefeID"]);
+
+                            nombreJefe = rd["NombreJefe"]?.ToString() ?? nombreJefe;
+                            nombreColaborador = rd["NombreColaborador"]?.ToString() ?? nombreColaborador;
+                            numeroEmpleado = rd["NumeroEmpleado"]?.ToString() ?? "";
+                        }
+                    }
+                }
+
+                if (!personaJefeId.HasValue)
+                {
+                    _logger.LogWarning(
+                        "No se encontró jefe inmediato para notificar la cancelación de la solicitud {SolicitudID}.",
+                        solicitudId);
+                    return;
+                }
+
+                var asunto =
+                    $"Solicitud de vacaciones cancelada - {nombreColaborador} (folio {solicitudId})";
+
+                var html = $@"
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='font-family:Segoe UI,Arial; background:#f4f4f9; padding:20px;'>
+  <div style='max-width:650px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,.08);'>
+    <div style='padding:20px; background:#dc3545; color:#fff; text-align:center;'>
+      <h2 style='margin:0;'>Solicitud de vacaciones cancelada</h2>
+    </div>
+    <div style='padding:22px; color:#333;'>
+      <p>Hola <strong>{System.Net.WebUtility.HtmlEncode(nombreJefe)}</strong>,</p>
+      <p>
+        El colaborador <strong>{System.Net.WebUtility.HtmlEncode(nombreColaborador)}</strong>
+        ({System.Net.WebUtility.HtmlEncode(numeroEmpleado)}) canceló su solicitud de vacaciones.
+      </p>
+
+      <div style='background:#f8f9fa; border-left:4px solid #dc3545; padding:12px 14px; border-radius:6px; margin:14px 0;'>
+        <p style='margin:0 0 6px;'><strong>Folio:</strong> {solicitudId}</p>
+        <p style='margin:0 0 6px;'><strong>Periodo:</strong> {fechaInicio:dd/MM/yyyy} al {fechaFin:dd/MM/yyyy}</p>
+        <p style='margin:0 0 6px;'><strong>Días hábiles:</strong> {diasSolicitados}</p>
+        <p style='margin:0;'><strong>Motivo:</strong> {System.Net.WebUtility.HtmlEncode(motivo)}</p>
+      </div>
+
+      <p>La solicitud fue retirada de tus pendientes y ya no requiere autorización.</p>
+      <p>https://intranet.nsgroup.com.mx/</p>
+      <p style='color:#666; font-size:12px; margin-top:18px;'>Mensaje generado automáticamente por la Intranet NS Group. No respondas a este correo.</p>
+    </div>
+  </div>
+</body>
+</html>";
+
+                await _notif.EnviarABccPersonasAsync(
+                    new List<int> { personaJefeId.Value },
+                    asunto,
+                    html);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error notificando al jefe la cancelación de la solicitud {SolicitudID}.",
+                    solicitudId);
             }
         }
 
@@ -1241,7 +2327,7 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
 </body>
 </html>";
 
-                            
+
                             // pero sólo con el PersonaID del jefe
                             var personaIds = new List<int> { personaJefeId };
                             var resultado = await _notif.EnviarABccPersonasAsync(personaIds, asunto, html);
@@ -1343,7 +2429,7 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                             vm.EstadoAutorizacion = rd["EstadoAutorizacion"]?.ToString();
                             vm.EstadoRH = rd["EstadoRecursosHumanos"]?.ToString();
 
-                            
+
                             vm.FechaAutorizacion = rd["FechaAutorizacionJefe"] == DBNull.Value
                                 ? (DateTime?)null
                                 : (DateTime)rd["FechaAutorizacionJefe"];
@@ -1394,7 +2480,7 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                     // (Opcional) Seguridad: sólo colaborador, su jefe o RH
                     bool esColaborador = personaActualId == personaSolicitudId;
                     bool esRH = EsUsuarioRecursosHumanos(conn, usuarioId);
-                   
+
                     if (!esColaborador && !esRH)
                     {
                         return Forbid();
@@ -1518,7 +2604,7 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                         int nuevaId = (int)paramIdOut.Value;
 
                         // lógica de notificar a RH directamente
-                       // await NotificarRH_SolicitudAutorizadaAsync(nuevaId);
+                        // await NotificarRH_SolicitudAutorizadaAsync(nuevaId);
                     }
                 }
                 TempData["MensajeVacaciones"] = "Solicitud para el equipo creada correctamente.";
@@ -1610,14 +2696,14 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                         }
                     }
 
-                  
+
                     ViewBag.HabilitacionesEspeciales = habilitacionesParaRRHH;
                     ViewBag.Q = q;
 
                     // --- BLOQUE 3: Lógica de Tabs ---
                     if (vm.Tab == "usuarios")
                     {
-                        
+
                         var sqlUsuarios = @"
         SELECT 
             p.PersonaID, 
@@ -1648,7 +2734,7 @@ WHERE s.SolicitudVacacionesID = @SolicitudID;";
                         {
                             while (rU.Read())
                             {
-                                
+
                                 vm.Usuarios.Add(new VacacionesUsuarioSaldoRHVm
                                 {
                                     PersonaID = rU["PersonaID"] == DBNull.Value ? 0 : Convert.ToInt32(rU["PersonaID"]),
@@ -1957,9 +3043,9 @@ ORDER BY b.FechaSolicitud DESC;";
                     // Si el correo falla logueamos el error pero no rompemos la respuesta JSON de éxito de la BD
                     _logger.LogError(exMail, "Error al enviar correo de notificación por días extra a PersonaID {0}", PersonaID);
                 }
-              
-        
-        return Json(new { success = true, message = $"Se otorgaron {DiasRegalo} días extra correctamente y se notificó al colaborador." });
+
+
+                return Json(new { success = true, message = $"Se otorgaron {DiasRegalo} días extra correctamente y se notificó al colaborador." });
             }
             catch (Exception ex)
             {
@@ -1970,16 +3056,16 @@ ORDER BY b.FechaSolicitud DESC;";
 
 
         private static (string aaMm, int anios) CalcularAntiguedad(DateTime ingreso, DateTime hoy)
-{
-    int totalMeses = (hoy.Year - ingreso.Year) * 12 + (hoy.Month - ingreso.Month);
-    if (hoy.Day < ingreso.Day) totalMeses--;
+        {
+            int totalMeses = (hoy.Year - ingreso.Year) * 12 + (hoy.Month - ingreso.Month);
+            if (hoy.Day < ingreso.Day) totalMeses--;
 
-    if (totalMeses < 0) totalMeses = 0;
+            if (totalMeses < 0) totalMeses = 0;
 
-    int anios = totalMeses / 12;
-    int meses = totalMeses % 12;
-    return ($"{anios:D2}-{meses:D2}", anios);
-}
+            int anios = totalMeses / 12;
+            int meses = totalMeses % 12;
+            return ($"{anios:D2}-{meses:D2}", anios);
+        }
 
 
 
@@ -2228,7 +3314,7 @@ ORDER BY b.FechaSolicitud DESC;";
 
         private int ObtenerUsuarioIdActual()
         {
-           
+
             var claim = User.FindFirst(ClaimTypes.NameIdentifier);
 
             if (claim == null || string.IsNullOrEmpty(claim.Value))
@@ -2495,7 +3581,10 @@ ORDER BY b.FechaSolicitud DESC;";
         //Helpers para validar si tiene permiso de vacaciones adelantadas, obtener dias disponibles y contardias habbiles
 
 
-        private bool TienePermisoVacacionesAdelantadas(SqlConnection conn, int usuarioId)
+        private bool TienePermisoVacacionesAdelantadas(
+            SqlConnection conn,
+            int usuarioId,
+            SqlTransaction? trans = null)
         {
             var sql = @"
 SELECT COUNT(*)
@@ -2506,12 +3595,18 @@ WHERE UsuarioID = @UsuarioID
 
             using (var cmd = new SqlCommand(sql, conn))
             {
+                if (trans != null)
+                    cmd.Transaction = trans;
+
                 cmd.Parameters.AddWithValue("@UsuarioID", usuarioId);
                 return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
             }
         }
 
-        private decimal ObtenerDiasDisponibles(SqlConnection conn, int personaId)
+        private decimal ObtenerDiasDisponibles(
+            SqlConnection conn,
+            int personaId,
+            SqlTransaction? trans = null)
         {
             var sql = @"
 SELECT TOP 1 DiasDisponibles
@@ -2521,22 +3616,86 @@ ORDER BY AnioSaldo DESC;";
 
             using (var cmd = new SqlCommand(sql, conn))
             {
+                if (trans != null)
+                    cmd.Transaction = trans;
+
                 cmd.Parameters.AddWithValue("@PersonaID", personaId);
                 var result = cmd.ExecuteScalar();
-                return result == null || result == DBNull.Value ? 0m : Convert.ToDecimal(result);
+                return result == null || result == DBNull.Value
+                    ? 0m
+                    : Convert.ToDecimal(result);
             }
         }
 
-        private decimal ContarDiasHabiles(SqlConnection conn, DateTime inicio, DateTime fin)
+        private decimal ContarDiasHabiles(
+            SqlConnection conn,
+            DateTime inicio,
+            DateTime fin,
+            SqlTransaction? trans = null)
         {
-            var sql = "SELECT dbo.fn_ContarDiasHabiles(@Inicio, @Fin);";
+            const string sql = "SELECT dbo.fn_ContarDiasHabiles(@Inicio, @Fin);";
 
             using (var cmd = new SqlCommand(sql, conn))
             {
+                if (trans != null)
+                    cmd.Transaction = trans;
+
                 cmd.Parameters.AddWithValue("@Inicio", inicio.Date);
                 cmd.Parameters.AddWithValue("@Fin", fin.Date);
-                return Convert.ToDecimal(cmd.ExecuteScalar());
+
+                var result = cmd.ExecuteScalar();
+                return result == null || result == DBNull.Value
+                    ? 0m
+                    : Convert.ToDecimal(result);
             }
+        }
+
+        private DateTime ObtenerSiguienteDiaHabil(
+            SqlConnection conn,
+            DateTime fechaFin,
+            SqlTransaction? trans = null)
+        {
+            var sql = @"
+DECLARE @FechaRegreso DATE = DATEADD(DAY, 1, @FechaFin);
+
+WHILE dbo.fn_ContarDiasHabiles(@FechaRegreso, @FechaRegreso) = 0
+BEGIN
+    SET @FechaRegreso = DATEADD(DAY, 1, @FechaRegreso);
+END;
+
+SELECT @FechaRegreso;";
+
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                if (trans != null)
+                    cmd.Transaction = trans;
+
+                cmd.Parameters.AddWithValue("@FechaFin", fechaFin.Date);
+                return Convert.ToDateTime(cmd.ExecuteScalar());
+            }
+        }
+
+        private static bool PuedeModificarSolicitud(
+            string? estadoAutorizacion,
+            string? estadoRecursosHumanos,
+            string? origen)
+        {
+            bool pendienteJefe = string.Equals(
+                estadoAutorizacion?.Trim(),
+                "Pendiente",
+                StringComparison.OrdinalIgnoreCase);
+
+            string estadoRH = estadoRecursosHumanos?.Trim() ?? "";
+            bool sinProcesarRH = string.IsNullOrWhiteSpace(estadoRH)
+                || string.Equals(estadoRH, "SinRegistrar", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(estadoRH, "Pendiente", StringComparison.OrdinalIgnoreCase);
+
+            bool creadaPorColaborador = string.Equals(
+                origen?.Trim(),
+                "Colaborador",
+                StringComparison.OrdinalIgnoreCase);
+
+            return pendienteJefe && sinProcesarRH && creadaPorColaborador;
         }
 
 
@@ -2551,17 +3710,17 @@ ORDER BY AnioSaldo DESC;";
         private static int GetInt(IDataRecord r, string col) =>
     r[col] == DBNull.Value ? 0 : Convert.ToInt32(r[col]);
 
-private static decimal GetDecimal(IDataRecord r, string col) =>
-    r[col] == DBNull.Value ? 0m : Convert.ToDecimal(r[col]);
+        private static decimal GetDecimal(IDataRecord r, string col) =>
+            r[col] == DBNull.Value ? 0m : Convert.ToDecimal(r[col]);
 
-private static DateTime? GetDate(IDataRecord r, string col) =>
-    r[col] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r[col]);
+        private static DateTime? GetDate(IDataRecord r, string col) =>
+            r[col] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r[col]);
 
-private static bool GetBool(IDataRecord r, string col) =>
-    r[col] != DBNull.Value && Convert.ToBoolean(r[col]);
+        private static bool GetBool(IDataRecord r, string col) =>
+            r[col] != DBNull.Value && Convert.ToBoolean(r[col]);
 
-private static string GetString(IDataRecord r, string col) =>
-    r[col] == DBNull.Value ? "" : r[col].ToString();
+        private static string GetString(IDataRecord r, string col) =>
+            r[col] == DBNull.Value ? "" : r[col].ToString();
 
 
     }

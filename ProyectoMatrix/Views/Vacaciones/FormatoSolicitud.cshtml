@@ -1,6 +1,6 @@
 ﻿@model ProyectoMatrix.Models.VacacionesSolicitudFormatoVm
 @{
-    Layout = null; // vista independiente para imprimir
+    Layout = null;
 }
 
 <!DOCTYPE html>
@@ -9,277 +9,323 @@
     <meta charset="utf-8" />
     <title>Solicitud de vacaciones - Folio @Model.SolicitudVacacionesID</title>
     <style>
-        body {
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f9;
-            margin: 0;
-            padding: 20px;
-        }
-
-        .page {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 20px 30px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-
-        h1, h2, h3 {
-            margin: 0;
-            padding: 0;
-        }
-
-        .encabezado {
-            display: grid;
-            grid-template-columns: 120px 1fr 160px;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .logo {
-            max-height: 80px;
-        }
-
-        .encabezado-centro {
-            text-align: center;
-        }
-
-            .encabezado-centro h1 {
-                font-size: 18px;
-                margin-bottom: 4px;
+            :root {
+                --azul: #0b2f63;
+                --azul-2: #1558b0;
+                --naranja: #ff6d00;
+                --texto: #10213f;
+                --muted: #66738a;
+                --borde: #dfe7f3;
+                --fondo: #f4f7fb;
             }
 
-            .encabezado-centro p {
-                margin: 2px 0;
+            * {
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                background: var(--fondo);
+                color: var(--texto);
+                margin: 0;
+                padding: 24px;
+            }
+
+            .acciones {
+                max-width: 900px;
+                margin: 0 auto 14px;
+                text-align: right;
+            }
+
+            .btn-imp {
+                border: 0;
+                border-radius: 12px;
+                background: linear-gradient(135deg, var(--azul), var(--azul-2));
+                color: #fff;
+                padding: 10px 16px;
+                font-weight: 800;
+                cursor: pointer;
+                box-shadow: 0 10px 24px rgba(21, 88, 176, .18);
+            }
+
+            .page {
+                max-width: 900px;
+                margin: 0 auto;
+                background: #fff;
+                border: 1px solid var(--borde);
+                border-radius: 22px;
+                overflow: hidden;
+                box-shadow: 0 18px 48px rgba(13, 42, 89, .13);
+            }
+
+            .encabezado {
+                display: grid;
+                grid-template-columns: 130px 1fr 190px;
+                gap: 18px;
+                align-items: center;
+                padding: 24px 28px;
+                background: linear-gradient(135deg, #071f45, #123f85);
+                color: #fff;
+            }
+
+            .logo {
+                max-height: 76px;
+                max-width: 110px;
+                background: #fff;
+                padding: 8px;
+                border-radius: 14px;
+            }
+
+            .encabezado-centro {
+                text-align: center;
+            }
+
+                .encabezado-centro h1 {
+                    margin: 0;
+                    font-size: 24px;
+                    letter-spacing: .04em;
+                }
+
+                .encabezado-centro p {
+                    margin: 4px 0 0;
+                    font-size: 12px;
+                    letter-spacing: .08em;
+                    text-transform: uppercase;
+                    opacity: .9;
+                }
+
+            .encabezado-der {
+                text-align: right;
+                font-size: 12px;
+                line-height: 1.35;
+            }
+
+                .encabezado-der p {
+                    margin: 2px 0;
+                }
+
+            .folio-chip {
+                display: inline-block;
+                background: #fff;
+                color: var(--azul);
+                padding: 8px 12px;
+                border-radius: 999px;
+                font-weight: 900;
+                margin-bottom: 6px;
+            }
+
+            .contenido {
+                padding: 26px 28px 30px;
+            }
+
+            .seccion-titulo {
+                margin: 20px 0 10px;
+                padding-left: 12px;
+                border-left: 5px solid var(--naranja);
+                color: var(--azul);
+                font-size: 14px;
+                font-weight: 900;
+                text-transform: uppercase;
+                letter-spacing: .04em;
+            }
+
+            table.info,
+            .resumen-saldos table {
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0;
+                border: 1px solid var(--borde);
+                border-radius: 16px;
+                overflow: hidden;
+                font-size: 13px;
+                background: #fff;
+            }
+
+                table.info td {
+                    border-top: 1px solid #edf2f8;
+                    padding: 10px 12px;
+                    vertical-align: top;
+                }
+
+                table.info tr:first-child td {
+                    border-top: 0;
+                }
+
+                table.info td.label {
+                    width: 23%;
+                    background: #f7f9fc;
+                    color: var(--azul);
+                    font-weight: 850;
+                }
+
+            .resumen-saldos th {
+                background: linear-gradient(135deg, var(--azul), var(--azul-2));
+                color: #fff;
+                padding: 11px 10px;
+                text-align: center;
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: .04em;
+            }
+
+            .resumen-saldos td {
+                padding: 14px 10px;
+                text-align: center;
+                font-size: 18px;
+                font-weight: 900;
+                border-top: 1px solid var(--borde);
+            }
+
+                .resumen-saldos td:last-child {
+                    color: var(--naranja);
+                }
+
+            .firmas {
+                margin-top: 34px;
+                display: flex;
+                justify-content: space-between;
+                gap: 24px;
                 font-size: 13px;
             }
 
-        .encabezado-der {
-            font-size: 12px;
-            text-align: right;
-        }
-
-        .seccion-titulo {
-            font-size: 14px;
-            font-weight: 600;
-            margin-top: 16px;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            color: #444;
-        }
-
-        table.info {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-            margin-bottom: 8px;
-        }
-
-        table.info td {
-            padding: 4px 6px;
-            vertical-align: top;
-        }
-
-        table.info td.label {
-            font-weight: 600;
-            width: 30%;
-        }
-
-        .resumen-saldos {
-            margin-top: 10px;
-            margin-bottom: 16px;
-        }
-
-        .resumen-saldos table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        .resumen-saldos th,
-        .resumen-saldos td {
-            border: 1px solid #ccc;
-            padding: 4px 6px;
-            text-align: center;
-        }
-
-        .firmas {
-            margin-top: 30px;
-            display: flex;
-            justify-content: space-between;
-            font-size: 13px;
-        }
-
-        .firma {
-            width: 45%;
-            text-align: center;
-        }
-
-        .firma-linea {
-            margin-top: 40px;
-            border-top: 1px solid #000;
-            padding-top: 4px;
-        }
-
-        .acciones {
-            text-align: right;
-            margin-bottom: 10px;
-        }
-
-        .btn-imp {
-            padding: 6px 12px;
-            font-size: 13px;
-            border-radius: 4px;
-            border: 1px solid #888;
-            background-color: #f2f2f2;
-            cursor: pointer;
-        }
-
-        @@media print {
-            body {
-                background-color: #ffffff;
-                padding: 0;
+            .firma {
+                width: 100%;
+                text-align: center;
             }
-            .acciones {
-                display: none;
+
+            .firma-linea {
+                margin-top: 44px;
+                border-top: 1px solid #1b2d4a;
+                padding-top: 8px;
+                color: var(--azul);
+                font-weight: 800;
             }
-            .page {
-                box-shadow: none;
-                border-radius: 0;
+
+            @@media print {
+                body {
+                    background: #fff;
+                    padding: 0;
+                }
+
+                .acciones {
+                    display: none;
+                }
+
+                .page {
+                    max-width: none;
+                    border: 0;
+                    border-radius: 0;
+                    box-shadow: none;
+                }
+
+                .encabezado {
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
             }
-        }
     </style>
 </head>
 <body>
     <div class="acciones">
-        <button class="btn-imp" onclick="window.print();">Imprimir</button>
+        <button class="btn-imp" onclick="window.print();">Imprimir formato</button>
     </div>
 
     <div class="page">
         <div class="encabezado">
             <div>
-                <img src="~/Imagenes/logo.png"
-                     alt="NS Group"
-                     class="logo" />
+                <img src="~/Imagenes/logo.png" alt="NS Group" class="logo" />
             </div>
 
             <div class="encabezado-centro">
                 <h1>NS GROUP</h1>
-                <p>DIRECCIÓN DE RECURSOS HUMANOS</p>
-                <p><strong>VACACIONES</strong></p>
+                <p>Dirección de Recursos Humanos</p>
+                <p><strong>Solicitud de vacaciones</strong></p>
             </div>
 
             <div class="encabezado-der">
+                <div class="folio-chip">Folio @Model.SolicitudVacacionesID</div>
                 <p><strong>RECH-F013</strong></p>
-                <p>Folio: <strong>@Model.SolicitudVacacionesID</strong></p>
-                <p>Fecha solicitud: @Model.FechaSolicitud.ToString("dd/MM/yyyy")</p>
-                
-        <p>Publicación: 01/Ago/22</p>
-        <p>Revisión: ____</p>
-        
+                <p>Solicitud: @Model.FechaSolicitud.ToString("dd/MM/yyyy")</p>
+                <p>Publicación: 01/Ago/22</p>
+                <p>Revisión: ____</p>
             </div>
         </div>
 
-
-        <div>
-            <div class="seccion-titulo">Solicitud</div>
+        <div class="contenido">
+            <div class="seccion-titulo">Datos del colaborador</div>
             <table class="info">
                 <tr>
-                    <td class="label">Número de empleado:</td>
+                    <td class="label">Número de empleado</td>
                     <td>@Model.NumeroEmpleado</td>
-                    <td class="label">Fecha de solicitud:</td>
+                    <td class="label">Fecha de solicitud</td>
                     <td>@Model.FechaSolicitud.ToString("dd/MM/yyyy")</td>
                 </tr>
                 <tr>
-                    <td class="label">Sociedad:</td>
+                    <td class="label">Sociedad</td>
                     <td>@Model.Sociedad</td>
-                    <td class="label">Empresa:</td>
+                    <td class="label">Empresa</td>
                     <td>@Model.Empresa</td>
                 </tr>
                 <tr>
-                    <td class="label">Nombre:</td>
+                    <td class="label">Nombre</td>
                     <td colspan="3">@Model.NombreColaborador</td>
                 </tr>
                 <tr>
-                    <td class="label">Puesto:</td>
+                    <td class="label">Puesto</td>
                     <td>@Model.Puesto</td>
-                    <td class="label">Departamento:</td>
+                    <td class="label">Departamento</td>
                     <td>@Model.Departamento</td>
                 </tr>
-                <tr>
-                    <td class="label">Días solicitados:</td>
-                    <td>@Model.DiasSolicitados</td>
-                    <td class="label">Fechas:</td>
-                    <td>
-                        @Model.FechaInicio.ToString("dd/MM/yyyy")
-                        &nbsp;al&nbsp;
-                        @Model.FechaFin.ToString("dd/MM/yyyy")
-                    </td>
-                </tr>
             </table>
-        </div>
 
-
-        <div>
             <div class="seccion-titulo">Información de la solicitud</div>
             <table class="info">
                 <tr>
-                    <td class="label">Periodo solicitado:</td>
+                    <td class="label">Periodo solicitado</td>
                     <td>@Model.FechaInicio.ToString("dd/MM/yyyy") al @Model.FechaFin.ToString("dd/MM/yyyy")</td>
                 </tr>
                 <tr>
-                    <td class="label">Días hábiles solicitados:</td>
+                    <td class="label">Días hábiles solicitados</td>
                     <td>@Model.DiasSolicitados</td>
                 </tr>
                 <tr>
-                    <td class="label">Tipo:</td>
+                    <td class="label">Tipo</td>
                     <td>@(Model.EsAnticipada ? "Vacaciones anticipadas" : "Vacaciones normales")</td>
                 </tr>
                 <tr>
-                    <td class="label">Estatus jefe:</td>
+                    <td class="label">Estatus jefe</td>
                     <td>@Model.EstadoAutorizacion</td>
                 </tr>
                 <tr>
-                    <td class="label">Estatus RH:</td>
+                    <td class="label">Estatus RH</td>
                     <td>@Model.EstadoRH</td>
                 </tr>
             </table>
-        </div>
 
-        <div class="resumen-saldos">
-            <div class="seccion-titulo">Resumen de saldos de vacaciones</div>
-            <table>
-                <tr>
-                    <th>Días que le corresponden</th>
-                    <th>Días tomados</th>
-                    <th>Días disponibles</th>
-                </tr>
-                <tr>
-                    <td>@Model.DiasCorrespondientes</td>
-                    <td>@Model.DiasTomados</td>
-                    <td>@Model.DiasDisponibles</td>
-                </tr>
-            </table>
-        </div>
-
-        <div class="firmas">
-            <div class="firma">
-                <div class="firma-linea">
-                    Firma del colaborador
-                </div>
+            <div class="resumen-saldos">
+                <div class="seccion-titulo">Resumen de saldos</div>
+                <table>
+                    <tr>
+                        <th>Días correspondientes</th>
+                        <th>Días tomados</th>
+                        <th>Días disponibles</th>
+                    </tr>
+                    <tr>
+                        <td>@Model.DiasCorrespondientes</td>
+                        <td>@Model.DiasTomados</td>
+                        <td>@Model.DiasDisponibles</td>
+                    </tr>
+                </table>
             </div>
-            <div class="firma">
-                <div class="firma-linea">
-                    Jefe inmediato
-                </div>
-            </div>
-        </div>
 
-        <div class="firmas" style="margin-top: 40px;">
-            <div class="firma" style="margin: 0 auto;">
-                <div class="firma-linea">
-                    Recursos Humanos
+            <div class="firmas">
+                <div class="firma"><div class="firma-linea">Firma del colaborador</div></div>
+                <div class="firma"><div class="firma-linea">Jefe inmediato</div></div>
+            </div>
+
+            <div class="firmas" style="margin-top: 40px;">
+                <div class="firma" style="max-width: 360px; margin: 0 auto;">
+                    <div class="firma-linea">Recursos Humanos</div>
                 </div>
             </div>
         </div>
