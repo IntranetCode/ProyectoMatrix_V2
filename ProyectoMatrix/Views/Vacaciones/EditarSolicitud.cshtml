@@ -1,0 +1,89 @@
+﻿@model ProyectoMatrix.Models.EditarSolicitudVacacionesVm
+
+@{
+    ViewData["Title"] = "Editar solicitud de vacaciones";
+    Layout = "_LayoutComunicados";
+}
+<link href="~/css/vacaciones-modern.css" rel="stylesheet" />
+
+
+
+<div class="vacaciones-page">
+    <h2>Editar solicitud de vacaciones</h2>
+
+    @if (!string.IsNullOrWhiteSpace(ViewBag.Error as string))
+    {
+        <div class="alert alert-danger">@ViewBag.Error</div>
+    }
+
+    <div class="vac-hero-grid">
+        <section class="vac-panel">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+                <div>
+                    <h5 class="mt-0 mb-2">Ajustar periodo solicitado</h5>
+                    <p class="text-muted mb-0">Al guardar, tu jefe inmediato recibirá una notificación con los cambios realizados.</p>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <div class="vac-kpi"><span>Folio</span><strong>@Model.SolicitudVacacionesID</strong></div>
+                    <div class="vac-kpi"><span>Disponibles</span><strong>@Model.DiasDisponiblesActuales</strong></div>
+                </div>
+            </div>
+
+            <form asp-action="EditarSolicitud" method="post" id="formEditarSolicitud">
+                @Html.AntiForgeryToken()
+                <input asp-for="SolicitudVacacionesID" type="hidden" />
+
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="FechaInicio" class="form-label">Fecha de inicio</label>
+                        <input asp-for="FechaInicio" class="form-control" type="date" />
+                        <span asp-validation-for="FechaInicio" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="FechaFin" class="form-label">Fecha de fin</label>
+                        <input asp-for="FechaFin" class="form-control" type="date" />
+                        <span asp-validation-for="FechaFin" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-12">
+                        <label asp-for="Observaciones" class="form-label">Observaciones</label>
+                        <textarea asp-for="Observaciones" class="form-control" rows="4" placeholder="Describe el motivo del cambio."></textarea>
+                        <span asp-validation-for="Observaciones" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning small mt-4 mb-0">
+                    <strong>Importante:</strong> los días hábiles se recalcularán automáticamente y el jefe recibirá el periodo anterior y el nuevo.
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Guardar cambios
+                    </button>
+                    <a asp-action="MisVacaciones" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Regresar
+                    </a>
+                </div>
+            </form>
+        </section>
+
+        <aside class="vac-panel vac-panel-soft">
+            <h5 class="mt-0 mb-3">Reglas de edición</h5>
+            <p class="text-muted mb-3">Solo podrás editar solicitudes que todavía estén pendientes de autorización.</p>
+            <div class="d-grid gap-2">
+                <span class="badge bg-warning-subtle text-start">Pendiente del jefe</span>
+                <span class="badge bg-warning-subtle text-start">Sin registro de RRHH</span>
+                <span class="badge bg-success-subtle text-start">Notificación automática</span>
+            </div>
+        </aside>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

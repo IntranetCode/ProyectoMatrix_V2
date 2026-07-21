@@ -1,0 +1,155 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|c:\\users\\luis.diaz\\documents\\proyectomatrix_v2\\proyectomatrix\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|solutionrelative:proyectomatrix\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|c:\\users\\luis.diaz\\documents\\proyectomatrix_v2\\proyectomatrix\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|solutionrelative:proyectomatrix\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|c:\\users\\luis.diaz\\documents\\proyectomatrix_v2\\proyectomatrix\\views\\vacaciones\\misvacaciones.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|solutionrelative:proyectomatrix\\views\\vacaciones\\misvacaciones.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|c:\\users\\luis.diaz\\documents\\proyectomatrix_v2\\proyectomatrix\\views\\operaciones\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|solutionrelative:proyectomatrix\\views\\operaciones\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|c:\\users\\luis.diaz\\documents\\proyectomatrix_v2\\proyectomatrix\\views\\vacaciones\\solicitudespendientesjefe.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|solutionrelative:proyectomatrix\\views\\vacaciones\\solicitudespendientesjefe.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|c:\\users\\luis.diaz\\documents\\proyectomatrix_v2\\proyectomatrix\\views\\vacaciones\\crearsolicitudequipo.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|solutionrelative:proyectomatrix\\views\\vacaciones\\crearsolicitudequipo.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|c:\\users\\luis.diaz\\documents\\proyectomatrix_v2\\proyectomatrix\\views\\vacaciones\\bandejarh.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|solutionrelative:proyectomatrix\\views\\vacaciones\\bandejarh.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|c:\\users\\luis.diaz\\documents\\proyectomatrix_v2\\proyectomatrix\\models\\vacaciones.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{29AD0B61-6254-4108-AD47-44C5AB7F362F}|ProyectoMatrix\\ProyectoMatrix.csproj|solutionrelative:proyectomatrix\\models\\vacaciones.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\appsettings.json",
+              "RelativeDocumentMoniker": "ProyectoMatrix\\appsettings.json",
+              "ToolTip": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\appsettings.json",
+              "RelativeToolTip": "ProyectoMatrix\\appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-07-20T19:33:30.39Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Program.cs",
+              "RelativeDocumentMoniker": "ProyectoMatrix\\Program.cs",
+              "ToolTip": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Program.cs",
+              "RelativeToolTip": "ProyectoMatrix\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-20T19:33:31.619Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Index.cshtml",
+              "DocumentMoniker": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Views\\Operaciones\\Index.cshtml",
+              "RelativeDocumentMoniker": "ProyectoMatrix\\Views\\Operaciones\\Index.cshtml",
+              "ToolTip": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Views\\Operaciones\\Index.cshtml",
+              "RelativeToolTip": "ProyectoMatrix\\Views\\Operaciones\\Index.cshtml",
+              "ViewState": "AgIAAIUGAAAAAAAAAAAQwIoGAAAQAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-07-20T15:09:27.586Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "MisVacaciones.cshtml",
+              "DocumentMoniker": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Views\\Vacaciones\\MisVacaciones.cshtml",
+              "RelativeDocumentMoniker": "ProyectoMatrix\\Views\\Vacaciones\\MisVacaciones.cshtml",
+              "ToolTip": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Views\\Vacaciones\\MisVacaciones.cshtml",
+              "RelativeToolTip": "ProyectoMatrix\\Views\\Vacaciones\\MisVacaciones.cshtml",
+              "ViewState": "AgIAADABAAAAAAAAAAAgwD0BAAAoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-07-20T14:42:03.937Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "CrearSolicitudEquipo.cshtml",
+              "DocumentMoniker": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Views\\Vacaciones\\CrearSolicitudEquipo.cshtml",
+              "RelativeDocumentMoniker": "ProyectoMatrix\\Views\\Vacaciones\\CrearSolicitudEquipo.cshtml",
+              "ToolTip": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Views\\Vacaciones\\CrearSolicitudEquipo.cshtml",
+              "RelativeToolTip": "ProyectoMatrix\\Views\\Vacaciones\\CrearSolicitudEquipo.cshtml",
+              "ViewState": "AgIAADIAAAAAAAAAAAAQwDsAAAAUAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-07-20T14:35:09.1Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "SolicitudesPendientesJefe.cshtml",
+              "DocumentMoniker": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Views\\Vacaciones\\SolicitudesPendientesJefe.cshtml",
+              "RelativeDocumentMoniker": "ProyectoMatrix\\Views\\Vacaciones\\SolicitudesPendientesJefe.cshtml",
+              "ToolTip": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Views\\Vacaciones\\SolicitudesPendientesJefe.cshtml",
+              "RelativeToolTip": "ProyectoMatrix\\Views\\Vacaciones\\SolicitudesPendientesJefe.cshtml",
+              "ViewState": "AgIAAC0AAAAAAAAAAAAgwDMAAAAEAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-07-20T14:07:03.821Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "BandejaRH.cshtml",
+              "DocumentMoniker": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Views\\Vacaciones\\BandejaRH.cshtml",
+              "RelativeDocumentMoniker": "ProyectoMatrix\\Views\\Vacaciones\\BandejaRH.cshtml",
+              "ToolTip": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Views\\Vacaciones\\BandejaRH.cshtml",
+              "RelativeToolTip": "ProyectoMatrix\\Views\\Vacaciones\\BandejaRH.cshtml",
+              "ViewState": "AgIAAFYDAAAAAAAAAAAuwGoDAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-07-17T17:38:52.895Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "Vacaciones.cs",
+              "DocumentMoniker": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Models\\Vacaciones.cs",
+              "RelativeDocumentMoniker": "ProyectoMatrix\\Models\\Vacaciones.cs",
+              "ToolTip": "C:\\Users\\luis.diaz\\Documents\\ProyectoMatrix_V2\\ProyectoMatrix\\Models\\Vacaciones.cs",
+              "RelativeToolTip": "ProyectoMatrix\\Models\\Vacaciones.cs",
+              "ViewState": "AgIAACkAAAAAAAAAAAA8wDIAAAAyAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-16T22:16:32.617Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

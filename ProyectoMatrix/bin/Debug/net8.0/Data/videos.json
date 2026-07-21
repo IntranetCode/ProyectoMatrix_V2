@@ -1,0 +1,18 @@
+[
+  {
+    "id": "0d117c66-b0ce-41f8-a262-cce829750486",
+    "title": "M\u00E9xico vs. Sud\u00E1frica",
+    "description": null,
+    "category": "Deportes",
+    "durationLabel": "En Vivo",
+    "posterUrl": "https://scontent.fpbc2-2.fna.fbcdn.net/v/t39.30808-6/595186925_1396695365155947_5963821159890234774_n.jpg?stp=cp6_dst-jpg_tt6\u0026cstp=mx1320x1328\u0026ctp=s1320x1328\u0026_nc_cat=100\u0026ccb=1-7\u0026_nc_sid=833d8c\u0026_nc_ohc=LW0dQzEOqWwQ7kNvwEFVFg8\u0026_nc_oc=AdpQ_wBnvaHt3HsBqOvcgSOgz-D-y0lOVZ4uGALmO2sSDLmWVBWL3gEfHOhU6zGRNIY\u0026_nc_zt=23\u0026_nc_ht=scontent.fpbc2-2.fna\u0026_nc_gid=Xs0Ad_9FJSh5-YBkHZDCQA\u0026_nc_ss=7b289\u0026oh=00_Af-Vrva11iCff2WjTwghvKl9781Rfa9XFXCvyL2Kp_b7rg\u0026oe=6A2CD88E",
+    "type": "Hls",
+    "url": "https://cgxheq.fubo18.com/sportv/mono.m3u8?token=01df7ce936eb6e2ab66bd7bc7502093c34f05c3c-11-1",
+    "url1080p": null,
+    "url720p": null,
+    "url480p": null,
+    "isActive": true,
+    "isFeatured": true,
+    "createdAtUtc": "2026-06-08T20:02:14.8805755Z"
+  }
+]
